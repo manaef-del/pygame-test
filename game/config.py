@@ -72,9 +72,38 @@ TOWER_BUILD_TIME = 12.0
 TOWER_SPEED_FACTOR = 0.6
 TOWER_DEPLOY_TIME = 3.0      # Sekunden am Wall, bis der Übergang steht
 TOWER_REACH = 0.7
+CLIMB_RATE = 1.2             # Männer je Sekunde, die eine Leiter oder ein Turm durchlässt
+FOLLOW_LAG = 2.5             # Kacheln: so weit darf die Gruppe ihren Männern beim Klettern vorauseilen
 ENEMY_RALLY_DISTANCE = 2.6   # Kacheln vor dem Tor, wo Räuber warten und bauen
 HORDE_TRIGGER = 4.0          # Kacheln: ab hier stürmt die Horde
 CAVALRY_TRIGGER = 5.0        # Kacheln: ab hier greifen feindliche Reiter an
+
+# Gegner-KI (siehe game/ai.py)
+AI_DEFAULT = "klug"          # "klug" = Stufen-KI, "einfach" = alte feste Regeln
+AI_INTERVAL = 0.5            # Sekunden zwischen zwei Lageberichten
+AI_PLAN_INTERVAL = 12.0      # Sekunden, bis ein Plan neu bewertet wird
+AI_FRONT_RANGE = 14.0        # Kacheln: so weit zählt eine Phalanx als sperrende Front
+AI_GATE_GUARD_RANGE = 3.5    # Kacheln hinter dem Tor: dort gilt es als bewacht
+AI_COVER_RANGE = 2.0         # Kacheln: Hopliten so nah decken Peltasten
+AI_WALL_WATCH = 4.0          # Kacheln vor dem Wall: Gegner dort gelten als Angriffspunkt
+AI_FLANK_MARGIN = 1.3        # Kacheln Abstand beim Umlaufen einer Front
+AI_RETREAT_LOSS = 0.35       # Anteil Verluste (Gefallene und Wunden) im Angriff, ab dem eine Gruppe zurückweicht
+AI_RETREAT_MORALE = 0.15     # Moralabstand zur Flucht, ab dem eine Gruppe lieber zurückweicht
+AI_RETREAT_DISTANCE = 3.0
+AI_RETREAT_TIME = 10.0       # Sekunden, die eine zurückgewichene Gruppe sammelt
+AI_HARASS_TIME = 30.0        # Sekunden Zermürben, bevor gestürmt wird
+AI_SIEGE_PATIENCE = 40.0     # Sekunden Belagern vor dem bewachten Tor
+AI_GATHER_TIME = 6.0         # Sekunden nach dem Durchbruch, in denen sich die Räuber sammeln
+AI_TOWER_BUILD_DISTANCE = 2.6
+AI_ISOLATION_RANGE = 2.5     # Kacheln: eine Gruppe ohne Nachbarn gilt als allein
+AI_CAVALRY_MIN_VALUE = 1.4   # Reiter der Siedlung greifen nur so lohnende Ziele an
+AI_SORTIE_RANGE = 5.0        # Kacheln: Eingedrungene werden so weit angegriffen
+AI_REFACE_RANGE = 5.0        # Kacheln: die Linie dreht die Front zu einem Gegner
+AI_MEMORY_DEPTH = 5          # letzte Schlachten, die zählen
+AI_MEMORY_WEIGHT = 0.8
+AI_MEMORY_MIN = 0.5
+AI_MEMORY_MAX = 1.5
+AI_MEMORY_FILE = "~/.apoikia_ki.json"
 
 # Plünderung
 LOOT_TIME = 4.0              # Sekunden je Haus

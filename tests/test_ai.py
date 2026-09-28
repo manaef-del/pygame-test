@@ -1,0 +1,290 @@
+"""Tests der Gegner-KI: Lagebericht, Pläne, Gedächtnis. Läuft ohne Pygame."""
+
+import random
+
+from game import config
+from game.ai import Brain, Memory, PLAN_NAMES
+from game.army import Army, GroupSpec, Tier
+from game.battle import Battle
+from game.scenarios import OFFENE_SIEDLUNG, PALISADE, RAEUBERHORDE, SIEDLUNG_OFFEN, SIEDLUNG_WALL, RaiderSpawn, Scenario
+from game.units import UNIT_TYPES, Lochos, Man, Side, Stance
+
+DT = 1 / 30
+
+
+def run(b: Battle, seconds: float) -> None:
+    for _ in range(int(seconds / DT)):
+        b.update(DT)
+        if b.outcome:
+            break
+
+
+def men(kind: str, n: int) -> list[Man]:
+    return [Man(UNIT_TYPES[kind]) for _ in range(n)]
+
+
+def raid(n: int, *spawns, houses=((2, 17),)) -> Scenario:
+    return Scenario(
+        "t", "t", "", role="verteidigung", enemy_kind="raeuber",
+        enemy_default=n, enemy_min=n, enemy_max=n, houses=houses,
+        raider_spawns=tuple(RaiderSpawn(x, y) for x, y in spawns),
+    )
+
+
+def line_army() -> Army:
+    return Army(groups=[
+        GroupSpec("Hopliten", [Tier("schwer", 14), Tier("mittel", 14)]),
+        GroupSpec("Peltasten", [Tier("peltast", 12)]),
+        GroupSpec("Reiter", [Tier("reiter", 10)]),
+    ])
+
+
+# ------------------------------------------------------------ Lagebericht
+def test_report_sees_the_phalanx_front_and_exposed_groups():
+    b = Battle(raid(32, (6.0, 2.0), (10.0, 2.0)), random.Random(0), army=line_army())
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_line([hop], (5.0, 9.0), (11.0, 9.0))      # Front nach Norden
+    b.command_move([pelt], (2.0, 13.0))                  # Peltasten allein, weit weg von den Hopliten
+    b.command_move([cav], (13.0, 13.0))
+    run(b, 6)
+    r = b.brain.report
+    assert r.front_blocked and r.line_y is not None and abs(r.line_y - 9.0) < 0.3
+    assert hop in r.phalanxes
+    assert pelt.id in r.exposed                          # keine Hopliten in der Nähe
+    assert cav.id not in r.exposed                       # beritten
+    cav.dismount()
+    r2 = b.brain._report(b)
+    assert cav.id in r2.exposed
+
+
+def test_target_value_prefers_weak_targets_over_the_phalanx_front():
+    b = Battle(raid(16, (8.0, 3.0)), random.Random(0), army=line_army())
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_line([hop], (5.0, 9.0), (11.0, 9.0))
+    b.command_move([pelt], (2.0, 12.0))
+    run(b, 6)
+    raider = b.units(Side.FEIND)[0]
+    raider.x, raider.y = 8.0, 6.0                        # vor der Front
+    brain = b.brain
+    brain.report = brain._report(b)
+    assert brain.target_value(b, raider, hop) < 0.6
+    assert brain.target_value(b, raider, pelt) >= 2.0
+    raider.x, raider.y = 8.0, 12.0                       # im Rücken
+    assert brain.target_value(b, raider, hop) > 1.0
+
+
+def test_flank_route_walks_around_the_front_and_attacks_from_the_side():
+    b = Battle(raid(16, (8.0, 3.0)), random.Random(0), army=line_army())
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_line([hop], (5.0, 9.0), (11.0, 9.0))
+    run(b, 6)
+    raider = b.units(Side.FEIND)[0]
+    raider.x, raider.y = 8.0, 6.5
+    wp = b.brain.flank_route(b, raider, hop)
+    assert wp is not None
+    assert abs(wp[0] - 8.0) > hop.half_w                 # seitlich neben der Front
+    raider.x, raider.y = hop.x + hop.half_w + 0.7, 9.0   # in der Flanke: direkt angreifen
+    assert b.brain.flank_route(b, raider, hop) is None
+
+
+# ---------------------------------------------------------------- Pläne
+def test_raiders_go_around_or_harass_a_phalanx_but_charge_an_open_settlement():
+    b = Battle(OFFENE_SIEDLUNG, random.Random(2))
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_line([hop], (3.0, 10.5), (13.0, 10.5))
+    b.command_line([pelt], (5.0, 11.6), (11.0, 11.6))
+    b.command_move([cav], (14.0, 12.5))
+    run(b, 8)
+    assert b.brain.plan in ("umgehen_west", "umgehen_ost", "zermuerben"), b.brain.plan
+    assert any(e.startswith("Die Räuber:") for e in b.events)
+
+    b2 = Battle(OFFENE_SIEDLUNG, random.Random(2))
+    b2.command_hold()
+    run(b2, 8)
+    assert b2.brain.plan == "frontal"
+
+
+def test_harassing_raiders_keep_their_distance_until_the_javelins_are_gone():
+    b = Battle(OFFENE_SIEDLUNG, random.Random(3), enemy_count=64)
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_line([hop], (3.0, 10.5), (13.0, 10.5))
+    b.command_move([pelt], (8.0, 12.0))
+    b.command_move([cav], (8.0, 13.0))
+    b.brain.memory.gains = {"offen": {"umgehen_west": [-1.0] * 5, "umgehen_ost": [-1.0] * 5}}   # Umgehen ist verbrannt
+    run(b, 8)
+    assert b.brain.plan == "zermuerben"
+    run(b, 12)
+    raiders = b.units(Side.FEIND, fighting_only=True)
+    assert any(u.ammo() < 10 * u.count("peltast") for u in raiders)     # es wurde geworfen
+    assert all(u.stance is not Stance.ANGRIFF for u in raiders if u.ammo() > 0 and not u.engaged)
+    assert hop.men >= 26                                                 # die Phalanx wurde nicht gestürmt
+
+
+def test_raiders_build_a_tower_when_the_gate_is_guarded():
+    b = Battle(PALISADE, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_line([hop], (5.5, 9.6), (10.5, 9.6))
+    b.command_move([pelt], (3.5, 8.5))
+    b.command_move([cav], (13.0, 12.5))
+    run(b, 5)
+    assert b.brain.plan == "turm"
+    assert any("bauen einen Belagerungsturm" in e for e in b.events)
+    assert any("bauen einen Rammbock" in e for e in b.events)
+    crossed = None
+    for _ in range(int(60 / DT)):
+        b.update(DT)
+        if b.crossings:
+            crossed = b.time
+            break
+    assert crossed is not None and 12 < crossed < 50
+    cell = next(iter(b.crossings))
+    assert cell in b.blocked and cell[0] in (0, 1, 14, 15)          # am Rand, fern vom Tor
+    run(b, 8)
+    assert any(m.y > 8.9 for u in b.units(Side.FEIND, fighting_only=True) for m in u.all_men())   # Männer drüben
+
+
+def test_raiders_besiege_a_guarded_breach_then_storm():
+    b = Battle(PALISADE, random.Random(1), enemy_count=96)
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_line([hop], (5.5, 9.6), (10.5, 9.6))
+    b.command_move([pelt], (3.5, 8.5))
+    b.command_move([cav], (13.0, 12.5))
+    b.brain.memory.gains = {"palisade": {"turm": [-1.0] * 5, "frontal": [-1.0] * 5}}
+    for _ in range(int(80 / DT)):
+        b.update(DT)
+        if not b.gate.closed:
+            break
+    assert not b.gate.closed
+    run(b, 3)
+    assert b.brain.plan == "belagern"
+    gx, gy = b.gate.center
+    outside = [u for u in b.units(Side.FEIND, fighting_only=True) if u.y < gy and not u.engine]
+    assert outside and all(dist_to_gate(u, b) >= config.ENEMY_RALLY_DISTANCE - 0.5 for u in outside)
+    run(b, config.AI_SIEGE_PATIENCE + 5)
+    assert b.brain.storm and any("stürmen das Tor" in e for e in b.events)
+
+
+def dist_to_gate(u: Lochos, b: Battle) -> float:
+    gx, gy = b.gate.center
+    return ((u.x - gx) ** 2 + (u.y - gy) ** 2) ** 0.5
+
+
+def test_horde_sleeps_then_picks_a_plan():
+    b = Battle(RAEUBERHORDE, random.Random(1))
+    b.command_hold()
+    run(b, 3)
+    assert b.brain.plan == "lagern" and not b.horde_awake
+    hop = b.units(Side.STADT)[0]
+    b.command_line([hop], (5.0, 8.5), (11.0, 8.5))
+    run(b, 12)
+    assert b.horde_awake and b.brain.plan != "lagern"
+
+
+# ------------------------------------------------------------- Siedlung
+def test_settlement_cavalry_ignores_the_phalanx_but_charges_exposed_peltasts():
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_line([hop], (4.0, 9.5), (12.0, 9.5))
+    b.command_line([pelt], (5.0, 10.6), (11.0, 10.6))
+    b.command_move([cav], (13.5, 11.5))
+    run(b, 10)
+    enemy = {u.name: u for u in b.units(Side.FEIND)}
+    assert enemy["Reiter"].stance is not Stance.ANGRIFF          # nichts Lohnendes in Reichweite
+    b.command_move([pelt], (3.0, 7.5))                           # Peltasten allein nach vorn
+    run(b, 6)
+    assert enemy["Reiter"].stance is Stance.ANGRIFF and enemy["Reiter"].target_id == pelt.id
+
+
+def test_settlement_line_turns_its_front_towards_a_flank_attack():
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    enemy = {u.name: u for u in b.units(Side.FEIND)}
+    line = enemy["Hopliten"]
+    assert line.facing == (0.0, 1.0)
+    b.command_move([hop], (12.5, 6.0))                           # in die Ostflanke
+    b.command_move([pelt, cav], (8.0, 15.0))
+    run(b, 14)
+    assert line.facing[0] > 0.5, line.facing                     # Front nach Osten gedreht
+    assert any("drehen die Front" in e for e in b.events)
+
+
+def test_wall_defenders_shift_towards_the_siege_tower():
+    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    enemy = {u.name: u for u in b.units(Side.FEIND)}
+    b.command_build([cav], "tower")
+    b.command_move([hop, pelt], (8.0, 13.0))
+    run(b, config.TOWER_BUILD_TIME + 1)
+    b.command_tower_wall([cav], (13, 7))
+    run(b, 8)
+    assert enemy["Hopliten"].x > 11.0                            # Hopliten decken das Wallstück von innen
+    assert enemy["Peltasten"].x > 11.0 and b.on_wall(enemy["Peltasten"])
+
+
+# ------------------------------------------------------------ Gedächtnis
+def test_memory_weights_plans_by_past_gains(tmp_path):
+    m = Memory(path=str(tmp_path / "ki.json"))
+    assert m.weight("offen", "frontal") == 1.0
+    m.record("offen", "frontal", -0.5)
+    m.record("offen", "frontal", -0.5)
+    assert m.weight("offen", "frontal") < 1.0
+    m.record("offen", "umgehen_west", 0.6)
+    assert m.weight("offen", "umgehen_west") > 1.0
+    loaded = Memory.load(str(tmp_path / "ki.json"))
+    assert loaded.gains == m.gains
+    assert Memory.load(str(tmp_path / "fehlt.json")).gains == {}
+
+
+def test_battle_records_the_plan_result_into_memory():
+    mem = Memory()
+    b = Battle(raid(16, (8.0, 3.0)), random.Random(0), army=line_army(), memory=mem)
+    b.command_attack()
+    run(b, 120)
+    assert b.outcome is not None
+    assert "t" in mem.gains and sum(len(v) for v in mem.gains["t"].values()) >= 1
+
+
+def test_memory_changes_the_chosen_plan():
+    def plan_after(mem: Memory) -> str:
+        b = Battle(OFFENE_SIEDLUNG, random.Random(2), memory=mem)
+        hop, pelt, cav = b.units(Side.STADT)
+        b.command_line([hop], (3.0, 10.5), (13.0, 10.5))
+        b.command_move([pelt, cav], (8.0, 12.5))
+        run(b, 3)
+        return b.brain.plan
+
+    first = plan_after(Memory())
+    burnt = Memory(gains={"offen": {first: [-1.0] * 5}})
+    assert plan_after(burnt) != first
+
+
+def test_failed_attack_on_a_phalanx_front_falls_back():
+    b = Battle(raid(32, (8.0, 6.5)), random.Random(0), army=Army(groups=[
+        GroupSpec("Hopliten", [Tier("schwer", 30)]),
+    ]))
+    hop = b.units(Side.STADT)[0]
+    b.command_line([hop], (5.0, 9.0), (11.0, 9.0))
+    run(b, 4)
+    raider = b.units(Side.FEIND)[0]
+    raider.x, raider.y = 8.0, 7.6
+    b.brain._attack(b, raider, hop)
+    raider.morale = 1.0
+    run(b, 40)
+    assert any("weichen vor der Phalanx zurück" in e for e in b.events)
+    assert b.brain.state[raider.id].hard == hop.id
+
+
+def test_plan_names_are_german_and_shown():
+    b = Battle(OFFENE_SIEDLUNG, random.Random(0))
+    assert b.enemy_plan == ""
+    b.command_hold()
+    run(b, 1)
+    assert b.enemy_plan == PLAN_NAMES[b.brain.plan]
+
+
+def test_legacy_ai_still_available():
+    b = Battle(OFFENE_SIEDLUNG, random.Random(0), ai="einfach")
+    b.command_hold()
+    run(b, 2)
+    assert b.enemy_plan == "" and not isinstance(b.brain, Brain)
+    assert all(u.stance in (Stance.RAUB, Stance.ANGRIFF) for u in b.units(Side.FEIND))

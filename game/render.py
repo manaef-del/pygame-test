@@ -245,6 +245,10 @@ class Renderer:
         strip.fill((0, 0, 0, 120))
         s.blit(strip, (0, 0))
         s.blit(self.font.render(text, True, config.COLOR_TEXT), (8, 5))
+        plan = battle.enemy_plan
+        if plan and not battle.alarm:
+            img = self.small.render(f"Gegner: {plan}", True, config.COLOR_ENEMY)
+            s.blit(img, img.get_rect(topright=(config.MAP_W - 8, 30)))
 
         if battle.outcome is not None:
             panel = pygame.Surface((config.MAP_W, 120), pygame.SRCALPHA)

@@ -54,8 +54,11 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
 - **Moral:** Verluste und Angriffe von hinten drücken die Moral; unter
   der Schwelle flieht ein Lochos. Räuber brechen früher als Hopliten.
 - **Räuber** ziehen zu den Häusern und plündern, wenn niemand sie stört.
-  Ein Teil umgeht die Linie. Sind sie zu geschwächt, ziehen sie ab.
+  Sind sie zu geschwächt, ziehen sie ab.
 - **Palisade mit Tor:** der einzige Durchgang. Wegfindung leitet durchs Tor.
+- **Gegner-KI** (siehe unten): Der Gegner liest die Aufstellung, wählt
+  einen Plan, greift schwache Ziele an, umgeht Phalanxfronten und lernt
+  über Schlachten hinweg.
 
 Abnahme aus dem Konzept (L9), als Tests umgesetzt: *Ein Überfall auf eine
 unbefestigte Stadt tut weh. Eine Phalanx hinter Mauern gewinnt gegen eine
@@ -71,7 +74,7 @@ mit halber Geschwindigkeit (`TIME_SCALE`).
 | Szenario | Lage |
 |----------|------|
 | Verteidigung: Offene Siedlung | Räuberhaufen von Norden, zwei umgehen die Linie. Bei großer Zahl größere Haufen, mit einem Fünftel Peltasten |
-| Verteidigung: Palisade | Das Tor ist zu, die Räuber bauen vor dem Tor einen Rammbock. Eigene Peltastengruppen dürfen auf den Wehrgang |
+| Verteidigung: Palisade | Das Tor ist zu, die Räuber bauen Rammbock und Turm. Eigene Peltastengruppen dürfen auf den Wehrgang |
 | Angriff: Räuberhorde | Die Horde lagert im Norden und stürmt, sobald man ihr nahe kommt |
 | Angriff: Siedlung ohne Wall | Der Gegner stellt dieselbe Mischung wie die eigene Truppe, skaliert. Hopliten und Peltasten halten, Reiter greifen an |
 | Angriff: Siedlung mit Wall | Wie oben, hinter einer Palisade mit verschlossenem Tor. Peltasten des Gegners stehen auf dem Wehrgang |
@@ -95,9 +98,55 @@ kommt, geht Mann für Mann: Beim Überqueren löst sich die Formation auf,
 jeder steigt selbst am Turm hinauf, läuft über den Wehrgang und klettert
 an einer Leiter hinunter; drinnen sammelt sich die Gruppe wieder. Auf
 dem Wehrgang gibt es keinen Phalanxbonus, dort kämpft Mann gegen Mann.
-Über den Turm geht es nur zurück nach außen. Fällt
-eine Gruppe oder flieht sie, ist ihr Gerät verloren. Bei der
-Verteidigung mit Palisade bauen die Räuber selbst einen Rammbock.
+Über den Turm geht es nur zurück nach außen. Leitern und Türme lassen
+etwa einen Mann pro Sekunde durch; die Gruppe wartet auf ihre Nachzügler
+und die Nachzügler nehmen denselben Weg wie die Gruppe. Solange eine
+Gruppe aufgelöst ist, kämpfen nur die Männer, die beim Gegner sind, und
+nur sie werden getroffen. Leitern führen nur zur Innenseite des Walls.
+Ein aufgebrochenes Tor ist unten ein Durchgang und oben eine Lücke im
+Wehrgang. Fällt eine Gruppe oder flieht sie, ist ihr Gerät verloren. Bei
+der Verteidigung mit Palisade bauen die Räuber selbst Rammbock und Turm.
+
+## Gegner-KI
+
+`game/ai.py` steuert die Gegnerseite in drei Stufen, getrennt von der
+Kampflogik. Der laufende Plan steht oben rechts im Bild („Gegner: …“)
+und jeder Wechsel erscheint als Ereignis.
+
+**Stufe 1, Lage lesen.** Alle halbe Sekunde entsteht ein Lagebericht: Wo
+stehen die Phalangen des Spielers und wohin schauen sie, welche Gruppen
+sind ungedeckt (Peltasten ohne Hopliten in der Nähe, abgesessene Reiter,
+eine aufgelöste Formation), ist das Tor bewacht, wo setzt ein Turm an.
+Daraus wählt jede Gruppe ihr Ziel: ungedeckte Gruppen sind lohnend, die
+Front einer Phalanx nicht. Wer vor einer Front steht, läuft um sie herum
+und greift die Flanke an. Im Handgemenge wird nicht mehr umgeplant.
+
+**Stufe 2, Pläne.** Die Gegnerseite wählt aus benannten Plänen den mit
+der höchsten Punktzahl und bewertet alle zwölf Sekunden neu, sofort bei
+einem Durchbruch oder wenn eine Front auftaucht oder verschwindet:
+
+| Plan | Wer | Wann |
+|---|---|---|
+| Frontal | Räuber, Horde | keine Front im Weg oder deutliche Übermacht |
+| Umgehen (West/Ost) | Räuber, Horde | eine Phalanx sperrt; die Seite mit mehr Platz und weniger Gegnern |
+| Zermürben | Räuber, Horde | eine Phalanx sperrt und die Räuber haben noch Speere: außerhalb des Nahkampfs stehen und werfen, dann stürmen |
+| Tor rammen / Rammbock und Turm | Räuber vor der Palisade | Tor zu; mit Wehrgang-Peltasten oder bewachtem Tor zusätzlich ein Turm am Rand, fern vom Tor |
+| Belagern | Räuber nach dem Durchbruch | eine Phalanx bewacht das Tor: außer Wurfweite warten, über den Turm einsickern, nach 40 s oder sobald die Wache weg ist stürmen |
+| Stellung halten | Siedlung | Grundplan: Linie hält, dreht die Front zu Flankenangriffen, Hopliten decken das Wallstück, an dem ein Turm ansetzt, Wehrgang-Peltasten laufen zum Angriffspunkt, Reiter greifen nur ungedeckte oder allein stehende Gruppen an |
+| Vorrücken | Siedlung | Übermacht in der Nähe oder Beschuss durch Peltasten: die Linie rückt in Formation vor |
+
+**Stufe 3, Gedächtnis.** Nach jedem Plan wird festgehalten, wie sich
+die Verluste beider Seiten während des Plans verhalten haben. Pläne, die
+in früheren Schlachten Verluste gekostet haben, werden beim nächsten Mal
+schwächer gewichtet (Faktor 0,5 bis 1,5, letzte fünf Schlachten). Am
+Computer liegt das Gedächtnis in `~/.apoikia_ki.json`, im Browser hält es
+nur die Sitzung. Innerhalb einer Schlacht weicht eine Gruppe zurück, deren
+Angriff auf eine Phalanxfront zu viel kostet, sammelt sich zehn Sekunden
+und meidet dieses Ziel danach.
+
+Die Zahlen dazu stehen in `game/config.py` unter „Gegner-KI“. Die alte
+feste Regelsteuerung bleibt als `ai="einfach"` erhalten, um beide im
+Simulator zu vergleichen.
 
 ## Steuerung
 
@@ -155,6 +204,19 @@ pytest
 
 Alle Balancezahlen stehen in `game/config.py` und `game/units.py`.
 
+**Simulator:** `tools/simulate.py` spielt Schlachten kopflos mit
+gescripteten Spielertaktiken (Linie, Tor halten, Phalanxstoß, freier
+Angriff …) gegen beide KIs durch und gibt Siege, Verluste, Dauer und die
+gewählten Pläne als Tabelle aus. `--lernen 8` spielt dieselbe Taktik
+achtmal mit Gedächtnis. Ergebnisse eines Laufs stehen in
+`docs/ki-simulation.md`.
+
+```bash
+python3 tools/simulate.py --seeds 8
+python3 tools/simulate.py --scenario palisade --tactic tor_reserve --ai klug --enemy 160
+python3 tools/simulate.py --lernen 8 --scenario offen --tactic linie
+```
+
 ## Struktur
 
 ```
@@ -164,9 +226,11 @@ game/units.py       Truppentypen, Männer, Gruppe mit Reihen
 game/army.py        Vorrat und Aufstellung (Gruppen, Reihen)
 game/geometry.py    Vektoren, Front/Flanke/Rücken
 game/scenarios.py   Karten und Aufstellungen
-game/battle.py      Simulation: Befehle, KI, Bewegung, Kampf, Moral, Plündern
+game/battle.py      Simulation: Befehle, Bewegung, Kampf, Moral, Plündern, Belagerung
+game/ai.py          Gegner-KI: Lagebericht, Pläne, Gedächtnis (und alte Regelsteuerung)
 game/render.py      Zeichnen von Karte, Gruppen, Leiste und Aufstellungsmenü
 game/app.py         Asynchrone Schleife, Bildschirme, Auswahl, Touch und Tasten
 tests/              pytest (headless)
-tools/              Browser-Diagnose für CI
+tools/              Browser-Diagnose für CI, Simulator für Taktiken gegen die KI
+docs/               Simulationsergebnisse
 ```

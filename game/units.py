@@ -390,6 +390,18 @@ class Lochos:
             dmg -= q
         return self.bury()
 
+    def take_damage_men(self, men: list[Man], dmg: float, rng=None) -> int:
+        """Schaden nur auf bestimmte Männer (aufgelöste Formation: die, die da sind)."""
+        pick = rng.randrange if rng is not None else (lambda n: 0)
+        while dmg > 0:
+            living = [m for m in men if m.hp > HP_EPS]
+            if not living:
+                break
+            q = min(config.DAMAGE_QUANTUM, dmg)
+            living[pick(len(living))].hp -= q
+            dmg -= q
+        return self.bury()
+
     def hit_man(self, man: Man, dmg: float) -> int:
         """Ein bestimmter Mann wird getroffen (Speer); liefert 1, wenn er fällt."""
         man.hp -= dmg

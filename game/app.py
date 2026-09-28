@@ -13,6 +13,7 @@ import random
 import pygame
 
 from . import config
+from .ai import Memory
 from .army import OWN_DEFAULT, OWN_MAX, OWN_MIN, Army, default_army, scaled_army
 from .battle import Battle
 from .render import Renderer
@@ -29,8 +30,10 @@ def to_tiles(pos: tuple[int, int]) -> tuple[float, float]:
 class App:
     """Zustand der Bedienung, getrennt von der Schleife (testbar)."""
 
-    def __init__(self, renderer: Renderer, seed: int | None = None, start_in_battle: bool = False) -> None:
+    def __init__(self, renderer: Renderer, seed: int | None = None, start_in_battle: bool = False,
+                 memory: Memory | None = None) -> None:
         self.renderer = renderer
+        self.memory = memory or Memory()
         self.seed = seed
         self.scenario_index = 0
         self.army: Army = default_army()
@@ -53,7 +56,7 @@ class App:
         self.drag_start = self.drag_now = None
         scn = SCENARIOS[self.scenario_index]
         army = scaled_army(self.army, self.own_count) if self.army.total_men() else copy.deepcopy(self.army)
-        return Battle(scn, rng, army=army, enemy_count=self.enemy_counts[scn.key])
+        return Battle(scn, rng, army=army, enemy_count=self.enemy_counts[scn.key], memory=self.memory)
 
     # ---------------------------------------------------------- Eingabe
     def handle_event(self, event: pygame.event.Event) -> None:
@@ -265,7 +268,7 @@ async def run(max_frames: int | None = None, seed: int | None = None) -> App:
     screen = pygame.display.set_mode((config.WIDTH, config.HEIGHT))
     pygame.display.set_caption("Apoikia – Kampfprobe")
     clock = pygame.time.Clock()
-    app = App(Renderer(screen), seed=seed)
+    app = App(Renderer(screen), seed=seed, memory=Memory.load(config.AI_MEMORY_FILE))
 
     frames = 0
     while app.running:

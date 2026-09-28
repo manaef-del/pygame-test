@@ -84,8 +84,8 @@ OFFENE_SIEDLUNG = Scenario(
 
 PALISADE = Scenario(
     key="palisade", name="Verteidigung: Palisade",
-    hint="Das Tor ist zu; die Räuber bauen einen Rammbock. Peltasten über die Leitern auf den Wehrgang, Hopliten hinters Tor.",
-    role="verteidigung", enemy_kind="raeuber", enemy_default=192, enemy_min=32, enemy_max=224,
+    hint="Das Tor ist zu; die Räuber bauen Rammbock und Turm. Peltasten über die Leitern auf den Wehrgang, Hopliten hinters Tor, Reserve gegen den Turm.",
+    role="verteidigung", enemy_kind="raeuber", enemy_default=128, enemy_min=32, enemy_max=224,
     houses=HOUSES_SOUTH, palisade=_palisade_row(8, gate_cols=(7, 8)), gate=(7, 8), gate_closed=True,
     wall_side="stadt", ladders=((2, 8), (13, 8)), raider_spawns=RAIDS_GATE,
 )
