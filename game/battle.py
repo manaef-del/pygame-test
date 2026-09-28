@@ -108,6 +108,7 @@ class Battle:
     events: list[str] = field(default_factory=list)
     men_start: dict[Side, int] = field(default_factory=dict)
     crossings: set[tuple[int, int]] = field(default_factory=set)   # überwundene Wallstücke
+    debris: list[tuple[float, float, float, float]] = field(default_factory=list)  # liegen gelassene Rammböcke
     enemy_ram_id: int | None = None      # Räubergruppe, die den Rammbock baut
     horde_awake: bool = False
     _next_id: int = 0
@@ -873,6 +874,7 @@ class Battle:
                         self.gate.hp = 0.0
                         self.gate.closed = False
                         self.events.append("Das Tor ist aufgebrochen!")
+                        self._drop_rams()
             elif u.engine == "tower" and u.tower_cell is not None:
                 cx, cy = u.tower_cell[0] + 0.5, u.tower_cell[1] + 0.5
                 if abs(u.x - cx) <= 0.6 and abs(abs(u.y - cy) - 0.5) <= u.half_d + config.TOWER_REACH:
@@ -884,6 +886,16 @@ class Battle:
                         u.engine = None
                         u.tower_cell = None
                         u.target = (cx, cy + beyond_side * (0.5 + u.half_d + 0.6))
+
+    def _drop_rams(self) -> None:
+        """Nach dem Durchbruch bleibt der Rammbock liegen, die Gruppen sind wieder schnell."""
+        for u in self.lochoi:
+            if u.engine == "ram":
+                fx, fy = u.facing
+                self.debris.append((u.x + fx * (u.half_d + 0.3), u.y + fy * (u.half_d + 0.3), fx, fy))
+                u.engine = None
+                if self.enemy_ram_id == u.id:
+                    self.enemy_ram_id = None
 
     def _lose_engine(self, u: Lochos | None) -> None:
         if u is None:

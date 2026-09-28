@@ -433,6 +433,8 @@ def test_closed_gate_blocks_and_ram_opens_it():
     assert not b.gate.closed and b.gate.hp == 0.0
     assert not b.is_blocked(gx, gy, hop)
     assert any("aufgebrochen" in e for e in b.events)
+    assert hop.engine is None and hop.speed == UNIT_TYPES["schwer"].speed   # Rammbock bleibt liegen
+    assert len(b.debris) == 1
 
 
 def test_each_group_builds_its_own_engine():
