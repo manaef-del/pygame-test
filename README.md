@@ -18,9 +18,18 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
 - **Truppentypen:** schwere, mittlere und leichte Hopliten (dunkel-,
   mittel-, hellblau), Peltasten (rot) und Reiter (grün). Räuber sind grau
   mit rotem Ring. Vorrat: 40 Hopliten, 15 Peltasten, 20 Reiter.
-- **Peltasten** haben zehn Speere je Mann und werfen in Salven, die
-  Speere fliegen sichtbar. Sind sie verschossen, geht die Gruppe in den
-  Nahkampf über.
+- **Peltasten** haben zehn Speere je Mann und werfen in Salven. Jeder
+  Speer fliegt sichtbar vom werfenden Mann zu einem bestimmten Gegner
+  und trifft nur diesen. Sind die Speere verschossen, geht die Gruppe in
+  den Nahkampf über.
+- **Jeder Mann zählt einzeln.** Er hat eigene Trefferpunkte (verwundete
+  Punkte sind dunkler) und eine eigene Position: Er läuft zu seinem
+  Platz in der Formation, weicht aber selbst aus, durchs Tor nur durch
+  die Öffnung, auf den Wall nur über Leiter oder Turm.
+- **Reiter** sitzen ab, sobald sie Rammbock oder Turm bauen oder auf den
+  Wehrgang steigen. Die Pferde bleiben als braune Punkte zurück; danach
+  sind sie so schnell wie Fußvolk und ohne Reiterbonus. Durch ein
+  aufgebrochenes Tor reiten sie beritten.
 - **Aufstellung:** Vor der Schlacht werden Gruppen aus dem Vorrat
   zusammengestellt. Eine Gruppe besteht aus Reihen-Blöcken von vorn nach
   hinten, jeder Block mit einem Truppentyp (Farbpunkt) und einer Anzahl
@@ -60,7 +69,7 @@ mit halber Geschwindigkeit (`TIME_SCALE`).
 
 | Szenario | Lage |
 |----------|------|
-| Verteidigung: Offene Siedlung | Räuber in Trupps zu 16 kommen von Norden, zwei umgehen die Linie |
+| Verteidigung: Offene Siedlung | Räuberhaufen von Norden, zwei umgehen die Linie. Bei großer Zahl größere Haufen, mit einem Fünftel Peltasten |
 | Verteidigung: Palisade | Das Tor ist zu, die Räuber bauen vor dem Tor einen Rammbock. Eigene Peltastengruppen dürfen auf den Wehrgang |
 | Angriff: Räuberhorde | Die Horde lagert im Norden und stürmt, sobald man ihr nahe kommt |
 | Angriff: Siedlung ohne Wall | Der Gegner stellt dieselbe Mischung wie die eigene Truppe, skaliert. Hopliten und Peltasten halten, Reiter greifen an |
@@ -82,7 +91,8 @@ damit der Durchgang frei ist. Mit Turm ein
 Wallstück antippen: die Gruppe rollt hin, setzt den Turm an, und nach
 drei Sekunden steht er als Aufstieg auf den Wehrgang. Wer über den Turm
 kommt, steht oben auf der Plattform, kann dort entlanglaufen und kämpfen
-und kommt nur an einer Leiter oder über den Turm wieder hinunter. Fällt
+und kommt nach innen nur über die Leitern der Palisade hinunter (über
+den Turm nur zurück nach außen). Fällt
 eine Gruppe oder flieht sie, ist ihr Gerät verloren. Bei der
 Verteidigung mit Palisade bauen die Räuber selbst einen Rammbock.
 

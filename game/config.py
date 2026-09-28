@@ -43,9 +43,15 @@ MORALE_LOSS_FRONT_PHALANX = 0.5
 # Peltasten
 JAVELINS = 10                # Würfe je Peltast
 VOLLEY_INTERVAL = 1.5        # Sekunden zwischen zwei Salven
-JAVELIN_DAMAGE = 0.12        # Schaden je Speer
+JAVELIN_DAMAGE = 0.2         # Schaden je Speer (trifft einen bestimmten Mann)
 JAVELIN_RANGE = 3.5          # Kacheln
-JAVELIN_SPEED = 7.0          # Kacheln pro Sekunde (Anzeige und Einschlag)
+JAVELIN_SPEED = 14.0         # Kacheln pro Sekunde (Anzeige und Einschlag)
+
+# Männer
+MAN_CATCHUP = 1.6            # Männer holen ihren Platz schneller ein, als die Gruppe läuft
+DAMAGE_QUANTUM = 0.1         # Schaden wird in Häppchen auf einzelne Männer verteilt
+DISMOUNTED_SPEED = 1.2       # abgesessene Reiter
+DISMOUNTED_ATTACK = 1.0
 
 # Formation
 MAN_SPACING = 0.13           # Kacheln zwischen Männern einer Reihe
@@ -103,6 +109,7 @@ COLOR_SHIELD = (255, 230, 120)
 COLOR_JAVELIN = (245, 220, 170)
 COLOR_RAM = (150, 100, 50)
 COLOR_TOWER = (180, 130, 70)
+COLOR_HORSE = (140, 95, 55)
 COLOR_CROSSING = (200, 160, 90)
 COLOR_GATE_CLOSED = (110, 70, 30)
 COLOR_TEXT = (235, 235, 235)

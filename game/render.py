@@ -133,6 +133,12 @@ class Renderer:
                 pygame.draw.line(s, config.COLOR_CROSSING, (rx, cy * T + 2), (rx, cy * T + T - 2), 2)
             for i in range(4):
                 pygame.draw.line(s, config.COLOR_CROSSING, (rails[0], cy * T + 5 + i * 7), (rails[1], cy * T + 5 + i * 7), 2)
+        for x, y, n in battle.horses:
+            for i in range(min(n, 12)):
+                ox = ((i * 5) % 7 - 3) * 0.09
+                oy = ((i * 3) % 5 - 2) * 0.09
+                hx, hy = px((x + ox, y + oy))
+                pygame.draw.circle(s, config.COLOR_HORSE, (hx, hy), 3)
         for x, y, fx, fy in battle.debris:
             a = px((x - fx * 0.25, y - fy * 0.25))
             b = px((x + fx * 0.25, y + fy * 0.25))
@@ -183,20 +189,19 @@ class Renderer:
             pygame.draw.polygon(s, ring, corners, 1 if u.side is Side.STADT else 2)
 
         fx, fy = u.facing
-        n_rows = len(u.rows)
-        for r, row in enumerate(u.rows):
-            forward = ((n_rows - 1) / 2 - r) * ROW_SPACING
-            n = len(row)
-            for i, man in enumerate(row):
-                side = (i - (n - 1) / 2) * MAN_SPACING
-                ox = fx * forward + (-fy) * side
-                oy = fy * forward + fx * side
+        for row in u.rows:
+            for man in row:
                 color = man.kind.color
                 if u.side is Side.FEIND:
                     color = desaturate(color, config.ENEMY_DESATURATION)
-                if u.stance is Stance.FLUCHT:
+                if man.wounded:
                     color = tuple(c // 2 for c in color)
-                pygame.draw.circle(s, color, (cx + int(ox * T), cy + int(oy * T)), 3)
+                if u.stance is Stance.FLUCHT:
+                    color = tuple(c * 2 // 3 for c in color)
+                mx, my = px(man.pos)
+                pygame.draw.circle(s, color, (mx, my), 3)
+                if man.kind.cavalry and not man.mounted:
+                    pygame.draw.circle(s, (20, 40, 20), (mx, my), 1)
         if u.in_phalanx:
             a, b = corners[0], corners[1]
             pygame.draw.line(s, config.COLOR_SHIELD, a, b, 4)

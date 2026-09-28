@@ -131,6 +131,11 @@ def test_damage_hits_exposed_row():
     assert fallen == 2 and u.count("peltast") == 2 and u.count("schwer") == 4
     u.take_damage(1, 10)
     assert len(u.rows) == 1 and u.count("peltast") == 0
+    # Mit Zufall verteilt sich der Schaden auf mehrere Männer
+    v = Lochos(2, Side.STADT, [men("schwer", 4)], 5, 5)
+    v.take_damage(0, 3.0, random.Random(3))
+    assert v.men == 4 and sum(m.hp for m in v.all_men()) == pytest.approx(4 * 3.0 - 3.0)
+    assert sum(1 for m in v.all_men() if m.hp < 3.0) >= 2
 
 
 def test_group_speed_is_slowest_member():
@@ -173,13 +178,17 @@ def test_javelins_fly_and_run_out():
     b.command_hold()
     b._ai_raiders = lambda: None            # Räuber bleiben stehen
     run(b, 0.1)
-    assert 0 < len(b.projectiles) <= 15      # erste Salve unterwegs
-    assert raider.men == 16                  # noch kein Einschlag
+    mine = [pr for pr in b.projectiles if pr.target_id == raider.id]
+    assert 0 < len(mine) <= 15                                 # erste Salve unterwegs, je Mann ein Speer
+    assert len({(round(pr.x, 3), round(pr.y, 3)) for pr in mine}) == len(mine)   # von jedem Peltasten aus
+    assert all(pr.target_man is not None for pr in mine)
+    assert raider.men == 16                                    # noch kein Einschlag
     assert pelt.ammo() == 15 * config.JAVELINS - 15
     run(b, 3.0)
-    assert raider.men < 16                   # Speere sind angekommen
+    assert sum(m.hp for m in raider.all_men()) < 16 * UNIT_TYPES["raeuber"].hp   # Speere sind angekommen
     run(b, 20.0)
     assert pelt.ammo() == 0
+    assert raider.men < 16
     assert pelt.stance is Stance.ANGRIFF     # Speere leer, Nahkampf
     assert any("Speere verschossen" in e for e in b.events)
 
@@ -378,8 +387,10 @@ def test_enemy_count_sets_raider_strength():
     small = Battle(OFFENE_SIEDLUNG, random.Random(1), enemy_count=40)
     big = Battle(OFFENE_SIEDLUNG, random.Random(1), enemy_count=192)
     assert small.men(Side.FEIND) == 40 and big.men(Side.FEIND) == 192
-    assert all(6 <= u.men <= 16 for u in small.units(Side.FEIND))
-    assert len(big.units(Side.FEIND)) == 12
+    assert all(8 <= u.men <= 16 for u in small.units(Side.FEIND))
+    assert all(u.men == 24 for u in big.units(Side.FEIND))          # größere Haufen bei großer Zahl
+    assert len(big.units(Side.FEIND)) == 8
+    assert all(u.count("peltast") >= 3 for u in big.units(Side.FEIND))   # gemischt
 
 
 def test_mirror_army_scales_composition():
@@ -593,3 +604,41 @@ def test_peltasts_route_over_ladders():
     # Am Boden führt der Weg nach Norden nur durchs Tor, nicht durch die Palisade
     goal, final = b.route(pelt, (12.0, 5.0))
     assert final is False
+
+
+# ------------------------------------------------------- Einzelne Männer
+def test_men_flow_through_the_gate_individually():
+    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    b.gate.closed = False
+    b.gate.hp = 0.0
+    b.command_move([hop], (8.0, 3.5))
+    for _ in range(int(30 / DT)):
+        b.update(DT)
+        for m in hop.all_men():
+            assert b.cell(m.x, m.y) not in b.blocked            # niemand steckt in der Palisade
+    assert all(m.y < 7.0 for m in hop.all_men())               # alle sind hindurch
+
+
+def test_cavalry_dismounts_for_siege_work_and_before_ladders():
+    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    assert cav.speed == UNIT_TYPES["reiter"].speed
+    b.command_build([cav], "tower")
+    assert cav.mounted_men() == [] and len(b.horses) == 1 and b.horses[0][2] == 20
+    assert cav.speed == pytest.approx(config.DISMOUNTED_SPEED)
+    assert cav.cavalry_share() == 0.0                           # kein Reiterbonus mehr
+    run(b, config.TOWER_BUILD_TIME + 1)
+    assert cav.speed == pytest.approx(config.DISMOUNTED_SPEED * config.TOWER_SPEED_FACTOR)
+
+
+def test_tower_is_one_way_up_from_outside():
+    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    b.crossings.add((12, 7))
+    assert b.can_step(hop, (12.5, 8.6), (12.5, 7.5))            # von außen hinauf
+    assert b.can_step(hop, (12.5, 7.5), (12.5, 8.6))            # außen wieder hinunter
+    assert not b.can_step(hop, (12.5, 7.5), (12.5, 6.4))        # nach innen nur über Leitern
+    assert b.can_step(hop, (13.5, 7.5), (13.5, 6.4))
+    assert (12, 7) not in b.ladders_for(hop, (12.5, 7.5), (12.0, 3.0))
+    assert (12, 7) in b.ladders_for(hop, (12.5, 7.5), (12.0, 12.0))

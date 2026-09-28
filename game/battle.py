@@ -69,6 +69,7 @@ class Projectile:
     dmg: float
     progress: float = 0.0
     total: float = 1.0
+    target_man: Man | None = None
 
     @property
     def pos(self) -> Point:
@@ -111,6 +112,7 @@ class Battle:
     ladders: set[tuple[int, int]] = field(default_factory=set)
     debris: list[tuple[float, float, float, float]] = field(default_factory=list)  # liegen gelassene Rammböcke
     towers: list[tuple[float, float]] = field(default_factory=list)                # am Wall stehende Türme
+    horses: list[tuple[float, float, int]] = field(default_factory=list)           # zurückgelassene Pferde
     enemy_ram_id: int | None = None      # Räubergruppe, die den Rammbock baut
     horde_awake: bool = False
     _next_id: int = 0
@@ -159,18 +161,22 @@ class Battle:
             x += w
 
     def _spawn_raiders(self) -> None:
-        """Räuber in Trupps zu 16, Stellungen aus dem Szenario der Reihe nach."""
+        """Räuber in Haufen, bei großer Zahl größere; etwa ein Fünftel Peltasten in der zweiten Reihe."""
         remaining = max(0, self.enemy_count)
+        group_size = max(RAIDER_GROUP, min(32, round(self.enemy_count / 8)))
         spawns = list(self.scenario.raider_spawns)
         i = 0
         while remaining > 0 and spawns:
-            n = min(RAIDER_GROUP, remaining)
-            if remaining - n < 6 and remaining - n > 0:
+            n = min(group_size, remaining)
+            if 0 < remaining - n < 8:
                 n = remaining
             spawn = spawns[i % len(spawns)]
             extra = 2.5 * (i // len(spawns))          # weitere Wellen weiter außen
             y = spawn.y - extra if not self.attacking else spawn.y - extra * 0.4
-            rows = arrange([Man(UNIT_TYPES["raeuber"]) for _ in range(n)], math.ceil(n / 2))
+            n_pelt = round(0.2 * n) if n >= 10 else 0
+            men = [Man(UNIT_TYPES["raeuber"], tier=0) for _ in range(n - n_pelt)]
+            men += [Man(UNIT_TYPES["peltast"], tier=1) for _ in range(n_pelt)]
+            rows = arrange(men, math.ceil(n / 2))
             u = self._spawn(Side.FEIND, rows, spawn.x, y, "Räuber")
             u.waypoints = list(spawn.waypoints)
             if self.attacking:
@@ -283,11 +289,20 @@ class Battle:
             return u.wall_capable()
         return bool(self.crossings)
 
-    def ladders_for(self, u: Lochos) -> set[tuple[int, int]]:
-        """Auf- und Abstiege: Leitern für alle Läufer, Türme nur für Angreifer."""
-        if u.side is self.wall_side():
-            return set(self.ladders)
-        return set(self.ladders) | set(self.crossings)
+    def ladders_for(self, u: Lochos, pos: Point | None = None, target: Point | None = None) -> set[tuple[int, int]]:
+        """Auf- und Abstiege: Leitern für alle Läufer; der Turm nur für Angreifer
+        und nur zwischen Wehrgang und Außenseite."""
+        out = set(self.ladders)
+        if u.side is self.wall_side() or not self.crossings:
+            return out
+        outside_south = self.wall_side() is Side.FEIND
+        for c in self.crossings:
+            ground = target if (pos is not None and self.is_wall_cell(self.cell(*pos), True)) else pos
+            if ground is None:
+                out.add(c)
+            elif (ground[1] > c[1] + 0.5) == outside_south:
+                out.add(c)
+        return out
 
     def on_wall(self, u: Lochos) -> bool:
         return self.is_wall_cell(self.cell(u.x, u.y), self.is_walker(u))
@@ -296,16 +311,24 @@ class Battle:
         """Ein Schritt ist erlaubt, wenn das Ziel frei ist und der Wehrgang
         nur über eine Leiter (oder einen Turm) betreten oder verlassen wird."""
         walker = self.is_walker(u)
-        if self.is_blocked(b[0], b[1], u):
+        ca = self.cell(*a)
+        if self.is_blocked(b[0], b[1], u, from_wall=self.is_wall_cell(ca, walker)):
             return False
-        ca, cb = self.cell(*a), self.cell(*b)
+        cb = self.cell(*b)
         wa, wb = self.is_wall_cell(ca, walker), self.is_wall_cell(cb, walker)
         if wa == wb:
             return True
-        return (ca if wa else cb) in self.ladders_for(u)
+        wall_cell, ground_cell = (ca, cb) if wa else (cb, ca)
+        if wall_cell in self.ladders:
+            return True
+        if wall_cell in self.crossings and u.side is not self.wall_side():
+            # Turm: nur an der Außenseite des Walls (dort steht er)
+            outside_south = self.wall_side() is Side.FEIND
+            return (ground_cell[1] > wall_cell[1]) == outside_south
+        return False
 
     def nearest_ladder(self, u: Lochos, p: Point, target: Point) -> Point | None:
-        ladders = self.ladders_for(u)
+        ladders = self.ladders_for(u, p, target)
         if not ladders:
             return None
         best = min(ladders, key=lambda c: dist(p, (c[0] + 0.5, c[1] + 0.5)) + dist((c[0] + 0.5, c[1] + 0.5), target))
@@ -314,13 +337,15 @@ class Battle:
     def wall_side(self) -> Side | None:
         return {"stadt": Side.STADT, "feind": Side.FEIND, None: None}[self.scenario.wall_side]
 
-    def is_blocked(self, x: float, y: float, unit: Lochos | None = None) -> bool:
+    def is_blocked(self, x: float, y: float, unit: Lochos | None = None, from_wall: bool | None = None) -> bool:
         c = self.cell(x, y)
         walker = unit is not None and self.is_walker(unit)
         if c in self.blocked:
             return not walker
         if self.gate is not None and c in self.gate.cells:
-            if walker and self.on_wall(unit):
+            if from_wall is None:
+                from_wall = unit is not None and self.on_wall(unit)
+            if walker and from_wall:
                 return False          # oben über das Torhaus
             return self.gate.closed
         return False
@@ -338,14 +363,18 @@ class Battle:
         return True
 
     def route(self, u: Lochos, target: Point) -> tuple[Point, bool]:
-        """Nächster Zielpunkt und ob es schon das eigentliche Ziel ist."""
+        """Nächster Zielpunkt der Gruppe und ob es schon das eigentliche Ziel ist."""
+        return self.route_from(u, u.pos, target)
+
+    def route_from(self, u: Lochos, pos: Point, target: Point) -> tuple[Point, bool]:
+        """Wie ``route``, aber von einer beliebigen Position aus (auch für einzelne Männer)."""
         walker = self.is_walker(u) and bool(self.ladders_for(u))
         if walker:
-            on = self.on_wall(u)
+            on = self.is_wall_cell(self.cell(*pos), True)
             want = self.is_wall_cell(self.cell(*target), True)
             if on != want:
-                ladder = self.nearest_ladder(u, u.pos, target)
-                if ladder is not None and self.cell(*ladder) != self.cell(u.x, u.y):
+                ladder = self.nearest_ladder(u, pos, target)
+                if ladder is not None and self.cell(*ladder) != self.cell(*pos):
                     return ladder, False
                 return target, True
             if on and want:
@@ -353,22 +382,22 @@ class Battle:
         # am Boden: Palisade ist für alle eine Sperre, Übergang nur durchs Tor oder über Leiter/Turm
         if self.gate is None and not self.blocked:
             return target, True
-        if self.path_clear(u.pos, target, None):
+        if self.path_clear(pos, target, None):
             return target, True
         if self.gate is not None and not self.gate.closed:
             gx, gy = self.gate.center
-            above = u.y < gy
+            above = pos[1] < gy
             beyond = (gx, gy + 1.2) if above else (gx, gy - 1.2)
-            if self.path_clear(u.pos, beyond, None):
+            if self.path_clear(pos, beyond, None):
                 return beyond, False
             return ((gx, gy - 1.2) if above else (gx, gy + 1.2)), False
         if walker:
-            ladder = self.nearest_ladder(u, u.pos, u.pos)   # nächster Aufstieg
+            ladder = self.nearest_ladder(u, pos, target)   # nächster Aufstieg Richtung Ziel
             if ladder is not None:
                 return ladder, False
         if self.gate is not None:
             gx, gy = self.gate.center
-            above = u.y < gy
+            above = pos[1] < gy
             spread = ((u.id % 5) - 2) * 1.3
             far = config.ENEMY_RALLY_DISTANCE + 0.6 * ((u.id // 5) % 3)
             wait = (gx + spread, gy - far) if above else (gx + spread, gy + far)
@@ -488,8 +517,15 @@ class Battle:
             u.building = 0.0
             u.build_kind = kind
             started += 1
+            self._dismount(u)
             self.events.append(f"{u.name} baut {'den Rammbock' if kind == 'ram' else 'den Belagerungsturm'}")
         return started
+
+    def _dismount(self, u: Lochos) -> None:
+        n = u.dismount()
+        if n:
+            self.horses.append((u.x, u.y, n))
+            self.events.append(f"{u.name} sitzen ab, {n} Pferde bleiben zurück")
 
     def command_ram_gate(self, units: list[Lochos] | None) -> int:
         """Gruppen mit Rammbock gehen ans Tor und brechen es auf."""
@@ -741,6 +777,8 @@ class Battle:
             speed = u.speed * (1.25 if u.stance is Stance.FLUCHT else 1.0)
             goal, final = self.route(u, u.target)
             d = dist(u.pos, goal)
+            if u.mounted_men() and self.is_wall_cell(self.cell(*goal), True) and d <= 1.0:
+                self._dismount(u)   # vor Leiter oder Turm wird abgesessen
             stop_at = 0.0
             if u.stance is Stance.ANGRIFF and final:
                 target = self.by_id(u.target_id) if u.target_id is not None else None
@@ -761,6 +799,57 @@ class Battle:
             self._step(u, scale(direction, step))
             if u.stance is Stance.FLUCHT and not self.inside(u.x, u.y):
                 u.withdrawn = True
+        self._move_men(dt)
+
+    def _move_men(self, dt: float) -> None:
+        """Jeder Mann läuft zu seinem Platz in der Formation, weicht aber einzeln
+        aus: durchs Tor nur durch die Öffnung, auf den Wall nur über Leiter oder Turm."""
+        for u in self.lochoi:
+            if not u.alive:
+                continue
+            walker = self.is_walker(u)
+            for man, slot in u.slots():
+                d = dist(man.pos, slot)
+                if d <= 0.02:
+                    man.x, man.y = slot
+                    continue
+                speed = max(u.speed, man.speed) * config.MAN_CATCHUP
+                goal = slot
+                if not self._man_step(u, man, goal, speed * dt, walker):
+                    goal, _ = self.route_from(u, man.pos, slot)
+                    self._man_step(u, man, goal, speed * dt, walker)
+
+    def _man_step(self, u: Lochos, man: Man, goal: Point, step: float, walker: bool) -> bool:
+        d = dist(man.pos, goal)
+        if d < 1e-6:
+            return True
+        step = min(step, d)
+        dx, dy = (goal[0] - man.x) / d * step, (goal[1] - man.y) / d * step
+        for nx, ny in ((man.x + dx, man.y + dy), (man.x + dx, man.y), (man.x, man.y + dy)):
+            if (nx, ny) == (man.x, man.y):
+                continue
+            if self._man_can_step(u, man, (man.x, man.y), (nx, ny), walker):
+                man.x, man.y = nx, ny
+                return True
+        return False
+
+    def _man_can_step(self, u: Lochos, man: Man, a: Point, b: Point, walker: bool) -> bool:
+        ca, cb = self.cell(*a), self.cell(*b)
+        wa = self.is_wall_cell(ca, walker)
+        if self.is_blocked(b[0], b[1], u, from_wall=wa):
+            return False
+        wb = self.is_wall_cell(cb, walker)
+        if wa == wb:
+            return True
+        if man.kind.cavalry and man.mounted:
+            return False                      # beritten geht es weder hinauf noch hinunter
+        wall_cell, ground_cell = (ca, cb) if wa else (cb, ca)
+        if wall_cell in self.ladders:
+            return True
+        if wall_cell in self.crossings and u.side is not self.wall_side():
+            outside_south = self.wall_side() is Side.FEIND
+            return (ground_cell[1] > wall_cell[1]) == outside_south
+        return False
 
     def _step(self, u: Lochos, delta: Point) -> None:
         nx, ny = u.x + delta[0], u.y + delta[1]
@@ -861,7 +950,10 @@ class Battle:
             return
         row_arc = arc_name if arc_name != "ranged" else "front"
         b.last_arc = arc_name
-        fallen = b.take_damage(b.exposed_row(row_arc), dmg)
+        fallen = b.take_damage(b.exposed_row(row_arc), dmg, self.rng)
+        self._after_hit(b, fallen, arc_name, dmg)
+
+    def _after_hit(self, b: Lochos, fallen: int, arc_name: str, dmg: float) -> None:
         if fallen:
             morale_mod = {"rear": 1.5, "flank": 1.2}.get(arc_name, 1.0)
             if b.in_phalanx and arc_name == "front":
@@ -900,21 +992,25 @@ class Battle:
                 continue
             a.volley_timer = config.VOLLEY_INTERVAL
             shield = 1.0 - 0.5 * foe.shield_factor() if foe.in_phalanx else 1.0
-            flight = max(0.15, d / config.JAVELIN_SPEED)
-            for i, m in enumerate(throwers):
+            targets = foe.all_men()
+            for m in throwers:
                 m.ammo -= 1
-                jitter = ((i * 7) % 5 - 2) * 0.08
+                victim = targets[self.rng.randrange(len(targets))]
+                flight = max(0.1, dist(m.pos, victim.pos) / config.JAVELIN_SPEED)
                 self.projectiles.append(Projectile(
-                    a.x + jitter, a.y - jitter, foe.x + jitter, foe.y + jitter,
-                    foe.id, config.JAVELIN_DAMAGE * shield, 0.0, flight,
+                    m.x, m.y, victim.x, victim.y, foe.id, config.JAVELIN_DAMAGE * shield, 0.0, flight, victim,
                 ))
         for pr in list(self.projectiles):
             pr.progress += dt
             if pr.progress >= pr.total:
                 self.projectiles.remove(pr)
                 b = self.by_id(pr.target_id)
-                if b is not None and b.alive:
-                    self._apply_damage(b, b, pr.dmg, "ranged")
+                if b is None or not b.alive or pr.target_man is None:
+                    continue
+                if pr.target_man.hp <= 0 or dist(pr.target_man.pos, (pr.tx, pr.ty)) > 0.35:
+                    continue                                   # daneben: der Mann ist nicht mehr dort
+                fallen = b.hit_man(pr.target_man, pr.dmg)
+                self._after_hit(b, fallen, "ranged", pr.dmg)
 
     # -- Belagerung: Bau, Rammbock, Turm -----------------------------------
     def _engines(self, dt: float) -> None:

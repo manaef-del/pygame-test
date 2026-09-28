@@ -56,11 +56,12 @@ UNIT_TYPES: dict[str, UnitType] = {
                         color=config.COLOR_PELTAST, ranged=True, bravery=1.1),
     "reiter": UnitType("reiter", "Reiter", "R", attack=1.4, hp=2.0, speed=3.0,
                        color=config.COLOR_REITER, bravery=0.8, cavalry=True),
-    "raeuber": UnitType("raeuber", "Räuber", "X", attack=1.0, hp=1.8, speed=1.5,
+    "raeuber": UnitType("raeuber", "Räuber", "X", attack=1.1, hp=2.0, speed=1.5,
                         color=config.COLOR_RAEUBER, bravery=1.3),
 }
 
 PLAYER_TYPES = ("schwer", "mittel", "leicht", "peltast", "reiter")
+HP_EPS = 1e-6
 TIERS = ("Vorn", "Mitte", "Hinten")   # Abschnitte der Aufstellung, vorn nach hinten
 
 
@@ -70,12 +71,37 @@ class Man:
     hp: float = 0.0
     ammo: int = 0
     tier: int = 0        # Abschnitt der Aufstellung (0 = vorn)
+    x: float = 0.0       # eigene Position auf der Karte
+    y: float = 0.0
+    mounted: bool = False
 
     def __post_init__(self) -> None:
         if self.hp == 0.0:
             self.hp = self.kind.hp
         if self.kind.ranged and self.ammo == 0:
             self.ammo = config.JAVELINS
+        if self.kind.cavalry:
+            self.mounted = True
+
+    @property
+    def pos(self) -> tuple[float, float]:
+        return (self.x, self.y)
+
+    @property
+    def speed(self) -> float:
+        if self.kind.cavalry and not self.mounted:
+            return config.DISMOUNTED_SPEED
+        return self.kind.speed
+
+    @property
+    def attack(self) -> float:
+        if self.kind.cavalry and not self.mounted:
+            return config.DISMOUNTED_ATTACK
+        return self.kind.attack
+
+    @property
+    def wounded(self) -> bool:
+        return self.hp < 0.5 * self.kind.hp
 
 
 def default_width(n: int) -> int:
@@ -135,7 +161,6 @@ class Lochos:
     engaged: bool = False             # in diesem Schritt im Nahkampf
     last_arc: str = ""
     men_start: int = 0
-    pool: list[float] = field(default_factory=list)  # angesammelter Schaden je Reihe
     rout_threshold: float = 0.3
     volley_timer: float = 0.0
     engine: str | None = None         # "ram" oder "tower", wenn fertig gebaut
@@ -148,7 +173,7 @@ class Lochos:
         self.rows = [list(r) for r in self.rows if r]
         if self.men_start == 0:
             self.men_start = self.men
-        self.pool = [0.0] * len(self.rows)
+        self.place_men()
 
     # ---------------------------------------------------------- Abfragen
     @property
@@ -173,10 +198,19 @@ class Lochos:
 
     @property
     def speed(self) -> float:
-        kinds = {m.kind for r in self.rows for m in r}
-        base = min((k.speed for k in kinds), default=1.0)
+        base = min((m.speed for m in self.all_men()), default=1.0)
         factor = {"ram": config.RAM_SPEED_FACTOR, "tower": config.TOWER_SPEED_FACTOR}.get(self.engine, 1.0)
         return base * factor
+
+    def mounted_men(self) -> list[Man]:
+        return [m for m in self.all_men() if m.kind.cavalry and m.mounted]
+
+    def dismount(self) -> int:
+        """Reiter sitzen ab; liefert die Zahl der zurückgelassenen Pferde."""
+        riders = self.mounted_men()
+        for m in riders:
+            m.mounted = False
+        return len(riders)
 
     def wall_capable(self) -> bool:
         """Nur reine Peltastengruppen steigen auf den Wehrgang."""
@@ -266,24 +300,43 @@ class Lochos:
 
     # -------------------------------------------------------- Formation
     def reform(self, width: int) -> None:
-        """Reihen neu bilden: Abschnitte bleiben vorn/hinten, Breite ändert sich."""
+        """Reihen neu bilden: Abschnitte bleiben vorn/hinten, Breite ändert sich.
+        Die Männer behalten ihre Position und laufen zu ihren neuen Plätzen."""
         self.rows = arrange(self.all_men(), width)
-        self.pool = [0.0] * len(self.rows)
+
+    def slots(self) -> list[tuple[Man, tuple[float, float]]]:
+        """Platz jedes Mannes in der Formation (Weltkoordinaten)."""
+        fx, fy = self.facing
+        out = []
+        n_rows = len(self.rows)
+        for r, row in enumerate(self.rows):
+            forward = ((n_rows - 1) / 2 - r) * config.ROW_SPACING
+            n = len(row)
+            for i, man in enumerate(row):
+                side = (i - (n - 1) / 2) * config.MAN_SPACING
+                out.append((man, (self.x + fx * forward - fy * side, self.y + fy * forward + fx * side)))
+        return out
+
+    def place_men(self) -> None:
+        """Alle Männer sofort auf ihre Plätze setzen."""
+        for man, (sx, sy) in self.slots():
+            man.x, man.y = sx, sy
 
     # ------------------------------------------------------------ Kampf
     def melee_attack(self) -> float:
         """Angriffspunkte: vordere Reihe, dazu Speere der zweiten."""
         if not self.rows:
             return 0.0
-        total = sum(m.kind.attack for m in self.rows[0])
+        total = sum(m.attack for m in self.rows[0])
         if len(self.rows) > 1:
-            total += 0.5 * sum(m.kind.attack for m in self.rows[1] if m.kind.hoplite)
+            total += 0.5 * sum(m.attack for m in self.rows[1] if m.kind.hoplite)
         return total
 
     def cavalry_share(self) -> float:
+        """Anteil berittener Männer in der vorderen Reihe."""
         if not self.rows or not self.rows[0]:
             return 0.0
-        return sum(1 for m in self.rows[0] if m.kind.cavalry) / len(self.rows[0])
+        return sum(1 for m in self.rows[0] if m.kind.cavalry and m.mounted) / len(self.rows[0])
 
     def throwers(self, engaged: bool) -> list[Man]:
         """Wer wirft: hintere Reihen immer, die vordere nur ohne Nahkampf."""
@@ -303,18 +356,33 @@ class Lochos:
             return max(range(len(self.rows)), key=lambda i: len(self.rows[i]))
         return 0
 
-    def take_damage(self, row: int, dmg: float) -> int:
-        """Schaden auf eine Reihe; liefert die Zahl der Gefallenen."""
-        if not self.rows:
+    def take_damage(self, row: int, dmg: float, rng=None) -> int:
+        """Schaden auf eine Reihe, in Häppchen auf einzelne Männer verteilt;
+        liefert die Zahl der Gefallenen."""
+        if not self.rows or dmg <= 0:
             return 0
         row = min(row, len(self.rows) - 1)
-        self.pool[row] += dmg
+        pick = rng.randrange if rng is not None else (lambda n: 0)
+        while dmg > 0:
+            living = [m for m in self.rows[row] if m.hp > HP_EPS]
+            if not living:
+                break
+            q = min(config.DAMAGE_QUANTUM, dmg)
+            living[pick(len(living))].hp -= q
+            dmg -= q
+        return self.bury()
+
+    def hit_man(self, man: Man, dmg: float) -> int:
+        """Ein bestimmter Mann wird getroffen (Speer); liefert 1, wenn er fällt."""
+        man.hp -= dmg
+        return self.bury()
+
+    def bury(self) -> int:
+        """Gefallene aus den Reihen nehmen; leere Reihen schließen."""
         fallen = 0
-        while self.rows[row] and self.pool[row] >= self.rows[row][0].hp:
-            self.pool[row] -= self.rows[row][0].hp
-            self.rows[row].pop(0)
-            fallen += 1
-        if not self.rows[row]:
-            del self.rows[row]
-            del self.pool[row]
+        for row in self.rows:
+            alive = [m for m in row if m.hp > HP_EPS]
+            fallen += len(row) - len(alive)
+            row[:] = alive
+        self.rows = [r for r in self.rows if r]
         return fallen
