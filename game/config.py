@@ -1,0 +1,24 @@
+"""Zentrale Einstellungen für das Spiel."""
+
+WIDTH = 480
+HEIGHT = 640
+FPS = 60
+
+PLAYER_WIDTH = 50
+PLAYER_HEIGHT = 20
+PLAYER_SPEED = 320.0  # Pixel pro Sekunde
+PLAYER_BOTTOM_MARGIN = 30
+
+BLOCK_MIN_SIZE = 20
+BLOCK_MAX_SIZE = 50
+BLOCK_START_SPEED = 150.0   # Pixel pro Sekunde
+BLOCK_SPEED_GAIN = 6.0      # Zusätzliche Geschwindigkeit pro Punkt
+SPAWN_START_INTERVAL = 0.9  # Sekunden
+SPAWN_MIN_INTERVAL = 0.25
+SPAWN_INTERVAL_DECAY = 0.985  # Faktor pro Spawn
+
+COLOR_BG = (18, 18, 24)
+COLOR_PLAYER = (90, 200, 250)
+COLOR_BLOCK = (240, 90, 90)
+COLOR_TEXT = (235, 235, 235)
+COLOR_TEXT_DIM = (150, 150, 160)
