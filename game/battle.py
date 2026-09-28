@@ -107,8 +107,8 @@ class Battle:
     projectiles: list[Projectile] = field(default_factory=list)
     events: list[str] = field(default_factory=list)
     men_start: dict[Side, int] = field(default_factory=dict)
-    ram_status: str = "keiner"          # keiner, bau, bereit
-    ram_group: int | None = None
+    crossings: set[tuple[int, int]] = field(default_factory=set)   # überwundene Wallstücke
+    enemy_ram_id: int | None = None      # Räubergruppe, die den Rammbock baut
     horde_awake: bool = False
     _next_id: int = 0
 
@@ -274,6 +274,8 @@ class Battle:
     def is_blocked(self, x: float, y: float, unit: Lochos | None = None) -> bool:
         c = self.cell(x, y)
         if c in self.blocked:
+            if c in self.crossings:
+                return False
             return not (unit is not None and unit.side is self.wall_side() and unit.wall_capable())
         if self.gate is not None and self.gate.closed and c in self.gate.cells:
             return True
@@ -298,12 +300,32 @@ class Battle:
         gx, gy = self.gate.center
         above = u.y < gy
         if self.gate.closed:
-            wait = (gx, gy - 1.3) if above else (gx, gy + 1.3)
-            return wait, False
+            spread = ((u.id % 5) - 2) * 1.3
+            far = config.ENEMY_RALLY_DISTANCE + 0.6 * ((u.id // 5) % 3)
+            wait = (gx + spread, gy - far) if above else (gx + spread, gy + far)
+            return self._free_spot(wait, u), False
         beyond = (gx, gy + 1.2) if above else (gx, gy - 1.2)
         if self.path_clear(u.pos, beyond, u):
             return beyond, False
         return ((gx, gy - 1.2) if above else (gx, gy + 1.2)), False
+
+    def throw_clear(self, a: Lochos, b: Lochos) -> bool:
+        """Über die Palisade wirft nur, wer auf dem Wehrgang steht."""
+        if self.on_wall(a):
+            return True
+        target_cell = self.cell(b.x, b.y)
+        d = dist(a.pos, b.pos)
+        n = max(1, int(d / 0.25))
+        for i in range(1, n + 1):
+            t = i / n
+            c = self.cell(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
+            if c == target_cell:
+                continue
+            if c in self.blocked and c not in self.crossings:
+                return False
+            if self.gate is not None and self.gate.closed and c in self.gate.cells:
+                return False
+        return True
 
     def _nearest(self, unit: Lochos, candidates: list[Lochos]) -> tuple[Lochos | None, float]:
         best, best_d = None, float("inf")
@@ -332,10 +354,12 @@ class Battle:
         return [u for u in pool if u.id in ids]
 
     def _wake(self, u: Lochos) -> None:
+        if u.building is not None:
+            self.events.append(f"{u.name}: Bau abgebrochen")
         u.building = None
-        if self.ram_status == "bau" and self.ram_group == u.id:
-            self.ram_status, self.ram_group = "keiner", None
-            self.events.append("Bau des Rammbocks abgebrochen")
+        u.build_kind = None
+        u.tower_cell = None
+        u.tower_progress = 0.0
 
     def command_move(self, units: list[Lochos] | None, point: Point) -> None:
         self.alarm = False
@@ -382,43 +406,66 @@ class Battle:
             u.target = None
         self.events.append("Halten")
 
-    def command_build_ram(self, units: list[Lochos] | None) -> bool:
-        """Die erste gewählte Gruppe baut den Rammbock; dabei steht sie."""
-        if not self.scenario.ram_available or self.ram_status != "keiner":
-            return False
-        sel = self._selection(units)
-        if not sel:
-            return False
-        self.alarm = False
-        u = sel[0]
-        u.stance = Stance.HALTEN
-        u.in_line = False
-        u.target = None
-        u.target_id = None
-        u.building = 0.0
-        self.ram_status, self.ram_group = "bau", u.id
-        self.events.append(f"{u.name} baut den Rammbock")
-        return True
+    def command_build(self, units: list[Lochos] | None, kind: str) -> int:
+        """Gewählte Gruppen bauen je ein Belagerungsgerät ("ram" oder "tower")."""
+        if not self.scenario.ram_available or kind not in ("ram", "tower"):
+            return 0
+        started = 0
+        for u in self._selection(units):
+            if u.engine is not None or u.building is not None:
+                continue
+            self.alarm = False
+            u.stance = Stance.HALTEN
+            u.in_line = False
+            u.target = None
+            u.target_id = None
+            u.building = 0.0
+            u.build_kind = kind
+            started += 1
+            self.events.append(f"{u.name} baut {'den Rammbock' if kind == 'ram' else 'den Belagerungsturm'}")
+        return started
 
-    def command_ram_gate(self, units: list[Lochos] | None) -> bool:
-        """Die Gruppe mit dem Rammbock geht ans Tor und bricht es auf."""
+    def command_ram_gate(self, units: list[Lochos] | None) -> int:
+        """Gruppen mit Rammbock gehen ans Tor und brechen es auf."""
         if self.gate is None or not self.gate.closed:
-            return False
-        if self.ram_status != "bereit" or self.ram_group is None:
+            return 0
+        sel = [u for u in self._selection(units) if u.engine == "ram"]
+        if not sel:
             self.events.append("Ohne Rammbock hält das Tor")
-            return False
-        u = self.by_id(self.ram_group)
-        if u is None or not u.fighting:
-            return False
+            return 0
         self.alarm = False
         gx, gy = self.gate.center
-        u.stance = Stance.HALTEN
-        u.in_line = False
-        u.target_id = None
-        u.target = (gx, gy + 0.5 + u.half_d + 0.35)
-        u.facing = (0.0, -1.0)
+        for i, u in enumerate(sel):
+            side = 1.0 if u.y > gy else -1.0
+            u.stance = Stance.HALTEN
+            u.in_line = False
+            u.target_id = None
+            u.target = (gx + (i - (len(sel) - 1) / 2) * 0.8, gy + side * (0.5 + u.half_d + 0.35))
+            u.facing = (0.0, -side)
         self.events.append("Rammbock geht ans Tor")
-        return True
+        return len(sel)
+
+    def command_tower_wall(self, units: list[Lochos] | None, cell: tuple[int, int]) -> int:
+        """Gruppen mit Turm setzen ihn an dieses Wallstück."""
+        if cell not in self.blocked or cell in self.crossings:
+            return 0
+        sel = [u for u in self._selection(units) if u.engine == "tower"]
+        if not sel:
+            self.events.append("Ohne Belagerungsturm ist der Wall zu hoch")
+            return 0
+        self.alarm = False
+        cx, cy = cell[0] + 0.5, cell[1] + 0.5
+        for u in sel:
+            side = 1.0 if u.y > cy else -1.0
+            u.stance = Stance.HALTEN
+            u.in_line = False
+            u.target_id = None
+            u.tower_cell = cell
+            u.tower_progress = 0.0
+            u.target = (cx, cy + side * (0.5 + u.half_d + 0.3))
+            u.facing = (0.0, -side)
+        self.events.append("Belagerungsturm rollt an den Wall")
+        return len(sel)
 
     def plan_line(self, units: list[Lochos] | None, start: Point, end: Point) -> list[LinePlan]:
         sel = self._selection(units)
@@ -492,7 +539,7 @@ class Battle:
         self._separate()
         self._combat(dt)
         self._volleys(dt)
-        self._ram(dt)
+        self._engines(dt)
         if not self.attacking:
             self._loot(dt)
         self._morale(dt)
@@ -502,9 +549,13 @@ class Battle:
     # -- KI ----------------------------------------------------------------
     def _ai_raiders(self) -> None:
         defenders = self.units(Side.STADT, fighting_only=True)
+        ram_unit = self._raider_ram_unit()
         for u in self.units(Side.FEIND):
             if u.stance is Stance.FLUCHT:
                 u.target = (u.x, -3.0)
+                continue
+            if u is ram_unit:
+                self._drive_raider_ram(u)
                 continue
             foe, d = self._nearest(u, defenders)
             if foe is not None and foe.rect_distance(u.pos) <= config.SEEK_RANGE and not self.on_wall(foe):
@@ -526,6 +577,42 @@ class Battle:
                 u.target = h.center
             else:
                 u.target = (u.x, -3.0)
+
+    def _raider_ram_unit(self) -> Lochos | None:
+        """Solange das Tor zu ist, baut eine Räubergruppe den Rammbock."""
+        if self.gate is None or not self.gate.closed:
+            return None
+        u = self.by_id(self.enemy_ram_id) if self.enemy_ram_id is not None else None
+        if u is not None and u.fighting:
+            return u
+        candidates = [r for r in self.units(Side.FEIND, fighting_only=True) if not self.on_wall(r)]
+        if not candidates:
+            self.enemy_ram_id = None
+            return None
+        gx, gy = self.gate.center
+        u = min(candidates, key=lambda r: dist(r.pos, (gx, gy)))
+        self.enemy_ram_id = u.id
+        u.waypoints = []
+        return u
+
+    def _drive_raider_ram(self, u: Lochos) -> None:
+        gx, gy = self.gate.center
+        rally = (gx, gy - config.ENEMY_RALLY_DISTANCE)
+        u.stance = Stance.HALTEN
+        u.target_id = None
+        if u.engine == "ram":
+            u.target = (gx, gy - (0.5 + u.half_d + 0.35))
+            u.facing = (0.0, 1.0)
+            return
+        if u.building is not None:
+            u.target = None
+            return
+        if dist(u.pos, rally) > 0.6:
+            u.target = rally
+            return
+        u.building = 0.0
+        u.build_kind = "ram"
+        self.events.append("Die Räuber bauen einen Rammbock")
 
     def _ai_defenders(self) -> None:
         """Gegner beim Angriff: Horde stürmt bei Annäherung, Siedlung hält."""
@@ -719,7 +806,7 @@ class Battle:
         if b.men <= 0:
             b.in_line = False
             self.events.append(f"{b.name} ({b.side.value}) aufgerieben")
-            self._lose_ram_if(b)
+            self._lose_engine(b)
 
     def _volleys(self, dt: float) -> None:
         alive = [u for u in self.lochoi if u.alive]
@@ -740,9 +827,10 @@ class Battle:
             if a.volley_timer > 0:
                 continue
             reach = config.JAVELIN_RANGE + (config.WALL_RANGE_BONUS if self.on_wall(a) else 0.0)
-            foes = [b for b in alive if b.side is not a.side and b.fighting]
+            foes = [b for b in alive if b.side is not a.side and b.fighting
+                    and b.rect_distance(a.pos) <= reach and self.throw_clear(a, b)]
             foe, d = self._nearest(a, foes)
-            if foe is None or foe.rect_distance(a.pos) > reach:
+            if foe is None:
                 continue
             a.volley_timer = config.VOLLEY_INTERVAL
             shield = 1.0 - 0.5 * foe.shield_factor() if foe.in_phalanx else 1.0
@@ -762,38 +850,52 @@ class Battle:
                 if b is not None and b.alive:
                     self._apply_damage(b, b, pr.dmg, "ranged")
 
-    # -- Rammbock und Tor --------------------------------------------------
-    def _ram(self, dt: float) -> None:
-        if self.ram_group is None:
-            return
-        u = self.by_id(self.ram_group)
-        if u is None or not u.fighting:
-            self._lose_ram_if(u)
-            return
-        if self.ram_status == "bau":
-            u.building = (u.building or 0.0) + dt
-            if u.building >= config.RAM_BUILD_TIME:
-                u.building = None
-                u.ram = True
-                self.ram_status = "bereit"
-                self.events.append("Der Rammbock ist fertig. Tippe das Tor an.")
-            return
-        if self.gate is None or not self.gate.closed:
-            return
-        gx, gy = self.gate.center
-        if abs(u.x - gx) <= len(self.gate.cells) / 2 + 0.3 and abs(u.y - (gy + 0.5)) <= u.half_d + config.RAM_REACH:
-            self.gate.hp -= config.RAM_DPS * dt
-            if self.gate.hp <= 0:
-                self.gate.hp = 0.0
-                self.gate.closed = False
-                self.events.append("Das Tor ist aufgebrochen!")
+    # -- Belagerung: Bau, Rammbock, Turm -----------------------------------
+    def _engines(self, dt: float) -> None:
+        for u in self.lochoi:
+            if not u.fighting:
+                continue
+            if u.building is not None:
+                u.building += dt
+                needed = config.RAM_BUILD_TIME if u.build_kind == "ram" else config.TOWER_BUILD_TIME
+                if u.building >= needed:
+                    u.engine = u.build_kind
+                    u.building = None
+                    u.build_kind = None
+                    what = "Der Rammbock" if u.engine == "ram" else "Der Belagerungsturm"
+                    self.events.append(f"{what} von {u.name} ist fertig")
+                continue
+            if u.engine == "ram" and self.gate is not None and self.gate.closed:
+                gx, gy = self.gate.center
+                if abs(u.x - gx) <= len(self.gate.cells) / 2 + 0.3 and abs(abs(u.y - gy) - 0.5) <= u.half_d + config.RAM_REACH:
+                    self.gate.hp -= config.RAM_DPS * dt
+                    if self.gate.hp <= 0:
+                        self.gate.hp = 0.0
+                        self.gate.closed = False
+                        self.events.append("Das Tor ist aufgebrochen!")
+            elif u.engine == "tower" and u.tower_cell is not None:
+                cx, cy = u.tower_cell[0] + 0.5, u.tower_cell[1] + 0.5
+                if abs(u.x - cx) <= 0.6 and abs(abs(u.y - cy) - 0.5) <= u.half_d + config.TOWER_REACH:
+                    u.tower_progress += dt
+                    if u.tower_progress >= config.TOWER_DEPLOY_TIME:
+                        self.crossings.add(u.tower_cell)
+                        self.events.append(f"{u.name} hat den Wall überwunden")
+                        beyond_side = -1.0 if u.y > cy else 1.0
+                        u.engine = None
+                        u.tower_cell = None
+                        u.target = (cx, cy + beyond_side * (0.5 + u.half_d + 0.6))
 
-    def _lose_ram_if(self, u: Lochos | None) -> None:
-        if u is not None and self.ram_group == u.id and self.ram_status != "keiner":
-            self.ram_status, self.ram_group = "keiner", None
-            u.ram = False
-            u.building = None
-            self.events.append("Der Rammbock ist verloren")
+    def _lose_engine(self, u: Lochos | None) -> None:
+        if u is None:
+            return
+        if u.engine is not None or u.building is not None:
+            self.events.append(f"{u.name}: Belagerungsgerät verloren")
+        u.engine = None
+        u.building = None
+        u.build_kind = None
+        u.tower_cell = None
+        if self.enemy_ram_id == u.id:
+            self.enemy_ram_id = None
 
     # -- Plündern ----------------------------------------------------------
     def _loot(self, dt: float) -> None:
@@ -822,7 +924,7 @@ class Battle:
                 u.target = None
                 u.target_id = None
                 self.events.append(f"{u.name} ({u.side.value}) flieht")
-                self._lose_ram_if(u)
+                self._lose_engine(u)
 
     def _check_withdraw(self) -> None:
         start = self.men_start.get(Side.FEIND, 0)

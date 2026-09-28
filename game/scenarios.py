@@ -83,9 +83,9 @@ OFFENE_SIEDLUNG = Scenario(
 
 PALISADE = Scenario(
     key="palisade", name="Verteidigung: Palisade",
-    hint="Nur ein Tor. Zieh die Hopliten dahinter auf; Peltasten dürfen auf den Wehrgang.",
+    hint="Das Tor ist zu; die Räuber bauen einen Rammbock. Peltasten auf den Wehrgang, Hopliten hinters Tor.",
     role="verteidigung", enemy_kind="raeuber", enemy_default=192, enemy_min=32, enemy_max=224,
-    houses=HOUSES_SOUTH, palisade=_palisade_row(8, gate_cols=(7, 8)), gate=(7, 8),
+    houses=HOUSES_SOUTH, palisade=_palisade_row(8, gate_cols=(7, 8)), gate=(7, 8), gate_closed=True,
     wall_side="stadt", raider_spawns=RAIDS_GATE,
 )
 
@@ -105,7 +105,7 @@ SIEDLUNG_OFFEN = Scenario(
 
 SIEDLUNG_WALL = Scenario(
     key="angriff_wall", name="Angriff: Siedlung mit Wall",
-    hint="Das Tor ist verschlossen. Wähle eine Gruppe, baue den Rammbock und tippe dann das Tor an.",
+    hint="Das Tor ist zu. Wähle eine Gruppe und lass sie Rammbock oder Turm bauen; dann Tor oder Wall antippen.",
     role="angriff", enemy_kind="spiegel", enemy_default=75, enemy_min=20, enemy_max=150,
     houses=HOUSES_NORTH, palisade=_palisade_row(7, gate_cols=(7, 8)), gate=(7, 7), gate_closed=True,
     wall_side="feind", deploy_y=15.5, enemy_deploy_y=5.3, ram_available=True,

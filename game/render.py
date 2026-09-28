@@ -61,9 +61,10 @@ class Renderer:
             Button("halten", "Halten", pygame.Rect(2 * gap + w4, r1, w4, row_h)),
             Button("alle", "Alle", pygame.Rect(3 * gap + 2 * w4, r1, w4, row_h)),
             Button("pause", "Pause", pygame.Rect(4 * gap + 3 * w4, r1, w4, row_h)),
-            Button("neu", "Neu", pygame.Rect(gap, r2, w3, row_h)),
-            Button("aufstellung", "Aufstellung", pygame.Rect(2 * gap + w3, r2, w3, row_h)),
-            Button("rammbock", "Rammbock", pygame.Rect(3 * gap + 2 * w3, r2, w3, row_h)),
+            Button("neu", "Neu", pygame.Rect(gap, r2, w4, row_h)),
+            Button("aufstellung", "Aufstellung", pygame.Rect(2 * gap + w4, r2, w4, row_h)),
+            Button("rammbock", "Rammbock", pygame.Rect(3 * gap + 2 * w4, r2, w4, row_h)),
+            Button("turm", "Turm", pygame.Rect(4 * gap + 3 * w4, r2, w4, row_h)),
         ]
 
     def draw(self, battle: Battle, drag, paused: bool, selected: set[int]) -> None:
@@ -126,6 +127,11 @@ class Renderer:
             pygame.draw.rect(s, config.COLOR_PALISADE, pygame.Rect(cx * T, cy * T + T // 3, T, T // 3))
             for i in range(3):
                 pygame.draw.line(s, (90, 60, 30), (cx * T + 5 + i * 10, cy * T + 4), (cx * T + 5 + i * 10, cy * T + T - 4), 3)
+        for cx, cy in battle.crossings:
+            rect = pygame.Rect(cx * T + 2, cy * T + 2, T - 4, T - 4)
+            pygame.draw.rect(s, config.COLOR_CROSSING, rect, border_radius=3)
+            for i in range(3):
+                pygame.draw.line(s, (90, 60, 30), (cx * T + 6, cy * T + 7 + i * 8), (cx * T + T - 6, cy * T + 7 + i * 8), 2)
         if battle.gate is not None:
             gx, gy = battle.gate.center
             half = len(battle.gate.cells) / 2
@@ -182,12 +188,19 @@ class Renderer:
         if u.in_phalanx:
             a, b = corners[0], corners[1]
             pygame.draw.line(s, config.COLOR_SHIELD, a, b, 4)
-        if u.ram or u.building is not None:
+        kind = u.engine or u.build_kind
+        if kind == "ram":
             a = px((u.x + fx * (u.half_d + 0.05), u.y + fy * (u.half_d + 0.05)))
             b = px((u.x + fx * (u.half_d + 0.55), u.y + fy * (u.half_d + 0.55)))
             pygame.draw.line(s, config.COLOR_RAM, a, b, 6)
+        elif kind == "tower":
+            tx, ty = px((u.x + fx * (u.half_d + 0.35), u.y + fy * (u.half_d + 0.35)))
+            pygame.draw.rect(s, config.COLOR_TOWER, pygame.Rect(tx - 7, ty - 9, 14, 18), border_radius=2)
+            pygame.draw.rect(s, (90, 60, 30), pygame.Rect(tx - 7, ty - 9, 14, 18), 1)
+        if kind is not None:
             if u.building is not None:
-                frac = min(1.0, u.building / config.RAM_BUILD_TIME)
+                needed = config.RAM_BUILD_TIME if u.build_kind == "ram" else config.TOWER_BUILD_TIME
+                frac = min(1.0, u.building / needed)
                 bar = pygame.Rect(cx - 15, cy - int(u.half_d * T) - 12, 30, 4)
                 pygame.draw.rect(s, config.COLOR_BUTTON, bar)
                 pygame.draw.rect(s, config.COLOR_SHIELD, pygame.Rect(bar.x, bar.y, int(30 * frac), 4))
@@ -203,7 +216,7 @@ class Renderer:
         text = f"Stadt {r['stadt_start'] - r['stadt_gefallen']}   Feind {r['feind_start'] - r['feind_gefallen']}   "
         if not battle.attacking:
             text += f"Häuser {r['haeuser_intakt']}/{r['haeuser']}   "
-        elif battle.gate is not None:
+        if battle.gate is not None:
             text += f"Tor {int(100 * battle.gate.hp / battle.gate.hp_max)}%   " if battle.gate.closed else "Tor offen   "
         text += f"{mins}:{secs:02d}"
         strip = pygame.Surface((config.MAP_W, 26), pygame.SRCALPHA)
@@ -236,7 +249,7 @@ class Renderer:
                 names = ", ".join(f"{u.name} ({u.summary()})" for u in sel[:3])
                 if len(sel) > 3:
                     names += f" +{len(sel) - 3}"
-                msg = "Gewählt: " + names + "  ·  Tippen = hin, Feind = Angriff, Ziehen = Front aufziehen"
+                msg = "Gewählt: " + names + "  ·  Tippen = hin, Feind = Angriff, Ziehen = Front, Tor/Wall = Gerät ansetzen"
             elif battle.events:
                 msg = battle.events[-1]
             else:
@@ -271,25 +284,34 @@ class Renderer:
     def _draw_bar(self, battle: Battle, paused: bool, selected: set[int]) -> None:
         s = self.surface
         pygame.draw.rect(s, config.COLOR_BAR, pygame.Rect(0, config.MAP_H, config.WIDTH, config.BAR_H))
+        sel_units = [u for u in battle.lochoi if u.id in selected and u.fighting]
         for b in self.buttons:
-            if b.key == "rammbock" and not battle.scenario.ram_available:
+            if b.key in ("rammbock", "turm") and not battle.scenario.ram_available:
                 continue
             active = (b.key == "pause" and paused) or (b.key == "alle" and selected)
-            active = active or (b.key == "rammbock" and battle.ram_status != "keiner")
-            pygame.draw.rect(s, config.COLOR_BUTTON_ACTIVE if active else config.COLOR_BUTTON, b.rect, border_radius=6)
             label = b.label
             if b.key == "pause":
                 label = "Los" if battle.alarm else ("Weiter" if paused else "Pause")
             if b.key == "alle" and selected:
                 label = "Keine"
-            if b.key == "rammbock":
-                label = {"keiner": "Rammbock bauen", "bau": "Bau läuft", "bereit": "Rammbock bereit"}[battle.ram_status]
-            img = self.font.render(label, True, config.COLOR_TEXT)
+            if b.key in ("rammbock", "turm"):
+                kind = "ram" if b.key == "rammbock" else "tower"
+                if sel_units and any(u.engine == kind for u in sel_units):
+                    label, active = ("Rammbock bereit" if kind == "ram" else "Turm bereit"), True
+                elif sel_units and any(u.build_kind == kind for u in sel_units):
+                    label, active = "Bau läuft", True
+                elif not sel_units:
+                    label = ("Rammbock" if kind == "ram" else "Turm") + " (Gruppe wählen)"
+                else:
+                    label = "Rammbock bauen" if kind == "ram" else "Turm bauen"
+            pygame.draw.rect(s, config.COLOR_BUTTON_ACTIVE if active else config.COLOR_BUTTON, b.rect, border_radius=6)
+            font = self.font if len(label) <= 12 else self.small
+            img = font.render(label, True, config.COLOR_TEXT)
             s.blit(img, img.get_rect(center=b.rect.center))
 
     def button_at(self, pos: tuple[int, int], battle: Battle | None = None) -> str | None:
         for b in self.buttons:
-            if b.key == "rammbock" and battle is not None and not battle.scenario.ram_available:
+            if b.key in ("rammbock", "turm") and battle is not None and not battle.scenario.ram_available:
                 continue
             if b.rect.collidepoint(pos):
                 return b.key

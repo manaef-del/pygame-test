@@ -87,6 +87,10 @@ class App:
             self.command("neu")
         elif key == pygame.K_m:
             self.command("aufstellung")
+        elif key == pygame.K_b:
+            self.command("rammbock")
+        elif key == pygame.K_t:
+            self.command("turm")
 
     def _press(self, pos: tuple[int, int]) -> None:
         if self.screen == "aufstellung":
@@ -147,11 +151,16 @@ class App:
             else:
                 self.selected = {own.id}
             return
+        if not self.selected:
+            return
         if b.gate is not None and b.gate.closed and b.gate_at(p):
             b.command_ram_gate(self._selection())
             self.paused = False
             return
-        if not self.selected:
+        cell = b.cell(*p)
+        if cell in b.blocked and cell not in b.crossings and b.scenario.ram_available:
+            b.command_tower_wall(self._selection(), cell)
+            self.paused = False
             return
         foe = b.unit_at(p, Side.FEIND)
         if foe is not None:
@@ -173,8 +182,8 @@ class App:
         elif key == "halten" and b.outcome is None:
             b.command_hold(self._selection())
             self.paused = False
-        elif key == "rammbock" and b.outcome is None:
-            if b.command_build_ram(self._selection()):
+        elif key in ("rammbock", "turm") and b.outcome is None:
+            if self.selected and b.command_build(self._selection(), "ram" if key == "rammbock" else "tower"):
                 self.paused = False
         elif key == "alle":
             if self.selected:

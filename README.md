@@ -61,20 +61,24 @@ mit halber Geschwindigkeit (`TIME_SCALE`).
 | Szenario | Lage |
 |----------|------|
 | Verteidigung: Offene Siedlung | Räuber in Trupps zu 16 kommen von Norden, zwei umgehen die Linie |
-| Verteidigung: Palisade | Ein Tor. Eigene Peltastengruppen dürfen auf den Wehrgang |
+| Verteidigung: Palisade | Das Tor ist zu, die Räuber bauen vor dem Tor einen Rammbock. Eigene Peltastengruppen dürfen auf den Wehrgang |
 | Angriff: Räuberhorde | Die Horde lagert im Norden und stürmt, sobald man ihr nahe kommt |
 | Angriff: Siedlung ohne Wall | Der Gegner stellt dieselbe Mischung wie die eigene Truppe, skaliert. Hopliten und Peltasten halten, Reiter greifen an |
 | Angriff: Siedlung mit Wall | Wie oben, hinter einer Palisade mit verschlossenem Tor. Peltasten des Gegners stehen auf dem Wehrgang |
 
 **Wehrgang:** Eine reine Peltastengruppe der Wallseite darf auf die
-Palisade. Dort wirft sie eine Kachel weiter, und Nahkampf gegen sie
-(und von ihr) wirkt nur zu einem Drittel.
+Palisade. Über die Palisade wirft nur, wer oben steht, dafür eine Kachel
+weiter. Nahkampf gegen den Wehrgang (und von ihm herab) wirkt nur zu
+einem Drittel.
 
-**Rammbock:** Beim Angriff auf die Siedlung mit Wall ist das Tor
-verschlossen. „Rammbock bauen“ lässt die gewählte Gruppe acht Sekunden
-lang bauen; dann trägt sie den Rammbock (langsamer). Tippt man das Tor
-an, geht die Gruppe hin und bricht es auf. Fällt die Gruppe oder flieht
-sie, ist der Rammbock verloren.
+**Belagerungsgerät:** Beim Angriff auf die Siedlung mit Wall ist das Tor
+verschlossen. Jede gewählte Gruppe kann ein Gerät bauen:
+„Rammbock“ (acht Sekunden) oder „Turm“ (zwölf Sekunden). Mit Rammbock
+das Tor antippen: die Gruppe geht hin und bricht es auf. Mit Turm ein
+Wallstück antippen: die Gruppe rollt hin, setzt den Turm an, und nach
+drei Sekunden ist dieses Stück für alle dauerhaft überwindbar. Fällt
+eine Gruppe oder flieht sie, ist ihr Gerät verloren. Bei der
+Verteidigung mit Palisade bauen die Räuber selbst einen Rammbock.
 
 ## Steuerung
 
@@ -83,8 +87,9 @@ sie, ist der Rammbock verloren.
 | Tippen auf eigene Gruppe | auswählen (erneut tippen: abwählen) |
 | Tippen auf die Karte | gewählte Gruppen laufen dorthin |
 | Tippen auf Feind | gewählte Gruppen greifen diese an |
-| Tippen auf das Tor | Gruppe mit Rammbock bricht es auf |
-| Rammbock | gewählte Gruppe baut den Rammbock (nur beim Angriff mit Wall) |
+| Tippen auf das Tor | gewählte Gruppen mit Rammbock brechen es auf |
+| Tippen auf den Wall | gewählte Gruppen mit Turm setzen ihn dort an |
+| Rammbock / B, Turm / T | gewählte Gruppen bauen das Gerät (nur beim Angriff mit Wall) |
 | Ziehen auf der Karte | Front aufziehen: Länge = Breite, Richtung = Blickrichtung |
 | Angriff / A | freier Angriff (Auswahl, sonst alle) |
 | Halten / H | stehen bleiben (Auswahl, sonst alle) |

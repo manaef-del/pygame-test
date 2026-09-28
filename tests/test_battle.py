@@ -346,7 +346,10 @@ def test_route_goes_through_the_gate():
     raider.x, raider.y = 2.5, 6.5
     assert not b.path_clear(raider.pos, (2.5, 12.5))
     goal, final = b.route(raider, (2.5, 12.5))
-    assert final is False and abs(goal[0] - b.gate_center[0]) < 1e-6
+    assert final is False and goal[1] < b.gate_center[1] - 1.5      # Tor zu: davor warten
+    b.gate.closed = False
+    goal, final = b.route(raider, (2.5, 12.5))
+    assert final is False and abs(goal[0] - b.gate_center[0]) < 1e-6  # Tor offen: hindurch
 
 
 def test_nobody_enters_palisade_tiles():
@@ -418,30 +421,89 @@ def test_closed_gate_blocks_and_ram_opens_it():
     gx, gy = b.gate.center
     assert b.gate.closed and b.is_blocked(gx, gy, hop)
     assert not b.path_clear((gx, gy + 3), (gx, gy - 3), hop)
-    assert b.command_ram_gate([hop]) is False           # ohne Rammbock
-    assert b.command_build_ram([hop])
-    assert b.ram_status == "bau" and hop.building == 0.0
-    run(b, 4)
-    assert hop.x == pytest.approx(hop.x) and b.ram_status == "bau"
-    run(b, config.RAM_BUILD_TIME)
-    assert b.ram_status == "bereit" and hop.ram
+    assert b.command_ram_gate([hop]) == 0                # ohne Rammbock
+    assert b.command_build([hop], "ram") == 1
+    assert hop.build_kind == "ram" and hop.building == 0.0
+    assert b.command_build([hop], "ram") == 0             # baut schon
+    run(b, config.RAM_BUILD_TIME + 1)
+    assert hop.engine == "ram" and hop.building is None
     assert hop.speed < UNIT_TYPES["schwer"].speed
-    assert b.command_ram_gate([hop])
+    assert b.command_ram_gate([hop]) == 1
     run(b, 60)
     assert not b.gate.closed and b.gate.hp == 0.0
     assert not b.is_blocked(gx, gy, hop)
     assert any("aufgebrochen" in e for e in b.events)
 
 
-def test_losing_the_ram_group_loses_the_ram():
+def test_each_group_builds_its_own_engine():
+    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    assert b.command_build([hop, cav], "ram") == 2
+    run(b, config.RAM_BUILD_TIME + 1)
+    assert hop.engine == "ram" and cav.engine == "ram" and pelt.engine is None
+
+
+def test_siege_tower_opens_a_crossing():
+    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    assert b.command_tower_wall([cav], (13, 7)) == 0      # ohne Turm
+    assert b.command_build([cav], "tower") == 1
+    run(b, config.TOWER_BUILD_TIME + 1)
+    assert cav.engine == "tower"
+    assert b.command_tower_wall([cav], (13, 7)) == 1
+    for _ in range(int(40 / DT)):
+        b.update(DT)
+        if b.crossings:
+            break
+    assert (13, 7) in b.crossings
+    assert not b.is_blocked(13.5, 7.5, hop)               # Übergang für alle
+    assert cav.engine is None                             # Turm ist verbaut
+    run(b, 6)
+    assert cav.fighting and cav.y < 7.0                   # Reiter sind drüben
+
+
+def test_losing_the_engine_group_loses_the_engine():
     b = Battle(SIEDLUNG_WALL, random.Random(1))
     hop = b.units(Side.STADT)[0]
-    b.command_build_ram([hop])
+    b.command_build([hop], "ram")
     run(b, config.RAM_BUILD_TIME + 1)
-    assert b.ram_status == "bereit"
+    assert hop.engine == "ram"
     hop.morale = 0.0
     b._morale(DT)
-    assert hop.stance is Stance.FLUCHT and b.ram_status == "keiner" and not hop.ram
+    assert hop.stance is Stance.FLUCHT and hop.engine is None
+
+
+def test_raiders_build_a_ram_against_the_closed_gate():
+    b = Battle(PALISADE, random.Random(1))
+    assert b.gate.closed
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_line([hop], (5.5, 9.5), (10.5, 9.5))
+    opened_at = None
+    for _ in range(int(120 / DT)):
+        b.update(DT)
+        if opened_at is None and not b.gate.closed:
+            opened_at = b.time
+        if b.outcome:
+            break
+    assert any("Räuber bauen einen Rammbock" in e for e in b.events)
+    assert opened_at is not None and 10 < opened_at < 60
+
+
+def test_peltasts_throw_over_the_wall_only_from_the_walkway():
+    b = Battle(PALISADE, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    raider = b.units(Side.FEIND)[0]
+    raider.x, raider.y = 8.0, 6.5                          # nördlich der Palisade (Reihe 8)
+    pelt.x, pelt.y = 8.0, 9.6                              # südlich, am Boden
+    assert not b.throw_clear(pelt, raider)
+    pelt.x, pelt.y = 8.5, 8.5                              # auf dem Wehrgang: Torlücke ist bei 7/8, also 3.5
+    pelt.x = 3.5
+    raider.x = 3.5
+    assert b.on_wall(pelt) and b.throw_clear(pelt, raider)
+    b.command_hold([pelt])
+    b._ai_raiders = lambda: None
+    run(b, 0.2)
+    assert any(pr.target_id == raider.id for pr in b.projectiles)
 
 
 def test_only_peltasts_of_wall_side_may_enter_the_wall():

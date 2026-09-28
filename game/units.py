@@ -138,8 +138,11 @@ class Lochos:
     pool: list[float] = field(default_factory=list)  # angesammelter Schaden je Reihe
     rout_threshold: float = 0.3
     volley_timer: float = 0.0
-    ram: bool = False                 # trägt den Rammbock
-    building: float | None = None     # Bauzeit am Rammbock, wenn im Bau
+    engine: str | None = None         # "ram" oder "tower", wenn fertig gebaut
+    build_kind: str | None = None     # was gerade gebaut wird
+    building: float | None = None     # bisherige Bauzeit
+    tower_cell: tuple[int, int] | None = None   # Wallstück, an das der Turm gesetzt wird
+    tower_progress: float = 0.0
 
     def __post_init__(self) -> None:
         self.rows = [list(r) for r in self.rows if r]
@@ -172,7 +175,8 @@ class Lochos:
     def speed(self) -> float:
         kinds = {m.kind for r in self.rows for m in r}
         base = min((k.speed for k in kinds), default=1.0)
-        return base * (config.RAM_SPEED_FACTOR if self.ram else 1.0)
+        factor = {"ram": config.RAM_SPEED_FACTOR, "tower": config.TOWER_SPEED_FACTOR}.get(self.engine, 1.0)
+        return base * factor
 
     def wall_capable(self) -> bool:
         """Nur reine Peltastengruppen steigen auf den Wehrgang."""

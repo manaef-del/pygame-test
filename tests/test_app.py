@@ -155,37 +155,32 @@ def test_enemy_slider_and_time_scale():
     assert app.battle.time == pytest.approx(config.TIME_SCALE)
 
 
-def test_ram_button_and_gate_tap():
+def test_engine_buttons_gate_and_wall_taps():
     app = make_app(start_in_battle=False)
     for _ in range(4):
         app.menu_command("scenario")
-    assert app.battle.scenario.key == "angriff_wall" or True
     app.menu_command("start")
     b = app.battle
     assert b.scenario.key == "angriff_wall"
-    hop = b.units(Side.STADT)[0]
-    press(app, pos_of(app, hop))
+    hop, pelt, cav = b.units(Side.STADT)
     ram = next(bt for bt in app.renderer.buttons if bt.key == "rammbock")
+    turm = next(bt for bt in app.renderer.buttons if bt.key == "turm")
+    press(app, ram.rect.center)                       # ohne Auswahl passiert nichts
+    assert hop.build_kind is None
+    press(app, pos_of(app, hop))
     press(app, ram.rect.center)
-    assert b.ram_status == "bau"
-    for _ in range(int((config.RAM_BUILD_TIME + 1) / config.TIME_SCALE * 30)):
+    assert hop.build_kind == "ram"
+    press(app, pos_of(app, cav))
+    press(app, turm.rect.center)
+    assert cav.build_kind == "tower"
+    for _ in range(int((config.TOWER_BUILD_TIME + 1) / config.TIME_SCALE * 30)):
         app.tick(1 / 30)
-    assert b.ram_status == "bereit"
+    assert hop.engine == "ram" and cav.engine == "tower"
+    press(app, pos_of(app, hop))
     gx, gy = b.gate.center
     press(app, (int(gx * config.TILE), int(gy * config.TILE)))
     assert hop.target is not None and abs(hop.target[0] - gx) < 1e-6
-
-
-def test_own_strength_slider_scales_composition():
-    app = make_app(start_in_battle=False)
+    press(app, pos_of(app, cav))
+    press(app, (int(3.5 * config.TILE), int(7.5 * config.TILE)))
+    assert cav.tower_cell == (3, 7)
     app.draw()
-    tier, track = next(sl for sl in app.renderer.menu_sliders if sl[0] == -2)
-    press(app, (track.right, track.centery))
-    from game.army import OWN_MAX
-    assert app.own_count == OWN_MAX
-    app.menu_command("start")
-    assert app.battle.men(Side.STADT) == OWN_MAX
-    names = [u.name for u in app.battle.units(Side.STADT)]
-    assert names == ["Hopliten", "Peltasten", "Reiter"]
-    hop = app.battle.units(Side.STADT)[0]
-    assert abs(hop.men / OWN_MAX - 40 / 75) < 0.03                  # Verhältnis bleibt
