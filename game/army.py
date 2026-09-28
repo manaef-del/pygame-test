@@ -15,6 +15,9 @@ from .units import PLAYER_TYPES, UNIT_TYPES, Man
 POOL: dict[str, int] = {"schwer": 14, "mittel": 13, "leicht": 13, "peltast": 15, "reiter": 20}
 MAX_GROUPS = 8
 MAX_TIERS = 4
+OWN_DEFAULT = 75
+OWN_MIN = 10
+OWN_MAX = 200
 
 
 @dataclass

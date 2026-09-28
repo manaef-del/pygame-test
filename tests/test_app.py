@@ -67,7 +67,7 @@ def test_menu_sliders_chips_and_blocks():
     app.draw()
     press(app, next(b for b in app.renderer.menu_buttons if b.key == "start").rect.center)
     assert app.screen == "schlacht"
-    assert app.battle.men(Side.STADT) == app.army.total_men()
+    assert app.battle.men(Side.STADT) == app.own_count      # Vorlage wird auf die Stärke skaliert
 
 
 def test_tap_selects_moves_and_attacks():
@@ -174,3 +174,18 @@ def test_ram_button_and_gate_tap():
     gx, gy = b.gate.center
     press(app, (int(gx * config.TILE), int(gy * config.TILE)))
     assert hop.target is not None and abs(hop.target[0] - gx) < 1e-6
+
+
+def test_own_strength_slider_scales_composition():
+    app = make_app(start_in_battle=False)
+    app.draw()
+    tier, track = next(sl for sl in app.renderer.menu_sliders if sl[0] == -2)
+    press(app, (track.right, track.centery))
+    from game.army import OWN_MAX
+    assert app.own_count == OWN_MAX
+    app.menu_command("start")
+    assert app.battle.men(Side.STADT) == OWN_MAX
+    names = [u.name for u in app.battle.units(Side.STADT)]
+    assert names == ["Hopliten", "Peltasten", "Reiter"]
+    hop = app.battle.units(Side.STADT)[0]
+    assert abs(hop.men / OWN_MAX - 40 / 75) < 0.03                  # Verhältnis bleibt

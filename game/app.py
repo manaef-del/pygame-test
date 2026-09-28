@@ -13,7 +13,7 @@ import random
 import pygame
 
 from . import config
-from .army import Army, default_army
+from .army import OWN_DEFAULT, OWN_MAX, OWN_MIN, Army, default_army, scaled_army
 from .battle import Battle
 from .render import Renderer
 from .scenarios import SCENARIOS
@@ -43,6 +43,7 @@ class App:
         self.running = True
         self.menu_slider: tuple[int, pygame.Rect] | None = None
         self.enemy_counts: dict[str, int] = {s.key: s.enemy_default for s in SCENARIOS}
+        self.own_count = OWN_DEFAULT
         self.battle = self._new_battle()
 
     def _new_battle(self) -> Battle:
@@ -51,7 +52,8 @@ class App:
         self.selected = set()
         self.drag_start = self.drag_now = None
         scn = SCENARIOS[self.scenario_index]
-        return Battle(scn, rng, army=copy.deepcopy(self.army), enemy_count=self.enemy_counts[scn.key])
+        army = scaled_army(self.army, self.own_count) if self.army.total_men() else copy.deepcopy(self.army)
+        return Battle(scn, rng, army=army, enemy_count=self.enemy_counts[scn.key])
 
     # ---------------------------------------------------------- Eingabe
     def handle_event(self, event: pygame.event.Event) -> None:
@@ -111,6 +113,9 @@ class App:
         if tier == -1:
             scn = SCENARIOS[self.scenario_index]
             self.enemy_counts[scn.key] = scn.enemy_min + round(frac * (scn.enemy_max - scn.enemy_min))
+            return
+        if tier == -2:
+            self.own_count = OWN_MIN + round(frac * (OWN_MAX - OWN_MIN))
             return
         if tier >= len(self.army.groups[self.menu_group].tiers):
             self.menu_slider = None
@@ -236,7 +241,7 @@ class App:
     def draw(self) -> None:
         if self.screen == "aufstellung":
             scn = SCENARIOS[self.scenario_index]
-            self.renderer.draw_menu(self.army, self.menu_group, scn, self.enemy_counts[scn.key])
+            self.renderer.draw_menu(self.army, self.menu_group, scn, self.enemy_counts[scn.key], self.own_count)
         else:
             self.renderer.draw(self.battle, self.drag_rect(), self.paused, self.selected)
 

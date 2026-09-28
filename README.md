@@ -53,8 +53,10 @@ deutlich größere Übermacht.*
 
 ## Szenarien
 
-Die Gegnerstärke wird im Aufstellungsmenü mit einem Regler eingestellt.
-Das Spiel läuft mit halber Geschwindigkeit (`TIME_SCALE`).
+Zwei Regler oben im Aufstellungsmenü setzen die eigene Stärke und die
+des Gegners. Die Blöcke und Gruppen sind die Vorlage für die Mischung,
+die Gesamtzahl verteilt sich verhältnismäßig darauf. Das Spiel läuft
+mit halber Geschwindigkeit (`TIME_SCALE`).
 
 | Szenario | Lage |
 |----------|------|

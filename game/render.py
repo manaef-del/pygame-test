@@ -7,7 +7,7 @@ import math
 import pygame
 
 from . import config
-from .army import MAX_TIERS, Army
+from .army import MAX_TIERS, OWN_MAX, OWN_MIN, Army
 from .battle import Battle
 from .units import PLAYER_TYPES, UNIT_TYPES, Lochos, Side, Stance
 
@@ -288,7 +288,7 @@ class Renderer:
         return None
 
     # ================================================== Aufstellung
-    def draw_menu(self, army: Army, index: int, scenario, enemy_count: int) -> None:
+    def draw_menu(self, army: Army, index: int, scenario, enemy_count: int, own_count: int) -> None:
         """Aufstellungsmenü: Szenario, Gegnerstärke, eine Gruppe je Seite mit Reihen-Blöcken."""
         s = self.surface
         s.fill(config.COLOR_MENU_BG)
@@ -297,32 +297,40 @@ class Renderer:
         W = config.WIDTH
         gap = 6
 
-        self._center_text(self.big, "Aufstellung", config.COLOR_TEXT, 26)
-        # Vorrat
-        y, x = 52, 8
+        self._center_text(self.big, "Aufstellung", config.COLOR_TEXT, 24)
+        # Vorrat (Vorlage für die Mischung)
+        y, x = 48, 8
         for key in PLAYER_TYPES:
             kind = UNIT_TYPES[key]
             pygame.draw.circle(s, kind.color, (x + 6, y + 8), 5)
             txt = self.small.render(f"{army.remaining(key)}/{army.pool[key]}", True, config.COLOR_TEXT)
             s.blit(txt, (x + 16, y))
             x += 92
-        s.blit(self.small.render("Vorrat: noch frei / gesamt", True, config.COLOR_TEXT_DIM), (8, y + 18))
+        s.blit(self.small.render("Vorlage: noch frei / gesamt", True, config.COLOR_TEXT_DIM), (8, y + 16))
 
-        # Szenario und Gegnerstärke
-        y = 92
-        self._menu_button("scenario", f"Szenario: {scenario.name}", pygame.Rect(gap, y, W - 2 * gap, 34))
-        y += 40
-        label = "Räuber" if scenario.enemy_kind == "raeuber" else "Feind (wie deine Truppe)"
-        s.blit(self.small.render(f"{label}: {enemy_count} Mann", True, config.COLOR_TEXT), (gap + 2, y))
-        track = pygame.Rect(230, y + 2, W - gap - 230, 14)
-        pygame.draw.rect(s, config.COLOR_BUTTON, track, border_radius=7)
-        frac = (enemy_count - scenario.enemy_min) / max(1, scenario.enemy_max - scenario.enemy_min)
-        pygame.draw.rect(s, config.COLOR_ENEMY, pygame.Rect(track.x, track.y, max(14, int(track.w * frac)), track.h), border_radius=7)
-        pygame.draw.circle(s, config.COLOR_TEXT, (track.x + int(track.w * frac), track.centery), 10)
-        self.menu_sliders.append((-1, track))
+        # Eigene Stärke und Gegnerstärke
+        y = 80
+        own_label = f"Eigene Truppe: {own_count} Mann"
+        enemy_label = ("Räuber" if scenario.enemy_kind == "raeuber" else "Feind (wie deine Truppe)") + f": {enemy_count} Mann"
+        for key, label, value, lo, hi, color in (
+            (-2, own_label, own_count, OWN_MIN, OWN_MAX, config.COLOR_CITY),
+            (-1, enemy_label, enemy_count, scenario.enemy_min, scenario.enemy_max, config.COLOR_ENEMY),
+        ):
+            s.blit(self.small.render(label, True, config.COLOR_TEXT), (gap + 2, y))
+            track = pygame.Rect(230, y + 2, W - gap - 230, 14)
+            pygame.draw.rect(s, config.COLOR_BUTTON, track, border_radius=7)
+            frac = (value - lo) / max(1, hi - lo)
+            pygame.draw.rect(s, color, pygame.Rect(track.x, track.y, max(14, int(track.w * frac)), track.h), border_radius=7)
+            pygame.draw.circle(s, config.COLOR_TEXT, (track.x + int(track.w * frac), track.centery), 10)
+            self.menu_sliders.append((key, track))
+            y += 24
+
+        # Szenario
+        y += 2
+        self._menu_button("scenario", f"Szenario: {scenario.name}", pygame.Rect(gap, y, W - 2 * gap, 32))
+        y += 36
 
         # Gruppenwahl
-        y += 26
         self._menu_button("prev", "<", pygame.Rect(gap, y, 48, 34))
         self._menu_button("next", ">", pygame.Rect(W - gap - 48, y, 48, 34))
         g = army.groups[index]
@@ -331,7 +339,7 @@ class Renderer:
 
         # Reihen-Blöcke, vorn nach hinten
         y += 40
-        block_h = 62
+        block_h = 58
         for i, tier in enumerate(g.tiers):
             kind = UNIT_TYPES[tier.kind]
             panel = pygame.Rect(gap, y, W - 2 * gap, block_h)
