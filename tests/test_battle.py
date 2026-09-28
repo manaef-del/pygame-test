@@ -435,6 +435,7 @@ def test_closed_gate_blocks_and_ram_opens_it():
     assert any("aufgebrochen" in e for e in b.events)
     assert hop.engine is None and hop.speed == UNIT_TYPES["schwer"].speed   # Rammbock bleibt liegen
     assert len(b.debris) == 1
+    assert abs(hop.x - gx) >= 1.2                                            # ist zur Seite getreten
 
 
 def test_each_group_builds_its_own_engine():
@@ -546,3 +547,44 @@ def test_attack_outcomes():
     b.command_attack()
     run(b, 120)
     assert b.outcome == "niederlage"
+
+
+# ------------------------------------------------------------- Leitern
+def test_wall_is_entered_and_left_only_by_ladder():
+    b = Battle(PALISADE, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    raider = b.units(Side.FEIND)[0]
+    assert b.ladders == {(2, 8), (13, 8)}
+    # Direkt von unten auf ein Wallstück ohne Leiter: nein; an der Leiter: ja
+    assert not b.can_step(pelt, (5.5, 9.4), (5.5, 8.6))
+    assert b.can_step(pelt, (2.5, 9.4), (2.5, 8.6))
+    assert not b.can_step(hop, (2.5, 9.4), (2.5, 8.6))
+    assert not b.can_step(raider, (2.5, 7.6), (2.5, 8.4))
+    # Oben entlang, auch über das Torhaus
+    pelt.x, pelt.y = 6.5, 8.5
+    assert b.on_wall(pelt) and b.can_step(pelt, (6.5, 8.5), (7.5, 8.5))
+    assert b.is_blocked(7.5, 8.5, hop) and b.is_blocked(7.5, 8.5, raider)
+    # Herunter nur an der Leiter
+    assert not b.can_step(pelt, (6.5, 8.5), (6.5, 9.4))
+    pelt.x = 13.5
+    assert b.can_step(pelt, (13.5, 8.5), (13.5, 9.4))
+
+
+def test_peltasts_route_over_ladders():
+    b = Battle(PALISADE, random.Random(1))
+    b._volleys = lambda dt: None                            # keine Speere, kein Nahkampfwechsel
+    hop, pelt, cav = b.units(Side.STADT)
+    goal, final = b.route(pelt, (5.5, 8.5))
+    assert final is False and goal == (2.5, 8.5)          # erst zur Leiter
+    b.command_move([pelt], (5.5, 8.5))
+    run(b, 12)
+    assert b.on_wall(pelt) and abs(pelt.x - 5.5) < 0.3
+    b.command_move([pelt], (10.5, 8.5))                    # oben über das Tor
+    run(b, 6)
+    assert b.on_wall(pelt) and abs(pelt.x - 10.5) < 0.3
+    b.command_move([pelt], (12.0, 11.0))                   # hinunter über die rechte Leiter
+    run(b, 12)
+    assert not b.on_wall(pelt) and abs(pelt.x - 12.0) < 0.3
+    # Am Boden führt der Weg nach Norden nur durchs Tor, nicht durch die Palisade
+    goal, final = b.route(pelt, (12.0, 5.0))
+    assert final is False

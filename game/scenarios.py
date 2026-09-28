@@ -38,6 +38,7 @@ class Scenario:
     gate: Cell | None = None
     gate_closed: bool = False                  # muss aufgebrochen werden
     wall_side: str | None = None               # wer den Wehrgang nutzen darf: "stadt"/"feind"
+    ladders: tuple[Cell, ...] = ()             # Wallstücke mit Leiter: nur dort hinauf und hinunter
     raider_spawns: tuple[RaiderSpawn, ...] = ()
     deploy_y: float = 10.5                     # eigene Truppe
     enemy_deploy_y: float = 5.0                # gespiegelte Truppe
@@ -83,10 +84,10 @@ OFFENE_SIEDLUNG = Scenario(
 
 PALISADE = Scenario(
     key="palisade", name="Verteidigung: Palisade",
-    hint="Das Tor ist zu; die Räuber bauen einen Rammbock. Peltasten auf den Wehrgang, Hopliten hinters Tor.",
+    hint="Das Tor ist zu; die Räuber bauen einen Rammbock. Peltasten über die Leitern auf den Wehrgang, Hopliten hinters Tor.",
     role="verteidigung", enemy_kind="raeuber", enemy_default=192, enemy_min=32, enemy_max=224,
     houses=HOUSES_SOUTH, palisade=_palisade_row(8, gate_cols=(7, 8)), gate=(7, 8), gate_closed=True,
-    wall_side="stadt", raider_spawns=RAIDS_GATE,
+    wall_side="stadt", ladders=((2, 8), (13, 8)), raider_spawns=RAIDS_GATE,
 )
 
 RAEUBERHORDE = Scenario(
@@ -108,7 +109,7 @@ SIEDLUNG_WALL = Scenario(
     hint="Das Tor ist zu. Wähle eine Gruppe und lass sie Rammbock oder Turm bauen; dann Tor oder Wall antippen.",
     role="angriff", enemy_kind="spiegel", enemy_default=75, enemy_min=20, enemy_max=150,
     houses=HOUSES_NORTH, palisade=_palisade_row(7, gate_cols=(7, 8)), gate=(7, 7), gate_closed=True,
-    wall_side="feind", deploy_y=15.5, enemy_deploy_y=5.3, ram_available=True,
+    wall_side="feind", ladders=((2, 7), (13, 7)), deploy_y=15.5, enemy_deploy_y=4.9, ram_available=True,
 )
 
 SCENARIOS: tuple[Scenario, ...] = (OFFENE_SIEDLUNG, PALISADE, RAEUBERHORDE, SIEDLUNG_OFFEN, SIEDLUNG_WALL)

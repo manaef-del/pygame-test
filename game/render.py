@@ -127,6 +127,14 @@ class Renderer:
             pygame.draw.rect(s, config.COLOR_PALISADE, pygame.Rect(cx * T, cy * T + T // 3, T, T // 3))
             for i in range(3):
                 pygame.draw.line(s, (90, 60, 30), (cx * T + 5 + i * 10, cy * T + 4), (cx * T + 5 + i * 10, cy * T + T - 4), 3)
+        for cx, cy in battle.ladders:
+            if (cx, cy) in battle.crossings:
+                continue
+            rails = (cx * T + 9, cx * T + T - 9)
+            for rx in rails:
+                pygame.draw.line(s, config.COLOR_CROSSING, (rx, cy * T + 2), (rx, cy * T + T - 2), 2)
+            for i in range(4):
+                pygame.draw.line(s, config.COLOR_CROSSING, (rails[0], cy * T + 5 + i * 7), (rails[1], cy * T + 5 + i * 7), 2)
         for x, y, fx, fy in battle.debris:
             a = px((x - fx * 0.25, y - fy * 0.25))
             b = px((x + fx * 0.25, y + fy * 0.25))

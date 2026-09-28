@@ -67,14 +67,18 @@ mit halber Geschwindigkeit (`TIME_SCALE`).
 | Angriff: Siedlung mit Wall | Wie oben, hinter einer Palisade mit verschlossenem Tor. Peltasten des Gegners stehen auf dem Wehrgang |
 
 **Wehrgang:** Eine reine Peltastengruppe der Wallseite darf auf die
-Palisade. Über die Palisade wirft nur, wer oben steht, dafür eine Kachel
-weiter. Nahkampf gegen den Wehrgang (und von ihm herab) wirkt nur zu
-einem Drittel.
+Palisade, aber nur über die Leitern hinauf und hinunter (helle Sprossen
+auf der Palisade). Oben läuft sie entlang, auch über das Torhaus. Über
+die Palisade wirft nur, wer oben steht, dafür eine Kachel weiter.
+Nahkampf gegen den Wehrgang (und von ihm herab) wirkt nur zu einem
+Drittel.
 
 **Belagerungsgerät:** Beim Angriff auf die Siedlung mit Wall ist das Tor
 verschlossen. Jede gewählte Gruppe kann ein Gerät bauen:
 „Rammbock“ (acht Sekunden) oder „Turm“ (zwölf Sekunden). Mit Rammbock
-das Tor antippen: die Gruppe geht hin und bricht es auf. Mit Turm ein
+das Tor antippen: die Gruppe geht hin und bricht es auf; nach dem
+Durchbruch bleibt der Rammbock liegen und die Gruppe tritt zur Seite,
+damit der Durchgang frei ist. Mit Turm ein
 Wallstück antippen: die Gruppe rollt hin, setzt den Turm an, und nach
 drei Sekunden ist dieses Stück für alle dauerhaft überwindbar. Fällt
 eine Gruppe oder flieht sie, ist ihr Gerät verloren. Bei der
