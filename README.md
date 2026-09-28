@@ -53,10 +53,26 @@ deutlich größere Übermacht.*
 
 ## Szenarien
 
+Die Gegnerstärke wird im Aufstellungsmenü mit einem Regler eingestellt.
+Das Spiel läuft mit halber Geschwindigkeit (`TIME_SCALE`).
+
 | Szenario | Lage |
 |----------|------|
-| Offene Siedlung | 75 Mann gegen 8 Räubertrupps zu 16 Mann, zwei davon umgehen die Linie |
-| Palisade mit Tor | dieselbe Truppe hinter einer Palisade gegen 12 Räubertrupps |
+| Verteidigung: Offene Siedlung | Räuber in Trupps zu 16 kommen von Norden, zwei umgehen die Linie |
+| Verteidigung: Palisade | Ein Tor. Eigene Peltastengruppen dürfen auf den Wehrgang |
+| Angriff: Räuberhorde | Die Horde lagert im Norden und stürmt, sobald man ihr nahe kommt |
+| Angriff: Siedlung ohne Wall | Der Gegner stellt dieselbe Mischung wie die eigene Truppe, skaliert. Hopliten und Peltasten halten, Reiter greifen an |
+| Angriff: Siedlung mit Wall | Wie oben, hinter einer Palisade mit verschlossenem Tor. Peltasten des Gegners stehen auf dem Wehrgang |
+
+**Wehrgang:** Eine reine Peltastengruppe der Wallseite darf auf die
+Palisade. Dort wirft sie eine Kachel weiter, und Nahkampf gegen sie
+(und von ihr) wirkt nur zu einem Drittel.
+
+**Rammbock:** Beim Angriff auf die Siedlung mit Wall ist das Tor
+verschlossen. „Rammbock bauen“ lässt die gewählte Gruppe acht Sekunden
+lang bauen; dann trägt sie den Rammbock (langsamer). Tippt man das Tor
+an, geht die Gruppe hin und bricht es auf. Fällt die Gruppe oder flieht
+sie, ist der Rammbock verloren.
 
 ## Steuerung
 
@@ -64,7 +80,9 @@ deutlich größere Übermacht.*
 |---------|--------|
 | Tippen auf eigene Gruppe | auswählen (erneut tippen: abwählen) |
 | Tippen auf die Karte | gewählte Gruppen laufen dorthin |
-| Tippen auf Räuber | gewählte Gruppen greifen diese an |
+| Tippen auf Feind | gewählte Gruppen greifen diese an |
+| Tippen auf das Tor | Gruppe mit Rammbock bricht es auf |
+| Rammbock | gewählte Gruppe baut den Rammbock (nur beim Angriff mit Wall) |
 | Ziehen auf der Karte | Front aufziehen: Länge = Breite, Richtung = Blickrichtung |
 | Angriff / A | freier Angriff (Auswahl, sonst alle) |
 | Halten / H | stehen bleiben (Auswahl, sonst alle) |

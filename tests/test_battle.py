@@ -5,10 +5,11 @@ import random
 import pytest
 
 from game import config
-from game.army import POOL, Army, GroupSpec, Tier, default_army
+from game.army import POOL, Army, GroupSpec, Tier, default_army, scaled_army
 from game.battle import Battle
 from game.geometry import arc, snap4
-from game.scenarios import OFFENE_SIEDLUNG, PALISADE, EnemySpec, Scenario
+from game.scenarios import (OFFENE_SIEDLUNG, PALISADE, RAEUBERHORDE, SIEDLUNG_OFFEN, SIEDLUNG_WALL,
+                            RaiderSpawn, Scenario)
 from game.units import UNIT_TYPES, Lochos, Man, Side, Stance, arrange
 
 DT = 1 / 30
@@ -36,12 +37,18 @@ def army_of(*groups: GroupSpec) -> Army:
     return Army(groups=list(groups))
 
 
+def raid(men: int, *spawns: tuple[float, float], houses=((2, 17),)) -> Scenario:
+    """Kleines Verteidigungsszenario mit Räubern an festen Punkten."""
+    return Scenario(
+        "t", "t", "", role="verteidigung", enemy_kind="raeuber",
+        enemy_default=men, enemy_min=men, enemy_max=men, houses=houses,
+        raider_spawns=tuple(RaiderSpawn(x, y) for x, y in spawns),
+    )
+
+
 def static_line(raider_y: float, n_raiders: int = 4) -> Battle:
     """Drei Hoplitengruppen in der Linie (Front Nord), Räuber dicht davor oder dahinter."""
-    scn = Scenario(
-        "t", "t", "", houses=((2, 17),),
-        enemies=tuple(EnemySpec(16, 5.3 + i * 1.7, raider_y) for i in range(n_raiders)),
-    )
+    scn = raid(16 * n_raiders, *((5.3 + i * 1.7, raider_y) for i in range(n_raiders)))
     army = army_of(
         GroupSpec("A", [Tier("schwer", 7), Tier("mittel", 7)]),
         GroupSpec("B", [Tier("schwer", 7), Tier("mittel", 6)]),
@@ -154,7 +161,7 @@ def test_reform_keeps_order_and_changes_rows():
 
 
 def test_javelins_fly_and_run_out():
-    scn = Scenario("t", "t", "", houses=((2, 17),), enemies=(EnemySpec(16, 8.0, 7.0),))
+    scn = raid(16, (8.0, 7.0))
     army = army_of(GroupSpec("Peltasten", [Tier("peltast", 15)]))
     b = Battle(scn, random.Random(0), army=army)
     pelt = b.units(Side.STADT)[0]
@@ -164,7 +171,7 @@ def test_javelins_fly_and_run_out():
     pelt.x, pelt.y = 8.0, 9.5
     assert pelt.ammo() == 15 * config.JAVELINS
     b.command_hold()
-    b._ai_enemies = lambda: None            # Räuber bleiben stehen
+    b._ai_raiders = lambda: None            # Räuber bleiben stehen
     run(b, 0.1)
     assert 0 < len(b.projectiles) <= 15      # erste Salve unterwegs
     assert raider.men == 16                  # noch kein Einschlag
@@ -349,7 +356,7 @@ def test_nobody_enters_palisade_tiles():
         b.update(DT)
         for u in b.lochoi:
             if u.alive and b.inside(u.x, u.y):
-                assert not b.is_blocked(u.x, u.y), (u.name, u.x, u.y)
+                assert not b.is_blocked(u.x, u.y, u), (u.name, u.x, u.y)
         if b.outcome:
             break
 
@@ -361,3 +368,116 @@ def test_deterministic_with_seed():
         b.command_line(None, (3.0, 10.5), (13.0, 10.5))
         run(b, 60)
     assert a.report() == c.report()
+
+
+# ------------------------------------------------------- Angriff & Gegnerstärke
+def test_enemy_count_sets_raider_strength():
+    small = Battle(OFFENE_SIEDLUNG, random.Random(1), enemy_count=40)
+    big = Battle(OFFENE_SIEDLUNG, random.Random(1), enemy_count=192)
+    assert small.men(Side.FEIND) == 40 and big.men(Side.FEIND) == 192
+    assert all(6 <= u.men <= 16 for u in small.units(Side.FEIND))
+    assert len(big.units(Side.FEIND)) == 12
+
+
+def test_mirror_army_scales_composition():
+    mirror = scaled_army(default_army(), 150)
+    assert mirror.total_men() == 150
+    assert [g.name for g in mirror.groups] == ["Hopliten", "Peltasten", "Reiter"]
+    assert mirror.groups[2].tiers[0].count == 40
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), enemy_count=50)
+    assert b.men(Side.FEIND) == 50
+    assert all(u.y < 8 for u in b.units(Side.FEIND))     # Gegner im Norden
+    assert all(u.y > 12 for u in b.units(Side.STADT))    # Angreifer im Süden
+
+
+def test_horde_waits_then_charges():
+    b = Battle(RAEUBERHORDE, random.Random(1))
+    hop = b.units(Side.STADT)[0]
+    b.command_hold()
+    run(b, 3)
+    assert not b.horde_awake and all(u.stance is Stance.HALTEN for u in b.units(Side.FEIND))
+    b.command_move([hop], (8.0, 8.5))
+    run(b, 12)
+    assert b.horde_awake
+    assert any(u.stance is Stance.ANGRIFF for u in b.units(Side.FEIND))
+
+
+def test_settlement_defenders_hold_but_cavalry_charges():
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_move([cav], (4.5, 8.0))
+    run(b, 6)
+    enemy = {u.name: u for u in b.units(Side.FEIND)}
+    assert enemy["Hopliten"].stance is Stance.PHALANX and enemy["Hopliten"].in_line
+    assert enemy["Reiter"].stance is Stance.ANGRIFF
+
+
+def test_closed_gate_blocks_and_ram_opens_it():
+    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    gx, gy = b.gate.center
+    assert b.gate.closed and b.is_blocked(gx, gy, hop)
+    assert not b.path_clear((gx, gy + 3), (gx, gy - 3), hop)
+    assert b.command_ram_gate([hop]) is False           # ohne Rammbock
+    assert b.command_build_ram([hop])
+    assert b.ram_status == "bau" and hop.building == 0.0
+    run(b, 4)
+    assert hop.x == pytest.approx(hop.x) and b.ram_status == "bau"
+    run(b, config.RAM_BUILD_TIME)
+    assert b.ram_status == "bereit" and hop.ram
+    assert hop.speed < UNIT_TYPES["schwer"].speed
+    assert b.command_ram_gate([hop])
+    run(b, 60)
+    assert not b.gate.closed and b.gate.hp == 0.0
+    assert not b.is_blocked(gx, gy, hop)
+    assert any("aufgebrochen" in e for e in b.events)
+
+
+def test_losing_the_ram_group_loses_the_ram():
+    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    hop = b.units(Side.STADT)[0]
+    b.command_build_ram([hop])
+    run(b, config.RAM_BUILD_TIME + 1)
+    assert b.ram_status == "bereit"
+    hop.morale = 0.0
+    b._morale(DT)
+    assert hop.stance is Stance.FLUCHT and b.ram_status == "keiner" and not hop.ram
+
+
+def test_only_peltasts_of_wall_side_may_enter_the_wall():
+    b = Battle(PALISADE, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    wall_tile = (3.5, 8.5)
+    assert not b.is_blocked(*wall_tile, pelt)
+    assert b.is_blocked(*wall_tile, hop)
+    raider = b.units(Side.FEIND)[0]
+    assert b.is_blocked(*wall_tile, raider)
+    b.command_move([pelt], wall_tile)
+    run(b, 12)
+    assert b.on_wall(pelt)
+    # Auf dem Wall: weiter werfen, im Nahkampf geschützt
+    raider.x, raider.y = pelt.x, pelt.y + 1.0
+    assert b._in_contact(raider, pelt)
+    rate_up, _ = b._melee_rate(raider, pelt)
+    pelt_off = Lochos(99, Side.STADT, [men("peltast", 15)], pelt.x, pelt.y + 2.5)
+    b.lochoi.append(pelt_off)
+    raider.y = pelt_off.y + 1.0
+    rate_ground, _ = b._melee_rate(raider, pelt_off)
+    assert rate_up == pytest.approx(rate_ground * config.WALL_MELEE_FACTOR)
+
+
+def test_enemy_peltasts_start_on_the_wall():
+    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    pelt = next(u for u in b.units(Side.FEIND) if u.name == "Peltasten")
+    assert b.on_wall(pelt)
+
+
+def test_attack_outcomes():
+    b = Battle(RAEUBERHORDE, random.Random(1), enemy_count=16)
+    b.command_attack()
+    run(b, 120)
+    assert b.outcome == "sieg"
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), enemy_count=150, army=army_of(GroupSpec("Wache", [Tier("leicht", 6)])))
+    b.command_attack()
+    run(b, 120)
+    assert b.outcome == "niederlage"

@@ -115,6 +115,27 @@ class Army:
         return self.total_men() > 0 and all(self.remaining(k) >= 0 for k in self.pool)
 
 
+def scaled_army(source: Army, total: int) -> Army:
+    """Dieselbe Mischung wie ``source``, auf ``total`` Mann skaliert."""
+    base = source.total_men()
+    if base <= 0 or total <= 0:
+        return Army(groups=[])
+    groups: list[GroupSpec] = []
+    rounded_total = 0
+    for g in source.groups:
+        tiers = [Tier(t.kind, round(t.count * total / base)) for t in g.tiers]
+        tiers = [t for t in tiers if t.count > 0]
+        rounded_total += sum(t.count for t in tiers)
+        if tiers:
+            groups.append(GroupSpec(g.name, tiers))
+    # Rundungsdifferenz auf den größten Block
+    if groups and rounded_total != total:
+        biggest = max((t for g in groups for t in g.tiers), key=lambda t: t.count)
+        biggest.count = max(1, biggest.count + (total - rounded_total))
+    pool = {k: max(POOL.get(k, 0), sum(g.count(k) for g in groups)) for k in POOL}
+    return Army(groups=groups, pool=pool)
+
+
 def default_army() -> Army:
     """Vorgabe: Hopliten, Peltasten, Reiter – je eine Gruppe."""
     return Army(groups=[

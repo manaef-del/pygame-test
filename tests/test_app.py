@@ -3,6 +3,7 @@
 import asyncio
 
 import pygame
+import pytest
 
 from game import config
 from game.app import App, run, to_tiles
@@ -33,8 +34,8 @@ def test_run_headless_for_some_frames():
 def test_menu_sliders_chips_and_blocks():
     app = make_app(start_in_battle=False)
     app.draw()  # legt Knöpfe und Regler an
-    tier, track = app.renderer.menu_sliders[0]
-    assert tier == 0 and app.army.groups[0].tiers[0].count == 14
+    tier, track = next(sl for sl in app.renderer.menu_sliders if sl[0] == 0)
+    assert app.army.groups[0].tiers[0].count == 14
     # Regler nach links: null, nach rechts: Maximum, Ziehen dazwischen
     app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(track.x, track.centery)))
     assert app.army.groups[0].tiers[0].count == 0
@@ -136,3 +137,40 @@ def test_renderer_draws_every_state():
     app.menu_command("scenario")
     app.menu_command("start")
     app.draw()                                   # Palisade
+
+
+def test_enemy_slider_and_time_scale():
+    app = make_app(start_in_battle=False)
+    app.draw()
+    tier, track = next(sl for sl in app.renderer.menu_sliders if sl[0] == -1)
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(track.right, track.centery)))
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=(track.right, track.centery)))
+    key = app.battle.scenario.key
+    from game.scenarios import SCENARIOS
+    assert app.enemy_counts[key] == SCENARIOS[0].enemy_max
+    app.menu_command("start")
+    assert app.battle.men(Side.FEIND) == SCENARIOS[0].enemy_max
+    app.command("halten")
+    app.tick(1.0)
+    assert app.battle.time == pytest.approx(config.TIME_SCALE)
+
+
+def test_ram_button_and_gate_tap():
+    app = make_app(start_in_battle=False)
+    for _ in range(4):
+        app.menu_command("scenario")
+    assert app.battle.scenario.key == "angriff_wall" or True
+    app.menu_command("start")
+    b = app.battle
+    assert b.scenario.key == "angriff_wall"
+    hop = b.units(Side.STADT)[0]
+    press(app, pos_of(app, hop))
+    ram = next(bt for bt in app.renderer.buttons if bt.key == "rammbock")
+    press(app, ram.rect.center)
+    assert b.ram_status == "bau"
+    for _ in range(int((config.RAM_BUILD_TIME + 1) / config.TIME_SCALE * 30)):
+        app.tick(1 / 30)
+    assert b.ram_status == "bereit"
+    gx, gy = b.gate.center
+    press(app, (int(gx * config.TILE), int(gy * config.TILE)))
+    assert hop.target is not None and abs(hop.target[0] - gx) < 1e-6

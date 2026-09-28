@@ -4,8 +4,13 @@ Grundsätze aus dem Apoikia-Konzept:
 - Gerechnet wird je Gruppe (Lochos), nie je Mann. Männer sind Reihen.
 - Die Phalanx ist stark von vorn, verwundbar in Flanke und Rücken.
 - Freier Angriff löst die Formation: schneller, aber ohne Bonus.
-- Der Spieler kann jede Gruppe einzeln schicken, angreifen lassen oder
-  in einem markierten Bereich zur Phalanx formieren.
+- Der Spieler schickt Gruppen einzeln, lässt sie angreifen oder zieht
+  ihre Front mit einer Linie auf.
+
+Rollen: Bei der Verteidigung plündern Räuber die Siedlung im Süden. Beim
+Angriff steht der Gegner im Norden, hinter einem Wall mit verschlossenem
+Tor, das nur ein Rammbock öffnet. Reine Peltastengruppen der Wallseite
+dürfen auf den Wehrgang.
 """
 
 from __future__ import annotations
@@ -15,12 +20,13 @@ import random
 from dataclasses import dataclass, field
 
 from . import config
-from .army import Army, default_army
+from .army import Army, default_army, scaled_army
 from .geometry import add, arc, dist, norm, scale, snap4, sub
 from .scenarios import Scenario
 from .units import UNIT_TYPES, Lochos, Man, Side, Stance, arrange, default_width
 
 Point = tuple[float, float]
+RAIDER_GROUP = 16
 
 
 @dataclass
@@ -36,6 +42,22 @@ class House:
 
 
 @dataclass
+class Gate:
+    cells: list[tuple[int, int]]
+    closed: bool
+    hp: float = config.GATE_HP
+    hp_max: float = config.GATE_HP
+
+    @property
+    def center(self) -> Point:
+        return (sum(c[0] for c in self.cells) / len(self.cells) + 0.5, self.cells[0][1] + 0.5)
+
+    @property
+    def broken(self) -> bool:
+        return self.hp <= 0
+
+
+@dataclass
 class Projectile:
     """Ein fliegender Speer, nur Anzeige und verzögerter Einschlag."""
 
@@ -46,7 +68,7 @@ class Projectile:
     target_id: int
     dmg: float
     progress: float = 0.0
-    total: float = 1.0   # Sekunden Flugzeit
+    total: float = 1.0
 
     @property
     def pos(self) -> Point:
@@ -71,12 +93,12 @@ class Battle:
     scenario: Scenario
     rng: random.Random = field(default_factory=random.Random)
     army: Army = field(default_factory=default_army)
+    enemy_count: int | None = None
     cols: int = config.COLS
     rows: int = config.ROWS
     houses: list[House] = field(default_factory=list)
     blocked: set[tuple[int, int]] = field(default_factory=set)
-    gate: tuple[int, int] | None = None
-    gate_center: Point | None = None
+    gate: Gate | None = None
     lochoi: list[Lochos] = field(default_factory=list)
     time: float = 0.0
     alarm: bool = True
@@ -85,62 +107,127 @@ class Battle:
     projectiles: list[Projectile] = field(default_factory=list)
     events: list[str] = field(default_factory=list)
     men_start: dict[Side, int] = field(default_factory=dict)
+    ram_status: str = "keiner"          # keiner, bau, bereit
+    ram_group: int | None = None
+    horde_awake: bool = False
     _next_id: int = 0
 
+    # ------------------------------------------------------------ Aufbau
     def __post_init__(self) -> None:
         s = self.scenario
+        if self.enemy_count is None:
+            self.enemy_count = s.enemy_default
         self.houses = [House(cx, cy) for cx, cy in s.houses]
         self.blocked = set(s.palisade)
-        self.gate = s.gate
-        self.gate_center = self._gate_center()
+        if s.gate is not None:
+            gx, gy = s.gate
+            cells = [(gx, gy)]
+            for step in (-1, 1):
+                c = gx + step
+                while 0 <= c < self.cols and (c, gy) not in self.blocked:
+                    cells.append((c, gy))
+                    c += step
+            self.gate = Gate(sorted(cells), closed=s.gate_closed)
         self._deploy_army()
-        for spec in s.enemies:
-            per_row = math.ceil(spec.men / spec.rows)
-            rows = [
-                [Man(UNIT_TYPES["raeuber"]) for _ in range(min(per_row, spec.men - r * per_row))]
-                for r in range(spec.rows)
-            ]
-            self._spawn(Side.FEIND, rows, spec.x, spec.y, list(spec.waypoints), "Räuber")
+        if s.enemy_kind == "raeuber":
+            self._spawn_raiders()
+        else:
+            self._spawn_mirror()
         self.men_start = {side: self.men(side) for side in Side}
 
-    # ------------------------------------------------------------ Aufbau
+    @property
+    def gate_center(self) -> Point | None:
+        return self.gate.center if self.gate else None
+
+    @property
+    def attacking(self) -> bool:
+        return self.scenario.role == "angriff"
+
     def _deploy_army(self) -> None:
-        """Gruppen der Aufstellung nebeneinander im Aufmarschraum."""
         specs = [g for g in self.army.groups if g.men() > 0]
         if not specs:
             return
-        y = self.scenario.deploy_y
         rows_units = [arrange(spec.build_men(), default_width(spec.men())) for spec in specs]
         widths = [max(0.9, 2 * Lochos(0, Side.STADT, r, 0, 0).radius + 0.2) for r in rows_units]
-        total = sum(widths)
-        x = self.cols / 2 - total / 2
+        x = self.cols / 2 - sum(widths) / 2
         for spec, rows, w in zip(specs, rows_units, widths):
-            self._spawn(Side.STADT, rows, min(max(x + w / 2, 0.6), self.cols - 0.6), y, [], spec.name)
+            self._spawn(Side.STADT, rows, min(max(x + w / 2, 0.6), self.cols - 0.6), self.scenario.deploy_y, spec.name)
             x += w
 
-    def _spawn(self, side: Side, rows: list[list[Man]], x: float, y: float,
-               waypoints: list[Point], name: str) -> Lochos:
+    def _spawn_raiders(self) -> None:
+        """Räuber in Trupps zu 16, Stellungen aus dem Szenario der Reihe nach."""
+        remaining = max(0, self.enemy_count)
+        spawns = list(self.scenario.raider_spawns)
+        i = 0
+        while remaining > 0 and spawns:
+            n = min(RAIDER_GROUP, remaining)
+            if remaining - n < 6 and remaining - n > 0:
+                n = remaining
+            spawn = spawns[i % len(spawns)]
+            extra = 2.5 * (i // len(spawns))          # weitere Wellen weiter außen
+            y = spawn.y - extra if not self.attacking else spawn.y - extra * 0.4
+            rows = arrange([Man(UNIT_TYPES["raeuber"]) for _ in range(n)], math.ceil(n / 2))
+            u = self._spawn(Side.FEIND, rows, spawn.x, y, "Räuber")
+            u.waypoints = list(spawn.waypoints)
+            if self.attacking:
+                u.stance = Stance.HALTEN
+                u.facing = (0.0, 1.0)
+            remaining -= n
+            i += 1
+
+    def _spawn_mirror(self) -> None:
+        """Die Siedlung stellt dieselbe Mischung wie der Spieler, skaliert."""
+        mirror = scaled_army(self.army, self.enemy_count)
+        s = self.scenario
+        y_line = s.enemy_deploy_y
+        hoplite_specs = [g for g in mirror.groups if g.men() and not all(t.kind in ("peltast", "reiter") for t in g.tiers)]
+        pelt_specs = [g for g in mirror.groups if g.men() and all(t.kind == "peltast" for t in g.tiers)]
+        cav_specs = [g for g in mirror.groups if g.men() and all(t.kind == "reiter" for t in g.tiers)]
+        others = [g for g in mirror.groups if g.men() and g not in hoplite_specs + pelt_specs + cav_specs]
+
+        def place(specs, y, x_from, x_to, facing=(0.0, 1.0), in_line=True, stance=Stance.PHALANX):
+            if not specs:
+                return
+            rows_units = [arrange(g.build_men(), max(1, min(g.men(), int(3.0 / config.MAN_SPACING)))) for g in specs]
+            widths = [2 * Lochos(0, Side.FEIND, r, 0, 0).half_w + 0.3 for r in rows_units]
+            x = (x_from + x_to) / 2 - sum(widths) / 2
+            for g, rows, w in zip(specs, rows_units, widths):
+                u = self._spawn(Side.FEIND, rows, min(max(x + w / 2, 0.6), self.cols - 0.6), y, g.name)
+                u.facing = facing
+                u.stance = stance
+                u.in_line = in_line
+                x += w
+
+        place(hoplite_specs + others, y_line, 3.0, 13.0)
+        if s.palisade and s.gate:
+            wall_y = s.gate[1] + 0.5
+            for k, g in enumerate(pelt_specs):
+                men = g.build_men()
+                width = min(len(men), 14)
+                rows = arrange(men, width)
+                half = Lochos(0, Side.FEIND, rows, 0, 0).half_w
+                x = (3.0 + half) if k % 2 == 0 else (13.0 - half)
+                u = self._spawn(Side.FEIND, rows, x, wall_y, g.name)
+                u.facing = (0.0, 1.0)
+                u.stance = Stance.HALTEN
+        else:
+            place(pelt_specs, y_line - 1.0, 4.0, 12.0, stance=Stance.HALTEN, in_line=False)
+        for k, g in enumerate(cav_specs):
+            rows = arrange(g.build_men(), max(1, min(g.men(), 7)))
+            x = 2.2 if k % 2 == 0 else self.cols - 2.2
+            u = self._spawn(Side.FEIND, rows, x, y_line - 0.8, g.name)
+            u.facing = (0.0, 1.0)
+            u.stance = Stance.HALTEN
+
+    def _spawn(self, side: Side, rows: list[list[Man]], x: float, y: float, name: str) -> Lochos:
         unit = Lochos(id=self._next_id, side=side, rows=rows, x=x, y=y, name=name)
         self._next_id += 1
         if side is Side.FEIND:
             unit.stance = Stance.RAUB
             unit.facing = (0.0, 1.0)
-            unit.waypoints = list(waypoints)
-            unit.rout_threshold = 0.4
+            unit.rout_threshold = 0.4 if self.scenario.enemy_kind == "raeuber" else 0.3
         self.lochoi.append(unit)
         return unit
-
-    def _gate_center(self) -> Point | None:
-        if self.gate is None:
-            return None
-        gx, gy = self.gate
-        cells = [gx]
-        for step in (-1, 1):
-            c = gx + step
-            while 0 <= c < self.cols and (c, gy) not in self.blocked:
-                cells.append(c)
-                c += step
-        return (sum(cells) / len(cells) + 0.5, gy + 0.5)
 
     # ---------------------------------------------------------- Abfragen
     def units(self, side: Side, fighting_only: bool = False) -> list[Lochos]:
@@ -156,7 +243,6 @@ class Battle:
         return None
 
     def unit_at(self, p: Point, side: Side | None = None, tolerance: float = 0.35) -> Lochos | None:
-        """Gruppe unter einem Punkt (für Auswahl und Angriffsziel)."""
         best, best_d = None, float("inf")
         for u in self.lochoi:
             if not u.alive or (side is not None and u.side is not side):
@@ -166,32 +252,56 @@ class Battle:
                 best, best_d = u, d
         return best
 
+    def gate_at(self, p: Point, tolerance: float = 0.4) -> bool:
+        if self.gate is None:
+            return False
+        gx, gy = self.gate.center
+        half = len(self.gate.cells) / 2
+        return abs(p[0] - gx) <= half + tolerance and abs(p[1] - gy) <= 0.5 + tolerance
+
     def houses_intact(self) -> int:
         return sum(1 for h in self.houses if not h.looted)
 
-    def is_blocked(self, x: float, y: float) -> bool:
-        return (int(math.floor(x)), int(math.floor(y))) in self.blocked
+    def cell(self, x: float, y: float) -> tuple[int, int]:
+        return (int(math.floor(x)), int(math.floor(y)))
+
+    def on_wall(self, u: Lochos) -> bool:
+        return self.cell(u.x, u.y) in self.blocked
+
+    def wall_side(self) -> Side | None:
+        return {"stadt": Side.STADT, "feind": Side.FEIND, None: None}[self.scenario.wall_side]
+
+    def is_blocked(self, x: float, y: float, unit: Lochos | None = None) -> bool:
+        c = self.cell(x, y)
+        if c in self.blocked:
+            return not (unit is not None and unit.side is self.wall_side() and unit.wall_capable())
+        if self.gate is not None and self.gate.closed and c in self.gate.cells:
+            return True
+        return False
 
     def inside(self, x: float, y: float) -> bool:
         return 0.0 <= x < self.cols and 0.0 <= y < self.rows
 
-    def path_clear(self, a: Point, b: Point) -> bool:
+    def path_clear(self, a: Point, b: Point, unit: Lochos | None = None) -> bool:
         d = dist(a, b)
         n = max(1, int(d / 0.25))
         for i in range(1, n + 1):
             t = i / n
-            if self.is_blocked(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t):
+            if self.is_blocked(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, unit):
                 return False
         return True
 
     def route(self, u: Lochos, target: Point) -> tuple[Point, bool]:
         """Nächster Zielpunkt und ob es schon das eigentliche Ziel ist."""
-        if self.gate_center is None or self.path_clear(u.pos, target):
+        if self.gate is None or self.path_clear(u.pos, target, u):
             return target, True
-        gx, gy = self.gate_center
+        gx, gy = self.gate.center
         above = u.y < gy
+        if self.gate.closed:
+            wait = (gx, gy - 1.3) if above else (gx, gy + 1.3)
+            return wait, False
         beyond = (gx, gy + 1.2) if above else (gx, gy - 1.2)
-        if self.path_clear(u.pos, beyond):
+        if self.path_clear(u.pos, beyond, u):
             return beyond, False
         return ((gx, gy - 1.2) if above else (gx, gy + 1.2)), False
 
@@ -203,18 +313,15 @@ class Battle:
                 best, best_d = c, d
         return best, best_d
 
-    def enemy_centroid(self, side: Side) -> Point | None:
-        foes = self.units(Side.FEIND if side is Side.STADT else Side.STADT, fighting_only=True)
-        if not foes:
-            return None
-        return (sum(u.x for u in foes) / len(foes), sum(u.y for u in foes) / len(foes))
-
     def _gap(self, a: Lochos, b: Lochos) -> float:
-        """Abstand zwischen den Rändern zweier Formationen (0 = berühren sich)."""
         return max(0.0, min(a.rect_distance(b.pos) - b.core, b.rect_distance(a.pos) - a.core))
 
     def _in_contact(self, a: Lochos, b: Lochos) -> bool:
-        return self._gap(a, b) <= config.ENGAGE_RANGE
+        if self._gap(a, b) > config.ENGAGE_RANGE:
+            return False
+        if self.on_wall(a) or self.on_wall(b):
+            return True
+        return self.path_clear(a.pos, b.pos)
 
     # ----------------------------------------------------------- Befehle
     def _selection(self, units: list[Lochos] | None) -> list[Lochos]:
@@ -224,25 +331,31 @@ class Battle:
         ids = {u.id for u in units}
         return [u for u in pool if u.id in ids]
 
+    def _wake(self, u: Lochos) -> None:
+        u.building = None
+        if self.ram_status == "bau" and self.ram_group == u.id:
+            self.ram_status, self.ram_group = "keiner", None
+            self.events.append("Bau des Rammbocks abgebrochen")
+
     def command_move(self, units: list[Lochos] | None, point: Point) -> None:
-        """Gruppen zu einem Punkt schicken; dort halten sie."""
         self.alarm = False
         sel = self._selection(units)
         px = min(max(point[0], 0.5), self.cols - 0.5)
         py = min(max(point[1], 0.5), self.rows - 0.5)
         n = len(sel)
         for i, u in enumerate(sel):
+            self._wake(u)
             off = (i - (n - 1) / 2) * 1.2
             u.stance = Stance.HALTEN
             u.in_line = False
             u.target_id = None
-            u.target = self._free_spot((px + off, py))
+            u.target = self._free_spot((px + off, py), u)
         self.events.append(f"{len(sel)} Gruppe(n) unterwegs")
 
     def command_attack_target(self, units: list[Lochos] | None, enemy: Lochos) -> None:
-        """Gruppen greifen eine bestimmte gegnerische Gruppe an."""
         self.alarm = False
         for u in self._selection(units):
+            self._wake(u)
             u.stance = Stance.ANGRIFF
             u.in_line = False
             u.target_id = enemy.id
@@ -250,9 +363,9 @@ class Battle:
         self.events.append(f"Angriff auf {enemy.name} ({enemy.men} Mann)")
 
     def command_attack(self, units: list[Lochos] | None = None) -> None:
-        """Freier Angriff: nächsten Gegner verfolgen."""
         self.alarm = False
         for u in self._selection(units):
+            self._wake(u)
             u.stance = Stance.ANGRIFF
             u.in_line = False
             u.target_id = None
@@ -262,19 +375,52 @@ class Battle:
     def command_hold(self, units: list[Lochos] | None = None) -> None:
         self.alarm = False
         for u in self._selection(units):
+            self._wake(u)
             u.stance = Stance.HALTEN
             u.in_line = False
             u.target_id = None
             u.target = None
         self.events.append("Halten")
 
-    def plan_line(self, units: list[Lochos] | None, start: Point, end: Point) -> list[LinePlan]:
-        """Aufstellung entlang einer gezogenen Linie, ohne sie auszuführen.
+    def command_build_ram(self, units: list[Lochos] | None) -> bool:
+        """Die erste gewählte Gruppe baut den Rammbock; dabei steht sie."""
+        if not self.scenario.ram_available or self.ram_status != "keiner":
+            return False
+        sel = self._selection(units)
+        if not sel:
+            return False
+        self.alarm = False
+        u = sel[0]
+        u.stance = Stance.HALTEN
+        u.in_line = False
+        u.target = None
+        u.target_id = None
+        u.building = 0.0
+        self.ram_status, self.ram_group = "bau", u.id
+        self.events.append(f"{u.name} baut den Rammbock")
+        return True
 
-        Die Linie ist die Front. Ihre Länge bestimmt die Breite und damit
-        die Reihenzahl, die Zugrichtung die Blickrichtung: von links nach
-        rechts gezogen schaut die Gruppe nach oben, wie man hinter ihr steht.
-        """
+    def command_ram_gate(self, units: list[Lochos] | None) -> bool:
+        """Die Gruppe mit dem Rammbock geht ans Tor und bricht es auf."""
+        if self.gate is None or not self.gate.closed:
+            return False
+        if self.ram_status != "bereit" or self.ram_group is None:
+            self.events.append("Ohne Rammbock hält das Tor")
+            return False
+        u = self.by_id(self.ram_group)
+        if u is None or not u.fighting:
+            return False
+        self.alarm = False
+        gx, gy = self.gate.center
+        u.stance = Stance.HALTEN
+        u.in_line = False
+        u.target_id = None
+        u.target = (gx, gy + 0.5 + u.half_d + 0.35)
+        u.facing = (0.0, -1.0)
+        self.events.append("Rammbock geht ans Tor")
+        return True
+
+    def plan_line(self, units: list[Lochos] | None, start: Point, end: Point) -> list[LinePlan]:
         sel = self._selection(units)
         if not sel:
             return []
@@ -295,18 +441,18 @@ class Battle:
             width = max(1, min(u.men, int(seg / config.MAN_SPACING)))
             depth = math.ceil(u.men / width)
             center = add(start, scale(axis, pos + seg / 2))
-            plans.append(LinePlan(u.id, self._free_spot(center), facing, width, depth, seg))
+            plans.append(LinePlan(u.id, self._free_spot(center, u), facing, width, depth, seg))
             pos += seg + gap
         return plans
 
     def command_line(self, units: list[Lochos] | None, start: Point, end: Point) -> list[LinePlan]:
-        """Gruppen entlang der Linie aufziehen und dort die Formation halten."""
         self.alarm = False
         plans = self.plan_line(units, start, end)
         for plan in plans:
             u = self.by_id(plan.unit_id)
             if u is None:
                 continue
+            self._wake(u)
             u.reform(plan.width)
             u.stance = Stance.PHALANX
             u.in_line = False
@@ -319,12 +465,12 @@ class Battle:
             self.events.append(f"Aufstellung: {len(plans)} Gruppe(n), Front {self._dir_name(snap4(plans[0].facing))}")
         return plans
 
-    def _free_spot(self, p: Point) -> Point:
+    def _free_spot(self, p: Point, unit: Lochos | None = None) -> Point:
         x = min(max(p[0], 0.5), self.cols - 0.5)
         y = min(max(p[1], 0.5), self.rows - 0.5)
-        if self.is_blocked(x, y):
+        if self.is_blocked(x, y, unit):
             for dy in (1.0, -1.0, 2.0, -2.0):
-                if not self.is_blocked(x, y + dy) and self.inside(x, y + dy):
+                if not self.is_blocked(x, y + dy, unit) and self.inside(x, y + dy):
                     return (x, y + dy)
         return (x, y)
 
@@ -337,26 +483,31 @@ class Battle:
         if self.outcome is not None or self.alarm or dt <= 0:
             return
         self.time += dt
-        self._ai_enemies()
+        if self.attacking:
+            self._ai_defenders()
+        else:
+            self._ai_raiders()
         self._ai_city()
         self._move(dt)
         self._separate()
         self._combat(dt)
         self._volleys(dt)
-        self._loot(dt)
+        self._ram(dt)
+        if not self.attacking:
+            self._loot(dt)
         self._morale(dt)
         self._check_withdraw()
         self._check_outcome()
 
     # -- KI ----------------------------------------------------------------
-    def _ai_enemies(self) -> None:
+    def _ai_raiders(self) -> None:
         defenders = self.units(Side.STADT, fighting_only=True)
         for u in self.units(Side.FEIND):
             if u.stance is Stance.FLUCHT:
                 u.target = (u.x, -3.0)
                 continue
             foe, d = self._nearest(u, defenders)
-            if foe is not None and foe.rect_distance(u.pos) <= config.SEEK_RANGE:
+            if foe is not None and foe.rect_distance(u.pos) <= config.SEEK_RANGE and not self.on_wall(foe):
                 u.stance = Stance.ANGRIFF
                 u.target_id = foe.id
                 u.target = foe.pos
@@ -376,6 +527,45 @@ class Battle:
             else:
                 u.target = (u.x, -3.0)
 
+    def _ai_defenders(self) -> None:
+        """Gegner beim Angriff: Horde stürmt bei Annäherung, Siedlung hält."""
+        attackers = self.units(Side.STADT, fighting_only=True)
+        enemies = self.units(Side.FEIND)
+        if self.scenario.enemy_kind == "raeuber":
+            if not self.horde_awake and any(
+                u.rect_distance(a.pos) <= config.HORDE_TRIGGER for u in enemies for a in attackers
+            ):
+                self.horde_awake = True
+                self.events.append("Die Horde stürmt")
+            for u in enemies:
+                if u.stance is Stance.FLUCHT:
+                    u.target = (u.x, -3.0)
+                    continue
+                if self.horde_awake:
+                    u.stance = Stance.ANGRIFF
+                    foe, _ = self._nearest(u, attackers)
+                    u.target_id = foe.id if foe else None
+                    u.target = foe.pos if foe else None
+            return
+        for u in enemies:
+            if u.stance is Stance.FLUCHT:
+                u.target = (u.x, -3.0)
+                continue
+            if u.stance is Stance.ANGRIFF:
+                target = self.by_id(u.target_id) if u.target_id is not None else None
+                if target is None or not target.fighting:
+                    target, _ = self._nearest(u, attackers)
+                    u.target_id = target.id if target else None
+                u.target = target.pos if target else None
+                continue
+            if u.share(lambda m: m.kind.cavalry) >= 0.5:
+                foe, _ = self._nearest(u, attackers)
+                if foe is not None and foe.rect_distance(u.pos) <= config.CAVALRY_TRIGGER and self.path_clear(u.pos, foe.pos, u):
+                    u.stance = Stance.ANGRIFF
+                    u.target_id = foe.id
+                    u.target = foe.pos
+            # Hopliten und Peltasten halten ihre Stellung
+
     def _ai_city(self) -> None:
         foes = self.units(Side.FEIND)
         for u in self.units(Side.STADT, fighting_only=True):
@@ -393,7 +583,7 @@ class Battle:
     # -- Bewegung ----------------------------------------------------------
     def _move(self, dt: float) -> None:
         for u in self.lochoi:
-            if not u.alive or u.target is None or u.in_phalanx:
+            if not u.alive or u.target is None or u.in_phalanx or u.building is not None:
                 continue
             speed = u.speed * (1.25 if u.stance is Stance.FLUCHT else 1.0)
             goal, final = self.route(u, u.target)
@@ -421,11 +611,11 @@ class Battle:
 
     def _step(self, u: Lochos, delta: Point) -> None:
         nx, ny = u.x + delta[0], u.y + delta[1]
-        if not self.is_blocked(nx, ny):
+        if not self.is_blocked(nx, ny, u):
             u.x, u.y = nx, ny
-        elif not self.is_blocked(nx, u.y):
+        elif not self.is_blocked(nx, u.y, u):
             u.x = nx
-        elif not self.is_blocked(u.x, ny):
+        elif not self.is_blocked(u.x, ny, u):
             u.y = ny
 
     def _separate(self) -> None:
@@ -434,17 +624,19 @@ class Battle:
             for b in alive[i + 1:]:
                 if a.side is b.side and (a.stance is Stance.PHALANX or b.stance is Stance.PHALANX):
                     continue
+                if self.on_wall(a) != self.on_wall(b):
+                    continue
                 d = dist(a.pos, b.pos)
                 if d < 1e-6:
                     continue
-                overlap = (a.core + b.core + config.SEPARATION) - self._gap(a, b) - (a.core + b.core)
+                overlap = config.SEPARATION - self._gap(a, b)
                 if overlap <= 0:
                     continue
                 push = overlap / 2
                 direction = norm(sub(b.pos, a.pos))
-                if not a.in_phalanx:
+                if not a.in_phalanx and a.building is None:
                     self._step(a, scale(direction, -push))
-                if not b.in_phalanx:
+                if not b.in_phalanx and b.building is None:
                     self._step(b, scale(direction, push))
 
     # -- Kampf -------------------------------------------------------------
@@ -462,12 +654,13 @@ class Battle:
                 if self._in_contact(a, b):
                     pairs.append((a, b))
                     a.engaged = True
-        hits: list[tuple[Lochos, Lochos, float, str]] = []
-        for a, b in pairs:
-            rate, arc_name = self._melee_rate(a, b)
-            hits.append((a, b, rate * dt, arc_name))
+        hits = [(a, b, *self._melee(a, b, dt)) for a, b in pairs]
         for a, b, dmg, arc_name in hits:
             self._apply_damage(a, b, dmg, arc_name)
+
+    def _melee(self, a: Lochos, b: Lochos, dt: float) -> tuple[float, str]:
+        rate, arc_name = self._melee_rate(a, b)
+        return rate * dt, arc_name
 
     def _defense_mod(self, a: Lochos, b: Lochos) -> tuple[float, str]:
         arc_name = arc(b.facing, sub(a.pos, b.pos), config.FRONT_ARC, config.REAR_ARC)
@@ -488,8 +681,7 @@ class Battle:
         base = a.melee_attack() * config.BASE_RATE
         attack_mod = 1.0
         if a.in_phalanx:
-            to_b = sub(b.pos, a.pos)
-            front = arc(a.facing, to_b, config.FRONT_ARC, config.REAR_ARC) == "front"
+            front = arc(a.facing, sub(b.pos, a.pos), config.FRONT_ARC, config.REAR_ARC) == "front"
             attack_mod = config.PHALANX_ATTACK_FRONT if front else config.PHALANX_ATTACK_SIDE
         defense_mod, arc_name = self._defense_mod(a, b)
         cav = a.cavalry_share()
@@ -501,10 +693,35 @@ class Battle:
             else:
                 cav_mod = 1.0
             attack_mod *= (1 - cav) + cav * cav_mod
+        if self.on_wall(a) != self.on_wall(b):
+            attack_mod *= config.WALL_MELEE_FACTOR
         return base * attack_mod * defense_mod, arc_name
 
+    def _line_neighbours(self, u: Lochos) -> int:
+        return sum(
+            1 for o in self.lochoi
+            if o is not u and o.side is u.side and o.in_phalanx and self._gap(u, o) <= 0.5
+        )
+
+    def _apply_damage(self, a: Lochos, b: Lochos, dmg: float, arc_name: str) -> None:
+        if not b.alive or dmg <= 0:
+            return
+        row_arc = arc_name if arc_name != "ranged" else "front"
+        b.last_arc = arc_name
+        fallen = b.take_damage(b.exposed_row(row_arc), dmg)
+        if fallen:
+            morale_mod = {"rear": 1.5, "flank": 1.2}.get(arc_name, 1.0)
+            if b.in_phalanx and arc_name == "front":
+                morale_mod = config.MORALE_LOSS_FRONT_PHALANX
+            b.morale -= fallen * (1.0 / max(1, b.men_start)) * b.bravery() * morale_mod
+        if b.in_phalanx and arc_name == "rear":
+            b.morale -= config.MORALE_REAR_DRAIN * b.bravery() * dmg
+        if b.men <= 0:
+            b.in_line = False
+            self.events.append(f"{b.name} ({b.side.value}) aufgerieben")
+            self._lose_ram_if(b)
+
     def _volleys(self, dt: float) -> None:
-        """Peltasten werfen in Salven; Speere fliegen sichtbar und treffen später."""
         alive = [u for u in self.lochoi if u.alive]
         for a in alive:
             if not a.fighting:
@@ -513,7 +730,8 @@ class Battle:
             throwers = a.throwers(a.engaged)
             if not throwers:
                 if (a.ammo() == 0 and a.share(lambda m: m.kind.ranged) >= 0.5
-                        and a.stance in (Stance.HALTEN, Stance.PHALANX)):
+                        and a.stance in (Stance.HALTEN, Stance.PHALANX) and not self.on_wall(a)
+                        and (a.side is Side.STADT or self.scenario.enemy_kind == "raeuber")):
                     a.stance = Stance.ANGRIFF
                     a.in_line = False
                     a.target_id = None
@@ -521,9 +739,10 @@ class Battle:
                 continue
             if a.volley_timer > 0:
                 continue
+            reach = config.JAVELIN_RANGE + (config.WALL_RANGE_BONUS if self.on_wall(a) else 0.0)
             foes = [b for b in alive if b.side is not a.side and b.fighting]
             foe, d = self._nearest(a, foes)
-            if foe is None or foe.rect_distance(a.pos) > config.JAVELIN_RANGE:
+            if foe is None or foe.rect_distance(a.pos) > reach:
                 continue
             a.volley_timer = config.VOLLEY_INTERVAL
             shield = 1.0 - 0.5 * foe.shield_factor() if foe.in_phalanx else 1.0
@@ -543,29 +762,38 @@ class Battle:
                 if b is not None and b.alive:
                     self._apply_damage(b, b, pr.dmg, "ranged")
 
-    def _line_neighbours(self, u: Lochos) -> int:
-        return sum(
-            1 for o in self.lochoi
-            if o is not u and o.side is u.side and o.in_phalanx
-            and self._gap(u, o) <= 0.5
-        )
-
-    def _apply_damage(self, a: Lochos, b: Lochos, dmg: float, arc_name: str) -> None:
-        if not b.alive or dmg <= 0:
+    # -- Rammbock und Tor --------------------------------------------------
+    def _ram(self, dt: float) -> None:
+        if self.ram_group is None:
             return
-        row_arc = arc_name if arc_name != "ranged" else "front"
-        b.last_arc = arc_name
-        fallen = b.take_damage(b.exposed_row(row_arc), dmg)
-        if fallen:
-            morale_mod = {"rear": 1.5, "flank": 1.2}.get(arc_name, 1.0)
-            if b.in_phalanx and arc_name == "front":
-                morale_mod = config.MORALE_LOSS_FRONT_PHALANX
-            b.morale -= fallen * (1.0 / max(1, b.men_start)) * b.bravery() * morale_mod
-        if b.in_phalanx and arc_name == "rear":
-            b.morale -= config.MORALE_REAR_DRAIN * b.bravery() * dmg
-        if b.men <= 0:
-            b.in_line = False
-            self.events.append(f"{b.name} ({b.side.value}) aufgerieben")
+        u = self.by_id(self.ram_group)
+        if u is None or not u.fighting:
+            self._lose_ram_if(u)
+            return
+        if self.ram_status == "bau":
+            u.building = (u.building or 0.0) + dt
+            if u.building >= config.RAM_BUILD_TIME:
+                u.building = None
+                u.ram = True
+                self.ram_status = "bereit"
+                self.events.append("Der Rammbock ist fertig. Tippe das Tor an.")
+            return
+        if self.gate is None or not self.gate.closed:
+            return
+        gx, gy = self.gate.center
+        if abs(u.x - gx) <= len(self.gate.cells) / 2 + 0.3 and abs(u.y - (gy + 0.5)) <= u.half_d + config.RAM_REACH:
+            self.gate.hp -= config.RAM_DPS * dt
+            if self.gate.hp <= 0:
+                self.gate.hp = 0.0
+                self.gate.closed = False
+                self.events.append("Das Tor ist aufgebrochen!")
+
+    def _lose_ram_if(self, u: Lochos | None) -> None:
+        if u is not None and self.ram_group == u.id and self.ram_status != "keiner":
+            self.ram_status, self.ram_group = "keiner", None
+            u.ram = False
+            u.building = None
+            self.events.append("Der Rammbock ist verloren")
 
     # -- Plündern ----------------------------------------------------------
     def _loot(self, dt: float) -> None:
@@ -594,6 +822,7 @@ class Battle:
                 u.target = None
                 u.target_id = None
                 self.events.append(f"{u.name} ({u.side.value}) flieht")
+                self._lose_ram_if(u)
 
     def _check_withdraw(self) -> None:
         start = self.men_start.get(Side.FEIND, 0)
@@ -601,28 +830,27 @@ class Battle:
             for u in self.units(Side.FEIND, fighting_only=True):
                 u.stance = Stance.FLUCHT
                 u.in_line = False
-            if any(u.alive for u in self.units(Side.FEIND)) and "Räuber ziehen ab" not in self.events[-3:]:
-                self.events.append("Räuber ziehen ab")
+            if any(u.alive for u in self.units(Side.FEIND)) and "Der Feind zieht ab" not in self.events[-3:]:
+                self.events.append("Der Feind zieht ab")
 
     def _check_outcome(self) -> None:
-        if self.houses_intact() == 0:
-            self.outcome = "niederlage"
-            self.events.append("Die Siedlung ist geplündert")
-            return
-        if not self.units(Side.FEIND, fighting_only=True) and not any(
-            u.alive and u.stance is Stance.FLUCHT and self.inside(u.x, u.y)
-            for u in self.units(Side.FEIND)
-        ):
-            self.outcome = "sieg"
-            self.events.append("Der Überfall ist abgewehrt")
-            return
-        if (
+        enemy_gone = not self.units(Side.FEIND, fighting_only=True) and not any(
+            u.alive and u.stance is Stance.FLUCHT and self.inside(u.x, u.y) for u in self.units(Side.FEIND)
+        )
+        city_gone = (
             self.men_start.get(Side.STADT, 0)
             and not self.units(Side.STADT, fighting_only=True)
             and self.units(Side.FEIND, fighting_only=True)
-        ):
+        )
+        if not self.attacking and self.houses_intact() == 0:
             self.outcome = "niederlage"
-            self.events.append("Die Verteidiger sind geschlagen")
+            self.events.append("Die Siedlung ist geplündert")
+        elif enemy_gone:
+            self.outcome = "sieg"
+            self.events.append("Der Überfall ist abgewehrt" if not self.attacking else "Der Feind ist geschlagen")
+        elif city_gone:
+            self.outcome = "niederlage"
+            self.events.append("Die Verteidiger sind geschlagen" if not self.attacking else "Der Angriff ist gescheitert")
 
     # ------------------------------------------------------------ Bericht
     def fallen(self, side: Side) -> int:

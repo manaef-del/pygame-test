@@ -49,13 +49,15 @@ class Renderer:
         w2 = (config.WIDTH - 3 * gap) // 2
         r1 = top + gap
         r2 = top + 2 * gap + row_h
+        w3 = (config.WIDTH - 4 * gap) // 3
         return [
             Button("angriff", "Angriff", pygame.Rect(gap, r1, w4, row_h)),
             Button("halten", "Halten", pygame.Rect(2 * gap + w4, r1, w4, row_h)),
             Button("alle", "Alle", pygame.Rect(3 * gap + 2 * w4, r1, w4, row_h)),
             Button("pause", "Pause", pygame.Rect(4 * gap + 3 * w4, r1, w4, row_h)),
-            Button("neu", "Neu", pygame.Rect(gap, r2, w2, row_h)),
-            Button("aufstellung", "Aufstellung", pygame.Rect(2 * gap + w2, r2, w2, row_h)),
+            Button("neu", "Neu", pygame.Rect(gap, r2, w3, row_h)),
+            Button("aufstellung", "Aufstellung", pygame.Rect(2 * gap + w3, r2, w3, row_h)),
+            Button("rammbock", "Rammbock", pygame.Rect(3 * gap + 2 * w3, r2, w3, row_h)),
         ]
 
     def draw(self, battle: Battle, drag, paused: bool, selected: set[int]) -> None:
@@ -118,9 +120,16 @@ class Renderer:
             pygame.draw.rect(s, config.COLOR_PALISADE, pygame.Rect(cx * T, cy * T + T // 3, T, T // 3))
             for i in range(3):
                 pygame.draw.line(s, (90, 60, 30), (cx * T + 5 + i * 10, cy * T + 4), (cx * T + 5 + i * 10, cy * T + T - 4), 3)
-        if battle.gate_center is not None:
-            gx, gy = battle.gate_center
-            pygame.draw.rect(s, config.COLOR_GATE, pygame.Rect(int(gx * T) - T, int(gy * T) - 4, 2 * T, 8), 2)
+        if battle.gate is not None:
+            gx, gy = battle.gate.center
+            half = len(battle.gate.cells) / 2
+            rect = pygame.Rect(int((gx - half) * T), int(gy * T) - 6, int(2 * half * T), 12)
+            if battle.gate.closed:
+                pygame.draw.rect(s, config.COLOR_GATE_CLOSED, rect, border_radius=3)
+                frac = battle.gate.hp / battle.gate.hp_max
+                pygame.draw.rect(s, config.COLOR_FIRE, pygame.Rect(rect.x, rect.bottom + 2, int(rect.w * frac), 3))
+            else:
+                pygame.draw.rect(s, config.COLOR_GATE, rect, 2)
 
     def _draw_houses(self, battle: Battle) -> None:
         s = self.surface
@@ -165,6 +174,15 @@ class Renderer:
         if u.in_phalanx:
             a, b = corners[0], corners[1]
             pygame.draw.line(s, config.COLOR_SHIELD, a, b, 4)
+        if u.ram or u.building is not None:
+            a = px((u.x + fx * (u.half_d + 0.05), u.y + fy * (u.half_d + 0.05)))
+            b = px((u.x + fx * (u.half_d + 0.55), u.y + fy * (u.half_d + 0.55)))
+            pygame.draw.line(s, config.COLOR_RAM, a, b, 6)
+            if u.building is not None:
+                frac = min(1.0, u.building / config.RAM_BUILD_TIME)
+                bar = pygame.Rect(cx - 15, cy - int(u.half_d * T) - 12, 30, 4)
+                pygame.draw.rect(s, config.COLOR_BUTTON, bar)
+                pygame.draw.rect(s, config.COLOR_SHIELD, pygame.Rect(bar.x, bar.y, int(30 * frac), 4))
         if u.side is Side.STADT:
             label = self.small.render(str(u.men), True, ring)
             lx, ly = px((u.x - fx * (u.half_d + 0.3), u.y - fy * (u.half_d + 0.3)))
@@ -174,8 +192,12 @@ class Renderer:
         s = self.surface
         r = battle.report()
         mins, secs = divmod(int(battle.time), 60)
-        text = (f"Stadt {r['stadt_start'] - r['stadt_gefallen']}   Räuber {r['feind_start'] - r['feind_gefallen']}   "
-                f"Häuser {r['haeuser_intakt']}/{r['haeuser']}   {mins}:{secs:02d}")
+        text = f"Stadt {r['stadt_start'] - r['stadt_gefallen']}   Feind {r['feind_start'] - r['feind_gefallen']}   "
+        if not battle.attacking:
+            text += f"Häuser {r['haeuser_intakt']}/{r['haeuser']}   "
+        elif battle.gate is not None:
+            text += f"Tor {int(100 * battle.gate.hp / battle.gate.hp_max)}%   " if battle.gate.closed else "Tor offen   "
+        text += f"{mins}:{secs:02d}"
         strip = pygame.Surface((config.MAP_W, 26), pygame.SRCALPHA)
         strip.fill((0, 0, 0, 120))
         s.blit(strip, (0, 0))
@@ -185,10 +207,14 @@ class Renderer:
             panel = pygame.Surface((config.MAP_W, 120), pygame.SRCALPHA)
             panel.fill((0, 0, 0, 170))
             s.blit(panel, (0, config.MAP_H // 2 - 70))
-            title = "Abgewehrt" if battle.outcome == "sieg" else "Geplündert"
+            if battle.attacking:
+                title = "Sieg" if battle.outcome == "sieg" else "Gescheitert"
+            else:
+                title = "Abgewehrt" if battle.outcome == "sieg" else "Geplündert"
             self._center_text(self.big, title, config.COLOR_TEXT, config.MAP_H // 2 - 40)
-            line = (f"Gefallen: Stadt {r['stadt_gefallen']}, Räuber {r['feind_gefallen']}   "
-                    f"Häuser verloren: {r['haeuser'] - r['haeuser_intakt']}")
+            line = f"Gefallen: Stadt {r['stadt_gefallen']}, Feind {r['feind_gefallen']}"
+            if not battle.attacking:
+                line += f"   Häuser verloren: {r['haeuser'] - r['haeuser_intakt']}"
             self._center_text(self.font, line, config.COLOR_TEXT, config.MAP_H // 2 + 8)
             self._center_text(self.small, "Neu = noch einmal", config.COLOR_TEXT_DIM, config.MAP_H // 2 + 34)
         elif battle.alarm:
@@ -202,7 +228,7 @@ class Renderer:
                 names = ", ".join(f"{u.name} ({u.summary()})" for u in sel[:3])
                 if len(sel) > 3:
                     names += f" +{len(sel) - 3}"
-                msg = "Gewählt: " + names + "  ·  Tippen = hin, Räuber = Angriff, Ziehen = Front aufziehen"
+                msg = "Gewählt: " + names + "  ·  Tippen = hin, Feind = Angriff, Ziehen = Front aufziehen"
             elif battle.events:
                 msg = battle.events[-1]
             else:
@@ -238,25 +264,32 @@ class Renderer:
         s = self.surface
         pygame.draw.rect(s, config.COLOR_BAR, pygame.Rect(0, config.MAP_H, config.WIDTH, config.BAR_H))
         for b in self.buttons:
+            if b.key == "rammbock" and not battle.scenario.ram_available:
+                continue
             active = (b.key == "pause" and paused) or (b.key == "alle" and selected)
+            active = active or (b.key == "rammbock" and battle.ram_status != "keiner")
             pygame.draw.rect(s, config.COLOR_BUTTON_ACTIVE if active else config.COLOR_BUTTON, b.rect, border_radius=6)
             label = b.label
             if b.key == "pause":
                 label = "Los" if battle.alarm else ("Weiter" if paused else "Pause")
             if b.key == "alle" and selected:
                 label = "Keine"
+            if b.key == "rammbock":
+                label = {"keiner": "Rammbock bauen", "bau": "Bau läuft", "bereit": "Rammbock bereit"}[battle.ram_status]
             img = self.font.render(label, True, config.COLOR_TEXT)
             s.blit(img, img.get_rect(center=b.rect.center))
 
-    def button_at(self, pos: tuple[int, int]) -> str | None:
+    def button_at(self, pos: tuple[int, int], battle: Battle | None = None) -> str | None:
         for b in self.buttons:
+            if b.key == "rammbock" and battle is not None and not battle.scenario.ram_available:
+                continue
             if b.rect.collidepoint(pos):
                 return b.key
         return None
 
     # ================================================== Aufstellung
-    def draw_menu(self, army: Army, index: int, scenario_name: str) -> None:
-        """Aufstellungsmenü: eine Gruppe je Seite, Reihen als Blöcke mit Reglern."""
+    def draw_menu(self, army: Army, index: int, scenario, enemy_count: int) -> None:
+        """Aufstellungsmenü: Szenario, Gegnerstärke, eine Gruppe je Seite mit Reihen-Blöcken."""
         s = self.surface
         s.fill(config.COLOR_MENU_BG)
         self.menu_buttons = []
@@ -264,9 +297,9 @@ class Renderer:
         W = config.WIDTH
         gap = 6
 
-        self._center_text(self.big, "Aufstellung", config.COLOR_TEXT, 30)
+        self._center_text(self.big, "Aufstellung", config.COLOR_TEXT, 26)
         # Vorrat
-        y, x = 58, 8
+        y, x = 52, 8
         for key in PLAYER_TYPES:
             kind = UNIT_TYPES[key]
             pygame.draw.circle(s, kind.color, (x + 6, y + 8), 5)
@@ -275,17 +308,30 @@ class Renderer:
             x += 92
         s.blit(self.small.render("Vorrat: noch frei / gesamt", True, config.COLOR_TEXT_DIM), (8, y + 18))
 
+        # Szenario und Gegnerstärke
+        y = 92
+        self._menu_button("scenario", f"Szenario: {scenario.name}", pygame.Rect(gap, y, W - 2 * gap, 34))
+        y += 40
+        label = "Räuber" if scenario.enemy_kind == "raeuber" else "Feind (wie deine Truppe)"
+        s.blit(self.small.render(f"{label}: {enemy_count} Mann", True, config.COLOR_TEXT), (gap + 2, y))
+        track = pygame.Rect(230, y + 2, W - gap - 230, 14)
+        pygame.draw.rect(s, config.COLOR_BUTTON, track, border_radius=7)
+        frac = (enemy_count - scenario.enemy_min) / max(1, scenario.enemy_max - scenario.enemy_min)
+        pygame.draw.rect(s, config.COLOR_ENEMY, pygame.Rect(track.x, track.y, max(14, int(track.w * frac)), track.h), border_radius=7)
+        pygame.draw.circle(s, config.COLOR_TEXT, (track.x + int(track.w * frac), track.centery), 10)
+        self.menu_sliders.append((-1, track))
+
         # Gruppenwahl
-        y = 98
-        self._menu_button("prev", "<", pygame.Rect(gap, y, 48, 38))
-        self._menu_button("next", ">", pygame.Rect(W - gap - 48, y, 48, 38))
+        y += 26
+        self._menu_button("prev", "<", pygame.Rect(gap, y, 48, 34))
+        self._menu_button("next", ">", pygame.Rect(W - gap - 48, y, 48, 34))
         g = army.groups[index]
         title = f"{g.name}  ({index + 1}/{len(army.groups)})  ·  {g.men()} Mann"
-        self._center_text(self.font, title, config.COLOR_TEXT, y + 19)
+        self._center_text(self.font, title, config.COLOR_TEXT, y + 17)
 
         # Reihen-Blöcke, vorn nach hinten
-        y = 144
-        block_h = 66
+        y += 40
+        block_h = 62
         for i, tier in enumerate(g.tiers):
             kind = UNIT_TYPES[tier.kind]
             panel = pygame.Rect(gap, y, W - 2 * gap, block_h)
@@ -320,22 +366,14 @@ class Renderer:
         if len(g.tiers) < MAX_TIERS:
             self._menu_button("addrow", "+ Reihe", pygame.Rect(gap, y, W - 2 * gap, 36))
             y += 42
-        hint = ("Blöcke von vorn nach hinten. Die Breite beim Aufziehen bestimmt die "
-                "echten Reihen; geteilte Reihen wechseln sich ab.")
-        y_hint = config.HEIGHT - 2 * 44 - 3 * gap - 44
-        for j, line in enumerate(self._wrap(self.small, hint, W - 16)[:2]):
-            s.blit(self.small.render(line, True, config.COLOR_TEXT_DIM), (8, y_hint + j * 18))
-
         # Gruppen verwalten und Start
-        y = config.HEIGHT - 2 * 44 - 3 * gap
+        y = config.HEIGHT - 2 * 40 - 3 * gap
         w3 = (W - 4 * gap) // 3
-        self._menu_button("add", "+ Gruppe", pygame.Rect(gap, y, w3, 44))
-        self._menu_button("del", "Gruppe löschen", pygame.Rect(2 * gap + w3, y, w3, 44))
-        self._menu_button("preset", "Vorgabe", pygame.Rect(3 * gap + 2 * w3, y, w3, 44))
-        y += 44 + gap
-        w2 = (W - 3 * gap) // 2
-        self._menu_button("scenario", f"Szenario: {scenario_name}", pygame.Rect(gap, y, w2, 44))
-        self._menu_button("start", "Zur Schlacht >", pygame.Rect(2 * gap + w2, y, w2, 44), config.COLOR_BUTTON_ACTIVE)
+        self._menu_button("add", "+ Gruppe", pygame.Rect(gap, y, w3, 40))
+        self._menu_button("del", "Gruppe löschen", pygame.Rect(2 * gap + w3, y, w3, 40))
+        self._menu_button("preset", "Vorgabe", pygame.Rect(3 * gap + 2 * w3, y, w3, 40))
+        y += 40 + gap
+        self._menu_button("start", "Zur Schlacht >", pygame.Rect(gap, y, W - 2 * gap, 40), config.COLOR_BUTTON_ACTIVE)
 
     def slider_at(self, pos: tuple[int, int]) -> tuple[int, pygame.Rect] | None:
         for tier, rect in self.menu_sliders:

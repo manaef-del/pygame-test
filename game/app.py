@@ -42,6 +42,7 @@ class App:
         self.drag_now: tuple[float, float] | None = None
         self.running = True
         self.menu_slider: tuple[int, pygame.Rect] | None = None
+        self.enemy_counts: dict[str, int] = {s.key: s.enemy_default for s in SCENARIOS}
         self.battle = self._new_battle()
 
     def _new_battle(self) -> Battle:
@@ -49,7 +50,8 @@ class App:
         self.paused = False
         self.selected = set()
         self.drag_start = self.drag_now = None
-        return Battle(SCENARIOS[self.scenario_index], rng, army=copy.deepcopy(self.army))
+        scn = SCENARIOS[self.scenario_index]
+        return Battle(scn, rng, army=copy.deepcopy(self.army), enemy_count=self.enemy_counts[scn.key])
 
     # ---------------------------------------------------------- Eingabe
     def handle_event(self, event: pygame.event.Event) -> None:
@@ -96,7 +98,7 @@ class App:
                 self._slide(pos)
             return
         if pos[1] >= config.MAP_H:
-            key = self.renderer.button_at(pos)
+            key = self.renderer.button_at(pos, self.battle)
             if key:
                 self.command(key)
             return
@@ -105,10 +107,14 @@ class App:
     def _slide(self, pos: tuple[int, int]) -> None:
         """Schieberegler: Anzahl aus der Fingerposition."""
         tier, rect = self.menu_slider
+        frac = min(1.0, max(0.0, (pos[0] - rect.x) / rect.w))
+        if tier == -1:
+            scn = SCENARIOS[self.scenario_index]
+            self.enemy_counts[scn.key] = scn.enemy_min + round(frac * (scn.enemy_max - scn.enemy_min))
+            return
         if tier >= len(self.army.groups[self.menu_group].tiers):
             self.menu_slider = None
             return
-        frac = min(1.0, max(0.0, (pos[0] - rect.x) / rect.w))
         maximum = self.army.max_for(self.menu_group, tier)
         self.army.set_count(self.menu_group, tier, round(frac * maximum))
 
@@ -136,6 +142,10 @@ class App:
             else:
                 self.selected = {own.id}
             return
+        if b.gate is not None and b.gate.closed and b.gate_at(p):
+            b.command_ram_gate(self._selection())
+            self.paused = False
+            return
         if not self.selected:
             return
         foe = b.unit_at(p, Side.FEIND)
@@ -158,6 +168,9 @@ class App:
         elif key == "halten" and b.outcome is None:
             b.command_hold(self._selection())
             self.paused = False
+        elif key == "rammbock" and b.outcome is None:
+            if b.command_build_ram(self._selection()):
+                self.paused = False
         elif key == "alle":
             if self.selected:
                 self.selected = set()
@@ -212,7 +225,7 @@ class App:
     # ------------------------------------------------------------ Takt
     def tick(self, dt: float) -> None:
         if self.screen == "schlacht" and not self.paused:
-            self.battle.update(dt)
+            self.battle.update(dt * config.TIME_SCALE)
             self.selected = {i for i in self.selected if (u := self.battle.by_id(i)) and u.fighting}
 
     def drag_rect(self):
@@ -222,7 +235,8 @@ class App:
 
     def draw(self) -> None:
         if self.screen == "aufstellung":
-            self.renderer.draw_menu(self.army, self.menu_group, SCENARIOS[self.scenario_index].name)
+            scn = SCENARIOS[self.scenario_index]
+            self.renderer.draw_menu(self.army, self.menu_group, scn, self.enemy_counts[scn.key])
         else:
             self.renderer.draw(self.battle, self.drag_rect(), self.paused, self.selected)
 

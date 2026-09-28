@@ -51,6 +51,20 @@ JAVELIN_SPEED = 7.0          # Kacheln pro Sekunde (Anzeige und Einschlag)
 MAN_SPACING = 0.13           # Kacheln zwischen Männern einer Reihe
 ROW_SPACING = 0.19           # Kacheln zwischen Reihen
 
+# Zeit
+TIME_SCALE = 0.5             # Spielzeit je Echtzeit (halbe Geschwindigkeit)
+
+# Wall und Tor
+WALL_RANGE_BONUS = 1.0       # Peltasten auf dem Wehrgang werfen weiter
+WALL_MELEE_FACTOR = 0.3      # Nahkampf von unten gegen den Wehrgang und zurück
+GATE_HP = 100.0
+RAM_BUILD_TIME = 8.0         # Sekunden Spielzeit
+RAM_DPS = 12.0               # Schaden am Tor je Sekunde
+RAM_SPEED_FACTOR = 0.7
+RAM_REACH = 0.9              # Abstand zum Tor, ab dem gerammt wird
+HORDE_TRIGGER = 4.0          # Kacheln: ab hier stürmt die Horde
+CAVALRY_TRIGGER = 5.0        # Kacheln: ab hier greifen feindliche Reiter an
+
 # Plünderung
 LOOT_TIME = 4.0              # Sekunden je Haus
 LOOT_RANGE = 0.8
@@ -81,6 +95,8 @@ COLOR_MENU_BG = (24, 26, 34)
 COLOR_MENU_PANEL = (36, 40, 52)
 COLOR_SHIELD = (255, 230, 120)
 COLOR_JAVELIN = (245, 220, 170)
+COLOR_RAM = (150, 100, 50)
+COLOR_GATE_CLOSED = (110, 70, 30)
 COLOR_TEXT = (235, 235, 235)
 COLOR_TEXT_DIM = (150, 150, 160)
 COLOR_BAR = (28, 28, 36)

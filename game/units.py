@@ -138,6 +138,8 @@ class Lochos:
     pool: list[float] = field(default_factory=list)  # angesammelter Schaden je Reihe
     rout_threshold: float = 0.3
     volley_timer: float = 0.0
+    ram: bool = False                 # trägt den Rammbock
+    building: float | None = None     # Bauzeit am Rammbock, wenn im Bau
 
     def __post_init__(self) -> None:
         self.rows = [list(r) for r in self.rows if r]
@@ -169,7 +171,13 @@ class Lochos:
     @property
     def speed(self) -> float:
         kinds = {m.kind for r in self.rows for m in r}
-        return min((k.speed for k in kinds), default=1.0)
+        base = min((k.speed for k in kinds), default=1.0)
+        return base * (config.RAM_SPEED_FACTOR if self.ram else 1.0)
+
+    def wall_capable(self) -> bool:
+        """Nur reine Peltastengruppen steigen auf den Wehrgang."""
+        men = self.all_men()
+        return bool(men) and all(m.kind.ranged for m in men)
 
     @property
     def width(self) -> int:
