@@ -1,39 +1,41 @@
-"""Aufstellung: aus dem Vorrat werden Gruppen mit Reihen zusammengestellt."""
+"""Aufstellung: aus dem Vorrat werden Gruppen zusammengestellt.
+
+Jede Gruppe hat drei Abschnitte (vorn, Mitte, hinten). Sie legen die
+Reihenfolge der Männer von vorn nach hinten fest. Wie viele Reihen
+daraus werden, entscheidet die Breite, die der Spieler beim Aufziehen
+der Gruppe zieht.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .units import MAX_ROWS, PLAYER_TYPES, UNIT_TYPES, Man
+from .units import PLAYER_TYPES, TIERS, UNIT_TYPES, Man
 
 POOL: dict[str, int] = {"schwer": 14, "mittel": 13, "leicht": 13, "peltast": 15, "reiter": 20}
-MAX_PER_ROW = 8
 MAX_GROUPS = 8
 
 
 @dataclass
 class GroupSpec:
     name: str
-    rows: list[dict[str, int]] = field(default_factory=lambda: [{} for _ in range(MAX_ROWS)])
+    tiers: list[dict[str, int]] = field(default_factory=lambda: [{} for _ in TIERS])
 
     def count(self, key: str) -> int:
-        return sum(r.get(key, 0) for r in self.rows)
+        return sum(t.get(key, 0) for t in self.tiers)
 
-    def row_size(self, r: int) -> int:
-        return sum(self.rows[r].values())
+    def tier_size(self, i: int) -> int:
+        return sum(self.tiers[i].values())
 
     def men(self) -> int:
-        return sum(self.row_size(r) for r in range(len(self.rows)))
+        return sum(self.tier_size(i) for i in range(len(self.tiers)))
 
-    def build_rows(self) -> list[list[Man]]:
-        """Männer je Reihe, schwere Typen in der Mitte."""
-        out: list[list[Man]] = []
-        for row in self.rows:
-            men: list[Man] = []
+    def build_men(self) -> list[Man]:
+        """Männer in Reihenfolge vorn nach hinten."""
+        out: list[Man] = []
+        for tier in self.tiers:
             for key in PLAYER_TYPES:
-                men.extend(Man(UNIT_TYPES[key]) for _ in range(row.get(key, 0)))
-            if men:
-                out.append(men)
+                out.extend(Man(UNIT_TYPES[key]) for _ in range(tier.get(key, 0)))
         return out
 
 
@@ -48,24 +50,24 @@ class Army:
     def remaining(self, key: str) -> int:
         return self.pool.get(key, 0) - self.used(key)
 
-    def can_add(self, group: int, row: int, key: str) -> bool:
-        g = self.groups[group]
-        return self.remaining(key) > 0 and g.row_size(row) < MAX_PER_ROW
+    def can_add(self, group: int, tier: int, key: str) -> bool:
+        return self.remaining(key) > 0
 
-    def add(self, group: int, row: int, key: str) -> bool:
-        if not self.can_add(group, row, key):
+    def add(self, group: int, tier: int, key: str, n: int = 1) -> bool:
+        n = min(n, self.remaining(key))
+        if n <= 0:
             return False
-        r = self.groups[group].rows[row]
-        r[key] = r.get(key, 0) + 1
+        t = self.groups[group].tiers[tier]
+        t[key] = t.get(key, 0) + n
         return True
 
-    def remove(self, group: int, row: int, key: str) -> bool:
-        r = self.groups[group].rows[row]
-        if r.get(key, 0) <= 0:
+    def remove(self, group: int, tier: int, key: str, n: int = 1) -> bool:
+        t = self.groups[group].tiers[tier]
+        if t.get(key, 0) <= 0:
             return False
-        r[key] -= 1
-        if r[key] == 0:
-            del r[key]
+        t[key] = max(0, t[key] - n)
+        if t[key] == 0:
+            del t[key]
         return True
 
     def add_group(self) -> bool:
@@ -89,12 +91,9 @@ class Army:
 
 
 def default_army() -> Army:
-    """Vorgabe: drei Phalanx-Gruppen, Peltasten dahinter, Reiter auf den Flügeln."""
+    """Vorgabe: Hopliten, Peltasten, Reiter – je eine Gruppe."""
     return Army(groups=[
-        GroupSpec("Reiter links", [{"reiter": 8}, {}, {}]),
-        GroupSpec("Phalanx links", [{"schwer": 7}, {"mittel": 7}, {}]),
-        GroupSpec("Phalanx Mitte", [{"schwer": 7}, {"mittel": 6}, {"peltast": 7}]),
-        GroupSpec("Phalanx rechts", [{"leicht": 7}, {"leicht": 6}, {"peltast": 8}]),
-        GroupSpec("Reiter rechts", [{"reiter": 8}, {}, {}]),
-        GroupSpec("Reiter Reserve", [{"reiter": 4}, {}, {}]),
+        GroupSpec("Hopliten", [{"schwer": 14}, {"mittel": 13}, {"leicht": 13}]),
+        GroupSpec("Peltasten", [{"peltast": 15}, {}, {}]),
+        GroupSpec("Reiter", [{"reiter": 20}, {}, {}]),
     ])

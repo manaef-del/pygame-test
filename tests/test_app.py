@@ -34,23 +34,36 @@ def test_menu_edits_army_and_starts_battle():
     app = make_app(start_in_battle=False)
     app.draw()  # legt die Menüknöpfe an
     before = app.army.groups[0].men()
-    key_minus = next(b for b in app.renderer.menu_buttons if b.key == "minus:0:reiter")
+    key_minus = next(b for b in app.renderer.menu_buttons if b.key == "minus:0:schwer")
     press(app, key_minus.rect.center)
     assert app.army.groups[0].men() == before - 1
     app.draw()
-    key_plus = next(b for b in app.renderer.menu_buttons if b.key == "plus:1:reiter")
+    key_plus = next(b for b in app.renderer.menu_buttons if b.key == "plus:2:schwer")
     press(app, key_plus.rect.center)
     assert app.army.groups[0].men() == before
-    assert app.army.groups[0].rows[1]["reiter"] == 1
+    assert app.army.groups[0].tiers[2]["schwer"] == 1
 
     app.draw()
     press(app, next(b for b in app.renderer.menu_buttons if b.key == "add").rect.center)
-    assert len(app.army.groups) == 7 and app.menu_group == 6
+    assert len(app.army.groups) == 4 and app.menu_group == 3
     app.draw()
     press(app, next(b for b in app.renderer.menu_buttons if b.key == "start").rect.center)
     assert app.screen == "schlacht"
-    assert app.battle.army.groups[0].rows[1]["reiter"] == 1
+    assert app.battle.army.groups[0].tiers[2]["schwer"] == 1
     assert app.battle.men(Side.STADT) == 75
+
+
+def test_menu_hold_repeats_in_steps_of_five():
+    app = make_app(start_in_battle=False)
+    app.draw()
+    minus = next(b for b in app.renderer.menu_buttons if b.key == "minus:0:schwer")
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=minus.rect.center))
+    assert app.army.groups[0].tiers[0]["schwer"] == 13
+    for _ in range(30):
+        app.tick(1 / 30)                     # eine Sekunde gedrückt halten
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=minus.rect.center))
+    assert app.army.groups[0].tiers[0].get("schwer", 0) <= 8
+    assert app.army.remaining("schwer") >= 6
 
 
 def test_tap_selects_moves_and_attacks():
@@ -70,19 +83,22 @@ def test_tap_selects_moves_and_attacks():
     assert app.selected == set()
 
 
-def test_drag_forms_phalanx_for_selection():
+def test_drag_draws_line_for_selection():
     app = make_app()
     b = app.battle
     unit = b.units(Side.STADT)[1]
     press(app, pos_of(app, unit))
     app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(150, 300)))
-    app.handle_event(pygame.event.Event(pygame.MOUSEMOTION, pos=(300, 320)))
+    app.handle_event(pygame.event.Event(pygame.MOUSEMOTION, pos=(300, 300)))
     assert app.drag_rect() is not None
-    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=(330, 330)))
-    assert b.phalanx is not None and len(b.phalanx.slots) == 1
-    assert unit.stance is Stance.PHALANX
-    x0, y0 = to_tiles((150, 300))
-    assert (b.phalanx.rect[0], b.phalanx.rect[1]) == (x0, y0)
+    app.draw()                                            # Vorschau zeichnen
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=(330, 300)))
+    assert len(b.line) == 1 and b.line[0].unit_id == unit.id
+    assert unit.stance is Stance.PHALANX and unit.facing == (0.0, -1.0)
+    assert unit.width == b.line[0].width
+    x0, _ = to_tiles((150, 300))
+    x1, _ = to_tiles((330, 300))
+    assert abs(b.line[0].center[0] - (x0 + x1) / 2) < 1e-6
 
 
 def test_buttons_in_bar():

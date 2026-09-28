@@ -10,21 +10,29 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
 (Tabellen 7, 10, 11):
 
 - **Gekämpft wird in Gruppen.** Der Ausgang wird je Gruppe gerechnet.
-  Eine Gruppe hat bis zu drei Reihen, jede Reihe beliebig gemischt. Die
-  vordere Reihe kämpft im Nahkampf, Hopliten der zweiten Reihe stechen
-  mit, Peltasten in hinteren Reihen werfen über die Front. Treffer gehen
-  in die Reihe, die dem Angreifer zugewandt ist.
+  Eine Gruppe ist eine geordnete Reihe von Männern, beliebig gemischt,
+  die in Reihen aufgestellt wird. Die vordere Reihe kämpft im Nahkampf,
+  Hopliten der zweiten Reihe stechen mit, Peltasten in hinteren Reihen
+  werfen über die Front. Treffer gehen in die Reihe, die dem Angreifer
+  zugewandt ist.
 - **Truppentypen:** schwere, mittlere und leichte Hopliten (dunkel-,
-  mittel-, hellblau), Peltasten (rot, Fernkampf) und Reiter (grün).
-  Räuber sind grau mit rotem Ring. Vorrat: 40 Hopliten, 15 Peltasten,
-  20 Reiter.
+  mittel-, hellblau), Peltasten (rot) und Reiter (grün). Räuber sind grau
+  mit rotem Ring. Vorrat: 40 Hopliten, 15 Peltasten, 20 Reiter.
+- **Peltasten** haben zehn Speere je Mann und werfen in Salven, die
+  Speere fliegen sichtbar. Sind sie verschossen, geht die Gruppe in den
+  Nahkampf über.
 - **Aufstellung:** Vor der Schlacht werden Gruppen aus dem Vorrat
-  zusammengestellt, je Reihe und Typ die Anzahl. Die Reihenfolge der
-  Gruppen ist die Reihenfolge von links nach rechts im Aufmarsch.
-- **Phalanx:** ein Zug über die Karte markiert den Bereich, dort bildet
-  sich die Linie. Stark von vorn, verwundbar in Flanke und Rücken. Der
-  Bonus hängt vom Hoplitenanteil der vorderen Reihe ab. Nachbarn stützen
-  sich (Schildwall). Sie hält die Stellung und verfolgt nicht.
+  zusammengestellt. Die drei Abschnitte Vorn, Mitte, Hinten legen die
+  Reihenfolge in der Formation fest. Vorgabe: je eine Gruppe Hopliten,
+  Peltasten und Reiter.
+- **Front aufziehen:** Gruppe antippen, dann auf der Karte den Finger
+  aufsetzen und eine Linie ziehen. Die Linie ist die Front, ihre Länge
+  bestimmt die Breite und damit die Zahl der Reihen. Die Gruppe schaut
+  senkrecht zur Linie: von links nach rechts gezogen nach oben, so wie
+  man hinter ihr steht. Ohne Auswahl teilen sich alle Gruppen die Linie.
+- **Phalanx:** eine aufgezogene Gruppe hält die Stellung. Stark von vorn,
+  verwundbar in Flanke und Rücken. Der Bonus hängt vom Hoplitenanteil der
+  vorderen Reihe ab. Nachbarn stützen sich (Schildwall).
 - **Freier Angriff** löst die Formation: die Gruppen verfolgen den
   nächsten Gegner, schneller, aber ohne Formationsbonus. Fliehende werden
   niedergemacht. Reiter sind stark gegen Gegner ohne Formation und
@@ -54,7 +62,7 @@ deutlich größere Übermacht.*
 | Tippen auf eigene Gruppe | auswählen (erneut tippen: abwählen) |
 | Tippen auf die Karte | gewählte Gruppen laufen dorthin |
 | Tippen auf Räuber | gewählte Gruppen greifen diese an |
-| Ziehen auf der Karte | Bereich für die Phalanx (gewählte Gruppen, sonst alle) |
+| Ziehen auf der Karte | Front aufziehen: Länge = Breite, Richtung = Blickrichtung |
 | Angriff / A | freier Angriff (Auswahl, sonst alle) |
 | Halten / H | stehen bleiben (Auswahl, sonst alle) |
 | Alle / Keine | alle Gruppen wählen oder Auswahl aufheben |

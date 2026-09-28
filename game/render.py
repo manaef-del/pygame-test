@@ -7,13 +7,13 @@ import math
 import pygame
 
 from . import config
-from .army import MAX_PER_ROW, Army
+from .army import Army
 from .battle import Battle
-from .units import MAX_ROWS, PLAYER_TYPES, UNIT_TYPES, Lochos, Side, Stance
+from .units import PLAYER_TYPES, TIERS, UNIT_TYPES, Lochos, Side, Stance
 
 T = config.TILE
-MAN_SPACING = 0.13   # Kacheln zwischen Männern einer Reihe
-ROW_SPACING = 0.19   # Kacheln zwischen Reihen
+MAN_SPACING = config.MAN_SPACING
+ROW_SPACING = config.ROW_SPACING
 
 
 def px(p: tuple[float, float]) -> tuple[int, int]:
@@ -62,19 +62,49 @@ class Renderer:
         s.fill(config.COLOR_BG)
         self._draw_ground(battle)
         self._draw_houses(battle)
-        if battle.phalanx is not None:
-            x0, y0, x1, y1 = battle.phalanx.rect
-            rect = pygame.Rect(px((x0, y0)), (int((x1 - x0) * T), int((y1 - y0) * T)))
-            pygame.draw.rect(s, config.COLOR_CITY_DIM, rect, 1)
         for u in sorted(battle.lochoi, key=lambda u: u.y):
             if u.alive:
                 self._draw_lochos(u, u.id in selected)
+        for pr in battle.projectiles:
+            self._draw_javelin(pr)
         if drag is not None:
-            x0, y0, x1, y1 = drag
-            rect = pygame.Rect(px((min(x0, x1), min(y0, y1))), (int(abs(x1 - x0) * T), int(abs(y1 - y0) * T)))
-            pygame.draw.rect(s, config.COLOR_RECT, rect, 2)
+            self._draw_line_preview(battle, drag, selected)
         self._draw_hud(battle, paused, selected)
         self._draw_bar(battle, paused, selected)
+
+    def _draw_javelin(self, pr) -> None:
+        x, y = pr.pos
+        dx, dy = pr.tx - pr.x, pr.ty - pr.y
+        l = math.hypot(dx, dy) or 1.0
+        ux, uy = dx / l * 0.18, dy / l * 0.18
+        a = px((x - ux, y - uy))
+        b = px((x + ux, y + uy))
+        pygame.draw.line(self.surface, config.COLOR_JAVELIN, a, b, 2)
+
+    def _draw_line_preview(self, battle: Battle, drag, selected: set[int]) -> None:
+        """Beim Ziehen: Linie und die daraus entstehende Aufstellung."""
+        s = self.surface
+        start, end = (drag[0], drag[1]), (drag[2], drag[3])
+        pygame.draw.line(s, config.COLOR_RECT, px(start), px(end), 2)
+        units = [u for u in battle.lochoi if u.id in selected and u.fighting] if selected else None
+        for plan in battle.plan_line(units, start, end):
+            fx, fy = plan.facing
+            ax, ay = -fy, fx   # entlang der Linie
+            half_w = plan.width * MAN_SPACING / 2
+            depth = plan.depth * ROW_SPACING
+            cx, cy = plan.center
+            corners = [
+                (cx + ax * half_w, cy + ay * half_w),
+                (cx - ax * half_w, cy - ay * half_w),
+                (cx - ax * half_w - fx * depth, cy - ay * half_w - fy * depth),
+                (cx + ax * half_w - fx * depth, cy + ay * half_w - fy * depth),
+            ]
+            pygame.draw.polygon(s, config.COLOR_RECT, [px(c) for c in corners], 1)
+            tip = px((cx + fx * 0.45, cy + fy * 0.45))
+            pygame.draw.line(s, config.COLOR_SHIELD, px((cx, cy)), tip, 2)
+            label = self.small.render(f"{plan.width} breit, {plan.depth} tief", True, config.COLOR_RECT)
+            lx, ly = px((cx - fx * (depth + 0.35), cy - fy * (depth + 0.35)))
+            s.blit(label, label.get_rect(center=(lx, ly)))
 
     def _draw_ground(self, battle: Battle) -> None:
         s = self.surface
@@ -108,17 +138,17 @@ class Renderer:
     def _draw_lochos(self, u: Lochos, selected: bool) -> None:
         s = self.surface
         cx, cy = px(u.pos)
-        radius = int(u.radius * T)
         if u.side is Side.STADT:
             ring = config.COLOR_CITY_DIM if u.stance is Stance.FLUCHT else config.COLOR_CITY
         else:
             ring = config.COLOR_ENEMY_DIM if u.stance is Stance.FLUCHT else config.COLOR_ENEMY
+        corners = [px(c) for c in u.corners()]
         if selected:
-            pygame.draw.circle(s, config.COLOR_SELECT, (cx, cy), radius + 3, 3)
-        pygame.draw.circle(s, ring, (cx, cy), radius, 1 if u.side is Side.STADT else 2)
+            pygame.draw.polygon(s, config.COLOR_SELECT, corners, 3)
+        else:
+            pygame.draw.polygon(s, ring, corners, 1 if u.side is Side.STADT else 2)
 
         fx, fy = u.facing
-        # Reihen: vordere Reihe in Blickrichtung
         n_rows = len(u.rows)
         for r, row in enumerate(u.rows):
             forward = ((n_rows - 1) / 2 - r) * ROW_SPACING
@@ -132,14 +162,12 @@ class Renderer:
                     color = tuple(c // 2 for c in color)
                 pygame.draw.circle(s, color, (cx + int(ox * T), cy + int(oy * T)), 3)
         if u.in_phalanx:
-            f = (cx + int(fx * radius), cy + int(fy * radius))
-            perp = (-fy, fx)
-            a = (f[0] + int(perp[0] * radius * 0.9), f[1] + int(perp[1] * radius * 0.9))
-            b = (f[0] - int(perp[0] * radius * 0.9), f[1] - int(perp[1] * radius * 0.9))
+            a, b = corners[0], corners[1]
             pygame.draw.line(s, config.COLOR_SHIELD, a, b, 4)
         if u.side is Side.STADT:
             label = self.small.render(str(u.men), True, ring)
-            s.blit(label, label.get_rect(center=(cx, cy + radius + 8)))
+            lx, ly = px((u.x - fx * (u.half_d + 0.3), u.y - fy * (u.half_d + 0.3)))
+            s.blit(label, label.get_rect(center=(lx, ly)))
 
     def _draw_hud(self, battle: Battle, paused: bool, selected: set[int]) -> None:
         s = self.surface
@@ -173,7 +201,7 @@ class Renderer:
                 names = ", ".join(f"{u.name} ({u.summary()})" for u in sel[:3])
                 if len(sel) > 3:
                     names += f" +{len(sel) - 3}"
-                msg = "Gewählt: " + names + "  ·  Tippen = hin, Räuber = Angriff, Ziehen = Phalanx"
+                msg = "Gewählt: " + names + "  ·  Tippen = hin, Räuber = Angriff, Ziehen = Front aufziehen"
             elif battle.events:
                 msg = battle.events[-1]
             else:
@@ -254,20 +282,19 @@ class Renderer:
         title = f"{g.name}  ({index + 1}/{len(army.groups)})  ·  {g.men()} Mann"
         self._center_text(self.font, title, config.COLOR_TEXT, y + 20)
 
-        # Reihen
+        # Abschnitte: Reihenfolge von vorn nach hinten
         y = 166
         cell_w = (W - 2 * gap - 66) // len(PLAYER_TYPES)
-        for r in range(MAX_ROWS):
+        for r, tier in enumerate(TIERS):
             panel = pygame.Rect(gap, y, W - 2 * gap, 78)
             pygame.draw.rect(s, config.COLOR_MENU_PANEL, panel, border_radius=6)
-            label = "Front" if r == 0 else f"Reihe {r + 1}"
-            s.blit(self.small.render(label, True, config.COLOR_TEXT), (gap + 8, y + 8))
-            s.blit(self.small.render(f"{g.row_size(r)}/{MAX_PER_ROW}", True, config.COLOR_TEXT_DIM), (gap + 8, y + 30))
+            s.blit(self.small.render(tier, True, config.COLOR_TEXT), (gap + 8, y + 8))
+            s.blit(self.small.render(f"{g.tier_size(r)} Mann", True, config.COLOR_TEXT_DIM), (gap + 8, y + 30))
             for i, key in enumerate(PLAYER_TYPES):
                 kind = UNIT_TYPES[key]
                 cx = gap + 66 + i * cell_w
                 pygame.draw.circle(s, kind.color, (cx + cell_w // 2, y + 12), 6)
-                count = g.rows[r].get(key, 0)
+                count = g.tiers[r].get(key, 0)
                 num = self.font.render(str(count), True, config.COLOR_TEXT)
                 s.blit(num, num.get_rect(center=(cx + cell_w // 2, y + 32)))
                 self._menu_button(f"minus:{r}:{key}", "−", pygame.Rect(cx + 2, y + 44, cell_w // 2 - 3, 30))
@@ -276,8 +303,10 @@ class Renderer:
 
         # Legende
         y += 2
-        legend = "  ".join(f"{UNIT_TYPES[k].short} = {UNIT_TYPES[k].name}" for k in PLAYER_TYPES)
-        for i, line in enumerate(self._wrap(self.small, legend, W - 16)):
+        legend = ("Vorn/Mitte/Hinten ist die Reihenfolge in der Formation. Wie viele Reihen es werden, "
+                  "entscheidet die Breite beim Aufziehen. Halten = +5 / −5.  "
+                  + "  ".join(f"{UNIT_TYPES[k].short} = {UNIT_TYPES[k].name}" for k in PLAYER_TYPES))
+        for i, line in enumerate(self._wrap(self.small, legend, W - 16)[:5]):
             s.blit(self.small.render(line, True, config.COLOR_TEXT_DIM), (8, y + i * 18))
 
         # Gruppen verwalten und Start

@@ -42,7 +42,7 @@ def _palisade_row(row: int, gate_cols: tuple[int, ...]) -> tuple[Cell, ...]:
 OFFENE_SIEDLUNG = Scenario(
     key="offen",
     name="Offene Siedlung",
-    hint="Räuber von Norden, zwei Trupps umgehen die Linie. Tippe eine Gruppe an und schicke sie los, oder ziehe einen Bereich für die Phalanx.",
+    hint="Räuber von Norden, zwei Trupps umgehen die Linie. Tippe eine Gruppe an, dann ziehe ihre Front mit dem Finger auf.",
     houses=HOUSES,
     enemies=(
         EnemySpec(16, 4.5, -1.0),
@@ -59,7 +59,7 @@ OFFENE_SIEDLUNG = Scenario(
 PALISADE = Scenario(
     key="palisade",
     name="Palisade mit Tor",
-    hint="Deutliche Übermacht, aber nur ein Tor. Stelle die Phalanx dahinter.",
+    hint="Deutliche Übermacht, aber nur ein Tor. Zieh die Hopliten dahinter auf.",
     houses=HOUSES,
     enemies=tuple(
         EnemySpec(16, x, y, waypoints=((7.5, 6.0),))

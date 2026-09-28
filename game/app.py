@@ -41,6 +41,9 @@ class App:
         self.drag_start: tuple[float, float] | None = None
         self.drag_now: tuple[float, float] | None = None
         self.running = True
+        self._step = 1
+        self._held: str | None = None
+        self._hold_time = 0.0
         self.battle = self._new_battle()
 
     def _new_battle(self) -> Battle:
@@ -85,7 +88,10 @@ class App:
         if self.screen == "aufstellung":
             key = self.renderer.menu_button_at(pos)
             if key:
+                self._step = 1
                 self.menu_command(key)
+                if key.startswith(("plus:", "minus:")):
+                    self._held, self._hold_time = key, 0.0
             return
         if pos[1] >= config.MAP_H:
             key = self.renderer.button_at(pos)
@@ -95,6 +101,7 @@ class App:
         self.drag_start = self.drag_now = to_tiles(pos)
 
     def _release(self, pos: tuple[int, int]) -> None:
+        self._held = None
         if self.drag_start is None:
             return
         start, end = self.drag_start, to_tiles(pos)
@@ -104,7 +111,7 @@ class App:
         if abs(end[0] - start[0]) < DRAG_MIN and abs(end[1] - start[1]) < DRAG_MIN:
             self._tap(end)
             return
-        self.battle.command_phalanx(start[0], start[1], end[0], end[1], units=self._selection())
+        self.battle.command_line(self._selection(), start, end)
         self.paused = False
 
     def _tap(self, p: tuple[float, float]) -> None:
@@ -179,14 +186,21 @@ class App:
                 self.screen = "schlacht"
                 self.battle = self._new_battle()
         elif key.startswith("plus:") or key.startswith("minus:"):
-            op, row, kind = key.split(":")
+            op, tier, kind = key.split(":")
             if op == "plus":
-                a.add(self.menu_group, int(row), kind)
+                a.add(self.menu_group, int(tier), kind, self._step)
             else:
-                a.remove(self.menu_group, int(row), kind)
+                a.remove(self.menu_group, int(tier), kind, self._step)
 
     # ------------------------------------------------------------ Takt
     def tick(self, dt: float) -> None:
+        if self.screen == "aufstellung" and self._held:
+            # Gedrückt halten: nach einer halben Sekunde in Fünferschritten weiter
+            self._hold_time += dt
+            if self._hold_time >= 0.5:
+                self._hold_time -= 0.35
+                self._step = 5
+                self.menu_command(self._held)
         if self.screen == "schlacht" and not self.paused:
             self.battle.update(dt)
             self.selected = {i for i in self.selected if (u := self.battle.by_id(i)) and u.fighting}

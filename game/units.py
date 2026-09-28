@@ -1,14 +1,16 @@
 """Truppentypen, einzelne Männer und die Gruppe (Lochos).
 
-Eine Gruppe besteht aus bis zu drei Reihen. Jede Reihe ist eine Liste
-von Männern beliebigen Typs. Die vordere Reihe kämpft im Nahkampf,
-Hopliten der zweiten Reihe stechen über die Front, Peltasten in den
-hinteren Reihen werfen. Getroffen wird die Reihe, die dem Angreifer
-zugewandt ist.
+Eine Gruppe besteht aus einer geordneten Liste von Männern (vorn nach
+hinten) und einer Breite. Daraus ergeben sich die Reihen: die vordere
+Reihe kämpft im Nahkampf, Hopliten der zweiten Reihe stechen über die
+Front, Peltasten in hinteren Reihen werfen. Getroffen wird die Reihe,
+die dem Angreifer zugewandt ist. Zieht der Spieler die Gruppe breiter
+oder schmaler auf, werden die Reihen neu gebildet.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -37,8 +39,7 @@ class UnitType:
     hp: float                     # Schaden, den ein Mann aushält
     speed: float                  # Kacheln pro Sekunde
     color: tuple[int, int, int]
-    ranged_attack: float = 0.0    # Fernkampf je Mann (0 = keiner)
-    ranged_range: float = 0.0
+    ranged: bool = False          # wirft Speere
     bravery: float = 1.0          # Moralverlust-Faktor, kleiner = tapferer
     hoplite: bool = False         # trägt den Schildwall
     cavalry: bool = False
@@ -51,9 +52,8 @@ UNIT_TYPES: dict[str, UnitType] = {
                        color=config.COLOR_HOPLIT_MITTEL, bravery=0.7, hoplite=True),
     "leicht": UnitType("leicht", "Leichte Hopliten", "L", attack=0.9, hp=1.5, speed=1.5,
                        color=config.COLOR_HOPLIT_LEICHT, bravery=0.9, hoplite=True),
-    "peltast": UnitType("peltast", "Peltasten", "P", attack=0.5, hp=1.0, speed=1.7,
-                        color=config.COLOR_PELTAST, ranged_attack=0.6, ranged_range=3.5,
-                        bravery=1.1),
+    "peltast": UnitType("peltast", "Peltasten", "P", attack=0.6, hp=1.0, speed=1.7,
+                        color=config.COLOR_PELTAST, ranged=True, bravery=1.1),
     "reiter": UnitType("reiter", "Reiter", "R", attack=1.4, hp=2.0, speed=3.0,
                        color=config.COLOR_REITER, bravery=0.8, cavalry=True),
     "raeuber": UnitType("raeuber", "Räuber", "X", attack=1.0, hp=1.8, speed=1.5,
@@ -61,22 +61,35 @@ UNIT_TYPES: dict[str, UnitType] = {
 }
 
 PLAYER_TYPES = ("schwer", "mittel", "leicht", "peltast", "reiter")
-MAX_ROWS = 3
+TIERS = ("Vorn", "Mitte", "Hinten")   # Abschnitte der Aufstellung, vorn nach hinten
 
 
 @dataclass
 class Man:
     kind: UnitType
     hp: float = 0.0
+    ammo: int = 0
 
     def __post_init__(self) -> None:
         if self.hp == 0.0:
             self.hp = self.kind.hp
+        if self.kind.ranged and self.ammo == 0:
+            self.ammo = config.JAVELINS
+
+
+def default_width(n: int) -> int:
+    """Breite, wenn niemand eine vorgibt: etwa drei Reihen tief."""
+    return max(1, min(n, math.ceil(n / 3)))
+
+
+def chunk(men: list[Man], width: int) -> list[list[Man]]:
+    width = max(1, width)
+    return [men[i:i + width] for i in range(0, len(men), width)]
 
 
 @dataclass
 class Lochos:
-    """Eine Gruppe: bis zu drei Reihen von Männern, die zusammen handeln."""
+    """Eine Gruppe: Reihen von Männern, die zusammen handeln."""
 
     id: int
     side: Side
@@ -90,13 +103,14 @@ class Lochos:
     target: tuple[float, float] | None = None
     target_id: int | None = None      # verfolgter Gegner
     waypoints: list[tuple[float, float]] = field(default_factory=list)
-    in_line: bool = False             # in der Phalanx angekommen
+    in_line: bool = False             # in der Formation angekommen
     withdrawn: bool = False           # hat das Feld verlassen
     engaged: bool = False             # in diesem Schritt im Nahkampf
     last_arc: str = ""
     men_start: int = 0
     pool: list[float] = field(default_factory=list)  # angesammelter Schaden je Reihe
     rout_threshold: float = 0.3
+    volley_timer: float = 0.0
 
     def __post_init__(self) -> None:
         self.rows = [list(r) for r in self.rows if r]
@@ -135,12 +149,64 @@ class Lochos:
         return max((len(r) for r in self.rows), default=0)
 
     @property
+    def depth(self) -> int:
+        return len(self.rows)
+
+    @property
+    def half_w(self) -> float:
+        """Halbe Breite der Formation in Kacheln (entlang der Front)."""
+        return max(0.2, self.width * config.MAN_SPACING / 2 + 0.08)
+
+    @property
+    def half_d(self) -> float:
+        """Halbe Tiefe der Formation in Kacheln (in Blickrichtung)."""
+        return max(0.2, self.depth * config.ROW_SPACING / 2 + 0.08)
+
+    @property
     def radius(self) -> float:
-        """Zeichen- und Abstandsradius in Kacheln."""
-        return max(0.4, 0.08 * self.width + 0.12 + 0.07 * (len(self.rows) - 1))
+        """Umkreis der Formation, für grobe Reichweitenprüfungen."""
+        return math.hypot(self.half_w, self.half_d)
+
+    @property
+    def core(self) -> float:
+        """Kleinster Halbmesser, für Abstandhalten."""
+        return min(self.half_w, self.half_d)
+
+    def local(self, p: tuple[float, float]) -> tuple[float, float]:
+        """Punkt in Formationskoordinaten: (entlang der Front, in Blickrichtung)."""
+        fx, fy = self.facing
+        dx, dy = p[0] - self.x, p[1] - self.y
+        along = dx * (-fy) + dy * fx
+        forward = dx * fx + dy * fy
+        return (along, forward)
+
+    def rect_distance(self, p: tuple[float, float]) -> float:
+        """Abstand eines Punkts zum Rechteck der Formation (0 = innen)."""
+        along, forward = self.local(p)
+        ox = max(0.0, abs(along) - self.half_w)
+        oy = max(0.0, abs(forward) - self.half_d)
+        return math.hypot(ox, oy)
+
+    def corners(self) -> list[tuple[float, float]]:
+        fx, fy = self.facing
+        ax, ay = -fy, fx
+        w, d = self.half_w, self.half_d
+        return [
+            (self.x + ax * w + fx * d, self.y + ay * w + fy * d),
+            (self.x - ax * w + fx * d, self.y - ay * w + fy * d),
+            (self.x - ax * w - fx * d, self.y - ay * w - fy * d),
+            (self.x + ax * w - fx * d, self.y + ay * w - fy * d),
+        ]
+
+    def all_men(self) -> list[Man]:
+        return [m for r in self.rows for m in r]
 
     def count(self, key: str) -> int:
-        return sum(1 for r in self.rows for m in r if m.kind.key == key)
+        return sum(1 for m in self.all_men() if m.kind.key == key)
+
+    def share(self, pred) -> float:
+        men = self.all_men()
+        return sum(1 for m in men if pred(m)) / len(men) if men else 0.0
 
     def shield_factor(self) -> float:
         """Anteil der Hopliten in der vorderen Reihe (0..1)."""
@@ -148,22 +214,27 @@ class Lochos:
             return 0.0
         return sum(1 for m in self.rows[0] if m.kind.hoplite) / len(self.rows[0])
 
-    def has_cavalry(self) -> bool:
-        return any(m.kind.cavalry for r in self.rows for m in r)
-
     def bravery(self) -> float:
-        men = [m for r in self.rows for m in r]
-        if not men:
-            return 1.0
-        return sum(m.kind.bravery for m in men) / len(men)
+        men = self.all_men()
+        return sum(m.kind.bravery for m in men) / len(men) if men else 1.0
+
+    def ammo(self) -> int:
+        return sum(m.ammo for m in self.all_men())
 
     def summary(self) -> str:
         parts = [f"{self.count(k)}{UNIT_TYPES[k].short}" for k in PLAYER_TYPES if self.count(k)]
         return " ".join(parts) if parts else f"{self.men}"
 
+    # -------------------------------------------------------- Formation
+    def reform(self, width: int) -> None:
+        """Reihen neu bilden: Reihenfolge bleibt, Breite ändert sich."""
+        men = self.all_men()
+        self.rows = chunk(men, width)
+        self.pool = [0.0] * len(self.rows)
+
     # ------------------------------------------------------------ Kampf
     def melee_attack(self) -> float:
-        """Angriffspunkte je Sekunde-Einheit: vordere Reihe, Speere der zweiten."""
+        """Angriffspunkte: vordere Reihe, dazu Speere der zweiten."""
         if not self.rows:
             return 0.0
         total = sum(m.kind.attack for m in self.rows[0])
@@ -176,20 +247,16 @@ class Lochos:
             return 0.0
         return sum(1 for m in self.rows[0] if m.kind.cavalry) / len(self.rows[0])
 
-    def ranged_attack(self, engaged: bool) -> float:
-        """Fernkampf: hintere Reihen immer, vordere nur ohne Nahkampf."""
-        total = 0.0
+    def throwers(self, engaged: bool) -> list[Man]:
+        """Wer wirft: hintere Reihen immer, die vordere nur ohne Nahkampf."""
+        out: list[Man] = []
         for i, row in enumerate(self.rows):
             if i == 0 and engaged:
                 continue
-            total += sum(m.kind.ranged_attack for m in row)
-        return total
-
-    def ranged_range(self) -> float:
-        return max((m.kind.ranged_range for r in self.rows for m in r), default=0.0)
+            out.extend(m for m in row if m.kind.ranged and m.ammo > 0)
+        return out
 
     def exposed_row(self, arc: str) -> int:
-        """Welche Reihe einen Angriff aus dieser Richtung abbekommt."""
         if not self.rows:
             return 0
         if arc == "rear":
@@ -210,7 +277,6 @@ class Lochos:
             self.rows[row].pop(0)
             fallen += 1
         if not self.rows[row]:
-            # leere Reihe schließen, Rest rückt auf
             del self.rows[row]
             del self.pool[row]
         return fallen

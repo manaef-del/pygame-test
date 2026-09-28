@@ -40,6 +40,17 @@ MORALE_REGEN = 0.03          # pro Sekunde, wenn nicht im Kampf
 MORALE_REAR_DRAIN = 0.05     # pro Sekunde, Phalanx von hinten angegriffen
 MORALE_LOSS_FRONT_PHALANX = 0.5
 
+# Peltasten
+JAVELINS = 10                # Würfe je Peltast
+VOLLEY_INTERVAL = 1.5        # Sekunden zwischen zwei Salven
+JAVELIN_DAMAGE = 0.12        # Schaden je Speer
+JAVELIN_RANGE = 3.5          # Kacheln
+JAVELIN_SPEED = 7.0          # Kacheln pro Sekunde (Anzeige und Einschlag)
+
+# Formation
+MAN_SPACING = 0.13           # Kacheln zwischen Männern einer Reihe
+ROW_SPACING = 0.19           # Kacheln zwischen Reihen
+
 # Plünderung
 LOOT_TIME = 4.0              # Sekunden je Haus
 LOOT_RANGE = 0.8
@@ -69,6 +80,7 @@ COLOR_MEN = (245, 245, 245)
 COLOR_MENU_BG = (24, 26, 34)
 COLOR_MENU_PANEL = (36, 40, 52)
 COLOR_SHIELD = (255, 230, 120)
+COLOR_JAVELIN = (245, 220, 170)
 COLOR_TEXT = (235, 235, 235)
 COLOR_TEXT_DIM = (150, 150, 160)
 COLOR_BAR = (28, 28, 36)

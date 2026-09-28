@@ -9,7 +9,7 @@ from game.army import POOL, Army, GroupSpec, default_army
 from game.battle import Battle
 from game.geometry import arc, snap4
 from game.scenarios import OFFENE_SIEDLUNG, PALISADE, EnemySpec, Scenario
-from game.units import UNIT_TYPES, Lochos, Man, Side, Stance
+from game.units import UNIT_TYPES, Lochos, Man, Side, Stance, chunk
 
 DT = 1 / 30
 
@@ -49,6 +49,7 @@ def static_line(raider_y: float, n_raiders: int = 4) -> Battle:
     )
     b = Battle(scn, random.Random(0), army=army)
     for i, u in enumerate(b.units(Side.STADT)):
+        u.reform(7)
         u.x, u.y = 6.0 + i * 1.7, 9.5
         u.stance = Stance.PHALANX
         u.in_line = True
@@ -68,38 +69,41 @@ def test_arc_classification():
 
 
 # ------------------------------------------------------------ Aufstellung
-def test_default_army_uses_whole_pool():
+def test_default_army_is_three_groups_using_whole_pool():
     a = default_army()
     assert a.valid()
+    assert [g.name for g in a.groups] == ["Hopliten", "Peltasten", "Reiter"]
     assert all(a.remaining(k) == 0 for k in POOL)
     assert a.total_men() == sum(POOL.values()) == 75
 
 
-def test_army_respects_pool_and_row_limit():
-    a = Army(groups=[GroupSpec("G", [{}, {}, {}])])
-    for _ in range(POOL["reiter"]):
-        assert a.add(0, 0, "reiter") or a.add(0, 1, "reiter") or a.add(0, 2, "reiter")
+def test_army_respects_pool():
+    a = Army(groups=[GroupSpec("G")])
+    assert a.add(0, 0, "reiter", 5) and a.groups[0].tiers[0]["reiter"] == 5
+    assert a.add(0, 2, "reiter", 50)                  # wird auf den Rest gekappt
     assert a.remaining("reiter") == 0
-    assert a.add(0, 2, "reiter") is False
-    assert a.groups[0].row_size(0) == 8
-    assert a.remove(0, 0, "reiter") and a.remaining("reiter") == 1
+    assert a.add(0, 1, "reiter") is False
+    assert a.remove(0, 0, "reiter", 5) and a.remaining("reiter") == 5
     assert a.remove(0, 1, "schwer") is False
 
 
-def test_rows_build_men_with_types():
+def test_tiers_build_men_in_order():
     g = GroupSpec("G", [{"schwer": 2, "peltast": 1}, {"reiter": 3}, {}])
-    rows = g.build_rows()
-    assert [len(r) for r in rows] == [3, 3]
-    assert [m.kind.key for m in rows[0]] == ["schwer", "schwer", "peltast"]
+    men_list = g.build_men()
+    assert [m.kind.key for m in men_list] == ["schwer", "schwer", "peltast", "reiter", "reiter", "reiter"]
+    rows = chunk(men_list, 4)
+    assert [len(r) for r in rows] == [4, 2]
 
 
 def test_battle_deploys_army_groups():
     b = Battle(OFFENE_SIEDLUNG, random.Random(1))
     city = b.units(Side.STADT)
-    assert [u.name for u in city] == [g.name for g in default_army().groups]
+    assert [u.name for u in city] == ["Hopliten", "Peltasten", "Reiter"]
     assert b.men(Side.STADT) == 75
+    assert [u.depth for u in city] == [3, 3, 3]
     assert all(0 < u.x < config.COLS for u in city)
-    assert len({round(u.x, 1) for u in city}) == len(city)
+    hop = city[0]
+    assert [m.kind.key for m in hop.rows[0]] == ["schwer"] * hop.width
 
 
 # ----------------------------------------------------------- Reihenmodell
@@ -121,10 +125,46 @@ def test_group_speed_is_slowest_member():
 
 def test_peltasts_behind_throw_while_front_fights():
     u = Lochos(1, Side.STADT, [men("schwer", 4), men("peltast", 4)], 0, 0)
-    assert u.ranged_attack(engaged=True) == pytest.approx(4 * 0.6)
+    assert len(u.throwers(engaged=True)) == 4
     front = Lochos(2, Side.STADT, [men("peltast", 4), men("schwer", 4)], 0, 0)
-    assert front.ranged_attack(engaged=True) == 0.0
-    assert front.ranged_attack(engaged=False) == pytest.approx(4 * 0.6)
+    assert front.throwers(engaged=True) == []
+    assert len(front.throwers(engaged=False)) == 4
+    for m in front.rows[0]:
+        m.ammo = 0
+    assert front.throwers(engaged=False) == []
+
+
+def test_reform_keeps_order_and_changes_rows():
+    u = Lochos(1, Side.STADT, [men("schwer", 4), men("peltast", 4)], 0, 0)
+    u.reform(2)
+    assert u.width == 2 and u.depth == 4
+    assert [m.kind.key for m in u.rows[0]] == ["schwer", "schwer"]
+    u.reform(8)
+    assert u.depth == 1 and u.shield_factor() == 0.5
+
+
+def test_javelins_fly_and_run_out():
+    scn = Scenario("t", "t", "", houses=((2, 17),), enemies=(EnemySpec(16, 8.0, 7.0),))
+    army = army_of(GroupSpec("Peltasten", [{"peltast": 15}, {}, {}]))
+    b = Battle(scn, random.Random(0), army=army)
+    pelt = b.units(Side.STADT)[0]
+    raider = b.units(Side.FEIND)[0]
+    raider.stance = Stance.HALTEN
+    raider.target = None
+    pelt.x, pelt.y = 8.0, 9.5
+    assert pelt.ammo() == 15 * config.JAVELINS
+    b.command_hold()
+    b._ai_enemies = lambda: None            # Räuber bleiben stehen
+    run(b, 0.1)
+    assert 0 < len(b.projectiles) <= 15      # erste Salve unterwegs
+    assert raider.men == 16                  # noch kein Einschlag
+    assert pelt.ammo() == 15 * config.JAVELINS - 15
+    run(b, 3.0)
+    assert raider.men < 16                   # Speere sind angekommen
+    run(b, 20.0)
+    assert pelt.ammo() == 0
+    assert pelt.stance is Stance.ANGRIFF     # Speere leer, Nahkampf
+    assert any("Speere verschossen" in e for e in b.events)
 
 
 def test_shield_factor_scales_phalanx_bonus():
@@ -181,12 +221,12 @@ def test_routed_units_take_double_damage():
 # ----------------------------------------------------------- Befehle
 def test_command_move_and_attack_target_single_group():
     b = Battle(OFFENE_SIEDLUNG, random.Random(1))
-    cav = next(u for u in b.units(Side.STADT) if u.name == "Reiter links")
+    cav = next(u for u in b.units(Side.STADT) if u.name == "Reiter")
     b.command_move([cav], (2.0, 5.0))
     assert cav.stance is Stance.HALTEN and cav.target == (2.0, 5.0)
     others = [u for u in b.units(Side.STADT) if u is not cav]
     assert all(u.target is None for u in others)
-    run(b, 3)
+    run(b, 4)
     assert abs(cav.x - 2.0) < 0.5 and abs(cav.y - 5.0) < 0.5
     foe = b.units(Side.FEIND)[0]
     b.command_attack_target([cav], foe)
@@ -195,16 +235,33 @@ def test_command_move_and_attack_target_single_group():
     assert foe.men < 16 or cav.engaged
 
 
-def test_command_phalanx_for_selection_only():
+def test_line_width_depth_and_facing_from_drag():
     b = Battle(OFFENE_SIEDLUNG, random.Random(1))
-    hoplites = [u for u in b.units(Side.STADT) if u.name.startswith("Phalanx")]
-    order = b.command_phalanx(3.0, 10.0, 13.0, 11.0, units=hoplites)
-    assert order.facing == (0.0, -1.0)
-    assert len(order.slots) == 3
-    assert all(u.stance is Stance.PHALANX for u in hoplites)
-    assert all(u.stance is Stance.HALTEN for u in b.units(Side.STADT) if u not in hoplites)
+    hop = b.units(Side.STADT)[0]
+    short = b.plan_line([hop], (6.0, 10.5), (7.3, 10.5))
+    long = b.plan_line([hop], (3.0, 10.5), (13.0, 10.5))
+    assert short[0].facing == (0.0, -1.0)                     # links → rechts: Front nach oben
+    assert short[0].width < long[0].width and short[0].depth > long[0].depth
+    assert short[0].width * short[0].depth >= hop.men
+    reverse = b.plan_line([hop], (13.0, 10.5), (3.0, 10.5))
+    assert reverse[0].facing == (0.0, 1.0)                    # rechts → links: Front nach unten
+    down = b.plan_line([hop], (8.0, 6.0), (8.0, 12.0))
+    assert down[0].facing == (1.0, 0.0)                       # oben → unten: Front nach rechts
+    assert b.plan_line([hop], (5.0, 5.0), (5.1, 5.0)) == []   # zu kurz
+
+
+def test_command_line_reforms_only_selection():
+    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    plans = b.command_line([hop], (3.0, 10.5), (13.0, 10.5))
+    assert len(plans) == 1 and hop.width == plans[0].width and hop.depth == plans[0].depth
+    assert hop.stance is Stance.PHALANX and hop.facing == (0.0, -1.0)
+    assert pelt.stance is Stance.HALTEN and cav.stance is Stance.HALTEN
     run(b, 8)
-    assert all(u.in_line for u in hoplites)
+    assert hop.in_line
+    plans = b.command_line(None, (2.0, 12.0), (14.0, 12.0))
+    assert len(plans) == 3
+    assert sum(p.width for p in plans) <= 12.0 / config.MAN_SPACING
 
 
 def test_unit_at_finds_group_under_tap():
@@ -235,7 +292,10 @@ def test_unopposed_raiders_loot_every_house():
 
 def test_phalanx_behind_palisade_beats_larger_force():
     b = Battle(PALISADE, random.Random(1))
-    b.command_phalanx(4.5, 9.0, 11.5, 10.0)
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_line([hop], (5.5, 9.5), (10.5, 9.5))     # Hopliten hinter dem Tor
+    b.command_line([pelt], (5.5, 10.6), (10.5, 10.6))  # Peltasten werfen darüber
+    b.command_move([cav], (13.0, 12.5))                # Reiter in Reserve
     run(b, 240)
     r = b.report()
     assert r["ausgang"] == "sieg", r
@@ -246,7 +306,7 @@ def test_phalanx_behind_palisade_beats_larger_force():
 
 def test_open_settlement_phalanx_then_pursuit_wins():
     b = Battle(OFFENE_SIEDLUNG, random.Random(1))
-    b.command_phalanx(3.0, 10.0, 13.0, 11.0)
+    b.command_line(None, (3.0, 10.5), (13.0, 10.5))
     run(b, 14)
     b.command_attack()
     run(b, 240)
@@ -288,6 +348,6 @@ def test_deterministic_with_seed():
     a = Battle(OFFENE_SIEDLUNG, random.Random(7))
     c = Battle(OFFENE_SIEDLUNG, random.Random(7))
     for b in (a, c):
-        b.command_phalanx(3.0, 10.0, 13.0, 11.0)
+        b.command_line(None, (3.0, 10.5), (13.0, 10.5))
         run(b, 60)
     assert a.report() == c.report()

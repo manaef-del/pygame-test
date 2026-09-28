@@ -18,7 +18,7 @@ from . import config
 from .army import Army, default_army
 from .geometry import add, arc, dist, norm, scale, snap4, sub
 from .scenarios import Scenario
-from .units import UNIT_TYPES, Lochos, Man, Side, Stance
+from .units import UNIT_TYPES, Lochos, Man, Side, Stance, chunk, default_width
 
 Point = tuple[float, float]
 
@@ -36,10 +36,34 @@ class House:
 
 
 @dataclass
-class PhalanxOrder:
-    rect: tuple[float, float, float, float]
+class Projectile:
+    """Ein fliegender Speer, nur Anzeige und verzögerter Einschlag."""
+
+    x: float
+    y: float
+    tx: float
+    ty: float
+    target_id: int
+    dmg: float
+    progress: float = 0.0
+    total: float = 1.0   # Sekunden Flugzeit
+
+    @property
+    def pos(self) -> Point:
+        t = min(1.0, self.progress / self.total)
+        return (self.x + (self.tx - self.x) * t, self.y + (self.ty - self.y) * t)
+
+
+@dataclass
+class LinePlan:
+    """Geplante Aufstellung einer Gruppe entlang einer gezogenen Linie."""
+
+    unit_id: int
+    center: Point
     facing: Point
-    slots: list[Point]
+    width: int
+    depth: int
+    length: float
 
 
 @dataclass
@@ -57,7 +81,8 @@ class Battle:
     time: float = 0.0
     alarm: bool = True
     outcome: str | None = None
-    phalanx: PhalanxOrder | None = None
+    line: list[LinePlan] = field(default_factory=list)
+    projectiles: list[Projectile] = field(default_factory=list)
     events: list[str] = field(default_factory=list)
     men_start: dict[Side, int] = field(default_factory=dict)
     _next_id: int = 0
@@ -85,7 +110,7 @@ class Battle:
         if not specs:
             return
         y = self.scenario.deploy_y
-        rows_units = [spec.build_rows() for spec in specs]
+        rows_units = [chunk(spec.build_men(), default_width(spec.men())) for spec in specs]
         widths = [max(0.9, 2 * Lochos(0, Side.STADT, r, 0, 0).radius + 0.2) for r in rows_units]
         total = sum(widths)
         x = self.cols / 2 - total / 2
@@ -130,14 +155,14 @@ class Battle:
                 return u
         return None
 
-    def unit_at(self, p: Point, side: Side | None = None, tolerance: float = 0.3) -> Lochos | None:
+    def unit_at(self, p: Point, side: Side | None = None, tolerance: float = 0.35) -> Lochos | None:
         """Gruppe unter einem Punkt (für Auswahl und Angriffsziel)."""
         best, best_d = None, float("inf")
         for u in self.lochoi:
             if not u.alive or (side is not None and u.side is not side):
                 continue
-            d = dist(u.pos, p)
-            if d <= u.radius + tolerance and d < best_d:
+            d = u.rect_distance(p)
+            if d <= tolerance and d < best_d:
                 best, best_d = u, d
         return best
 
@@ -184,9 +209,12 @@ class Battle:
             return None
         return (sum(u.x for u in foes) / len(foes), sum(u.y for u in foes) / len(foes))
 
-    def _contact(self, a: Lochos, b: Lochos) -> float:
-        """Abstand, ab dem zwei Gruppen im Nahkampf sind."""
-        return a.radius + b.radius + config.ENGAGE_RANGE
+    def _gap(self, a: Lochos, b: Lochos) -> float:
+        """Abstand zwischen den Rändern zweier Formationen (0 = berühren sich)."""
+        return max(0.0, min(a.rect_distance(b.pos) - b.core, b.rect_distance(a.pos) - a.core))
+
+    def _in_contact(self, a: Lochos, b: Lochos) -> bool:
+        return self._gap(a, b) <= config.ENGAGE_RANGE
 
     # ----------------------------------------------------------- Befehle
     def _selection(self, units: list[Lochos] | None) -> list[Lochos]:
@@ -240,65 +268,56 @@ class Battle:
             u.target = None
         self.events.append("Halten")
 
-    def command_phalanx(self, x0: float, y0: float, x1: float, y1: float,
-                        units: list[Lochos] | None = None) -> PhalanxOrder | None:
-        """Bereich markieren; die gewählten Gruppen bilden dort die Phalanx."""
+    def plan_line(self, units: list[Lochos] | None, start: Point, end: Point) -> list[LinePlan]:
+        """Aufstellung entlang einer gezogenen Linie, ohne sie auszuführen.
+
+        Die Linie ist die Front. Ihre Länge bestimmt die Breite und damit
+        die Reihenzahl, die Zugrichtung die Blickrichtung: von links nach
+        rechts gezogen schaut die Gruppe nach oben, wie man hinter ihr steht.
+        """
+        sel = self._selection(units)
+        if not sel:
+            return []
+        d = sub(end, start)
+        length = dist(start, end)
+        if length < 0.3:
+            return []
+        axis = norm(d)
+        facing = (axis[1], -axis[0])
+        total_men = sum(u.men for u in sel)
+        sel = sorted(sel, key=lambda u: u.x * axis[0] + u.y * axis[1])
+        plans: list[LinePlan] = []
+        pos = 0.0
+        gap = 0.25
+        usable = max(0.3, length - gap * (len(sel) - 1))
+        for u in sel:
+            seg = usable * u.men / total_men
+            width = max(1, min(u.men, int(seg / config.MAN_SPACING)))
+            depth = math.ceil(u.men / width)
+            center = add(start, scale(axis, pos + seg / 2))
+            plans.append(LinePlan(u.id, self._free_spot(center), facing, width, depth, seg))
+            pos += seg + gap
+        return plans
+
+    def command_line(self, units: list[Lochos] | None, start: Point, end: Point) -> list[LinePlan]:
+        """Gruppen entlang der Linie aufziehen und dort die Formation halten."""
         self.alarm = False
-        x0, x1 = sorted((max(0.0, x0), min(float(self.cols), x1)))
-        y0, y1 = sorted((max(0.0, y0), min(float(self.rows), y1)))
-        w, h = max(x1 - x0, 1.0), max(y1 - y0, 1.0)
-        center = ((x0 + x1) / 2, (y0 + y1) / 2)
-
-        foe = self.enemy_centroid(Side.STADT) or (center[0], -1.0)
-        if w >= h:
-            axis = (1.0, 0.0)
-            facing = (0.0, -1.0 if foe[1] < center[1] else 1.0)
-        else:
-            axis = (0.0, 1.0)
-            facing = (-1.0 if foe[0] < center[0] else 1.0, 0.0)
-        facing = snap4(facing)
-
-        line = self._selection(units)
-        if not line:
-            return None
-        along = (lambda p: p[0]) if axis == (1.0, 0.0) else (lambda p: p[1])
-        forward = lambda p: round(p[0] * facing[0] + p[1] * facing[1], 3)  # noqa: E731
-        line.sort(key=lambda u: along(u.pos))
-
-        # Plätze: Gruppen nebeneinander, so breit wie sie sind; Überzählige dahinter
-        length = max(w, h)
-        slots: list[Point] = []
-        rank, offset, rank_units = 0, 0.0, []
-        for u in line:
-            width = 2 * u.radius + 0.25
-            if rank_units and offset + width > length + 0.3:
-                slots.extend(self._rank_slots(center, axis, facing, rank, rank_units))
-                rank, offset, rank_units = rank + 1, 0.0, []
-            rank_units.append((u, width))
-            offset += width
-        slots.extend(self._rank_slots(center, axis, facing, rank, rank_units))
-
-        for u, slot in zip(line, slots):
+        plans = self.plan_line(units, start, end)
+        for plan in plans:
+            u = self.by_id(plan.unit_id)
+            if u is None:
+                continue
+            u.reform(plan.width)
             u.stance = Stance.PHALANX
             u.in_line = False
-            u.facing = facing
-            u.target = slot
+            u.facing = plan.facing
+            u.target = plan.center
             u.target_id = None
             u.waypoints = []
-        self.phalanx = PhalanxOrder(rect=(x0, y0, x1, y1), facing=facing, slots=slots)
-        self.events.append(f"Phalanx: {len(slots)} Gruppen, Front {self._dir_name(facing)}")
-        return self.phalanx
-
-    def _rank_slots(self, center: Point, axis: Point, facing: Point, rank: int,
-                    rank_units: list[tuple[Lochos, float]]) -> list[Point]:
-        total = sum(w for _, w in rank_units)
-        pos = -total / 2
-        out = []
-        for u, w in rank_units:
-            p = add(add(center, scale(axis, pos + w / 2)), scale(facing, -rank * 1.3))
-            out.append(self._free_spot(p))
-            pos += w
-        return out
+        self.line = plans
+        if plans:
+            self.events.append(f"Aufstellung: {len(plans)} Gruppe(n), Front {self._dir_name(snap4(plans[0].facing))}")
+        return plans
 
     def _free_spot(self, p: Point) -> Point:
         x = min(max(p[0], 0.5), self.cols - 0.5)
@@ -323,6 +342,7 @@ class Battle:
         self._move(dt)
         self._separate()
         self._combat(dt)
+        self._volleys(dt)
         self._loot(dt)
         self._morale(dt)
         self._check_withdraw()
@@ -336,7 +356,7 @@ class Battle:
                 u.target = (u.x, -3.0)
                 continue
             foe, d = self._nearest(u, defenders)
-            if foe is not None and d <= config.SEEK_RANGE + foe.radius:
+            if foe is not None and foe.rect_distance(u.pos) <= config.SEEK_RANGE:
                 u.stance = Stance.ANGRIFF
                 u.target_id = foe.id
                 u.target = foe.pos
@@ -381,7 +401,9 @@ class Battle:
             stop_at = 0.0
             if u.stance is Stance.ANGRIFF and final:
                 target = self.by_id(u.target_id) if u.target_id is not None else None
-                stop_at = (self._contact(u, target) * 0.85) if target else config.ENGAGE_RANGE
+                if target is not None and self._gap(u, target) <= config.ENGAGE_RANGE * 0.8:
+                    continue
+                stop_at = 0.0 if target is not None else config.ENGAGE_RANGE
             if d <= max(config.ARRIVE_EPS, stop_at):
                 if u.stance is Stance.PHALANX and final and d <= config.ARRIVE_EPS + 0.02:
                     u.x, u.y = u.target
@@ -412,11 +434,13 @@ class Battle:
             for b in alive[i + 1:]:
                 if a.side is b.side and (a.stance is Stance.PHALANX or b.stance is Stance.PHALANX):
                     continue
-                min_d = a.radius + b.radius + config.SEPARATION
                 d = dist(a.pos, b.pos)
-                if d >= min_d or d < 1e-6:
+                if d < 1e-6:
                     continue
-                push = (min_d - d) / 2
+                overlap = (a.core + b.core + config.SEPARATION) - self._gap(a, b) - (a.core + b.core)
+                if overlap <= 0:
+                    continue
+                push = overlap / 2
                 direction = norm(sub(b.pos, a.pos))
                 if not a.in_phalanx:
                     self._step(a, scale(direction, -push))
@@ -435,23 +459,13 @@ class Battle:
             for b in alive:
                 if b.side is a.side:
                     continue
-                if dist(a.pos, b.pos) <= self._contact(a, b):
+                if self._in_contact(a, b):
                     pairs.append((a, b))
                     a.engaged = True
         hits: list[tuple[Lochos, Lochos, float, str]] = []
         for a, b in pairs:
             rate, arc_name = self._melee_rate(a, b)
             hits.append((a, b, rate * dt, arc_name))
-        for a in alive:
-            if not a.fighting or a.ranged_range() <= 0:
-                continue
-            power = a.ranged_attack(a.engaged)
-            if power <= 0:
-                continue
-            foes = [b for b in alive if b.side is not a.side and b.fighting]
-            foe, d = self._nearest(a, foes)
-            if foe is not None and d <= a.ranged_range() + foe.radius:
-                hits.append((a, foe, self._ranged_rate(a, foe, power) * dt, "ranged"))
         for a, b, dmg, arc_name in hits:
             self._apply_damage(a, b, dmg, arc_name)
 
@@ -489,15 +503,51 @@ class Battle:
             attack_mod *= (1 - cav) + cav * cav_mod
         return base * attack_mod * defense_mod, arc_name
 
-    def _ranged_rate(self, a: Lochos, b: Lochos, power: float) -> float:
-        shield = 1.0 - 0.5 * b.shield_factor() if b.in_phalanx else 1.0
-        return power * config.BASE_RATE * shield
+    def _volleys(self, dt: float) -> None:
+        """Peltasten werfen in Salven; Speere fliegen sichtbar und treffen später."""
+        alive = [u for u in self.lochoi if u.alive]
+        for a in alive:
+            if not a.fighting:
+                continue
+            a.volley_timer = max(0.0, a.volley_timer - dt)
+            throwers = a.throwers(a.engaged)
+            if not throwers:
+                if (a.ammo() == 0 and a.share(lambda m: m.kind.ranged) >= 0.5
+                        and a.stance in (Stance.HALTEN, Stance.PHALANX)):
+                    a.stance = Stance.ANGRIFF
+                    a.in_line = False
+                    a.target_id = None
+                    self.events.append(f"{a.name}: Speere verschossen, Nahkampf")
+                continue
+            if a.volley_timer > 0:
+                continue
+            foes = [b for b in alive if b.side is not a.side and b.fighting]
+            foe, d = self._nearest(a, foes)
+            if foe is None or foe.rect_distance(a.pos) > config.JAVELIN_RANGE:
+                continue
+            a.volley_timer = config.VOLLEY_INTERVAL
+            shield = 1.0 - 0.5 * foe.shield_factor() if foe.in_phalanx else 1.0
+            flight = max(0.15, d / config.JAVELIN_SPEED)
+            for i, m in enumerate(throwers):
+                m.ammo -= 1
+                jitter = ((i * 7) % 5 - 2) * 0.08
+                self.projectiles.append(Projectile(
+                    a.x + jitter, a.y - jitter, foe.x + jitter, foe.y + jitter,
+                    foe.id, config.JAVELIN_DAMAGE * shield, 0.0, flight,
+                ))
+        for pr in list(self.projectiles):
+            pr.progress += dt
+            if pr.progress >= pr.total:
+                self.projectiles.remove(pr)
+                b = self.by_id(pr.target_id)
+                if b is not None and b.alive:
+                    self._apply_damage(b, b, pr.dmg, "ranged")
 
     def _line_neighbours(self, u: Lochos) -> int:
         return sum(
             1 for o in self.lochoi
             if o is not u and o.side is u.side and o.in_phalanx
-            and dist(u.pos, o.pos) <= u.radius + o.radius + 0.5
+            and self._gap(u, o) <= 0.5
         )
 
     def _apply_damage(self, a: Lochos, b: Lochos, dmg: float, arc_name: str) -> None:
@@ -523,7 +573,7 @@ class Battle:
             if u.engaged:
                 continue
             for h in self.houses:
-                if h.looted or dist(u.pos, h.center) > config.LOOT_RANGE + u.radius:
+                if h.looted or u.rect_distance(h.center) > config.LOOT_RANGE:
                     continue
                 h.progress += dt
                 if h.progress >= config.LOOT_TIME:
