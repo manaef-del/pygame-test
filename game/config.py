@@ -15,8 +15,8 @@ FPS = 60
 LOCHOS_MEN = 8               # Mann je Lochos
 ENGAGE_RANGE = 1.15          # Kacheln: ab hier wird gekämpft
 SEEK_RANGE = 2.2             # Kacheln: Räuber wenden sich Verteidigern zu
-SEPARATION = 0.85            # Mindestabstand zweier Lochoi
-BASE_RATE = 0.06             # Grundverlustrate (Mann pro Sekunde je Angreifer-Mann)
+SEPARATION = 0.2             # Zusatzabstand zu den Radien zweier Gruppen
+BASE_RATE = 0.09             # Schaden pro Sekunde je Angriffspunkt
 ARRIVE_EPS = 0.08
 
 # Phalanx: wie stark trifft ein Angriff je nach Richtung
@@ -28,6 +28,7 @@ PHALANX_ATTACK_SIDE = 0.4    # umdrehen, einzeln kämpfen
 PHALANX_SUPPORT = 0.15       # Schildwall: je Nachbar weniger Schaden
 PHALANX_SUPPORT_MIN = 0.55
 CAVALRY_VS_FRONT = 0.3       # Pferde laufen nicht in Speere
+CAVALRY_CHARGE = 1.5         # Reiter gegen Gegner ohne Formation
 ROUTED_DAMAGE = 2.0          # Fliehende werden niedergemacht
 
 # Winkel (Grad) für Front / Flanke / Rücken
@@ -53,11 +54,20 @@ COLOR_HOUSE_LOOTED = (70, 40, 34)
 COLOR_FIRE = (240, 120, 50)
 COLOR_PALISADE = (120, 84, 46)
 COLOR_GATE = (150, 110, 60)
-COLOR_CITY = (90, 200, 250)
-COLOR_CITY_DIM = (50, 100, 125)
-COLOR_ENEMY = (240, 90, 90)
+COLOR_CITY = (225, 230, 235)      # Ring der eigenen Gruppen
+COLOR_CITY_DIM = (110, 115, 120)
+COLOR_ENEMY = (240, 90, 90)       # Ring der Räuber
 COLOR_ENEMY_DIM = (120, 50, 50)
+COLOR_SELECT = (255, 220, 60)
+COLOR_HOPLIT_SCHWER = (20, 60, 170)
+COLOR_HOPLIT_MITTEL = (60, 120, 230)
+COLOR_HOPLIT_LEICHT = (140, 195, 255)
+COLOR_PELTAST = (235, 70, 70)
+COLOR_REITER = (70, 200, 90)
+COLOR_RAEUBER = (200, 200, 200)
 COLOR_MEN = (245, 245, 245)
+COLOR_MENU_BG = (24, 26, 34)
+COLOR_MENU_PANEL = (36, 40, 52)
 COLOR_SHIELD = (255, 230, 120)
 COLOR_TEXT = (235, 235, 235)
 COLOR_TEXT_DIM = (150, 150, 160)

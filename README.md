@@ -9,21 +9,27 @@ Browser getestet. Was sich bewährt, wandert später ins Hauptprojekt.
 Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
 (Tabellen 7, 10, 11):
 
-- **Gekämpft wird in Gruppen.** Die kleinste Einheit ist der *Lochos*,
-  acht Mann. Der Ausgang wird je Lochos gerechnet, einzelne Kämpfer sind
-  nur Darstellung.
-- **Der Spieler markiert einen Bereich, keine Figuren.** Ein Zug über die
-  Karte zeichnet einen Bereich, dort bildet sich die Phalanx. Die Front
-  zeigt automatisch zu den Räubern.
-- **Phalanx:** stark von vorn, verwundbar in Flanke und Rücken. Nachbarn
-  in der Linie stützen sich gegenseitig (Schildwall). Sie hält die
-  Stellung und verfolgt nicht.
-- **Freier Angriff** löst die Formation: die Lochoi verfolgen den nächsten
-  Gegner, schneller, aber ohne Formationsbonus. Fliehende werden
-  niedergemacht.
+- **Gekämpft wird in Gruppen.** Der Ausgang wird je Gruppe gerechnet.
+  Eine Gruppe hat bis zu drei Reihen, jede Reihe beliebig gemischt. Die
+  vordere Reihe kämpft im Nahkampf, Hopliten der zweiten Reihe stechen
+  mit, Peltasten in hinteren Reihen werfen über die Front. Treffer gehen
+  in die Reihe, die dem Angreifer zugewandt ist.
+- **Truppentypen:** schwere, mittlere und leichte Hopliten (dunkel-,
+  mittel-, hellblau), Peltasten (rot, Fernkampf) und Reiter (grün).
+  Räuber sind grau mit rotem Ring. Vorrat: 40 Hopliten, 15 Peltasten,
+  20 Reiter.
+- **Aufstellung:** Vor der Schlacht werden Gruppen aus dem Vorrat
+  zusammengestellt, je Reihe und Typ die Anzahl. Die Reihenfolge der
+  Gruppen ist die Reihenfolge von links nach rechts im Aufmarsch.
+- **Phalanx:** ein Zug über die Karte markiert den Bereich, dort bildet
+  sich die Linie. Stark von vorn, verwundbar in Flanke und Rücken. Der
+  Bonus hängt vom Hoplitenanteil der vorderen Reihe ab. Nachbarn stützen
+  sich (Schildwall). Sie hält die Stellung und verfolgt nicht.
+- **Freier Angriff** löst die Formation: die Gruppen verfolgen den
+  nächsten Gegner, schneller, aber ohne Formationsbonus. Fliehende werden
+  niedergemacht. Reiter sind stark gegen Gegner ohne Formation und
+  schwach gegen die Front einer Phalanx.
 - **Halten:** stehen bleiben, rundum kämpfen, kein Bonus.
-- **Truppentypen nach Hausstufe:** Theten (Schleuderer, Fernkampf),
-  Leichte, Hopliten, Reiter (Pferde laufen nicht in Speere).
 - **Moral:** Verluste und Angriffe von hinten drücken die Moral; unter
   der Schwelle flieht ein Lochos. Räuber brechen früher als Hopliten.
 - **Räuber** ziehen zu den Häusern und plündern, wenn niemand sie stört.
@@ -38,19 +44,23 @@ deutlich größere Übermacht.*
 
 | Szenario | Lage |
 |----------|------|
-| Offene Siedlung | 5 Lochoi (3 Hopliten, Leichte, Theten) gegen 6 Räuber-Lochoi, zwei davon umgehen die Linie |
-| Palisade mit Tor | dieselbe Truppe hinter einer Palisade gegen 9 Räuber-Lochoi |
+| Offene Siedlung | 75 Mann gegen 8 Räubertrupps zu 16 Mann, zwei davon umgehen die Linie |
+| Palisade mit Tor | dieselbe Truppe hinter einer Palisade gegen 12 Räubertrupps |
 
 ## Steuerung
 
 | Eingabe | Aktion |
 |---------|--------|
-| Ziehen auf der Karte (Finger oder Maus) | Bereich für die Phalanx |
-| Angriff / A | freier Angriff |
-| Halten / H | stehen bleiben |
+| Tippen auf eigene Gruppe | auswählen (erneut tippen: abwählen) |
+| Tippen auf die Karte | gewählte Gruppen laufen dorthin |
+| Tippen auf Räuber | gewählte Gruppen greifen diese an |
+| Ziehen auf der Karte | Bereich für die Phalanx (gewählte Gruppen, sonst alle) |
+| Angriff / A | freier Angriff (Auswahl, sonst alle) |
+| Halten / H | stehen bleiben (Auswahl, sonst alle) |
+| Alle / Keine | alle Gruppen wählen oder Auswahl aufheben |
 | Pause / Leertaste | anhalten, bei Alarm: losgehen |
 | Neu / R | Szenario neu starten |
-| Szenario / S | Szenario wechseln |
+| Aufstellung / M | zurück ins Aufstellungsmenü |
 
 Das Spiel beginnt im **Alarm** und wartet auf den ersten Befehl.
 
@@ -95,12 +105,13 @@ Alle Balancezahlen stehen in `game/config.py` und `game/units.py`.
 ```
 main.py             Einstiegspunkt
 game/config.py      Karte, Balance, Farben
-game/units.py       Truppentypen, Lochos
+game/units.py       Truppentypen, Männer, Gruppe mit Reihen
+game/army.py        Vorrat und Aufstellung (Gruppen, Reihen)
 game/geometry.py    Vektoren, Front/Flanke/Rücken
 game/scenarios.py   Karten und Aufstellungen
 game/battle.py      Simulation: Befehle, KI, Bewegung, Kampf, Moral, Plündern
-game/render.py      Zeichnen von Karte, Einheiten, Leiste
-game/app.py         Asynchrone Schleife, Touch und Tasten
+game/render.py      Zeichnen von Karte, Gruppen, Leiste und Aufstellungsmenü
+game/app.py         Asynchrone Schleife, Bildschirme, Auswahl, Touch und Tasten
 tests/              pytest (headless)
 tools/              Browser-Diagnose für CI
 ```

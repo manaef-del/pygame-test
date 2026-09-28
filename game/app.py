@@ -1,4 +1,4 @@
-"""Hauptschleife, Eingabe und Bildschirmzustand.
+"""Hauptschleife, Eingabe und Bildschirmzustand (Aufstellung / Schlacht).
 
 Asynchron, damit dieselbe Schleife nativ und im Browser (pygbag) läuft.
 Berührungen kommen als Mausereignisse an, deshalb reichen diese.
@@ -7,14 +7,17 @@ Berührungen kommen als Mausereignisse an, deshalb reichen diese.
 from __future__ import annotations
 
 import asyncio
+import copy
 import random
 
 import pygame
 
 from . import config
+from .army import Army, default_army
 from .battle import Battle
 from .render import Renderer
 from .scenarios import SCENARIOS
+from .units import Side
 
 DRAG_MIN = 0.4  # Kacheln: kürzer ist ein Tipp, kein Bereich
 
@@ -26,11 +29,15 @@ def to_tiles(pos: tuple[int, int]) -> tuple[float, float]:
 class App:
     """Zustand der Bedienung, getrennt von der Schleife (testbar)."""
 
-    def __init__(self, renderer: Renderer, seed: int | None = None) -> None:
+    def __init__(self, renderer: Renderer, seed: int | None = None, start_in_battle: bool = False) -> None:
         self.renderer = renderer
         self.seed = seed
         self.scenario_index = 0
+        self.army: Army = default_army()
+        self.menu_group = 0
+        self.screen = "schlacht" if start_in_battle else "aufstellung"
         self.paused = False
+        self.selected: set[int] = set()
         self.drag_start: tuple[float, float] | None = None
         self.drag_now: tuple[float, float] | None = None
         self.running = True
@@ -39,8 +46,9 @@ class App:
     def _new_battle(self) -> Battle:
         rng = random.Random(self.seed) if self.seed is not None else random.Random()
         self.paused = False
+        self.selected = set()
         self.drag_start = self.drag_now = None
-        return Battle(SCENARIOS[self.scenario_index], rng)
+        return Battle(SCENARIOS[self.scenario_index], rng, army=copy.deepcopy(self.army))
 
     # ---------------------------------------------------------- Eingabe
     def handle_event(self, event: pygame.event.Event) -> None:
@@ -58,6 +66,10 @@ class App:
     def _key(self, key: int) -> None:
         if key == pygame.K_ESCAPE:
             self.running = False
+        elif self.screen == "aufstellung":
+            if key == pygame.K_RETURN:
+                self.menu_command("start")
+            return
         elif key == pygame.K_a:
             self.command("angriff")
         elif key == pygame.K_h:
@@ -66,10 +78,15 @@ class App:
             self.command("pause")
         elif key == pygame.K_r:
             self.command("neu")
-        elif key == pygame.K_s:
-            self.command("szenario")
+        elif key == pygame.K_m:
+            self.command("aufstellung")
 
     def _press(self, pos: tuple[int, int]) -> None:
+        if self.screen == "aufstellung":
+            key = self.renderer.menu_button_at(pos)
+            if key:
+                self.menu_command(key)
+            return
         if pos[1] >= config.MAP_H:
             key = self.renderer.button_at(pos)
             if key:
@@ -82,44 +99,108 @@ class App:
             return
         start, end = self.drag_start, to_tiles(pos)
         self.drag_start = self.drag_now = None
+        if self.battle.outcome is not None:
+            return
         if abs(end[0] - start[0]) < DRAG_MIN and abs(end[1] - start[1]) < DRAG_MIN:
-            return  # Tipp ohne Ziehen
-        if self.battle.outcome is None:
-            self.battle.command_phalanx(start[0], start[1], end[0], end[1])
-            self.paused = False
+            self._tap(end)
+            return
+        self.battle.command_phalanx(start[0], start[1], end[0], end[1], units=self._selection())
+        self.paused = False
+
+    def _tap(self, p: tuple[float, float]) -> None:
+        """Tipp: eigene Gruppe wählen, Räuber angreifen, sonst hinlaufen."""
+        b = self.battle
+        own = b.unit_at(p, Side.STADT)
+        if own is not None and own.fighting:
+            if own.id in self.selected and len(self.selected) == 1:
+                self.selected = set()
+            else:
+                self.selected = {own.id}
+            return
+        if not self.selected:
+            return
+        foe = b.unit_at(p, Side.FEIND)
+        if foe is not None:
+            b.command_attack_target(self._selection(), foe)
+        else:
+            b.command_move(self._selection(), p)
+        self.paused = False
+
+    def _selection(self):
+        if not self.selected:
+            return None
+        return [u for u in self.battle.lochoi if u.id in self.selected and u.fighting]
 
     def command(self, key: str) -> None:
         b = self.battle
         if key == "angriff" and b.outcome is None:
-            b.command_attack()
+            b.command_attack(self._selection())
             self.paused = False
         elif key == "halten" and b.outcome is None:
-            b.command_hold()
+            b.command_hold(self._selection())
             self.paused = False
+        elif key == "alle":
+            if self.selected:
+                self.selected = set()
+            else:
+                self.selected = {u.id for u in b.units(Side.STADT, fighting_only=True)}
         elif key == "pause":
             if b.alarm:
-                b.command_hold()  # Spiel läuft an, Lochoi halten
+                b.alarm = False
                 self.paused = False
             else:
                 self.paused = not self.paused
         elif key == "neu":
             self.battle = self._new_battle()
-        elif key == "szenario":
+        elif key == "aufstellung":
+            self.screen = "aufstellung"
+            self.menu_group = min(self.menu_group, len(self.army.groups) - 1)
+
+    # ------------------------------------------------------- Aufstellung
+    def menu_command(self, key: str) -> None:
+        a = self.army
+        if key == "prev":
+            self.menu_group = (self.menu_group - 1) % len(a.groups)
+        elif key == "next":
+            self.menu_group = (self.menu_group + 1) % len(a.groups)
+        elif key == "add":
+            if a.add_group():
+                self.menu_group = len(a.groups) - 1
+        elif key == "del":
+            a.delete_group(self.menu_group)
+            self.menu_group = min(self.menu_group, len(a.groups) - 1)
+        elif key == "preset":
+            self.army = default_army()
+            self.menu_group = 0
+        elif key == "scenario":
             self.scenario_index = (self.scenario_index + 1) % len(SCENARIOS)
-            self.battle = self._new_battle()
+        elif key == "start":
+            if a.valid():
+                self.screen = "schlacht"
+                self.battle = self._new_battle()
+        elif key.startswith("plus:") or key.startswith("minus:"):
+            op, row, kind = key.split(":")
+            if op == "plus":
+                a.add(self.menu_group, int(row), kind)
+            else:
+                a.remove(self.menu_group, int(row), kind)
 
     # ------------------------------------------------------------ Takt
     def tick(self, dt: float) -> None:
-        if not self.paused:
+        if self.screen == "schlacht" and not self.paused:
             self.battle.update(dt)
+            self.selected = {i for i in self.selected if (u := self.battle.by_id(i)) and u.fighting}
 
-    def drag_rect(self) -> tuple[float, float, float, float] | None:
+    def drag_rect(self):
         if self.drag_start is None or self.drag_now is None:
             return None
         return (*self.drag_start, *self.drag_now)
 
     def draw(self) -> None:
-        self.renderer.draw(self.battle, self.drag_rect(), self.paused)
+        if self.screen == "aufstellung":
+            self.renderer.draw_menu(self.army, self.menu_group, SCENARIOS[self.scenario_index].name)
+        else:
+            self.renderer.draw(self.battle, self.drag_rect(), self.paused, self.selected)
 
 
 async def run(max_frames: int | None = None, seed: int | None = None) -> App:
