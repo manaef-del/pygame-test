@@ -459,7 +459,8 @@ def test_siege_tower_opens_a_crossing():
             break
     assert (13, 7) in b.crossings
     assert not b.is_blocked(13.5, 7.5, hop)               # Übergang für alle
-    assert cav.engine is None                             # Turm ist verbaut
+    assert cav.engine is None                             # Turm steht jetzt am Wall
+    assert len(b.towers) == 1 and abs(b.towers[0][0] - 13.5) < 1e-6 and b.towers[0][1] > 7.5
     run(b, 6)
     assert cav.fighting and cav.y < 7.0                   # Reiter sind drüben
 

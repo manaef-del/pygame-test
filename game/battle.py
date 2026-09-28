@@ -109,6 +109,7 @@ class Battle:
     men_start: dict[Side, int] = field(default_factory=dict)
     crossings: set[tuple[int, int]] = field(default_factory=set)   # überwundene Wallstücke
     debris: list[tuple[float, float, float, float]] = field(default_factory=list)  # liegen gelassene Rammböcke
+    towers: list[tuple[float, float]] = field(default_factory=list)                # am Wall stehende Türme
     enemy_ram_id: int | None = None      # Räubergruppe, die den Rammbock baut
     horde_awake: bool = False
     _next_id: int = 0
@@ -883,6 +884,7 @@ class Battle:
                         self.crossings.add(u.tower_cell)
                         self.events.append(f"{u.name} hat den Wall überwunden")
                         beyond_side = -1.0 if u.y > cy else 1.0
+                        self.towers.append((cx, cy - beyond_side * 0.75))   # Turm bleibt am Wall stehen
                         u.engine = None
                         u.tower_cell = None
                         u.target = (cx, cy + beyond_side * (0.5 + u.half_d + 0.6))

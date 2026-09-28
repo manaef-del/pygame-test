@@ -134,8 +134,13 @@ class Renderer:
         for cx, cy in battle.crossings:
             rect = pygame.Rect(cx * T + 2, cy * T + 2, T - 4, T - 4)
             pygame.draw.rect(s, config.COLOR_CROSSING, rect, border_radius=3)
+        for x, y in battle.towers:
+            tx, ty = px((x, y))
+            body = pygame.Rect(tx - 11, ty - 14, 22, 28)
+            pygame.draw.rect(s, config.COLOR_TOWER, body, border_radius=3)
+            pygame.draw.rect(s, (90, 60, 30), body, 2)
             for i in range(3):
-                pygame.draw.line(s, (90, 60, 30), (cx * T + 6, cy * T + 7 + i * 8), (cx * T + T - 6, cy * T + 7 + i * 8), 2)
+                pygame.draw.line(s, (90, 60, 30), (body.x + 4, body.y + 7 + i * 7), (body.right - 4, body.y + 7 + i * 7), 2)
         if battle.gate is not None:
             gx, gy = battle.gate.center
             half = len(battle.gate.cells) / 2
