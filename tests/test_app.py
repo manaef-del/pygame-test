@@ -1,56 +1,75 @@
-"""Integrationstest: Spiel läuft headless einige Frames durch."""
+"""Integrationstests: Schleife, Eingabe und Zeichnen laufen headless."""
 
 import asyncio
 
 import pygame
 
-from game.app import TouchControl, read_direction, run
-from game.logic import GameState
+from game import config
+from game.app import App, run, to_tiles
 from game.render import Renderer
+from game.units import Side, Stance
+
+
+def make_app() -> App:
+    pygame.init()
+    surface = pygame.Surface((config.WIDTH, config.HEIGHT))
+    return App(Renderer(surface), seed=1)
 
 
 def test_run_headless_for_some_frames():
-    state = asyncio.run(run(max_frames=30))
-    assert isinstance(state, GameState)
-    assert state.elapsed > 0
+    app = asyncio.run(run(max_frames=30, seed=1))
+    assert app.battle is not None
 
 
-def test_renderer_draws_without_error():
-    pygame.init()
-    surface = pygame.Surface((480, 640))
-    renderer = Renderer(surface)
-    state = GameState()
-    state.spawn_block()
-    renderer.draw(state)
-    state.game_over = True
-    renderer.draw(state)
-    pygame.quit()
+def test_drag_on_map_forms_phalanx():
+    app = make_app()
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(150, 300)))
+    app.handle_event(pygame.event.Event(pygame.MOUSEMOTION, pos=(300, 320)))
+    assert app.drag_rect() is not None
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=(330, 330)))
+    assert app.battle.phalanx is not None
+    assert app.battle.alarm is False
+    x0, y0, x1, y1 = app.battle.phalanx.rect
+    assert (x0, y0) == to_tiles((150, 300)) and (x1, y1) == to_tiles((330, 330))
+    assert any(u.stance is Stance.PHALANX for u in app.battle.units(Side.STADT))
 
 
-def test_read_direction():
-    class Keys(dict):
-        def __getitem__(self, key):
-            return self.get(key, False)
-
-    assert read_direction(Keys()) == 0
-    assert read_direction(Keys({pygame.K_LEFT: True})) == -1
-    assert read_direction(Keys({pygame.K_d: True})) == 1
-    assert read_direction(Keys({pygame.K_LEFT: True, pygame.K_RIGHT: True})) == 0
+def test_tap_without_drag_does_nothing():
+    app = make_app()
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(150, 300)))
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=(153, 302)))
+    assert app.battle.phalanx is None
+    assert app.battle.alarm is True
 
 
-def test_touch_control_direction_and_tap():
-    t = TouchControl(width=480)
-    assert t.direction == 0
-    t.handle(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(100, 300)))
-    assert t.direction == -1
-    assert t.consume_tap() is True
-    assert t.consume_tap() is False
-    t.handle(pygame.event.Event(pygame.MOUSEMOTION, pos=(400, 300)))
-    assert t.direction == 1
-    t.handle(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=(400, 300)))
-    assert t.direction == 0
-    # Finger-Events liefern normierte Koordinaten 0..1
-    t.handle(pygame.event.Event(pygame.FINGERDOWN, x=0.9, y=0.5))
-    assert t.direction == 1
-    t.handle(pygame.event.Event(pygame.FINGERUP, x=0.9, y=0.5))
-    assert t.direction == 0
+def test_buttons_in_bar():
+    app = make_app()
+    angriff = app.renderer.buttons[0].rect.center
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=angriff))
+    assert all(u.stance is Stance.ANGRIFF for u in app.battle.units(Side.STADT))
+    app.tick(1.0)
+    assert app.battle.time > 0
+
+    pause = next(b for b in app.renderer.buttons if b.key == "pause").rect.center
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=pause))
+    t = app.battle.time
+    app.tick(1.0)
+    assert app.battle.time == t
+
+    szenario = next(b for b in app.renderer.buttons if b.key == "szenario").rect.center
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=szenario))
+    assert app.battle.scenario.key == "palisade"
+    assert app.battle.time == 0.0
+
+
+def test_renderer_draws_every_state():
+    app = make_app()
+    app.draw()                                   # Alarm
+    app.command("halten")
+    for _ in range(600):
+        app.tick(1 / 30)
+    app.draw()                                   # Kampf oder Ergebnis
+    app.paused = True
+    app.draw()                                   # Pause
+    app.command("szenario")
+    app.draw()                                   # Palisade
