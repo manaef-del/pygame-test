@@ -30,40 +30,43 @@ def test_run_headless_for_some_frames():
     assert app.screen == "aufstellung"
 
 
-def test_menu_edits_army_and_starts_battle():
+def test_menu_sliders_chips_and_blocks():
     app = make_app(start_in_battle=False)
-    app.draw()  # legt die Menüknöpfe an
-    before = app.army.groups[0].men()
-    key_minus = next(b for b in app.renderer.menu_buttons if b.key == "minus:0:schwer")
-    press(app, key_minus.rect.center)
-    assert app.army.groups[0].men() == before - 1
+    app.draw()  # legt Knöpfe und Regler an
+    tier, track = app.renderer.menu_sliders[0]
+    assert tier == 0 and app.army.groups[0].tiers[0].count == 14
+    # Regler nach links: null, nach rechts: Maximum, Ziehen dazwischen
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(track.x, track.centery)))
+    assert app.army.groups[0].tiers[0].count == 0
+    app.handle_event(pygame.event.Event(pygame.MOUSEMOTION, pos=(track.x + track.w // 2, track.centery)))
+    assert app.army.groups[0].tiers[0].count == 7
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=(track.right, track.centery)))
+    assert app.menu_slider is None
+    # Farbpunkt: Typ wechseln, Anzahl wird gekappt
     app.draw()
-    key_plus = next(b for b in app.renderer.menu_buttons if b.key == "plus:2:schwer")
-    press(app, key_plus.rect.center)
-    assert app.army.groups[0].men() == before
-    assert app.army.groups[0].tiers[2]["schwer"] == 1
-
+    press(app, next(b for b in app.renderer.menu_buttons if b.key == "kind:0:reiter").rect.center)
+    assert app.army.groups[0].tiers[0].kind == "reiter"
+    assert app.army.groups[0].tiers[0].count == 0            # Reiter sind alle vergeben
+    # Block verschieben, Reihe anlegen und entfernen
+    app.draw()
+    press(app, next(b for b in app.renderer.menu_buttons if b.key == "down:0").rect.center)
+    assert app.army.groups[0].tiers[1].kind == "reiter"
+    app.draw()
+    press(app, next(b for b in app.renderer.menu_buttons if b.key == "addrow").rect.center)
+    assert len(app.army.groups[0].tiers) == 4
+    app.draw()
+    assert not any(b.key == "addrow" for b in app.renderer.menu_buttons)
+    press(app, next(b for b in app.renderer.menu_buttons if b.key == "delrow:1").rect.center)
+    assert len(app.army.groups[0].tiers) == 3
+    assert [t.kind for t in app.army.groups[0].tiers] == ["mittel", "leicht", "schwer"]
+    # Gruppe anlegen und Schlacht starten
     app.draw()
     press(app, next(b for b in app.renderer.menu_buttons if b.key == "add").rect.center)
     assert len(app.army.groups) == 4 and app.menu_group == 3
     app.draw()
     press(app, next(b for b in app.renderer.menu_buttons if b.key == "start").rect.center)
     assert app.screen == "schlacht"
-    assert app.battle.army.groups[0].tiers[2]["schwer"] == 1
-    assert app.battle.men(Side.STADT) == 75
-
-
-def test_menu_hold_repeats_in_steps_of_five():
-    app = make_app(start_in_battle=False)
-    app.draw()
-    minus = next(b for b in app.renderer.menu_buttons if b.key == "minus:0:schwer")
-    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=minus.rect.center))
-    assert app.army.groups[0].tiers[0]["schwer"] == 13
-    for _ in range(30):
-        app.tick(1 / 30)                     # eine Sekunde gedrückt halten
-    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=minus.rect.center))
-    assert app.army.groups[0].tiers[0].get("schwer", 0) <= 8
-    assert app.army.remaining("schwer") >= 6
+    assert app.battle.men(Side.STADT) == app.army.total_men()
 
 
 def test_tap_selects_moves_and_attacks():

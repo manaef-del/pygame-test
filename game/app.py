@@ -41,9 +41,7 @@ class App:
         self.drag_start: tuple[float, float] | None = None
         self.drag_now: tuple[float, float] | None = None
         self.running = True
-        self._step = 1
-        self._held: str | None = None
-        self._hold_time = 0.0
+        self.menu_slider: tuple[int, pygame.Rect] | None = None
         self.battle = self._new_battle()
 
     def _new_battle(self) -> Battle:
@@ -61,6 +59,8 @@ class App:
             self._key(event.key)
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             self._press(event.pos)
+        elif event.type == pygame.MOUSEMOTION and self.menu_slider is not None:
+            self._slide(event.pos)
         elif event.type == pygame.MOUSEMOTION and self.drag_start is not None:
             self.drag_now = to_tiles(event.pos)
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
@@ -88,10 +88,12 @@ class App:
         if self.screen == "aufstellung":
             key = self.renderer.menu_button_at(pos)
             if key:
-                self._step = 1
                 self.menu_command(key)
-                if key.startswith(("plus:", "minus:")):
-                    self._held, self._hold_time = key, 0.0
+                return
+            slider = self.renderer.slider_at(pos)
+            if slider:
+                self.menu_slider = slider
+                self._slide(pos)
             return
         if pos[1] >= config.MAP_H:
             key = self.renderer.button_at(pos)
@@ -100,8 +102,18 @@ class App:
             return
         self.drag_start = self.drag_now = to_tiles(pos)
 
+    def _slide(self, pos: tuple[int, int]) -> None:
+        """Schieberegler: Anzahl aus der Fingerposition."""
+        tier, rect = self.menu_slider
+        if tier >= len(self.army.groups[self.menu_group].tiers):
+            self.menu_slider = None
+            return
+        frac = min(1.0, max(0.0, (pos[0] - rect.x) / rect.w))
+        maximum = self.army.max_for(self.menu_group, tier)
+        self.army.set_count(self.menu_group, tier, round(frac * maximum))
+
     def _release(self, pos: tuple[int, int]) -> None:
-        self._held = None
+        self.menu_slider = None
         if self.drag_start is None:
             return
         start, end = self.drag_start, to_tiles(pos)
@@ -185,22 +197,20 @@ class App:
             if a.valid():
                 self.screen = "schlacht"
                 self.battle = self._new_battle()
-        elif key.startswith("plus:") or key.startswith("minus:"):
-            op, tier, kind = key.split(":")
-            if op == "plus":
-                a.add(self.menu_group, int(tier), kind, self._step)
-            else:
-                a.remove(self.menu_group, int(tier), kind, self._step)
+        elif key == "addrow":
+            a.add_tier(self.menu_group)
+        elif key.startswith("delrow:"):
+            a.remove_tier(self.menu_group, int(key.split(":")[1]))
+        elif key.startswith("up:"):
+            a.move_tier(self.menu_group, int(key.split(":")[1]), -1)
+        elif key.startswith("down:"):
+            a.move_tier(self.menu_group, int(key.split(":")[1]), +1)
+        elif key.startswith("kind:"):
+            _, tier, kind = key.split(":")
+            a.set_kind(self.menu_group, int(tier), kind)
 
     # ------------------------------------------------------------ Takt
     def tick(self, dt: float) -> None:
-        if self.screen == "aufstellung" and self._held:
-            # Gedrückt halten: nach einer halben Sekunde in Fünferschritten weiter
-            self._hold_time += dt
-            if self._hold_time >= 0.5:
-                self._hold_time -= 0.35
-                self._step = 5
-                self.menu_command(self._held)
         if self.screen == "schlacht" and not self.paused:
             self.battle.update(dt)
             self.selected = {i for i in self.selected if (u := self.battle.by_id(i)) and u.fighting}

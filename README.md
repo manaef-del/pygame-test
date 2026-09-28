@@ -22,14 +22,17 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Speere fliegen sichtbar. Sind sie verschossen, geht die Gruppe in den
   Nahkampf über.
 - **Aufstellung:** Vor der Schlacht werden Gruppen aus dem Vorrat
-  zusammengestellt. Die drei Abschnitte Vorn, Mitte, Hinten legen die
-  Reihenfolge in der Formation fest. Vorgabe: je eine Gruppe Hopliten,
-  Peltasten und Reiter.
+  zusammengestellt. Eine Gruppe besteht aus Reihen-Blöcken von vorn nach
+  hinten, jeder Block mit einem Truppentyp (Farbpunkt) und einer Anzahl
+  (Schieberegler). Blöcke lassen sich verschieben, entfernen und
+  hinzufügen. Vorgabe: je eine Gruppe Hopliten, Peltasten und Reiter.
 - **Front aufziehen:** Gruppe antippen, dann auf der Karte den Finger
   aufsetzen und eine Linie ziehen. Die Linie ist die Front, ihre Länge
-  bestimmt die Breite und damit die Zahl der Reihen. Die Gruppe schaut
-  senkrecht zur Linie: von links nach rechts gezogen nach oben, so wie
-  man hinter ihr steht. Ohne Auswahl teilen sich alle Gruppen die Linie.
+  bestimmt die Breite und damit die Zahl der echten Reihen. Landen
+  mehrere Blöcke in einer Reihe, wechseln sich ihre Männer ab. Die Gruppe
+  schaut senkrecht zur Linie: von links nach rechts gezogen nach oben, so
+  wie man hinter ihr steht. Ohne Auswahl teilen sich alle Gruppen die
+  Linie.
 - **Phalanx:** eine aufgezogene Gruppe hält die Stellung. Stark von vorn,
   verwundbar in Flanke und Rücken. Der Bonus hängt vom Hoplitenanteil der
   vorderen Reihe ab. Nachbarn stützen sich (Schildwall).

@@ -69,6 +69,7 @@ class Man:
     kind: UnitType
     hp: float = 0.0
     ammo: int = 0
+    tier: int = 0        # Abschnitt der Aufstellung (0 = vorn)
 
     def __post_init__(self) -> None:
         if self.hp == 0.0:
@@ -85,6 +86,32 @@ def default_width(n: int) -> int:
 def chunk(men: list[Man], width: int) -> list[list[Man]]:
     width = max(1, width)
     return [men[i:i + width] for i in range(0, len(men), width)]
+
+
+def interleave(row: list[Man]) -> list[Man]:
+    """Teilen sich mehrere Abschnitte eine Reihe, wechseln sie sich ab.
+
+    Jeder Mann bekommt einen Platz zwischen 0 und 1 gemäß seiner Position
+    innerhalb seines Abschnitts; sortiert nach diesem Platz verteilen sich
+    die Abschnitte gleichmäßig über die Reihe.
+    """
+    by_tier: dict[int, list[Man]] = {}
+    for m in row:
+        by_tier.setdefault(m.tier, []).append(m)
+    if len(by_tier) <= 1:
+        return list(row)
+    keyed = []
+    for tier, ms in by_tier.items():
+        for i, m in enumerate(ms):
+            keyed.append(((i + 0.5) / len(ms), tier, m))
+    keyed.sort(key=lambda t: (t[0], t[1]))
+    return [m for _, _, m in keyed]
+
+
+def arrange(men: list[Man], width: int) -> list[list[Man]]:
+    """Reihen bilden: vorderer Abschnitt zuerst, gemischte Reihen abwechselnd."""
+    ordered = sorted(men, key=lambda m: m.tier)   # stabil: Reihenfolge im Abschnitt bleibt
+    return [interleave(r) for r in chunk(ordered, width)]
 
 
 @dataclass
@@ -227,9 +254,8 @@ class Lochos:
 
     # -------------------------------------------------------- Formation
     def reform(self, width: int) -> None:
-        """Reihen neu bilden: Reihenfolge bleibt, Breite ändert sich."""
-        men = self.all_men()
-        self.rows = chunk(men, width)
+        """Reihen neu bilden: Abschnitte bleiben vorn/hinten, Breite ändert sich."""
+        self.rows = arrange(self.all_men(), width)
         self.pool = [0.0] * len(self.rows)
 
     # ------------------------------------------------------------ Kampf

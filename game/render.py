@@ -7,9 +7,9 @@ import math
 import pygame
 
 from . import config
-from .army import Army
+from .army import MAX_TIERS, Army
 from .battle import Battle
-from .units import PLAYER_TYPES, TIERS, UNIT_TYPES, Lochos, Side, Stance
+from .units import PLAYER_TYPES, UNIT_TYPES, Lochos, Side, Stance
 
 T = config.TILE
 MAN_SPACING = config.MAN_SPACING
@@ -37,6 +37,7 @@ class Renderer:
         self.big = pygame.font.Font(None, 56)
         self.buttons: list[Button] = self._battle_buttons()
         self.menu_buttons: list[Button] = []
+        self.menu_sliders: list[tuple[int, pygame.Rect]] = []
 
     # ================================================== Schlacht
     @staticmethod
@@ -255,59 +256,75 @@ class Renderer:
 
     # ================================================== Aufstellung
     def draw_menu(self, army: Army, index: int, scenario_name: str) -> None:
-        """Aufstellungsmenü: eine Gruppe je Seite, Reihen mit Zählern."""
+        """Aufstellungsmenü: eine Gruppe je Seite, Reihen als Blöcke mit Reglern."""
         s = self.surface
         s.fill(config.COLOR_MENU_BG)
         self.menu_buttons = []
+        self.menu_sliders = []
         W = config.WIDTH
         gap = 6
 
-        self._center_text(self.big, "Aufstellung", config.COLOR_TEXT, 34)
+        self._center_text(self.big, "Aufstellung", config.COLOR_TEXT, 30)
         # Vorrat
-        y = 66
-        x = 8
+        y, x = 58, 8
         for key in PLAYER_TYPES:
             kind = UNIT_TYPES[key]
             pygame.draw.circle(s, kind.color, (x + 6, y + 8), 5)
             txt = self.small.render(f"{army.remaining(key)}/{army.pool[key]}", True, config.COLOR_TEXT)
             s.blit(txt, (x + 16, y))
             x += 92
-        self.surface.blit(self.small.render("Vorrat: noch frei / gesamt", True, config.COLOR_TEXT_DIM), (8, y + 20))
+        s.blit(self.small.render("Vorrat: noch frei / gesamt", True, config.COLOR_TEXT_DIM), (8, y + 18))
 
         # Gruppenwahl
-        y = 112
-        self._menu_button("prev", "<", pygame.Rect(gap, y, 48, 40))
-        self._menu_button("next", ">", pygame.Rect(W - gap - 48, y, 48, 40))
+        y = 98
+        self._menu_button("prev", "<", pygame.Rect(gap, y, 48, 38))
+        self._menu_button("next", ">", pygame.Rect(W - gap - 48, y, 48, 38))
         g = army.groups[index]
         title = f"{g.name}  ({index + 1}/{len(army.groups)})  ·  {g.men()} Mann"
-        self._center_text(self.font, title, config.COLOR_TEXT, y + 20)
+        self._center_text(self.font, title, config.COLOR_TEXT, y + 19)
 
-        # Abschnitte: Reihenfolge von vorn nach hinten
-        y = 166
-        cell_w = (W - 2 * gap - 66) // len(PLAYER_TYPES)
-        for r, tier in enumerate(TIERS):
-            panel = pygame.Rect(gap, y, W - 2 * gap, 78)
+        # Reihen-Blöcke, vorn nach hinten
+        y = 144
+        block_h = 66
+        for i, tier in enumerate(g.tiers):
+            kind = UNIT_TYPES[tier.kind]
+            panel = pygame.Rect(gap, y, W - 2 * gap, block_h)
             pygame.draw.rect(s, config.COLOR_MENU_PANEL, panel, border_radius=6)
-            s.blit(self.small.render(tier, True, config.COLOR_TEXT), (gap + 8, y + 8))
-            s.blit(self.small.render(f"{g.tier_size(r)} Mann", True, config.COLOR_TEXT_DIM), (gap + 8, y + 30))
-            for i, key in enumerate(PLAYER_TYPES):
-                kind = UNIT_TYPES[key]
-                cx = gap + 66 + i * cell_w
-                pygame.draw.circle(s, kind.color, (cx + cell_w // 2, y + 12), 6)
-                count = g.tiers[r].get(key, 0)
-                num = self.font.render(str(count), True, config.COLOR_TEXT)
-                s.blit(num, num.get_rect(center=(cx + cell_w // 2, y + 32)))
-                self._menu_button(f"minus:{r}:{key}", "−", pygame.Rect(cx + 2, y + 44, cell_w // 2 - 3, 30))
-                self._menu_button(f"plus:{r}:{key}", "+", pygame.Rect(cx + cell_w // 2 + 1, y + 44, cell_w // 2 - 3, 30))
-            y += 84
-
-        # Legende
-        y += 2
-        legend = ("Vorn/Mitte/Hinten ist die Reihenfolge in der Formation. Wie viele Reihen es werden, "
-                  "entscheidet die Breite beim Aufziehen. Halten = +5 / −5.  "
-                  + "  ".join(f"{UNIT_TYPES[k].short} = {UNIT_TYPES[k].name}" for k in PLAYER_TYPES))
-        for i, line in enumerate(self._wrap(self.small, legend, W - 16)[:5]):
-            s.blit(self.small.render(line, True, config.COLOR_TEXT_DIM), (8, y + i * 18))
+            label = "Vorn" if i == 0 else ("Hinten" if i == len(g.tiers) - 1 else f"Reihe {i + 1}")
+            s.blit(self.small.render(label, True, config.COLOR_TEXT_DIM), (gap + 8, y + 6))
+            # Typwahl: fünf Farbpunkte
+            for k, key in enumerate(PLAYER_TYPES):
+                cx, cy = gap + 18 + k * 26, y + 44
+                pygame.draw.circle(s, UNIT_TYPES[key].color, (cx, cy), 8)
+                if key == tier.kind:
+                    pygame.draw.circle(s, config.COLOR_TEXT, (cx, cy), 11, 2)
+                self.menu_buttons.append(Button(f"kind:{i}:{key}", key, pygame.Rect(cx - 13, cy - 13, 26, 26)))
+            # Anzahl und Regler
+            maximum = army.max_for(index, i)
+            name = self.small.render(f"{tier.count} {kind.name}  (max. {maximum})", True, config.COLOR_TEXT)
+            s.blit(name, (150, y + 6))
+            track = pygame.Rect(150, y + 34, 220, 16)
+            pygame.draw.rect(s, config.COLOR_BUTTON, track, border_radius=8)
+            frac = tier.count / maximum if maximum else 0.0
+            if frac > 0:
+                pygame.draw.rect(s, kind.color, pygame.Rect(track.x, track.y, max(16, int(track.w * frac)), track.h), border_radius=8)
+            knob = (track.x + int(track.w * frac), track.centery)
+            pygame.draw.circle(s, config.COLOR_TEXT, knob, 11)
+            self.menu_sliders.append((i, track))
+            # Verschieben und Entfernen
+            bx = W - gap - 92
+            self._menu_button(f"up:{i}", "^", pygame.Rect(bx, y + 6, 40, 26))
+            self._menu_button(f"down:{i}", "v", pygame.Rect(bx, y + 36, 40, 26))
+            self._menu_button(f"delrow:{i}", "x", pygame.Rect(bx + 46, y + 6, 40, 56))
+            y += block_h + gap
+        if len(g.tiers) < MAX_TIERS:
+            self._menu_button("addrow", "+ Reihe", pygame.Rect(gap, y, W - 2 * gap, 36))
+            y += 42
+        hint = ("Blöcke von vorn nach hinten. Die Breite beim Aufziehen bestimmt die "
+                "echten Reihen; geteilte Reihen wechseln sich ab.")
+        y_hint = config.HEIGHT - 2 * 44 - 3 * gap - 44
+        for j, line in enumerate(self._wrap(self.small, hint, W - 16)[:2]):
+            s.blit(self.small.render(line, True, config.COLOR_TEXT_DIM), (8, y_hint + j * 18))
 
         # Gruppen verwalten und Start
         y = config.HEIGHT - 2 * 44 - 3 * gap
@@ -319,6 +336,12 @@ class Renderer:
         w2 = (W - 3 * gap) // 2
         self._menu_button("scenario", f"Szenario: {scenario_name}", pygame.Rect(gap, y, w2, 44))
         self._menu_button("start", "Zur Schlacht >", pygame.Rect(2 * gap + w2, y, w2, 44), config.COLOR_BUTTON_ACTIVE)
+
+    def slider_at(self, pos: tuple[int, int]) -> tuple[int, pygame.Rect] | None:
+        for tier, rect in self.menu_sliders:
+            if rect.inflate(24, 24).collidepoint(pos):
+                return tier, rect
+        return None
 
     def _menu_button(self, key: str, label: str, rect: pygame.Rect, color=None) -> None:
         s = self.surface

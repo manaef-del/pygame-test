@@ -5,11 +5,11 @@ import random
 import pytest
 
 from game import config
-from game.army import POOL, Army, GroupSpec, default_army
+from game.army import POOL, Army, GroupSpec, Tier, default_army
 from game.battle import Battle
 from game.geometry import arc, snap4
 from game.scenarios import OFFENE_SIEDLUNG, PALISADE, EnemySpec, Scenario
-from game.units import UNIT_TYPES, Lochos, Man, Side, Stance, chunk
+from game.units import UNIT_TYPES, Lochos, Man, Side, Stance, arrange
 
 DT = 1 / 30
 
@@ -43,9 +43,9 @@ def static_line(raider_y: float, n_raiders: int = 4) -> Battle:
         enemies=tuple(EnemySpec(16, 5.3 + i * 1.7, raider_y) for i in range(n_raiders)),
     )
     army = army_of(
-        GroupSpec("A", [{"schwer": 7}, {"mittel": 7}, {}]),
-        GroupSpec("B", [{"schwer": 7}, {"mittel": 6}, {}]),
-        GroupSpec("C", [{"mittel": 7}, {"leicht": 6}, {}]),
+        GroupSpec("A", [Tier("schwer", 7), Tier("mittel", 7)]),
+        GroupSpec("B", [Tier("schwer", 7), Tier("mittel", 6)]),
+        GroupSpec("C", [Tier("mittel", 7), Tier("leicht", 6)]),
     )
     b = Battle(scn, random.Random(0), army=army)
     for i, u in enumerate(b.units(Side.STADT)):
@@ -77,22 +77,32 @@ def test_default_army_is_three_groups_using_whole_pool():
     assert a.total_men() == sum(POOL.values()) == 75
 
 
-def test_army_respects_pool():
-    a = Army(groups=[GroupSpec("G")])
-    assert a.add(0, 0, "reiter", 5) and a.groups[0].tiers[0]["reiter"] == 5
-    assert a.add(0, 2, "reiter", 50)                  # wird auf den Rest gekappt
+def test_army_blocks_respect_pool():
+    a = Army(groups=[GroupSpec("G", [Tier("reiter", 5)])])
+    assert a.max_for(0, 0) == POOL["reiter"]
+    assert a.set_count(0, 0, 50) == POOL["reiter"]          # wird gekappt
     assert a.remaining("reiter") == 0
-    assert a.add(0, 1, "reiter") is False
-    assert a.remove(0, 0, "reiter", 5) and a.remaining("reiter") == 5
-    assert a.remove(0, 1, "schwer") is False
+    a.add_tier(0)
+    assert a.groups[0].tiers[1].kind == "schwer" and a.groups[0].tiers[1].count == 5
+    a.set_kind(0, 1, "reiter")                               # kein Reiter mehr frei
+    assert a.groups[0].tiers[1].count == 0
+    a.move_tier(0, 1, -1)
+    assert [t.kind for t in a.groups[0].tiers] == ["reiter", "reiter"]
+    a.remove_tier(0, 0)
+    assert len(a.groups[0].tiers) == 1 and a.remaining("reiter") == 0
 
 
-def test_tiers_build_men_in_order():
-    g = GroupSpec("G", [{"schwer": 2, "peltast": 1}, {"reiter": 3}, {}])
+def test_tiers_build_men_in_order_and_interleave_when_stretched():
+    g = GroupSpec("G", [Tier("schwer", 4), Tier("leicht", 4), Tier("peltast", 4)])
     men_list = g.build_men()
-    assert [m.kind.key for m in men_list] == ["schwer", "schwer", "peltast", "reiter", "reiter", "reiter"]
-    rows = chunk(men_list, 4)
-    assert [len(r) for r in rows] == [4, 2]
+    assert [m.tier for m in men_list] == [0] * 4 + [1] * 4 + [2] * 4
+    narrow = arrange(men_list, 4)
+    assert ["".join(m.kind.short for m in r) for r in narrow] == ["SSSS", "LLLL", "PPPP"]
+    wide = arrange(men_list, 12)
+    kinds = [m.kind.short for m in wide[0]]
+    assert len(wide) == 1 and kinds[:6] == ["S", "L", "P", "S", "L", "P"]
+    again = arrange(wide[0], 4)                              # zurück: Abschnitte wieder getrennt
+    assert ["".join(m.kind.short for m in r) for r in again] == ["SSSS", "LLLL", "PPPP"]
 
 
 def test_battle_deploys_army_groups():
@@ -145,7 +155,7 @@ def test_reform_keeps_order_and_changes_rows():
 
 def test_javelins_fly_and_run_out():
     scn = Scenario("t", "t", "", houses=((2, 17),), enemies=(EnemySpec(16, 8.0, 7.0),))
-    army = army_of(GroupSpec("Peltasten", [{"peltast": 15}, {}, {}]))
+    army = army_of(GroupSpec("Peltasten", [Tier("peltast", 15)]))
     b = Battle(scn, random.Random(0), army=army)
     pelt = b.units(Side.STADT)[0]
     raider = b.units(Side.FEIND)[0]
@@ -315,7 +325,7 @@ def test_open_settlement_phalanx_then_pursuit_wins():
 
 def test_weak_army_loses_houses():
     """Ein kleiner Haufen hält den Überfall nicht auf."""
-    small = army_of(GroupSpec("Wache", [{"leicht": 6}, {}, {}]))
+    small = army_of(GroupSpec("Wache", [Tier("leicht", 6)]))
     b = Battle(OFFENE_SIEDLUNG, random.Random(1), army=small)
     b.command_hold()
     run(b, 240)

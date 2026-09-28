@@ -18,7 +18,7 @@ from . import config
 from .army import Army, default_army
 from .geometry import add, arc, dist, norm, scale, snap4, sub
 from .scenarios import Scenario
-from .units import UNIT_TYPES, Lochos, Man, Side, Stance, chunk, default_width
+from .units import UNIT_TYPES, Lochos, Man, Side, Stance, arrange, default_width
 
 Point = tuple[float, float]
 
@@ -110,7 +110,7 @@ class Battle:
         if not specs:
             return
         y = self.scenario.deploy_y
-        rows_units = [chunk(spec.build_men(), default_width(spec.men())) for spec in specs]
+        rows_units = [arrange(spec.build_men(), default_width(spec.men())) for spec in specs]
         widths = [max(0.9, 2 * Lochos(0, Side.STADT, r, 0, 0).radius + 0.2) for r in rows_units]
         total = sum(widths)
         x = self.cols / 2 - total / 2
