@@ -168,6 +168,7 @@ class Lochos:
     building: float | None = None     # bisherige Bauzeit
     tower_cell: tuple[int, int] | None = None   # Wallstück, an das der Turm gesetzt wird
     tower_progress: float = 0.0
+    loose: bool = False               # Formation aufgelöst (Überqueren der Palisade)
 
     def __post_init__(self) -> None:
         self.rows = [list(r) for r in self.rows if r]
@@ -194,7 +195,24 @@ class Lochos:
 
     @property
     def in_phalanx(self) -> bool:
-        return self.stance is Stance.PHALANX and self.in_line
+        return self.stance is Stance.PHALANX and self.in_line and not self.loose
+
+    def surface_distance(self, p: tuple[float, float]) -> float:
+        """Abstand eines Punkts zur Gruppe: zum Formationsrechteck, oder bei
+        aufgelöster Formation zum nächsten einzelnen Mann."""
+        if self.loose:
+            men = self.all_men()
+            if men:
+                return max(0.0, min(math.hypot(m.x - p[0], m.y - p[1]) for m in men) - 0.1)
+        return self.rect_distance(p)
+
+    def remount(self, horses: int) -> int:
+        """Abgesessene Reiter steigen wieder auf; liefert die Zahl der bestiegenen Pferde."""
+        riders = [m for m in self.all_men() if m.kind.cavalry and not m.mounted]
+        n = min(horses, len(riders))
+        for m in riders[:n]:
+            m.mounted = True
+        return n
 
     @property
     def speed(self) -> float:

@@ -642,3 +642,64 @@ def test_tower_is_one_way_up_from_outside():
     assert b.can_step(hop, (13.5, 7.5), (13.5, 6.4))
     assert (12, 7) not in b.ladders_for(hop, (12.5, 7.5), (12.0, 3.0))
     assert (12, 7) in b.ladders_for(hop, (12.5, 7.5), (12.0, 12.0))
+
+
+# ------------------------------------------------- Überqueren und Aufsitzen
+def test_crossing_dissolves_formation_and_reforms_inside():
+    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    enemy_pelt = next(u for u in b.units(Side.FEIND) if u.name == "Peltasten")
+    b.crossings.add((12, 7))
+    b.update(DT)
+    assert not enemy_pelt.loose                              # wer oben steht und bleibt, ist formiert
+    b.command_line([hop], (5.0, 13.0), (11.0, 13.0))
+    run(b, 6)
+    assert hop.in_line
+    b.command_move([hop], (10.0, 3.5))
+    seen_loose, max_up = False, 0
+    for _ in range(int(60 / DT)):
+        b.update(DT)
+        if hop.loose:
+            seen_loose = True
+            assert hop.stance is Stance.HALTEN and not hop.in_phalanx
+        max_up = max(max_up, sum(1 for m in hop.all_men() if b.is_wall_cell(b.cell(m.x, m.y), True)))
+        for m in hop.all_men():
+            assert b.cell(m.x, m.y) not in b.blocked or b.is_wall_cell(b.cell(m.x, m.y), True)
+        if seen_loose and not hop.loose and hop.target is None:
+            break
+    assert seen_loose and max_up >= 10                       # Mann für Mann über den Wehrgang
+    assert not hop.loose and all(m.y < 6.5 for m in hop.all_men())
+    assert any("neu gebildet" in e for e in b.events)
+
+
+def test_no_phalanx_bonus_on_the_wall():
+    b = Battle(PALISADE, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    raider = b.units(Side.FEIND)[0]
+    pelt.x, pelt.y = 5.5, 8.5
+    pelt.stance, pelt.in_line = Stance.PHALANX, True
+    raider.x, raider.y = 5.5, 7.6
+    assert b.on_wall(pelt) and pelt.in_phalanx
+    assert b._formed(pelt) is False
+    mod, _ = b._defense_mod(raider, pelt)
+    assert mod == 1.0
+
+
+def test_dismounted_cavalry_remounts_at_their_horses():
+    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_build([cav], "ram")
+    assert cav.mounted_men() == []
+    run(b, config.RAM_BUILD_TIME + 1)
+    assert cav.engine == "ram"
+    hx, hy, n = b.horses[0]
+    b.command_move([cav], (hx, hy))                           # mit Gerät: kein Aufsitzen
+    run(b, 12)
+    assert cav.engine == "ram" and cav.mounted_men() == []
+    cav.engine = None                                          # Rammbock abgelegt
+    b.command_move([cav], (hx + 2.0, hy))
+    run(b, 4)
+    b.command_move([cav], (hx, hy))
+    run(b, 6)
+    assert len(cav.mounted_men()) == cav.men and cav.speed == UNIT_TYPES["reiter"].speed
+    assert b.horses == []

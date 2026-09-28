@@ -183,7 +183,12 @@ class Renderer:
         else:
             ring = config.COLOR_ENEMY_DIM if u.stance is Stance.FLUCHT else config.COLOR_ENEMY
         corners = [px(c) for c in u.corners()]
-        if selected:
+        if u.loose:
+            # aufgelöste Formation: kein Rechteck, nur die Männer (Auswahl als Ringe)
+            if selected:
+                for man in u.all_men():
+                    pygame.draw.circle(s, config.COLOR_SELECT, px(man.pos), 6, 1)
+        elif selected:
             pygame.draw.polygon(s, config.COLOR_SELECT, corners, 3)
         else:
             pygame.draw.polygon(s, ring, corners, 1 if u.side is Side.STADT else 2)
@@ -202,7 +207,7 @@ class Renderer:
                 pygame.draw.circle(s, color, (mx, my), 3)
                 if man.kind.cavalry and not man.mounted:
                     pygame.draw.circle(s, (20, 40, 20), (mx, my), 1)
-        if u.in_phalanx:
+        if u.in_phalanx and not u.loose:
             a, b = corners[0], corners[1]
             pygame.draw.line(s, config.COLOR_SHIELD, a, b, 4)
         kind = u.engine or u.build_kind

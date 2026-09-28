@@ -257,7 +257,7 @@ class Battle:
         for u in self.lochoi:
             if not u.alive or (side is not None and u.side is not side):
                 continue
-            d = u.rect_distance(p)
+            d = u.surface_distance(p)
             if d <= tolerance and d < best_d:
                 best, best_d = u, d
         return best
@@ -431,6 +431,10 @@ class Battle:
         return best, best_d
 
     def _gap(self, a: Lochos, b: Lochos) -> float:
+        if a.loose or b.loose:
+            men_a, men_b = a.all_men(), b.all_men()
+            if men_a and men_b:
+                return max(0.0, min(dist(m.pos, n.pos) for m in men_a for n in men_b) - 0.2)
         return max(0.0, min(a.rect_distance(b.pos) - b.core, b.rect_distance(a.pos) - a.core))
 
     def _in_contact(self, a: Lochos, b: Lochos) -> bool:
@@ -772,6 +776,9 @@ class Battle:
     # -- Bewegung ----------------------------------------------------------
     def _move(self, dt: float) -> None:
         for u in self.lochoi:
+            if u.alive:
+                self._update_loose(u)
+                self._try_remount(u)
             if not u.alive or u.target is None or u.in_phalanx or u.building is not None:
                 continue
             speed = u.speed * (1.25 if u.stance is Stance.FLUCHT else 1.0)
@@ -801,13 +808,67 @@ class Battle:
                 u.withdrawn = True
         self._move_men(dt)
 
+    def _update_loose(self, u: Lochos) -> None:
+        """Beim Überqueren der Palisade löst sich die Formation auf: sobald der
+        Weg über Turm oder Leiter führt oder noch ein Mann oben ist."""
+        if not self.is_walker(u):
+            u.loose = False
+            return
+        center_up = self.on_wall(u)
+        on_route = False
+        if u.target is not None:
+            goal, _ = self.route(u, u.target)
+            goal_up = self.is_wall_cell(self.cell(*goal), True)
+            target_up = self.is_wall_cell(self.cell(*u.target), True)
+            on_route = (goal_up and not target_up) or (center_up and not target_up)
+        men_up = any(self.is_wall_cell(self.cell(m.x, m.y), True) for m in u.all_men())
+        was = u.loose
+        # aufgelöst, solange der Weg über den Wall führt oder Männer noch oben sind,
+        # während die Gruppe unten sammelt; wer oben steht und bleibt, ist nicht aufgelöst
+        u.loose = on_route or (men_up and not center_up)
+        if u.loose and not was:
+            u.in_line = False
+            if u.stance is Stance.PHALANX:
+                u.stance = Stance.HALTEN
+            self.events.append(f"{u.name}: Formation aufgelöst, Mann für Mann über den Wall")
+        elif was and not u.loose:
+            self.events.append(f"{u.name}: Formation neu gebildet")
+
+    def _try_remount(self, u: Lochos) -> None:
+        """Abgesessene Reiter ohne Gerät steigen bei ihren Pferden wieder auf."""
+        if u.engine is not None or u.building is not None or u.loose:
+            return
+        if not any(m.kind.cavalry and not m.mounted for m in u.all_men()):
+            return
+        for i, (hx, hy, n) in enumerate(self.horses):
+            if dist(u.pos, (hx, hy)) <= 0.9:
+                taken = u.remount(n)
+                if taken:
+                    rest = n - taken
+                    if rest > 0:
+                        self.horses[i] = (hx, hy, rest)
+                    else:
+                        del self.horses[i]
+                    self.events.append(f"{u.name} sitzen auf ({taken} Pferde)")
+                return
+
     def _move_men(self, dt: float) -> None:
         """Jeder Mann läuft zu seinem Platz in der Formation, weicht aber einzeln
-        aus: durchs Tor nur durch die Öffnung, auf den Wall nur über Leiter oder Turm."""
+        aus: durchs Tor nur durch die Öffnung, auf den Wall nur über Leiter oder Turm.
+        Bei aufgelöster Formation folgt jeder Mann dem Weg der Gruppe für sich."""
         for u in self.lochoi:
             if not u.alive:
                 continue
             walker = self.is_walker(u)
+            if u.loose:
+                destination = u.target if u.target is not None else u.pos
+                for man in u.all_men():
+                    if dist(man.pos, destination) <= 0.15:
+                        continue
+                    goal, _ = self.route_from(u, man.pos, destination)
+                    speed = max(u.speed, man.speed) * config.MAN_CATCHUP
+                    self._man_step(u, man, goal, speed * dt, walker)
+                continue
             for man, slot in u.slots():
                 d = dist(man.pos, slot)
                 if d <= 0.02:
@@ -904,10 +965,14 @@ class Battle:
         rate, arc_name = self._melee_rate(a, b)
         return rate * dt, arc_name
 
+    def _formed(self, u: Lochos) -> bool:
+        """Phalanxbonus nur unten in der Formation, nie auf dem Wehrgang."""
+        return u.in_phalanx and not self.on_wall(u)
+
     def _defense_mod(self, a: Lochos, b: Lochos) -> tuple[float, str]:
         arc_name = arc(b.facing, sub(a.pos, b.pos), config.FRONT_ARC, config.REAR_ARC)
         mod = 1.0
-        if b.in_phalanx:
+        if self._formed(b):
             shield = b.shield_factor()
             if arc_name == "front":
                 mod = 1.0 + (config.PHALANX_FRONT - 1.0) * shield
@@ -922,13 +987,13 @@ class Battle:
     def _melee_rate(self, a: Lochos, b: Lochos) -> tuple[float, str]:
         base = a.melee_attack() * config.BASE_RATE
         attack_mod = 1.0
-        if a.in_phalanx:
+        if self._formed(a):
             front = arc(a.facing, sub(b.pos, a.pos), config.FRONT_ARC, config.REAR_ARC) == "front"
             attack_mod = config.PHALANX_ATTACK_FRONT if front else config.PHALANX_ATTACK_SIDE
         defense_mod, arc_name = self._defense_mod(a, b)
         cav = a.cavalry_share()
         if cav > 0:
-            if b.in_phalanx and arc_name == "front":
+            if self._formed(b) and arc_name == "front":
                 cav_mod = config.CAVALRY_VS_FRONT * b.shield_factor() + (1 - b.shield_factor())
             elif not b.in_phalanx:
                 cav_mod = config.CAVALRY_CHARGE

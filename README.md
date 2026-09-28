@@ -28,8 +28,9 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   die Öffnung, auf den Wall nur über Leiter oder Turm.
 - **Reiter** sitzen ab, sobald sie Rammbock oder Turm bauen oder auf den
   Wehrgang steigen. Die Pferde bleiben als braune Punkte zurück; danach
-  sind sie so schnell wie Fußvolk und ohne Reiterbonus. Durch ein
-  aufgebrochenes Tor reiten sie beritten.
+  sind sie so schnell wie Fußvolk und ohne Reiterbonus. Ohne Gerät zu
+  den Pferden geschickt, sitzen sie wieder auf. Durch ein aufgebrochenes
+  Tor reiten sie beritten.
 - **Aufstellung:** Vor der Schlacht werden Gruppen aus dem Vorrat
   zusammengestellt. Eine Gruppe besteht aus Reihen-Blöcken von vorn nach
   hinten, jeder Block mit einem Truppentyp (Farbpunkt) und einer Anzahl
@@ -90,9 +91,11 @@ Durchbruch bleibt der Rammbock liegen und die Gruppe tritt zur Seite,
 damit der Durchgang frei ist. Mit Turm ein
 Wallstück antippen: die Gruppe rollt hin, setzt den Turm an, und nach
 drei Sekunden steht er als Aufstieg auf den Wehrgang. Wer über den Turm
-kommt, steht oben auf der Plattform, kann dort entlanglaufen und kämpfen
-und kommt nach innen nur über die Leitern der Palisade hinunter (über
-den Turm nur zurück nach außen). Fällt
+kommt, geht Mann für Mann: Beim Überqueren löst sich die Formation auf,
+jeder steigt selbst am Turm hinauf, läuft über den Wehrgang und klettert
+an einer Leiter hinunter; drinnen sammelt sich die Gruppe wieder. Auf
+dem Wehrgang gibt es keinen Phalanxbonus, dort kämpft Mann gegen Mann.
+Über den Turm geht es nur zurück nach außen. Fällt
 eine Gruppe oder flieht sie, ist ihr Gerät verloren. Bei der
 Verteidigung mit Palisade bauen die Räuber selbst einen Rammbock.
 
