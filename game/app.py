@@ -183,7 +183,11 @@ class App:
             b.command_hold(self._selection())
             self.paused = False
         elif key in ("rammbock", "turm") and b.outcome is None:
-            if self.selected and b.command_build(self._selection(), "ram" if key == "rammbock" else "tower"):
+            kind = "ram" if key == "rammbock" else "tower"
+            sel = self._selection()
+            if sel and any(u.engine == kind or u.build_kind == kind for u in sel):
+                b.command_drop(sel, kind)          # erneut drücken: ablegen oder Bau abbrechen
+            elif sel and b.command_build(sel, kind):
                 self.paused = False
         elif key == "alle":
             if self.selected:

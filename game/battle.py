@@ -525,6 +525,25 @@ class Battle:
             self.events.append(f"{u.name} baut {'den Rammbock' if kind == 'ram' else 'den Belagerungsturm'}")
         return started
 
+    def command_drop(self, units: list[Lochos] | None, kind: str) -> int:
+        """Gewählte Gruppen legen ihr Gerät ab oder brechen dessen Bau ab."""
+        dropped = 0
+        for u in self._selection(units):
+            if u.build_kind == kind and u.building is not None:
+                self._wake(u)
+                dropped += 1
+            elif u.engine == kind:
+                fx, fy = u.facing
+                if kind == "ram":
+                    self.debris.append((u.x + fx * (u.half_d + 0.3), u.y + fy * (u.half_d + 0.3), fx, fy))
+                else:
+                    self.towers.append((u.x + fx * (u.half_d + 0.5), u.y + fy * (u.half_d + 0.5)))
+                u.engine = None
+                u.tower_cell = None
+                dropped += 1
+                self.events.append(f"{u.name} lassen {'den Rammbock' if kind == 'ram' else 'den Turm'} liegen")
+        return dropped
+
     def _dismount(self, u: Lochos) -> None:
         n = u.dismount()
         if n:

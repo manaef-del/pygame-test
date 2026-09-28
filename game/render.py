@@ -319,9 +319,9 @@ class Renderer:
             if b.key in ("rammbock", "turm"):
                 kind = "ram" if b.key == "rammbock" else "tower"
                 if sel_units and any(u.engine == kind for u in sel_units):
-                    label, active = ("Rammbock bereit" if kind == "ram" else "Turm bereit"), True
+                    label, active = ("Rammbock ablegen" if kind == "ram" else "Turm ablegen"), True
                 elif sel_units and any(u.build_kind == kind for u in sel_units):
-                    label, active = "Bau läuft", True
+                    label, active = "Bau abbrechen", True
                 elif not sel_units:
                     label = ("Rammbock" if kind == "ram" else "Turm") + " (Gruppe wählen)"
                 else:

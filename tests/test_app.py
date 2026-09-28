@@ -8,7 +8,9 @@ import pytest
 from game import config
 from game.app import App, run, to_tiles
 from game.render import Renderer
-from game.units import Side, Stance
+from game.units import UNIT_TYPES, Side, Stance
+
+UNIT_TYPES_SPEED_SCHWER = UNIT_TYPES["schwer"].speed
 
 
 def make_app(start_in_battle: bool = True) -> App:
@@ -184,3 +186,25 @@ def test_engine_buttons_gate_and_wall_taps():
     press(app, (int(3.5 * config.TILE), int(7.5 * config.TILE)))
     assert cav.tower_cell == (3, 7)
     app.draw()
+
+
+def test_pressing_engine_button_again_drops_it():
+    app = make_app(start_in_battle=False)
+    for _ in range(4):
+        app.menu_command("scenario")
+    app.menu_command("start")
+    b = app.battle
+    hop, pelt, cav = b.units(Side.STADT)
+    ram = next(bt for bt in app.renderer.buttons if bt.key == "rammbock")
+    press(app, pos_of(app, hop))
+    press(app, ram.rect.center)
+    assert hop.build_kind == "ram"
+    press(app, ram.rect.center)                        # während des Baus: abbrechen
+    assert hop.build_kind is None and hop.building is None
+    press(app, ram.rect.center)
+    for _ in range(int((config.RAM_BUILD_TIME + 1) / config.TIME_SCALE * 30)):
+        app.tick(1 / 30)
+    assert hop.engine == "ram"
+    press(app, ram.rect.center)                        # fertig: liegen lassen
+    assert hop.engine is None and len(b.debris) == 1
+    assert hop.speed == UNIT_TYPES_SPEED_SCHWER

@@ -108,7 +108,7 @@ Verteidigung mit Palisade bauen die Räuber selbst einen Rammbock.
 | Tippen auf Feind | gewählte Gruppen greifen diese an |
 | Tippen auf das Tor | gewählte Gruppen mit Rammbock brechen es auf |
 | Tippen auf den Wall | gewählte Gruppen mit Turm setzen ihn dort an |
-| Rammbock / B, Turm / T | gewählte Gruppen bauen das Gerät (nur beim Angriff mit Wall) |
+| Rammbock / B, Turm / T | gewählte Gruppen bauen das Gerät; erneut drücken: ablegen oder Bau abbrechen (nur beim Angriff mit Wall) |
 | Ziehen auf der Karte | Front aufziehen: Länge = Breite, Richtung = Blickrichtung |
 | Angriff / A | freier Angriff (Auswahl, sonst alle) |
 | Halten / H | stehen bleiben (Auswahl, sonst alle) |
