@@ -358,6 +358,24 @@ class Battle:
             return beyond, False
         return ((gx, gy - 1.2) if above else (gx, gy + 1.2)), False
 
+    def throw_clear(self, a: Lochos, b: Lochos) -> bool:
+        """Über die Palisade oder ein geschlossenes Tor wirft nur, wer auf dem Wehrgang steht."""
+        if self.on_wall(a):
+            return True
+        target_cell = self.cell(b.x, b.y)
+        d = dist(a.pos, b.pos)
+        n = max(1, int(d / 0.25))
+        for i in range(1, n + 1):
+            t = i / n
+            c = self.cell(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
+            if c == target_cell:
+                continue
+            if c in self.blocked and c not in self.crossings:
+                return False
+            if self.gate is not None and self.gate.closed and c in self.gate.cells:
+                return False
+        return True
+
     def _nearest(self, unit: Lochos, candidates: list[Lochos]) -> tuple[Lochos | None, float]:
         best, best_d = None, float("inf")
         for c in candidates:
