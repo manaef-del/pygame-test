@@ -459,11 +459,16 @@ def test_siege_tower_opens_a_crossing():
         if b.crossings:
             break
     assert (13, 7) in b.crossings
-    assert not b.is_blocked(13.5, 7.5, hop)               # Übergang für alle
     assert cav.engine is None                             # Turm steht jetzt am Wall
     assert len(b.towers) == 1 and abs(b.towers[0][0] - 13.5) < 1e-6 and b.towers[0][1] > 7.5
     run(b, 6)
-    assert cav.fighting and cav.y < 7.0                   # Reiter sind drüben
+    assert cav.fighting and b.on_wall(cav)                # Reiter stehen oben auf dem Wehrgang
+    assert b.is_walker(hop) and (13, 7) in b.ladders_for(hop)   # Turm ist ein Aufstieg für alle Angreifer
+    assert not b.can_step(cav, (13.5, 7.5), (13.5, 6.4)) or (13, 7) in b.ladders_for(cav)
+    assert not b.can_step(cav, (10.5, 7.5), (10.5, 6.4))  # mitten auf dem Wall geht es nicht hinunter
+    b.command_move([cav], (12.0, 3.0))                    # drüben: Abstieg nur über eine Leiter
+    run(b, 20)
+    assert cav.fighting and not b.on_wall(cav) and cav.y < 4.0
 
 
 def test_losing_the_engine_group_loses_the_engine():

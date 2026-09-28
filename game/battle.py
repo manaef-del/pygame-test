@@ -270,23 +270,31 @@ class Battle:
         return (int(math.floor(x)), int(math.floor(y)))
 
     def is_wall_cell(self, c: tuple[int, int], walker: bool = False) -> bool:
-        """Wallstück (ohne Übergänge). Für Wehrgang-Läufer zählt auch das
-        Torhaus dazu, sie laufen oben über das Tor hinweg."""
-        if c in self.crossings:
-            return False
+        """Wallstück einschließlich Turmstellen. Für Wehrgang-Läufer zählt auch
+        das Torhaus dazu, sie laufen oben über das Tor hinweg."""
         if c in self.blocked:
             return True
         return walker and self.gate is not None and c in self.gate.cells
 
     def is_walker(self, u: Lochos) -> bool:
-        return u.side is self.wall_side() and u.wall_capable()
+        """Wer den Wehrgang betreten darf: reine Peltasten der Wallseite über
+        die Leitern, Angreifer über einen aufgestellten Turm."""
+        if u.side is self.wall_side():
+            return u.wall_capable()
+        return bool(self.crossings)
+
+    def ladders_for(self, u: Lochos) -> set[tuple[int, int]]:
+        """Auf- und Abstiege: Leitern für alle Läufer, Türme nur für Angreifer."""
+        if u.side is self.wall_side():
+            return set(self.ladders)
+        return set(self.ladders) | set(self.crossings)
 
     def on_wall(self, u: Lochos) -> bool:
         return self.is_wall_cell(self.cell(u.x, u.y), self.is_walker(u))
 
     def can_step(self, u: Lochos, a: Point, b: Point) -> bool:
         """Ein Schritt ist erlaubt, wenn das Ziel frei ist und der Wehrgang
-        nur über eine Leiter betreten oder verlassen wird."""
+        nur über eine Leiter (oder einen Turm) betreten oder verlassen wird."""
         walker = self.is_walker(u)
         if self.is_blocked(b[0], b[1], u):
             return False
@@ -294,12 +302,13 @@ class Battle:
         wa, wb = self.is_wall_cell(ca, walker), self.is_wall_cell(cb, walker)
         if wa == wb:
             return True
-        return (ca if wa else cb) in self.ladders
+        return (ca if wa else cb) in self.ladders_for(u)
 
-    def nearest_ladder(self, p: Point, target: Point) -> Point | None:
-        if not self.ladders:
+    def nearest_ladder(self, u: Lochos, p: Point, target: Point) -> Point | None:
+        ladders = self.ladders_for(u)
+        if not ladders:
             return None
-        best = min(self.ladders, key=lambda c: dist(p, (c[0] + 0.5, c[1] + 0.5)) + dist((c[0] + 0.5, c[1] + 0.5), target))
+        best = min(ladders, key=lambda c: dist(p, (c[0] + 0.5, c[1] + 0.5)) + dist((c[0] + 0.5, c[1] + 0.5), target))
         return (best[0] + 0.5, best[1] + 0.5)
 
     def wall_side(self) -> Side | None:
@@ -309,8 +318,6 @@ class Battle:
         c = self.cell(x, y)
         walker = unit is not None and self.is_walker(unit)
         if c in self.blocked:
-            if c in self.crossings:
-                return False
             return not walker
         if self.gate is not None and c in self.gate.cells:
             if walker and self.on_wall(unit):
@@ -332,31 +339,41 @@ class Battle:
 
     def route(self, u: Lochos, target: Point) -> tuple[Point, bool]:
         """Nächster Zielpunkt und ob es schon das eigentliche Ziel ist."""
-        probe: Lochos | None = u
-        if self.is_walker(u) and self.ladders:
+        walker = self.is_walker(u) and bool(self.ladders_for(u))
+        if walker:
             on = self.on_wall(u)
             want = self.is_wall_cell(self.cell(*target), True)
             if on != want:
-                ladder = self.nearest_ladder(u.pos, target)
+                ladder = self.nearest_ladder(u, u.pos, target)
                 if ladder is not None and self.cell(*ladder) != self.cell(u.x, u.y):
                     return ladder, False
                 return target, True
             if on and want:
                 return target, True
-            probe = None   # am Boden gilt die Palisade auch für Wehrgang-Läufer als Sperre
-        if self.gate is None or self.path_clear(u.pos, target, probe):
+        # am Boden: Palisade ist für alle eine Sperre, Übergang nur durchs Tor oder über Leiter/Turm
+        if self.gate is None and not self.blocked:
             return target, True
-        gx, gy = self.gate.center
-        above = u.y < gy
-        if self.gate.closed:
+        if self.path_clear(u.pos, target, None):
+            return target, True
+        if self.gate is not None and not self.gate.closed:
+            gx, gy = self.gate.center
+            above = u.y < gy
+            beyond = (gx, gy + 1.2) if above else (gx, gy - 1.2)
+            if self.path_clear(u.pos, beyond, None):
+                return beyond, False
+            return ((gx, gy - 1.2) if above else (gx, gy + 1.2)), False
+        if walker:
+            ladder = self.nearest_ladder(u, u.pos, u.pos)   # nächster Aufstieg
+            if ladder is not None:
+                return ladder, False
+        if self.gate is not None:
+            gx, gy = self.gate.center
+            above = u.y < gy
             spread = ((u.id % 5) - 2) * 1.3
             far = config.ENEMY_RALLY_DISTANCE + 0.6 * ((u.id // 5) % 3)
             wait = (gx + spread, gy - far) if above else (gx + spread, gy + far)
             return self._free_spot(wait, u), False
-        beyond = (gx, gy + 1.2) if above else (gx, gy - 1.2)
-        if self.path_clear(u.pos, beyond, probe):
-            return beyond, False
-        return ((gx, gy - 1.2) if above else (gx, gy + 1.2)), False
+        return target, True
 
     def throw_clear(self, a: Lochos, b: Lochos) -> bool:
         """Über die Palisade oder ein geschlossenes Tor wirft nur, wer auf dem Wehrgang steht."""
@@ -370,7 +387,7 @@ class Battle:
             c = self.cell(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t)
             if c == target_cell:
                 continue
-            if c in self.blocked and c not in self.crossings:
+            if c in self.blocked:
                 return False
             if self.gate is not None and self.gate.closed and c in self.gate.cells:
                 return False
@@ -934,7 +951,7 @@ class Battle:
                         self.towers.append((cx, cy - beyond_side * 0.75))   # Turm bleibt am Wall stehen
                         u.engine = None
                         u.tower_cell = None
-                        u.target = (cx, cy + beyond_side * (0.5 + u.half_d + 0.6))
+                        u.target = (cx, cy)                                  # hinauf auf den Wehrgang
 
     def _drop_rams(self) -> None:
         """Nach dem Durchbruch bleibt der Rammbock liegen, die Gruppen treten

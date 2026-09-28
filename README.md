@@ -80,7 +80,9 @@ das Tor antippen: die Gruppe geht hin und bricht es auf; nach dem
 Durchbruch bleibt der Rammbock liegen und die Gruppe tritt zur Seite,
 damit der Durchgang frei ist. Mit Turm ein
 Wallstück antippen: die Gruppe rollt hin, setzt den Turm an, und nach
-drei Sekunden ist dieses Stück für alle dauerhaft überwindbar. Fällt
+drei Sekunden steht er als Aufstieg auf den Wehrgang. Wer über den Turm
+kommt, steht oben auf der Plattform, kann dort entlanglaufen und kämpfen
+und kommt nur an einer Leiter oder über den Turm wieder hinunter. Fällt
 eine Gruppe oder flieht sie, ist ihr Gerät verloren. Bei der
 Verteidigung mit Palisade bauen die Räuber selbst einen Rammbock.
 
