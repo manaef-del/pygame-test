@@ -20,6 +20,12 @@ def px(p: tuple[float, float]) -> tuple[int, int]:
     return (int(round(p[0] * T)), int(round(p[1] * T)))
 
 
+def desaturate(color: tuple[int, int, int], amount: float) -> tuple[int, int, int]:
+    """Farbe Richtung Grau mischen (0 = unverändert, 1 = grau)."""
+    grey = int(0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2])
+    return tuple(int(c + (grey - c) * amount) for c in color)
+
+
 class Button:
     def __init__(self, key: str, label: str, rect: pygame.Rect, color=None) -> None:
         self.key = key
@@ -168,6 +174,8 @@ class Renderer:
                 ox = fx * forward + (-fy) * side
                 oy = fy * forward + fx * side
                 color = man.kind.color
+                if u.side is Side.FEIND:
+                    color = desaturate(color, config.ENEMY_DESATURATION)
                 if u.stance is Stance.FLUCHT:
                     color = tuple(c // 2 for c in color)
                 pygame.draw.circle(s, color, (cx + int(ox * T), cy + int(oy * T)), 3)
