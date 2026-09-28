@@ -37,7 +37,7 @@ erreichbar. Beim ersten Laden holt der Browser die Python-Laufzeit
 Lokal ausprobieren (baut und startet einen Server auf Port 8000):
 
 ```bash
-pip install pygbag
+pip install "pygbag==0.9.2"
 python -m pygbag .
 ```
 

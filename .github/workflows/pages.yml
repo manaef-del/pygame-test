@@ -28,7 +28,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install pygbag
+      - run: pip install "pygbag==0.9.2"
       - name: Nur Spieldateien bündeln
         run: |
           mv tools "$RUNNER_TEMP/tools"
