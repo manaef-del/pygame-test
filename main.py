@@ -1,6 +1,8 @@
-"""Einstiegspunkt: ``python main.py``"""
+"""Einstiegspunkt: ``python main.py`` (nativ) oder ``pygbag .`` (Browser)."""
+
+import asyncio
 
 from game.app import run
 
 if __name__ == "__main__":
-    run()
+    asyncio.run(run())

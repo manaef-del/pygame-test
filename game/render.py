@@ -29,7 +29,13 @@ class Renderer:
         if state.game_over:
             self._draw_centered(self.big_font, "GAME OVER", config.COLOR_TEXT, -30)
             self._draw_centered(
-                self.font, "R = Neustart   Esc = Beenden", config.COLOR_TEXT_DIM, 30
+                self.font, "R oder Tippen = Neustart", config.COLOR_TEXT_DIM, 30
+            )
+            self._draw_centered(self.font, "Esc = Beenden", config.COLOR_TEXT_DIM, 60)
+        elif state.elapsed < 3.0:
+            self._draw_centered(
+                self.font, "Links/rechts tippen oder Pfeiltasten",
+                config.COLOR_TEXT_DIM, 120,
             )
 
     def _draw_centered(
