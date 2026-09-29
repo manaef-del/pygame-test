@@ -1028,3 +1028,151 @@ def test_hopeless_battle_drains_morale():
     m0 = hop.morale
     b._morale(1.0)
     assert hop.morale < m0
+
+
+
+# ------------------------------------------------- Formationen und Befehle
+def test_formations_geometry_and_arcs():
+    u = Lochos(1, Side.STADT, arrange(men("mittel", 20), 7), 5.0, 5.0)
+    u.formation = "o"
+    assert u.arc_to((5.0, 7.0)) == "front" and u.arc_to((7.0, 5.0)) == "front"
+    r = u.ring_radius()
+    assert all(abs(dist_of_pt(p, (5.0, 5.0)) - r) < 1e-6 for _, p in u.slots())
+    u.formation = "u"
+    assert u.arc_to((5.0, 4.0)) == "front" and u.arc_to((7.0, 5.0)) == "front" and u.arc_to((5.0, 7.0)) == "rear"
+    u.formation = "keil"
+    assert u.wedge_rows() == 6
+    tip = min(u.slots(), key=lambda mp: mp[1][1])[1]
+    assert abs(tip[0] - 5.0) < 1e-6                                       # die Spitze liegt vorn in der Mitte
+    assert u.formation_options() == ("linie", "u", "o")
+    c = Lochos(2, Side.STADT, [men("reiter", 8)], 5.0, 5.0)
+    assert c.formation_options() == ("linie", "keil")
+
+
+def test_ring_is_strong_all_round_but_weaker_in_front():
+    b = static_line(raider_y=8.4, n_raiders=1)
+    hop = b.units(Side.STADT)[2]                                           # die östliche Gruppe: dort endet die Linie
+    raider = b.units(Side.FEIND)[0]
+    raider.x, raider.y = hop.x, hop.y - 1.1
+    front_mod, _ = b._defense_mod(raider, hop)
+    raider.x, raider.y = hop.x + hop.half_w + 0.5, hop.y                  # in der Flanke
+    flank_mod, arc_name = b._defense_mod(raider, hop)
+    assert arc_name == "flank" and flank_mod > front_mod
+    hop.formation = "o"
+    hop.place_men()
+    ring_mod, arc_name = b._defense_mod(raider, hop)
+    assert arc_name == "front" and front_mod < ring_mod < flank_mod
+
+
+def test_hold_forms_a_phalanx_in_place_and_line_resets_formation():
+    b = Battle(raid(16, (8.0, 2.0)), random.Random(0), army=army_of(GroupSpec("H", [Tier("mittel", 20)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    hop = b.units(Side.STADT)[0]
+    b.command_move([hop], (8.0, 12.0))
+    run(b, 3)
+    pos = hop.pos
+    b.command_hold([hop])
+    run(b, 2)
+    assert hop.in_phalanx and dist_of_pt(hop.pos, pos) < 0.2
+    b.command_formation([hop], "o")
+    assert hop.formation == "o" and not hop.in_line
+    run(b, 3)
+    assert hop.in_phalanx
+    b.command_line([hop], (6.0, 12.0), (10.0, 12.0))
+    assert hop.formation == "linie"
+
+
+def test_peltasts_skirmish_keep_distance_then_charge_when_empty():
+    b = Battle(raid(16, (8.0, 4.0)), random.Random(0), army=army_of(GroupSpec("P", [Tier("peltast", 12)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    pelt = b.units(Side.STADT)[0]
+    raider = b.units(Side.FEIND)[0]
+    raider.stance = Stance.HALTEN
+    raider.target = None
+    pelt.x, pelt.y = 8.0, 12.0
+    pelt.place_men()
+    b.command_attack([pelt])
+    assert pelt.stance is Stance.PLAENKELN
+    thrown = False
+    for _ in range(int(20 / DT)):
+        b.update(DT)
+        raider.x, raider.y = raider.x, raider.y + 0.02                    # der Räuber rückt langsam nach
+        raider.place_men()
+        if b.projectiles:
+            thrown = True
+        assert raider.rect_distance(pelt.pos) >= config.SKIRMISH_NEAR - 0.7 or pelt.ammo() == 0
+    assert thrown
+    for m in pelt.all_men():
+        m.ammo = 0
+    run(b, 1)
+    assert pelt.stance is Stance.ANGRIFF                                    # ohne Speere in den Nahkampf
+
+
+def test_cavalry_free_attack_charges_the_flank_and_pulls_back():
+    b = Battle(raid(16, (8.0, 3.0)), random.Random(0), army=army_of(GroupSpec("R", [Tier("reiter", 16)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    cav = b.units(Side.STADT)[0]
+    foe = b.units(Side.FEIND)[0]
+    foe.rows = arrange(men("schwer", 24), 12)
+    foe.men_start = 24
+    foe.x, foe.y, foe.facing, foe.stance, foe.in_line = 8.0, 7.0, (0.0, 1.0), Stance.PHALANX, True
+    foe.target = None
+    foe.place_men()
+    cav.x, cav.y = 8.0, 12.0
+    cav.place_men()
+    b.command_attack([cav])
+    assert cav.mode == "sturm"
+    arcs, pulled = set(), False
+    for _ in range(int(40 / DT)):
+        b.update(DT)
+        if foe.last_arc:
+            arcs.add(foe.last_arc)
+        if cav.hitrun_until > b.time:
+            pulled = True
+        if pulled and "flank" in arcs | {"rear"}:
+            break
+    assert "flank" in arcs or "rear" in arcs                              # nicht in die Front
+    assert pulled                                                          # nach dem Stoß abgesetzt
+    assert cav.men >= 12                                                   # nicht in den Speeren geblieben
+
+
+def test_foot_charge_pushes_but_never_a_phalanx_front():
+    b, cav, foe = charge_setup("raeuber")
+    hop = Lochos(50, Side.STADT, arrange(men("mittel", 16), 8), 13.5, 9.0, facing=(-1.0, 0.0))
+    b.lochoi.append(hop)
+    cav.x, cav.y = 13.5, 15.0                                             # die Reiter aus dem Weg
+    cav.stance = Stance.HALTEN
+    cav.target = None
+    b.command_attack_target([hop], foe)
+    for _ in range(int(8 / DT)):
+        b.update(DT)
+        if any("stürmen" in e for e in b.events):
+            break
+    assert any("stürmen in die Flanke" in e for e in b.events), b.events[-3:]
+    b2, cav2, foe2 = charge_setup("schwer", facing=(1.0, 0.0), stance=Stance.PHALANX)
+    hop2 = Lochos(51, Side.STADT, arrange(men("mittel", 16), 8), 13.5, 9.0, facing=(-1.0, 0.0))
+    b2.lochoi.append(hop2)
+    cav2.stance = Stance.HALTEN
+    cav2.target = None
+    cav2.x, cav2.y = 13.5, 15.0
+    b2.command_attack_target([hop2], foe2)
+    run(b2, 8)
+    assert not any("stürmen" in e or "Speere" in e for e in b2.events)  # zu Fuß gegen die Front: nur Handgemenge
+
+
+def test_wedge_hits_fewer_men_harder():
+    def charge(formation: str):
+        b, cav, foe = charge_setup("raeuber")
+        cav.formation = formation
+        cav.place_men()
+        before = {id(m): m.pos for m in foe.all_men()}
+        for _ in range(int(8 / DT)):
+            b.update(DT)
+            if any("stoßen" in e for e in b.events):
+                break
+        moved = [dist_of_pt(m.pos, before[id(m)]) for m in foe.all_men() if id(m) in before and dist_of_pt(m.pos, before[id(m)]) > 0.1]
+        return len(moved), max(moved) if moved else 0.0
+    n_line, far_line = charge("linie")
+    n_wedge, far_wedge = charge("keil")
+    assert n_wedge < n_line and far_wedge > far_line

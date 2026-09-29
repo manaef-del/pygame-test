@@ -94,6 +94,8 @@ class App:
             self.command("rammbock")
         elif key == pygame.K_t:
             self.command("turm")
+        elif key == pygame.K_f:
+            self.command("formation")
 
     def _press(self, pos: tuple[int, int]) -> None:
         if self.screen == "aufstellung":
@@ -179,12 +181,21 @@ class App:
 
     def command(self, key: str) -> None:
         b = self.battle
-        if key == "angriff" and b.outcome is None:
-            b.command_attack(self._selection())
-            self.paused = False
-        elif key == "halten" and b.outcome is None:
-            b.command_hold(self._selection())
-            self.paused = False
+        if key in ("angriff", "halten", "formation") and b.outcome is None:
+            sel = self._selection()
+            if not sel:
+                b.events.append("Erst eine Gruppe wählen")
+            elif key == "angriff":
+                b.command_attack(sel)
+                self.paused = False
+            elif key == "halten":
+                b.command_hold(sel)
+                self.paused = False
+            else:
+                u = sel[0]
+                opts = u.formation_options()
+                nxt = opts[(opts.index(u.formation) + 1) % len(opts)] if u.formation in opts else opts[0]
+                b.command_formation(sel, nxt)
         elif key in ("rammbock", "turm") and b.outcome is None:
             kind = "ram" if key == "rammbock" else "tower"
             sel = self._selection()

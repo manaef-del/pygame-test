@@ -313,32 +313,8 @@ class Brain:
         return best
 
     def flank_route(self, b: "Battle", u: Lochos, foe: Lochos) -> Point | None:
-        """Steht die Gruppe vor der Front einer Phalanx, liefert dies den
-        nächsten Wegpunkt um die Front herum; sonst ``None`` (direkt angreifen)."""
-        if not formed(foe):
-            return None
-        along, forward = foe.local(u.pos)
-        if b.arc_of(foe, u.pos) != "front":
-            return None
-        outer = foe.half_w + config.AI_FLANK_MARGIN
+        return flank_route(b, u, foe)
 
-        def clamp(p: Point) -> Point:
-            return (min(max(p[0], 0.5), b.cols - 0.5), min(max(p[1], 0.5), b.rows - 0.5))
-
-        for sgn in ((1.0, -1.0) if along >= 0 else (-1.0, 1.0)):
-            flank = clamp(local_to_world(foe, sgn * (foe.half_w + 0.7), 0.0))
-            if b.is_blocked(flank[0], flank[1], u):
-                continue
-            if abs(along) < outer - 0.2:
-                cand = clamp(local_to_world(foe, sgn * outer, max(forward, foe.half_d + 0.8)))
-            else:
-                cand = flank
-            if b.is_blocked(cand[0], cand[1], u) or not b.path_clear(u.pos, cand, u):
-                continue
-            if cand != flank and not b.path_clear(cand, flank, u):
-                continue
-            return cand
-        return None
 
     def _attack(self, b: "Battle", u: Lochos, foe: Lochos) -> None:
         st = self._st(u)
@@ -1004,3 +980,32 @@ class LegacyBrain:
 
 def make_brain(kind: str, memory: Memory | None = None):
     return LegacyBrain(memory) if kind == "einfach" else Brain(memory)
+
+
+def flank_route(b: "Battle", u: Lochos, foe: Lochos) -> Point | None:
+    """Steht die Gruppe vor der Front einer Phalanx, liefert dies den
+    nächsten Wegpunkt um die Front herum; sonst ``None`` (direkt angreifen)."""
+    if not formed(foe):
+        return None
+    along, forward = foe.local(u.pos)
+    if b.arc_of(foe, u.pos) != "front":
+        return None
+    outer = foe.half_w + config.AI_FLANK_MARGIN
+
+    def clamp(p: Point) -> Point:
+        return (min(max(p[0], 0.5), b.cols - 0.5), min(max(p[1], 0.5), b.rows - 0.5))
+
+    for sgn in ((1.0, -1.0) if along >= 0 else (-1.0, 1.0)):
+        flank = clamp(local_to_world(foe, sgn * outer, 0.0))       # neben der Flanke, außer Reichweite der Front
+        if b.is_blocked(flank[0], flank[1], u):
+            continue
+        if abs(along) < outer - 0.2:
+            cand = clamp(local_to_world(foe, sgn * outer, max(forward, foe.half_d + 0.8)))
+        else:
+            cand = flank
+        if b.is_blocked(cand[0], cand[1], u) or not b.path_clear(u.pos, cand, u):
+            continue
+        if cand != flank and not b.path_clear(cand, flank, u):
+            continue
+        return cand
+    return None

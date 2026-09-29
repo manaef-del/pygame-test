@@ -113,7 +113,7 @@ def test_buttons_in_bar():
     press(app, buttons["alle"])
     assert len(app.selected) == len(app.battle.units(Side.STADT))
     press(app, buttons["angriff"])
-    assert all(u.stance is Stance.ANGRIFF for u in app.battle.units(Side.STADT))
+    assert all(u.stance in (Stance.ANGRIFF, Stance.PLAENKELN) for u in app.battle.units(Side.STADT))
     app.tick(1.0)
     assert app.battle.time > 0
     press(app, buttons["pause"])
@@ -152,6 +152,7 @@ def test_enemy_slider_and_time_scale():
     assert app.enemy_counts[key] == SCENARIOS[0].enemy_max
     app.menu_command("start")
     assert app.battle.men(Side.FEIND) == SCENARIOS[0].enemy_max
+    app.command("alle")
     app.command("halten")
     app.tick(1.0)
     assert app.battle.time == pytest.approx(config.TIME_SCALE)
@@ -208,3 +209,35 @@ def test_pressing_engine_button_again_drops_it():
     press(app, ram.rect.center)                        # fertig: liegen lassen
     assert hop.engine is None and len(b.debris) == 1
     assert hop.speed == UNIT_TYPES_SPEED_SCHWER
+
+
+
+def test_attack_and_hold_need_a_selection_and_formation_cycles():
+    app = make_app()
+    b = app.battle
+    hop, pelt, cav = b.units(Side.STADT)
+    app.command("angriff")
+    assert all(u.stance is Stance.HALTEN for u in b.units(Side.STADT))     # ohne Auswahl passiert nichts
+    assert "Erst eine Gruppe wählen" in b.events[-1]
+    app.selected = {pelt.id}
+    app.command("angriff")
+    assert pelt.stance is Stance.PLAENKELN and hop.stance is Stance.HALTEN
+    app.selected = {cav.id}
+    app.command("angriff")
+    assert cav.stance is Stance.ANGRIFF and cav.mode == "sturm"
+    app.selected = {hop.id}
+    app.command("halten")
+    assert hop.stance is Stance.PHALANX                                    # Phalanx an Ort und Stelle
+    app.command("formation")
+    assert hop.formation == "u"
+    app.command("formation")
+    assert hop.formation == "o"
+    app.command("formation")
+    assert hop.formation == "linie"
+    app.selected = {cav.id}
+    app.command("formation")
+    assert cav.formation == "keil"
+    app.selected = {pelt.id}
+    app.command("formation")
+    assert pelt.formation == "o"
+    app.draw()

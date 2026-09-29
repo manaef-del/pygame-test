@@ -10,7 +10,7 @@ from . import config
 from .geometry import dist
 from .army import MAX_TIERS, OWN_MAX, OWN_MIN, Army
 from .battle import Battle
-from .units import PLAYER_TYPES, UNIT_TYPES, Lochos, Side, Stance
+from .units import FORMATION_NAMES, PLAYER_TYPES, UNIT_TYPES, Lochos, Side, Stance
 
 T = config.TILE
 MAN_SPACING = config.MAN_SPACING
@@ -51,21 +51,21 @@ class Renderer:
     def _battle_buttons() -> list[Button]:
         top = config.MAP_H
         gap = 6
-        row_h = (config.BAR_H - 3 * gap) // 2
+        row_h = (config.BAR_H - 4 * gap) // 3
         w4 = (config.WIDTH - 5 * gap) // 4
-        w2 = (config.WIDTH - 3 * gap) // 2
         r1 = top + gap
         r2 = top + 2 * gap + row_h
-        w3 = (config.WIDTH - 4 * gap) // 3
+        r3 = top + 3 * gap + 2 * row_h
         return [
             Button("angriff", "Angriff", pygame.Rect(gap, r1, w4, row_h)),
             Button("halten", "Halten", pygame.Rect(2 * gap + w4, r1, w4, row_h)),
             Button("alle", "Alle", pygame.Rect(3 * gap + 2 * w4, r1, w4, row_h)),
             Button("pause", "Pause", pygame.Rect(4 * gap + 3 * w4, r1, w4, row_h)),
-            Button("neu", "Neu", pygame.Rect(gap, r2, w4, row_h)),
-            Button("aufstellung", "Aufstellung", pygame.Rect(2 * gap + w4, r2, w4, row_h)),
+            Button("formation", "Formation", pygame.Rect(gap, r2, 2 * w4 + gap, row_h)),
             Button("rammbock", "Rammbock", pygame.Rect(3 * gap + 2 * w4, r2, w4, row_h)),
             Button("turm", "Turm", pygame.Rect(4 * gap + 3 * w4, r2, w4, row_h)),
+            Button("neu", "Neu", pygame.Rect(gap, r3, w4, row_h)),
+            Button("aufstellung", "Aufstellung", pygame.Rect(2 * gap + w4, r3, w4, row_h)),
         ]
 
     def draw(self, battle: Battle, drag, paused: bool, selected: set[int]) -> None:
@@ -202,11 +202,17 @@ class Renderer:
         else:
             ring = config.COLOR_ENEMY_DIM if u.stance is Stance.FLUCHT else config.COLOR_ENEMY
         corners = [px(c) for c in u.corners()]
+        fx, fy = u.facing
         if u.loose:
             # aufgelöste Formation: kein Rechteck, nur die Männer (Auswahl als Ringe)
             if selected:
                 for man in u.all_men():
                     pygame.draw.circle(s, config.COLOR_SELECT, px(man.pos), 6, 1)
+        elif u.formation == "o":
+            pygame.draw.circle(s, config.COLOR_SELECT if selected else ring, (cx, cy), int(u.half_w * T), 3 if selected else 1)
+        elif u.formation == "keil":
+            tip = px((u.x + fx * u.half_d, u.y + fy * u.half_d))
+            pygame.draw.polygon(s, config.COLOR_SELECT if selected else ring, [tip, corners[2], corners[3]], 3 if selected else 1)
         elif selected:
             pygame.draw.polygon(s, config.COLOR_SELECT, corners, 3)
         else:
@@ -228,7 +234,7 @@ class Renderer:
                     pygame.draw.circle(s, config.COLOR_BOUND, (mx, my), 4, 1)
                 if man.kind.cavalry and not man.mounted:
                     pygame.draw.circle(s, (20, 40, 20), (mx, my), 1)
-        if u.in_phalanx and not u.loose:
+        if u.in_phalanx and not u.loose and u.formation != "o":
             a, b = corners[0], corners[1]
             pygame.draw.line(s, config.COLOR_SHIELD, a, b, 4)
         kind = u.engine or u.build_kind
@@ -293,7 +299,7 @@ class Renderer:
         else:
             sel = [u for u in battle.lochoi if u.id in selected and u.alive]
             if sel:
-                names = ", ".join(f"{u.name} ({u.summary()}, Moral {int(u.morale * 100)} %)" for u in sel[:3])
+                names = ", ".join(f"{u.name} ({u.summary()}, {FORMATION_NAMES[u.formation]}, Moral {int(u.morale * 100)} %)" for u in sel[:3])
                 if len(sel) > 3:
                     names += f" +{len(sel) - 3}"
                 msg = "Gewählt: " + names + "  ·  Tippen = hin, Feind = Angriff, Ziehen = Front, Tor/Wall = Gerät ansetzen"
@@ -341,6 +347,14 @@ class Renderer:
                 label = "Los" if battle.alarm else ("Weiter" if paused else "Pause")
             if b.key == "alle" and selected:
                 label = "Keine"
+            if b.key == "formation":
+                if sel_units:
+                    u = sel_units[0]
+                    opts = u.formation_options()
+                    nxt = opts[(opts.index(u.formation) + 1) % len(opts)] if u.formation in opts else opts[0]
+                    label = f"Formation: {FORMATION_NAMES[u.formation]} > {FORMATION_NAMES[nxt]}"
+                else:
+                    label = "Formation (Gruppe wählen)"
             if b.key in ("rammbock", "turm"):
                 kind = "ram" if b.key == "rammbock" else "tower"
                 if sel_units and any(u.engine == kind for u in sel_units):

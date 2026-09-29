@@ -548,6 +548,7 @@ class Battle:
             self._wake(u)
             off = (i - (n - 1) / 2) * 1.2
             u.stance = Stance.HALTEN
+            u.mode = ""
             u.in_line = False
             u.target_id = None
             u.target = self._free_spot((px + off, py), u)
@@ -558,30 +559,63 @@ class Battle:
         for u in self._selection(units):
             self._wake(u)
             u.stance = Stance.ANGRIFF
+            u.mode = ""
             u.in_line = False
             u.target_id = enemy.id
             u.target = enemy.pos
         self.events.append(f"Angriff auf {enemy.name} ({enemy.men} Mann)")
 
     def command_attack(self, units: list[Lochos] | None = None) -> None:
+        """Freier Angriff, je Waffengattung: Hopliten stürmen den nächsten Gegner,
+        Peltasten plänkeln (auf Wurfweite heran, werfen, ausweichen), Reiter
+        suchen sich Flanke, Rücken oder ungeordnete Gegner, stoßen zu und
+        setzen sich wieder ab."""
         self.alarm = False
         for u in self._selection(units):
             self._wake(u)
-            u.stance = Stance.ANGRIFF
+            arm = u.arm()
             u.in_line = False
             u.target_id = None
             u.target = None
+            u.mode = ""
+            if arm == "peltasten" and u.ammo() > 0:
+                u.stance = Stance.PLAENKELN
+            else:
+                u.stance = Stance.ANGRIFF
+                if arm == "reiter" and u.mounted_men():
+                    u.mode = "sturm"
+                    u.hitrun_until = -1.0
         self.events.append("Freier Angriff")
 
     def command_hold(self, units: list[Lochos] | None = None) -> None:
+        """Halten: Hopliten bilden an Ort und Stelle eine Phalanx (Front wie sie
+        stehen), andere Gruppen bleiben stehen."""
         self.alarm = False
         for u in self._selection(units):
             self._wake(u)
-            u.stance = Stance.HALTEN
+            u.mode = ""
             u.in_line = False
             u.target_id = None
-            u.target = None
+            if u.arm() == "hopliten" and not self.on_wall(u):
+                u.stance = Stance.PHALANX
+                u.target = u.pos
+            else:
+                u.stance = Stance.HALTEN
+                u.target = None
         self.events.append("Halten")
+
+    def command_formation(self, units: list[Lochos] | None, name: str) -> int:
+        """Formation der gewählten Gruppen setzen, wenn ihre Waffengattung sie kennt."""
+        changed = 0
+        for u in self._selection(units):
+            if name in u.formation_options() and u.formation != name:
+                u.formation = name
+                u.in_line = False
+                changed += 1
+        if changed:
+            from .units import FORMATION_NAMES
+            self.events.append(f"Formation: {FORMATION_NAMES.get(name, name)}")
+        return changed
 
     def command_build(self, units: list[Lochos] | None, kind: str) -> int:
         """Gewählte Gruppen bauen je ein Belagerungsgerät ("ram" oder "tower")."""
@@ -703,6 +737,8 @@ class Battle:
             if u is None:
                 continue
             self._wake(u)
+            u.formation = "linie"
+            u.mode = ""
             u.reform(plan.width)
             u.stance = Stance.PHALANX
             u.in_line = False
@@ -794,17 +830,106 @@ class Battle:
 
     def _ai_city(self) -> None:
         foes = self.units(Side.FEIND)
+        fighting = [f for f in foes if f.fighting]
         for u in self.units(Side.STADT, fighting_only=True):
+            if u.stance is Stance.PLAENKELN:
+                self._skirmish(u, fighting or foes)
+                continue
             if u.stance is not Stance.ANGRIFF:
+                continue
+            if u.mode == "sturm":
+                self._hit_and_run(u, fighting or foes)
                 continue
             target = self.by_id(u.target_id) if u.target_id is not None else None
             if target is None or not target.alive or not self.inside(target.x, target.y):
-                target, _ = self._nearest(u, [f for f in foes if f.fighting] or foes)
+                target, _ = self._nearest(u, fighting or foes)
                 u.target_id = target.id if target else None
             u.target = target.pos if target else None
         for u in self.units(Side.STADT):
             if u.stance is Stance.FLUCHT:
                 u.target = (u.x, self.rows + 3.0)
+
+    def _skirmish(self, u: Lochos, foes: list[Lochos]) -> None:
+        """Plänkeln: auf Wurfweite an den nächsten Gegner heran, werfen, und
+        zurückweichen, wenn er näher kommt."""
+        foe, _ = self._nearest(u, [f for f in foes if self._reachable_level(u, f)] or foes)
+        if foe is None:
+            u.target = None
+            return
+        u.target_id = foe.id
+        d = foe.rect_distance(u.pos)
+        away = norm(sub(u.pos, foe.pos))
+        if d < config.SKIRMISH_NEAR:
+            u.target = self._free_spot((u.x + away[0] * 1.5, u.y + away[1] * 1.5), u)
+        elif d > config.JAVELIN_RANGE - config.SKIRMISH_FAR:
+            u.target = foe.pos
+        else:
+            u.target = None                                # stehen und werfen
+
+    def _reachable_level(self, u: Lochos, f: Lochos) -> bool:
+        return self.on_wall(u) == self.on_wall(f) or self.on_wall(u)
+
+    def charge_target(self, u: Lochos, foes: list[Lochos]) -> Lochos | None:
+        """Lohnendstes Ziel für einen Reiterstoß: ungeordnete oder fliehende
+        Gruppen, sonst Flanke oder Rücken einer Phalanx; die Front zuletzt."""
+        best, best_s = None, 0.0
+        for f in foes:
+            if not self._reachable_level(u, f):
+                continue
+            if self._formation_in_the_way(u, f, foes):
+                continue                                   # der Weg führt durch eine andere Phalanx
+            if f.stance is Stance.FLUCHT:
+                v = 1.6
+            elif not self._formed(f):
+                v = 1.5
+            else:
+                v = {"front": 0.3, "flank": 1.2, "rear": 1.4}[self.arc_of(f, u.pos)]
+            s = v / (1.0 + f.rect_distance(u.pos) / 3.0)
+            if s > best_s:
+                best, best_s = f, s
+        return best
+
+    def _formation_in_the_way(self, u: Lochos, f: Lochos, foes: list[Lochos]) -> bool:
+        others = [e for e in foes if e is not f and self._formed(e)]
+        if not others:
+            return False
+        d = dist(u.pos, f.pos)
+        n = max(2, int(d / 0.3))
+        for i in range(1, n):
+            t = i / n
+            p = (u.x + (f.x - u.x) * t, u.y + (f.y - u.y) * t)
+            if any(e.rect_distance(p) <= 0.4 for e in others):
+                return True
+        return False
+
+    def _hit_and_run(self, u: Lochos, foes: list[Lochos]) -> None:
+        """Reiter im freien Angriff: Stoß mit Anlauf in Flanke oder Rücken, nach dem
+        Aufprall auf eine stehende Phalanx absetzen und neu anlaufen."""
+        if u.hitrun_until > self.time:
+            return                                          # setzt gerade ab
+        if u.hitrun_until >= 0 and u.target is not None and dist(u.pos, u.target) > 0.4:
+            return                                          # noch auf dem Weg zum Absetzpunkt
+        u.hitrun_until = -1.0
+        foe = self.by_id(u.target_id) if u.target_id is not None else None
+        if foe is None or not foe.fighting or self._formed(foe) and self.arc_of(foe, u.pos) == "front" and not u.engaged:
+            foe = self.charge_target(u, foes)
+        if foe is None:
+            u.target = None
+            return
+        u.target_id = foe.id
+        if u.engaged and self._formed(foe) and u.charge_slow_until > self.time - 0.5:
+            # gerade aufgeprallt: lösen und Anlauf nehmen
+            away = norm(sub(u.pos, foe.pos))
+            u.target = self._free_spot((u.x + away[0] * config.HITRUN_DISTANCE, u.y + away[1] * config.HITRUN_DISTANCE), u)
+            u.hitrun_until = self.time + config.HITRUN_TIME
+            return
+        if self._formed(foe) and self.arc_of(foe, u.pos) == "front":
+            from .ai import flank_route
+            wp = flank_route(self, u, foe)
+            if wp is not None:
+                u.target = wp
+                return
+        u.target = foe.pos
 
     # -- Bewegung ----------------------------------------------------------
     def _move(self, dt: float) -> None:
@@ -840,7 +965,7 @@ class Battle:
                     u.in_line = u.on_slots(config.SLOT_TOLERANCE, config.SLOT_SHARE) and all(
                         dist(m.pos, p) <= config.SLOT_TOLERANCE for m, p in u.slots() if m.bound
                     )                                                   # erst wenn (fast) alle stehen, die Gebundenen sicher
-                elif u.stance is Stance.HALTEN and final:
+                elif u.stance in (Stance.HALTEN, Stance.PLAENKELN) and final:
                     u.target = None
                 continue
             if u.loose and u.stance is not Stance.FLUCHT and self._stragglers(u, u.target):
@@ -851,7 +976,7 @@ class Battle:
                 u.facing = direction
             before = u.pos
             self._step(u, scale(direction, step))
-            if u.mounted_men() and u.stance is Stance.ANGRIFF and not u.engaged:
+            if u.stance is Stance.ANGRIFF and not u.engaged:
                 u.runup += dist(before, u.pos)          # Anlauf für den Sturmangriff
             else:
                 u.runup = 0.0
@@ -1166,7 +1291,7 @@ class Battle:
                     pairs.append((a, b))
                     a.engaged = True
                     a.contacts.append(b.id)
-                    if b.id not in previous.get(a.id, ()) and a.runup >= config.CHARGE_RUNUP and a.mounted_men():
+                    if b.id not in previous.get(a.id, ()) and a.runup >= config.CHARGE_RUNUP and not a.loose:
                         self._charge(a, b)                # erster Kontakt mit Anlauf: Aufprall
         hits = [(a, b, *self._melee(a, b, dt)) for a, b in pairs]
         for a, b, dmg, arc_name in hits:
@@ -1180,8 +1305,15 @@ class Battle:
         a.runup = 0.0
         a.charge_slow_until = self.time + config.CHARGE_SLOW_TIME
         riders = a.mounted_men()
+        mounted = bool(riders)
+        strikers = riders if mounted else (a.rows[0] if a.rows else [])
+        factor = 1.0 if mounted else config.CHARGE_FOOT
+        if a.formation == "keil":
+            factor *= config.CHARGE_WEDGE
         arc_name = self.arc_of(b, a.pos)
         if self._formed(b) and arc_name == "front" and b.shield_factor() > 0 and b.rows:
+            if not mounted:
+                return                                     # Fußvolk läuft nur ins Handgemenge
             spears = sum(1 for m in b.rows[0] if m.kind.hoplite)
             dmg = min(spears * config.CHARGE_IMPALE, len(riders) * config.CHARGE_IMPALE_CAP)
             for m in sorted(riders, key=lambda m: b.rect_distance(m.pos)):   # die vordersten Reiter voll
@@ -1198,23 +1330,25 @@ class Battle:
         reach = self._gap(a, b) + config.CHARGE_REACH      # die vordersten Männer, auf die die Reiter treffen
         zone = [m for m in b.all_men() if a.rect_distance(m.pos) <= reach]
         zone.sort(key=lambda m: a.rect_distance(m.pos))
-        zone = zone[:max(1, 2 * len(riders))]
+        hit_count = max(1, (len(strikers) // 2 if a.formation == "keil" else 2 * len(strikers)))
+        zone = zone[:hit_count]
         if not zone:
             return
         for m in zone:
             weight = max(0.5, m.kind.hp)
-            push = config.CHARGE_PUSH / weight
+            push = config.CHARGE_PUSH * factor / weight
             nx, ny = m.x + direction[0] * push, m.y + direction[1] * push
             if self.inside(nx, ny) and not self.is_blocked(nx, ny, b) and not self.is_wall_cell(self.cell(nx, ny), True):
                 m.x, m.y = nx, ny                         # weggestoßen
-            m.hp -= config.CHARGE_IMPACT / weight
+            m.hp -= config.CHARGE_IMPACT * factor / weight
         fallen = b.bury()
         b.in_line = False                                  # die Ordnung ist dahin, bis alle wieder stehen
-        shock = config.CHARGE_SHOCK * (1.5 if arc_name == "rear" else 1.0) * b.bravery()
+        shock = config.CHARGE_SHOCK * factor * (1.5 if arc_name == "rear" else 1.0) * b.bravery()
         b.morale -= shock
-        self._after_hit(b, fallen, arc_name, config.CHARGE_IMPACT * len(zone))
+        self._after_hit(b, fallen, arc_name, config.CHARGE_IMPACT * factor * len(zone))
         where = {"front": "in die Front", "flank": "in die Flanke", "rear": "in den Rücken"}[arc_name]
-        self.events.append(f"{a.name} ({a.side.value}) stoßen {where} von {b.name}: {len(zone)} Mann geworfen")
+        verb = "stoßen" if mounted else "stürmen"
+        self.events.append(f"{a.name} ({a.side.value}) {verb} {where} von {b.name}: {len(zone)} Mann geworfen")
 
     def _melee(self, a: Lochos, b: Lochos, dt: float) -> tuple[float, str]:
         rate, arc_name = self._melee_rate(a, b)
@@ -1234,7 +1368,8 @@ class Battle:
         if self._formed(b):
             shield = b.shield_factor()
             if arc_name == "front":
-                mod = 1.0 + (config.PHALANX_FRONT - 1.0) * shield
+                front = {"u": config.PHALANX_FRONT_U, "o": config.PHALANX_FRONT_O}.get(b.formation, config.PHALANX_FRONT)
+                mod = 1.0 + (front - 1.0) * shield
             elif arc_name == "rear":
                 mod = config.PHALANX_REAR
             support = max(config.PHALANX_SUPPORT_MIN, 1.0 - config.PHALANX_SUPPORT * self._line_neighbours(b))
@@ -1279,7 +1414,7 @@ class Battle:
         if self._formed(a):
             own_arc = self.arc_of(a, b.pos)
             if own_arc == "front":
-                attack_mod = config.PHALANX_ATTACK_FRONT
+                attack_mod = config.PHALANX_ATTACK_FRONT if a.formation in ("linie", "u") else 1.0
             else:
                 # in Formation wehren sich nur die Männer am Rand, wo der Gegner steht
                 per_man = a.melee_attack() / max(1, len(a.rows[0]))
@@ -1344,7 +1479,7 @@ class Battle:
             throwers = a.throwers(a.engaged)
             if not throwers:
                 if (a.ammo() == 0 and a.share(lambda m: m.kind.ranged) >= 0.5
-                        and a.stance in (Stance.HALTEN, Stance.PHALANX) and not self.on_wall(a)
+                        and a.stance in (Stance.HALTEN, Stance.PHALANX, Stance.PLAENKELN) and not self.on_wall(a)
                         and (a.side is Side.STADT or self.scenario.enemy_kind == "raeuber")):
                     a.stance = Stance.ANGRIFF
                     a.in_line = False

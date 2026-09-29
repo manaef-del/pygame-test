@@ -53,11 +53,29 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   von hinten wehren sich nur die Männer am Rand (drei je Reihe, hinten
   die letzte Reihe), und nur sie werden getroffen; eine umfasste Phalanx
   verliert dort schnell Männer und Moral.
-- **Freier Angriff** löst die Formation: die Gruppen verfolgen den
-  nächsten Gegner, schneller, aber ohne Formationsbonus. Fliehende werden
-  niedergemacht. Reiter sind stark gegen Gegner ohne Formation und
-  schwach gegen die Front einer Phalanx.
-- **Halten:** stehen bleiben, rundum kämpfen, kein Bonus.
+- **Angriff** (nur für gewählte Gruppen) heißt je Waffengattung etwas
+  anderes: Hopliten verlassen die Phalanx und stürmen den nächsten
+  Gegner, mit Anlauf werfen sie ungeordnete Gegner um (mit weniger Wucht
+  als Reiter, nie eine Phalanxfront). Peltasten plänkeln: sie gehen auf
+  Wurfweite an den nächsten Gegner heran, werfen und weichen zurück,
+  sobald er näher als anderthalb Kacheln kommt; ohne Speere gehen sie in
+  den Nahkampf. Reiter suchen sich das lohnendste Ziel (ungeordnete oder
+  fliehende Gruppen, sonst Flanke oder Rücken einer Phalanx, nie deren
+  Front), nehmen Anlauf, stoßen zu, setzen sich nach dem Aufprall auf
+  eine stehende Phalanx drei Kacheln ab und laufen erneut an. Tippt man
+  stattdessen einen Gegner an, greift die Gruppe genau ihn an.
+- **Halten** (nur für gewählte Gruppen): Hopliten bilden an Ort und
+  Stelle eine Phalanx mit der Front, wie sie gerade stehen; Peltasten und
+  Reiter bleiben stehen und kämpfen rundum ohne Bonus.
+- **Formationen:** Standard ist die Linie. Der Knopf „Formation“ (oder
+  F) schaltet für die gewählte Gruppe weiter. Hopliten: Linie, U-Stellung
+  (drei Seiten Front, nur die offene Rückseite verwundbar, etwas weniger
+  dicht) und Kreis (rundum Front ohne Flanke und Rücken, aber ohne den
+  Rückhalt der Glieder: schwächer nach vorn, nur 60 % der Männer
+  kämpfen); beide für den Fall, dass man umfasst wird oder weit in der
+  Unterzahl ist. Reiter: Linie und Keil; der Keil trifft beim Sturm halb
+  so viele Männer, die aber fast doppelt so hart. Peltasten: Linie und
+  Kreis. Wer eine neue Linie zieht, steht wieder in Linie.
 - **Sturmangriff der Reiter:** Berittene, die mit mindestens zwei Kacheln
   Anlauf auf eine Gruppe treffen, prallen auf: Die vordersten Männer
   werden weggestoßen (leichte weiter als schwere, das Gewicht sind ihre
@@ -211,8 +229,9 @@ Simulator zu vergleichen.
 | Pause | hält an und zeigt für jede Gruppe, die noch unterwegs ist, ihr Ziel als Rechteck mit Front und Weg; ohne Pause sieht man das nur für gewählte Gruppen |
 | Rammbock / B, Turm / T | gewählte Gruppen bauen das Gerät; erneut drücken: ablegen oder Bau abbrechen (nur beim Angriff mit Wall) |
 | Ziehen auf der Karte | Front aufziehen: Länge = Breite, Richtung = Blickrichtung |
-| Angriff / A | freier Angriff (Auswahl, sonst alle) |
-| Halten / H | stehen bleiben (Auswahl, sonst alle) |
+| Angriff / A | gewählte Gruppen greifen frei an, je Waffengattung (siehe oben); ohne Auswahl passiert nichts |
+| Halten / H | Hopliten bilden an Ort und Stelle eine Phalanx, andere bleiben stehen; ohne Auswahl passiert nichts |
+| Formation / F | schaltet die Formation der gewählten Gruppe weiter (Linie, U, Kreis; Reiter: Linie, Keil) |
 | Alle / Keine | alle Gruppen wählen oder Auswahl aufheben |
 | Pause / Leertaste | anhalten, bei Alarm: losgehen |
 | Neu / R | Szenario neu starten |

@@ -6,9 +6,9 @@ ROWS = 18
 TILE = 30
 MAP_W = COLS * TILE          # 480
 MAP_H = ROWS * TILE          # 540
-BAR_H = 100
+BAR_H = 140
 WIDTH = MAP_W                # 480
-HEIGHT = MAP_H + BAR_H       # 640
+HEIGHT = MAP_H + BAR_H       # 680
 FPS = 60
 
 # --- Kampf ----------------------------------------------------------------
@@ -23,6 +23,10 @@ ARRIVE_EPS = 0.08
 PHALANX_FRONT = 0.35
 PHALANX_FLANK = 1.0
 PHALANX_REAR = 1.8
+PHALANX_FRONT_U = 0.45       # U-Stellung: drei Seiten Front, etwas weniger dicht
+PHALANX_FRONT_O = 0.55       # Kreis: rundum Front, ohne den Rückhalt der Glieder
+RING_ATTACK_SHARE = 0.6      # Anteil aller Männer, die im Kreis kämpfen
+U_ATTACK_SHARE = 0.8         # Anteil aller Männer, die in der U-Stellung kämpfen
 PHALANX_ATTACK_FRONT = 1.3   # Speere in der Linie
 PHALANX_ATTACK_SIDE = 0.4    # umdrehen, einzeln kämpfen
 FLANK_FILE = 3               # Männer je Reihe, die sich an der Flanke wehren (und getroffen werden)
@@ -66,8 +70,16 @@ CHARGE_IMPACT = 0.6          # Schaden je gestoßenem Mann, geteilt durch sein G
 CHARGE_SHOCK = 0.08          # Moralverlust der getroffenen Gruppe (von hinten anderthalbfach)
 CHARGE_IMPALE = 0.35         # Schaden je Speer der vorderen Reihe, wenn Reiter in eine Phalanxfront rennen
 CHARGE_IMPALE_CAP = 0.6      # höchstens so viel je Reiter
+CHARGE_FOOT = 0.4            # Fußvolk stößt mit diesem Anteil der Wirkung
+CHARGE_WEDGE = 1.8           # Keil: halb so viele Getroffene, dafür so viel härter
 CHARGE_SLOW = 0.4            # Geschwindigkeit der Reiter nach dem Aufprall
 CHARGE_SLOW_TIME = 2.5       # Sekunden
+
+# Freier Angriff je Waffengattung
+SKIRMISH_NEAR = 1.6          # Kacheln: näher lassen Peltasten den Feind nicht heran
+SKIRMISH_FAR = 0.4           # Kacheln unter der Wurfweite, auf die sie herangehen
+HITRUN_DISTANCE = 3.0        # Kacheln, auf die sich Reiter nach dem Stoß absetzen
+HITRUN_TIME = 5.0            # Sekunden, längstens
 
 # Handgemenge: Binden und Lösen
 MAN_BIND_REACH = 0.7         # Kacheln zum Gegner, bis zu denen ein Mann im Handgemenge steht

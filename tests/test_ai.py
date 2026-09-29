@@ -99,7 +99,7 @@ def test_raiders_go_around_or_harass_a_phalanx_but_charge_an_open_settlement():
     assert any(e.startswith("Die Räuber:") for e in b.events)
 
     b2 = Battle(OFFENE_SIEDLUNG, random.Random(2))
-    b2.command_hold()
+    b2.alarm = False                                       # niemand stellt eine Phalanx
     run(b2, 8)
     assert b2.brain.plan == "frontal"
 

@@ -26,8 +26,13 @@ class Stance(Enum):
     HALTEN = "halten"      # steht, kämpft rundum ohne Formationsbonus
     PHALANX = "phalanx"    # in der Linie, stark von vorn
     ANGRIFF = "angriff"    # verfolgt einen Gegner
+    PLAENKELN = "plaenkeln"  # Peltasten: auf Wurfweite heran, werfen, vor Nahkampf ausweichen
     RAUB = "raub"          # Gegner: zieht zu Häusern, plündert
     FLUCHT = "flucht"      # geschlagen, läuft vom Feld
+
+
+FORMATIONS = ("linie", "u", "o", "keil")
+FORMATION_NAMES = {"linie": "Linie", "u": "U-Stellung", "o": "Kreis", "keil": "Keil"}
 
 
 @dataclass(frozen=True)
@@ -177,6 +182,9 @@ class Lochos:
     tower_progress: float = 0.0
     loose: bool = False               # Formation aufgelöst (Überqueren der Palisade)
     file: bool = False                # auf dem Wehrgang: eine Reihe längs der Palisade
+    formation: str = "linie"          # "linie", "u", "o" (Kreis) oder "keil" (Reiter)
+    mode: str = ""                    # freier Angriff je Waffengattung: "", "sturm" (Reiter: Stoß und Lösen)
+    hitrun_until: float = -1.0        # Reiter: bis dahin wird vom Feind abgesetzt
 
     def __post_init__(self) -> None:
         self.rows = [list(r) for r in self.rows if r]
@@ -262,14 +270,41 @@ class Lochos:
     def depth(self) -> int:
         return len(self.rows)
 
+    def ring_radius(self) -> float:
+        return max(0.35, self.men * config.MAN_SPACING / (2 * math.pi))
+
+    def wedge_rows(self) -> int:
+        k = 1
+        while k * (k + 1) // 2 < self.men:
+            k += 1
+        return k
+
+    def u_shape(self) -> tuple[int, int]:
+        """(Männer in der Front, Männer je Arm) der U-Stellung."""
+        front = max(1, math.ceil(self.men / 2))
+        arm = (self.men - front) // 2
+        return front, arm
+
     @property
     def half_w(self) -> float:
         """Halbe Breite der Formation in Kacheln (entlang der Front)."""
+        if self.formation == "o":
+            return self.ring_radius() + 0.08
+        if self.formation == "keil":
+            return max(0.2, self.wedge_rows() * config.MAN_SPACING / 2 + 0.08)
+        if self.formation == "u":
+            return max(0.2, self.u_shape()[0] * config.MAN_SPACING / 2 + 0.08)
         return max(0.2, self.width * config.MAN_SPACING / 2 + 0.08)
 
     @property
     def half_d(self) -> float:
         """Halbe Tiefe der Formation in Kacheln (in Blickrichtung)."""
+        if self.formation == "o":
+            return self.ring_radius() + 0.08
+        if self.formation == "keil":
+            return max(0.2, self.wedge_rows() * config.ROW_SPACING / 2 + 0.08)
+        if self.formation == "u":
+            return max(0.2, (self.u_shape()[1] + 1) * config.ROW_SPACING / 2 + 0.08)
         return max(0.2, self.depth * config.ROW_SPACING / 2 + 0.08)
 
     @property
@@ -296,6 +331,11 @@ class Lochos:
         Gemessen am Rechteck, nicht am Winkel vom Zentrum: bei einer breiten,
         flachen Linie steht ein Gegner vor ihrem Ende vor der Front, nicht daneben."""
         along, forward = self.local(p)
+        if self.formation == "o":
+            return "front"                     # der Kreis hat keine Flanke und keinen Rücken
+        if self.formation == "u":
+            # drei Seiten sind Front, nur die offene Rückseite ist verwundbar
+            return "rear" if (forward < -self.half_d * 0.5 and abs(along) <= self.half_w) else "front"
         if abs(along) <= self.half_w + config.ARC_TOLERANCE:
             return "front" if forward >= 0 else "rear"
         if forward > self.half_d + config.FLANK_DEPTH:
@@ -375,6 +415,52 @@ class Lochos:
                 out.append((man, (cx + (i - (n - 1) / 2) * config.MAN_SPACING, cy)))
             return out
         fx, fy = facing
+        if self.formation == "o":
+            men = self.all_men()
+            n = len(men)
+            r = self.ring_radius()
+            for i, man in enumerate(men):
+                a = 2 * math.pi * i / max(1, n)
+                out.append((man, (cx + math.cos(a) * r, cy + math.sin(a) * r)))
+            return out
+        if self.formation == "keil":
+            men = self.all_men()
+            k = self.wedge_rows()
+            depth = k * config.ROW_SPACING
+            i = 0
+            for r in range(k):
+                width = min(r + 1, len(men) - i)
+                forward = depth / 2 - (r + 0.5) * config.ROW_SPACING
+                for j in range(width):
+                    side = (j - (width - 1) / 2) * config.MAN_SPACING
+                    out.append((men[i], (cx + fx * forward - fy * side, cy + fy * forward + fx * side)))
+                    i += 1
+                if i >= len(men):
+                    break
+            return out
+        if self.formation == "u":
+            men = self.all_men()
+            front, arm = self.u_shape()
+            half_w = front * config.MAN_SPACING / 2
+            depth = (arm + 1) * config.ROW_SPACING
+            fwd = depth / 2
+            i = 0
+            for j in range(front):
+                side = (j - (front - 1) / 2) * config.MAN_SPACING
+                out.append((men[i], (cx + fx * fwd - fy * side, cy + fy * fwd + fx * side)))
+                i += 1
+            for k in range(arm):
+                for sign in (-1.0, 1.0):
+                    if i >= len(men):
+                        break
+                    side = sign * half_w
+                    forward = fwd - (k + 1) * config.ROW_SPACING
+                    out.append((men[i], (cx + fx * forward - fy * side, cy + fy * forward + fx * side)))
+                    i += 1
+            while i < len(men):                     # Rest in der Mitte hinter der Front
+                out.append((men[i], (cx + fx * (fwd - config.ROW_SPACING), cy + fy * (fwd - config.ROW_SPACING))))
+                i += 1
+            return out
         n_rows = len(self.rows)
         for r, row in enumerate(self.rows):
             forward = ((n_rows - 1) / 2 - r) * config.ROW_SPACING
@@ -391,13 +477,35 @@ class Lochos:
 
     # ------------------------------------------------------------ Kampf
     def melee_attack(self) -> float:
-        """Angriffspunkte: vordere Reihe, dazu Speere der zweiten."""
+        """Angriffspunkte: vordere Reihe, dazu Speere der zweiten. Im Kreis kämpft
+        jeder nach außen, aber ohne den Rückhalt der Glieder; in der U-Stellung
+        stehen Front und Arme."""
         if not self.rows:
             return 0.0
+        if self.formation == "o":
+            return config.RING_ATTACK_SHARE * sum(m.attack for m in self.all_men())
+        if self.formation == "u":
+            return config.U_ATTACK_SHARE * sum(m.attack for m in self.all_men())
         total = sum(m.attack for m in self.rows[0])
         if len(self.rows) > 1:
             total += 0.5 * sum(m.attack for m in self.rows[1] if m.kind.hoplite)
         return total
+
+    def arm(self) -> str:
+        """Waffengattung der Mehrheit: "hopliten", "peltasten" oder "reiter"."""
+        if self.share(lambda m: m.kind.cavalry) >= 0.5:
+            return "reiter"
+        if self.share(lambda m: m.kind.ranged) >= 0.5:
+            return "peltasten"
+        return "hopliten"
+
+    def formation_options(self) -> tuple[str, ...]:
+        arm = self.arm()
+        if arm == "reiter":
+            return ("linie", "keil")
+        if arm == "hopliten":
+            return ("linie", "u", "o")
+        return ("linie", "o")
 
     def cavalry_share(self) -> float:
         """Anteil berittener Männer in der vorderen Reihe."""
