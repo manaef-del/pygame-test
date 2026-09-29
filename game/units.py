@@ -76,6 +76,7 @@ class Man:
     mounted: bool = False
     bound: bool = False  # im Handgemenge: steht fest, bis die Gruppe ihn wegzieht
     anchor: tuple[float, float] | None = None   # Gruppenzentrum, als er gebunden wurde
+    stand: tuple[float, float] | None = None    # sein eigener Platz, als er gebunden wurde
 
     def __post_init__(self) -> None:
         if self.hp == 0.0:
@@ -205,9 +206,13 @@ class Lochos:
     def bound_men(self) -> list[Man]:
         return [m for m in self.all_men() if m.bound]
 
-    def on_slots(self, tolerance: float) -> bool:
-        """Stehen alle Männer (fast) auf ihren Plätzen?"""
-        return all(math.hypot(m.x - sx, m.y - sy) <= tolerance for m, (sx, sy) in self.slots())
+    def on_slots(self, tolerance: float, share: float = 1.0) -> bool:
+        """Steht (fast) jeder Mann auf seinem Platz? ``share`` erlaubt ein paar Nachzügler."""
+        slots = self.slots()
+        if not slots:
+            return False
+        there = sum(1 for m, (sx, sy) in slots if math.hypot(m.x - sx, m.y - sy) <= tolerance)
+        return there >= share * len(slots)
 
     def surface_distance(self, p: tuple[float, float]) -> float:
         """Abstand eines Punkts zur Gruppe: zum Formationsrechteck, oder bei

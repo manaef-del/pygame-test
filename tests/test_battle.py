@@ -323,7 +323,7 @@ def test_unopposed_raiders_loot_every_house():
 def test_phalanx_behind_palisade_beats_larger_force():
     """Phalanx hinter dem Tor, Peltasten auf dem Wehrgang, Reiter als Reserve gegen
     alles, was über den Turm hereinkommt; die Phalanx dreht sich zum nächsten Feind."""
-    b = Battle(PALISADE, random.Random(1), enemy_count=100)
+    b = Battle(PALISADE, random.Random(1), enemy_count=112)
     hop, pelt, cav = b.units(Side.STADT)
     b.command_line([hop], (5.5, 9.5), (10.5, 9.5))     # Hopliten hinter dem Tor
     b.command_move([pelt], (3.5, 8.5))                 # Peltasten auf den Wehrgang
@@ -840,9 +840,9 @@ def test_men_in_melee_are_bound_and_the_phalanx_cannot_turn_in_place():
     before = {id(m): m.pos for m in hop.bound_men()}
     b.command_line([hop], (8.0, 9.0), (8.0, 11.0))        # Front nach Osten drehen, Zentrum bleibt in der Leine
     run(b, 4)                                             # (nach etwa sechs Sekunden brechen die Räuber)
-    moved = [id(m) for m in hop.all_men() if id(m) in before and dist_of_pt(m.pos, before[id(m)]) > 0.1]
-    assert len(moved) <= 2, len(moved)                    # gebundene Männer bleiben stehen
-    assert not hop.in_phalanx                             # ohne stehende Männer keine Phalanx
+    moved = [id(m) for m in hop.all_men() if id(m) in before and dist_of_pt(m.pos, before[id(m)]) > config.BOUND_SHUFFLE + 0.1]
+    assert not moved                                      # gebundene Männer rücken höchstens nach, sie gehen nicht weg
+    assert not hop.in_phalanx                             # solange Gebundene fehlen, keine Phalanx
     b.command_line([pelt], (9.5, 10.2), (6.5, 10.2))      # die Peltasten dürfen sich umformieren
     run(b, 6)
     assert pelt.in_phalanx
@@ -888,13 +888,13 @@ def test_phalanx_bonus_waits_until_every_man_stands():
         if hop.in_line:
             break
     assert hop.in_phalanx and hop.on_slots(config.SLOT_TOLERANCE)
-    m = hop.all_men()[0]
-    m.x, m.y = m.x + 1.0, m.y                              # ein Mann steht falsch
+    for m in hop.all_men()[:5]:
+        m.x, m.y = m.x + 1.0, m.y                          # ein Viertel der Männer steht falsch
     hop.in_line = False
     b.update(DT)
     assert not hop.in_line
     run(b, 3)
-    assert hop.in_line                                    # er ist zurück auf seinem Platz
+    assert hop.in_line                                    # sie sind zurück auf ihren Plätzen
 
 
 def dist_of_pt(a, b) -> float:

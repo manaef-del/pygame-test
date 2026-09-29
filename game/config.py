@@ -56,8 +56,11 @@ MAN_BIND_REACH = 0.7         # Kacheln zum Gegner, bis zu denen ein Mann im Hand
 BOUND_LEASH = 1.2            # Kacheln: so weit darf sich die Gruppe von einem gebundenen Mann entfernen, dann reißt er sich los
 ENGAGED_SPEED = 0.33         # Geschwindigkeit einer Gruppe im Nahkampf
 DISENGAGE_TIME = 4.0         # Sekunden nach dem Lösen, in denen die Gruppe verwundbar ist
+DISENGAGE_TIME_MOUNTED = 1.0 # Reiter lösen sich leichter
 DISENGAGE_DAMAGE = 1.5       # Schaden in dieser Zeit (wie von hinten, ohne Formationsbonus)
-SLOT_TOLERANCE = 0.25        # Kacheln: so nah müssen alle Männer an ihren Plätzen stehen, damit die Phalanx steht
+SLOT_TOLERANCE = 0.25        # Kacheln: so nah müssen die Männer an ihren Plätzen stehen, damit die Phalanx steht
+SLOT_SHARE = 0.85            # Anteil der Männer, der dafür auf seinem Platz stehen muss
+BOUND_SHUFFLE = 0.6          # Kacheln: so weit rückt ein gebundener Mann noch auf seinen Platz nach
 
 # Männer
 MAN_CATCHUP = 1.6            # Männer holen ihren Platz schneller ein, als die Gruppe läuft
