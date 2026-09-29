@@ -51,6 +51,14 @@ JAVELIN_DAMAGE = 0.2         # Schaden je Speer (trifft einen bestimmten Mann)
 JAVELIN_RANGE = 3.5          # Kacheln
 JAVELIN_SPEED = 14.0         # Kacheln pro Sekunde (Anzeige und Einschlag)
 
+# Handgemenge: Binden und Lösen
+MAN_BIND_REACH = 0.7         # Kacheln zum Gegner, bis zu denen ein Mann im Handgemenge steht
+BOUND_LEASH = 1.2            # Kacheln: so weit darf sich die Gruppe von einem gebundenen Mann entfernen, dann reißt er sich los
+ENGAGED_SPEED = 0.33         # Geschwindigkeit einer Gruppe im Nahkampf
+DISENGAGE_TIME = 4.0         # Sekunden nach dem Lösen, in denen die Gruppe verwundbar ist
+DISENGAGE_DAMAGE = 1.5       # Schaden in dieser Zeit (wie von hinten, ohne Formationsbonus)
+SLOT_TOLERANCE = 0.25        # Kacheln: so nah müssen alle Männer an ihren Plätzen stehen, damit die Phalanx steht
+
 # Männer
 MAN_CATCHUP = 1.6            # Männer holen ihren Platz schneller ein, als die Gruppe läuft
 DAMAGE_QUANTUM = 0.1         # Schaden wird in Häppchen auf einzelne Männer verteilt
@@ -146,6 +154,7 @@ COLOR_MENU_BG = (24, 26, 34)
 COLOR_MENU_PANEL = (36, 40, 52)
 COLOR_SHIELD = (255, 230, 120)
 COLOR_JAVELIN = (245, 220, 170)
+COLOR_BOUND = (255, 120, 60)      # Ring um Männer im Handgemenge
 COLOR_RAM = (150, 100, 50)
 COLOR_TOWER = (180, 130, 70)
 COLOR_HORSE = (140, 95, 55)

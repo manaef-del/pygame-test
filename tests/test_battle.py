@@ -807,3 +807,95 @@ def test_climbing_men_take_their_places_instead_of_one_point():
             spread_down = max(spread_down, max(m.x for m in down) - min(m.x for m in down))
     assert spread_down >= 0.4                              # die ersten unten stehen schon verteilt
     assert not pelt.loose and not pelt.file
+
+
+# --------------------------------------------------------- Handgemenge
+def melee_pair():
+    """Eine Phalanx (Front Nord) mit Peltasten dahinter, ein Räuberhaufen dicht vor der Front."""
+    scn = raid(16, (8.0, 3.0))
+    army = army_of(GroupSpec("Hopliten", [Tier("schwer", 14), Tier("mittel", 14)]),
+                   GroupSpec("Peltasten", [Tier("peltast", 12)]))
+    b = Battle(scn, random.Random(0), army=army, ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    hop, pelt = b.units(Side.STADT)
+    raider = b.units(Side.FEIND)[0]
+    b.command_line([hop], (6.0, 9.0), (10.0, 9.0))
+    b.command_line([pelt], (6.5, 10.2), (9.5, 10.2))
+    run(b, 6)
+    assert hop.in_phalanx
+    raider.x, raider.y = 8.0, 9.0 - hop.half_d - raider.half_d - 0.3
+    raider.place_men()
+    raider.stance = Stance.HALTEN
+    raider.target = None
+    run(b, 1)
+    assert hop.engaged and raider.engaged
+    return b, hop, pelt, raider
+
+
+def test_men_in_melee_are_bound_and_the_phalanx_cannot_turn_in_place():
+    b, hop, pelt, raider = melee_pair()
+    assert 10 <= len(hop.bound_men()) < hop.men           # wer dem Feind gegenübersteht, ist gebunden
+    assert not pelt.bound_men()                           # die Peltasten dahinter nicht
+    before = {id(m): m.pos for m in hop.bound_men()}
+    b.command_line([hop], (8.0, 9.0), (8.0, 11.0))        # Front nach Osten drehen, Zentrum bleibt in der Leine
+    run(b, 4)                                             # (nach etwa sechs Sekunden brechen die Räuber)
+    moved = [id(m) for m in hop.all_men() if id(m) in before and dist_of_pt(m.pos, before[id(m)]) > 0.1]
+    assert len(moved) <= 2, len(moved)                    # gebundene Männer bleiben stehen
+    assert not hop.in_phalanx                             # ohne stehende Männer keine Phalanx
+    b.command_line([pelt], (9.5, 10.2), (6.5, 10.2))      # die Peltasten dürfen sich umformieren
+    run(b, 6)
+    assert pelt.in_phalanx
+
+
+def test_engaged_groups_move_slowly():
+    b, hop, pelt, raider = melee_pair()
+    y0 = hop.y
+    b.command_move([hop], (8.0, 13.0))
+    run(b, 2)
+    slow = hop.y - y0
+    pelt_y0 = pelt.y
+    b.command_move([pelt], (8.0, 14.0))
+    run(b, 2)
+    assert slow < 0.45 * (pelt.y - pelt_y0)               # im Kontakt nur ein Drittel so schnell
+
+
+def test_disengaging_releases_the_men_and_costs():
+    b, hop, pelt, raider = melee_pair()
+    b.command_move([hop], (8.0, 14.0))
+    bound_before = len(hop.bound_men())
+    released_at = None
+    for _ in range(int(20 / DT)):
+        b.update(DT)
+        if hop.disengage_until > b.time:
+            released_at = b.time
+            break
+    assert released_at is not None and 2.0 < released_at - 7.0 < 6.0   # erst nach der Leine, im Kriechtempo
+    assert len(hop.bound_men()) < bound_before
+    mod, arc_name = b._defense_mod(raider, hop)
+    assert arc_name == "rear" and mod == pytest.approx(config.DISENGAGE_DAMAGE)
+    run(b, config.DISENGAGE_TIME + 6.0)
+    assert hop.disengage_until <= b.time                  # danach vorbei
+
+
+def test_phalanx_bonus_waits_until_every_man_stands():
+    b = Battle(raid(16, (8.0, 2.0)), random.Random(0), army=army_of(GroupSpec("H", [Tier("schwer", 20)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    hop = b.units(Side.STADT)[0]
+    b.command_line([hop], (5.0, 9.0), (11.0, 9.0))
+    for _ in range(int(20 / DT)):
+        b.update(DT)
+        if hop.in_line:
+            break
+    assert hop.in_phalanx and hop.on_slots(config.SLOT_TOLERANCE)
+    m = hop.all_men()[0]
+    m.x, m.y = m.x + 1.0, m.y                              # ein Mann steht falsch
+    hop.in_line = False
+    b.update(DT)
+    assert not hop.in_line
+    run(b, 3)
+    assert hop.in_line                                    # er ist zurück auf seinem Platz
+
+
+def dist_of_pt(a, b) -> float:
+    return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5

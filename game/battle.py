@@ -806,6 +806,8 @@ class Battle:
             if not u.alive or u.target is None or u.in_phalanx or u.building is not None:
                 continue
             speed = u.speed * (1.25 if u.stance is Stance.FLUCHT else 1.0)
+            if u.engaged and u.stance is not Stance.FLUCHT:
+                speed *= config.ENGAGED_SPEED           # im Handgemenge kommt man kaum vom Fleck
             goal, final = self.route(u, u.target)
             d = dist(u.pos, goal)
             if u.mounted_men() and self.is_wall_cell(self.cell(*goal), True) and d <= 1.0:
@@ -824,7 +826,7 @@ class Battle:
             if d <= max(config.ARRIVE_EPS, stop_at):
                 if u.stance is Stance.PHALANX and final and d <= config.ARRIVE_EPS + 0.02:
                     u.x, u.y = u.target
-                    u.in_line = True
+                    u.in_line = u.on_slots(config.SLOT_TOLERANCE)   # erst wenn alle stehen
                 elif u.stance is Stance.HALTEN and final:
                     u.target = None
                 continue
@@ -940,6 +942,7 @@ class Battle:
                 continue
             walker = self.is_walker(u)
             u.file = self.on_wall(u)
+            self._bind_men(u)
             if u.loose:
                 destination = u.target if u.target is not None else u.pos
                 lead = dist(u.pos, destination)
@@ -971,20 +974,53 @@ class Battle:
                         for rank, m in enumerate(waiting):
                             ranks[id(m)] = rank
                 for man, goal in goals:
+                    if man.bound:
+                        continue
                     goal = self._queue_spot(goal, man, ranks.get(id(man), 0))
                     speed = max(u.speed, man.speed) * config.MAN_CATCHUP
                     self._man_step(u, man, goal, speed * dt, walker)
                 continue
             for man, slot in u.slots():
+                if man.bound:
+                    continue                          # steht im Handgemenge fest
                 d = dist(man.pos, slot)
                 if d <= 0.02:
-                    man.x, man.y = slot
+                    if self._man_can_step(u, man, man.pos, slot, walker):
+                        man.x, man.y = slot
                     continue
                 speed = max(u.speed, man.speed) * config.MAN_CATCHUP
                 goal = slot
                 if not self._man_step(u, man, goal, speed * dt, walker):
                     goal, _ = self.route_from(u, man.pos, slot)
                     self._man_step(u, man, goal, speed * dt, walker)
+
+    def _bind_men(self, u: Lochos) -> None:
+        """Wer einen Gegner in Reichweite hat, steht im Handgemenge fest. Zieht die
+        Gruppe weiter als die Leine, reißt er sich los, und die Gruppe ist eine
+        Weile verwundbar (Lösen kostet)."""
+        foes = [e for e in self.lochoi if e.side is not u.side and e.fighting
+                and dist(e.pos, u.pos) <= e.radius + u.radius + config.MAN_BIND_REACH + 1.0]
+        if not foes or u.stance is Stance.FLUCHT:
+            for m in u.all_men():
+                m.bound = False
+            return
+        released = False
+        slot_of = {id(m): p for m, p in u.slots()}
+        for m in u.all_men():
+            near = any(e.surface_distance(m.pos) <= config.MAN_BIND_REACH for e in foes)
+            if not near:
+                m.bound = False
+                m.anchor = None
+                continue
+            if m.bound and m.anchor is not None and dist(u.pos, m.anchor) > config.BOUND_LEASH:
+                m.bound = False                   # die Gruppe ist weitergezogen: er reißt sich los
+                m.anchor = None
+                released = True
+            elif not m.bound and dist(m.pos, slot_of.get(id(m), m.pos)) <= config.BOUND_LEASH:
+                m.bound = True                    # wer seinem Platz gerade hinterherläuft, wird nicht neu gebunden
+                m.anchor = u.pos                  # ein Drehen an Ort und Stelle löst ihn nicht
+        if released:
+            u.disengage_until = self.time + config.DISENGAGE_TIME
 
     def _queue_spot(self, goal: Point, man: Man, i: int) -> Point:
         """Führt der Weg an eine besetzte Leiter, stellt sich der Mann davor an,
@@ -1074,6 +1110,8 @@ class Battle:
                     continue
                 if a.loose or b.loose or self.on_wall(a) != self.on_wall(b):
                     continue          # aufgelöste Gruppen: die Männer weichen selbst aus
+                if b.id in a.contacts or a.id in b.contacts:
+                    continue          # im Handgemenge drückt man sich nicht auseinander
                 d = dist(a.pos, b.pos)
                 if d < 1e-6:
                     continue
@@ -1092,6 +1130,7 @@ class Battle:
         alive = [u for u in self.lochoi if u.alive]
         for u in alive:
             u.engaged = False
+            u.contacts = []
         pairs: list[tuple[Lochos, Lochos]] = []
         for a in alive:
             if not a.fighting:
@@ -1102,6 +1141,7 @@ class Battle:
                 if self._in_contact(a, b):
                     pairs.append((a, b))
                     a.engaged = True
+                    a.contacts.append(b.id)
         hits = [(a, b, *self._melee(a, b, dt)) for a, b in pairs]
         for a, b, dmg, arc_name in hits:
             self._apply_damage(a, b, dmg, arc_name)
@@ -1117,6 +1157,10 @@ class Battle:
     def _defense_mod(self, a: Lochos, b: Lochos) -> tuple[float, str]:
         arc_name = self.arc_of(b, a.pos)
         mod = 1.0
+        if b.disengage_until > self.time:
+            # gerade aus dem Handgemenge gelöst: der Gegner hackt in den Rücken
+            mod = config.DISENGAGE_DAMAGE * (config.ROUTED_DAMAGE if b.stance is Stance.FLUCHT else 1.0)
+            return mod, "rear"
         if self._formed(b):
             shield = b.shield_factor()
             if arc_name == "front":

@@ -205,6 +205,8 @@ class Renderer:
                     color = tuple(c * 2 // 3 for c in color)
                 mx, my = px(man.pos)
                 pygame.draw.circle(s, color, (mx, my), 3)
+                if man.bound:
+                    pygame.draw.circle(s, config.COLOR_BOUND, (mx, my), 4, 1)
                 if man.kind.cavalry and not man.mounted:
                     pygame.draw.circle(s, (20, 40, 20), (mx, my), 1)
         if u.in_phalanx and not u.loose:

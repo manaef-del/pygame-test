@@ -74,6 +74,8 @@ class Man:
     x: float = 0.0       # eigene Position auf der Karte
     y: float = 0.0
     mounted: bool = False
+    bound: bool = False  # im Handgemenge: steht fest, bis die Gruppe ihn wegzieht
+    anchor: tuple[float, float] | None = None   # Gruppenzentrum, als er gebunden wurde
 
     def __post_init__(self) -> None:
         if self.hp == 0.0:
@@ -159,6 +161,8 @@ class Lochos:
     in_line: bool = False             # in der Formation angekommen
     withdrawn: bool = False           # hat das Feld verlassen
     engaged: bool = False             # in diesem Schritt im Nahkampf
+    contacts: list[int] = field(default_factory=list)   # Gegner, mit denen gekämpft wird (ids)
+    disengage_until: float = -1.0     # bis dahin gilt die Gruppe als vom Feind gelöst (verwundbar)
     last_arc: str = ""
     men_start: int = 0
     rout_threshold: float = 0.3
@@ -197,6 +201,13 @@ class Lochos:
     @property
     def in_phalanx(self) -> bool:
         return self.stance is Stance.PHALANX and self.in_line and not self.loose
+
+    def bound_men(self) -> list[Man]:
+        return [m for m in self.all_men() if m.bound]
+
+    def on_slots(self, tolerance: float) -> bool:
+        """Stehen alle Männer (fast) auf ihren Plätzen?"""
+        return all(math.hypot(m.x - sx, m.y - sy) <= tolerance for m, (sx, sy) in self.slots())
 
     def surface_distance(self, p: tuple[float, float]) -> float:
         """Abstand eines Punkts zur Gruppe: zum Formationsrechteck, oder bei
