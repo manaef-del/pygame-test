@@ -87,10 +87,16 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Schicht wechseln die Reihen ab wie in einer einzigen langen Reihe:
   ein Mann der ersten Reihe, einer der zweiten, einer der dritten und so
   fort, damit schwere, mittlere und leichte Hopliten gleichmäßig um die
-  Front verteilt sind. Die übrigen Befehle richten sich nach der
-  Mehrheit der Gruppe: „Angriff“ heißt Sturm, Plänkeln oder Sturmangriff
-  je nach der zahlreichsten Gattung, „Halten“ bildet nur bei
-  Hoplitenmehrheit eine Phalanx.
+  Front verteilt sind. „Halten“ bildet nur bei Hoplitenmehrheit eine
+  Phalanx.
+- **Angriff einer gemischten Gruppe teilt sie** nach Gattung: Die Reiter
+  stürmen voraus, die Peltasten folgen im Plänkeln, die Hopliten stürmen
+  als Langsamste hinterher, jede Gattung in ihrem Tempo und mit ihrem
+  eigenen Verhalten. Die Männer bleiben dabei stehen und laufen aus ihrer
+  Position los; die größte Gattung behält die Gruppe, die anderen werden
+  eigene Gruppen mit eigener Kachel. Alle Teile bleiben gewählt. Sind
+  mehrere Gruppen gewählt, vereint „Vereinen“ (V) sie wieder zu einer
+  Linie an ihrem gemeinsamen Schwerpunkt.
 - **Sturmangriff der Reiter:** Berittene, die mit mindestens zwei Kacheln
   Anlauf auf eine Gruppe treffen, prallen auf: Die vordersten Männer
   werden weggestoßen (leichte weiter als schwere, das Gewicht sind ihre
@@ -276,7 +282,8 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 | Tippen auf das Tor | gewählte Gruppen mit Rammbock brechen es auf |
 | Tippen auf den Wall | gewählte Gruppen mit Turm setzen ihn dort an |
 | Ziehen auf der Karte | Front aufziehen: Länge = Breite, Richtung = Blickrichtung |
-| Sturm / Plänkeln / Sturmangriff / A | gewählte Gruppen greifen frei an, je Waffengattung (siehe oben) |
+| Sturm / Plänkeln / Sturmangriff / A | gewählte Gruppen greifen frei an, je Waffengattung (siehe oben); gemischte Gruppen teilen sich dafür nach Gattung |
+| Vereinen / V | mehrere gewählte Gruppen werden eine |
 | Phalanx bilden / Halten / H | Hopliten bilden an Ort und Stelle eine Phalanx, andere bleiben stehen |
 | Linie, U, Kreis, Keil / F | Formation der gewählten Gruppe setzen (F schaltet weiter) |
 | Rammbock, Turm / B, T | gewählte Gruppen bauen das Gerät; erneut drücken: ablegen oder Bau abbrechen (nur beim Angriff mit Wall) |

@@ -98,6 +98,8 @@ class App:
             self.command("turm")
         elif key == pygame.K_f:
             self.command("formation")
+        elif key == pygame.K_v:
+            self.command("vereinen")
 
     def _press(self, pos: tuple[int, int]) -> None:
         if self.screen == "aufstellung":
@@ -202,7 +204,7 @@ class App:
             if not sel:
                 b.events.append("Erst eine Gruppe wählen")
             elif key == "angriff":
-                b.command_attack(sel)
+                self.selected = {g.id for g in b.command_attack(sel)}   # geteilte Gruppen bleiben gewählt
                 self.paused = False
             elif key == "halten":
                 b.command_hold(sel)
@@ -214,6 +216,10 @@ class App:
                 opts = u.formation_options()
                 nxt = opts[(opts.index(u.formation) + 1) % len(opts)] if u.formation in opts else opts[0]
                 b.command_formation(sel, nxt)
+        elif key == "vereinen" and b.outcome is None:
+            g = b.command_merge(self._selection())
+            if g is not None:
+                self.selected = {g.id}
         elif key in ("rammbock", "turm") and b.outcome is None:
             kind = "ram" if key == "rammbock" else "tower"
             sel = self._selection()

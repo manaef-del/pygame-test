@@ -157,6 +157,15 @@ def test_context_bar_shows_only_what_the_selection_can_do():
     assert labels(app)["angriff"] == "Plänkeln"
     press(app, bar(app)[f"group:{pelt.id}"])               # nochmal: abwählen
     assert app.selected == set()
+    press(app, bar(app)["alle"])
+    assert "vereinen" in bar(app)                          # mehrere gewählt: vereinen möglich
+    press(app, bar(app)["vereinen"])
+    assert len(app.selected) == 1 and len(b.units(Side.STADT)) == 1
+    (g,) = b.units(Side.STADT)
+    assert labels(app)["angriff"] == "Angriff" and b.mixed(g)
+    press(app, bar(app)["angriff"])                        # gemischt: teilt sich, alle Teile bleiben gewählt
+    assert len(b.units(Side.STADT)) == 3 and len(app.selected) == 3
+    app.command("alle")
     press(app, bar(app)["menue"])                          # Menü: Neu erst nach Bestätigung
     assert app.menu_open and "neu" in bar(app)
     app.command("neu")

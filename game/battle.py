@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 
 from . import config
 from .ai import Memory, make_brain
-from .army import Army, default_army, scaled_army, split_by_arm
+from .army import Army, arm_of, default_army, scaled_army, split_by_arm
 from .doctrine import DOCTRINE_NAMES, choose_doctrine, enemy_army
 from .geometry import add, arc, dist, norm, scale, snap4, sub
 from .scenarios import Scenario
@@ -565,27 +565,115 @@ class Battle:
             u.target = enemy.pos
         self.events.append(f"Angriff auf {enemy.name} ({enemy.men} Mann)")
 
-    def command_attack(self, units: list[Lochos] | None = None) -> None:
+    ARM_NAMES = {"hopliten": "Hopliten", "peltasten": "Peltasten", "reiter": "Reiter"}
+
+    def mixed(self, u: Lochos) -> bool:
+        return len({arm_of(m.kind.key) for m in u.all_men()}) > 1
+
+    def split_group(self, u: Lochos) -> list[Lochos]:
+        """Eine gemischte Gruppe nach Waffengattung teilen. Die Männer bleiben
+        stehen und laufen zu den Plätzen ihrer neuen Gruppe; die größte Gattung
+        behält Nummer und Gruppe, die anderen werden neue Gruppen."""
+        if u.loose or self.on_wall(u) or u.engine is not None or u.building is not None:
+            return [u]
+        parts: dict[str, list[Man]] = {}
+        for m in u.all_men():
+            parts.setdefault(arm_of(m.kind.key), []).append(m)
+        if len(parts) < 2:
+            return [u]
+        pos = {id(m): (m.x, m.y) for m in u.all_men()}
+        width = max(1, u.width)
+        biggest = max(parts, key=lambda k: len(parts[k]))
+        out = []
+        for arm, men in parts.items():
+            rows = arrange(men, min(width, len(men)))
+            cx = sum(m.x for m in men) / len(men)
+            cy = sum(m.y for m in men) / len(men)
+            if arm == biggest:
+                g = u
+                g.rows = rows
+                g.x, g.y = cx, cy
+            else:
+                g = self._spawn(u.side, rows, cx, cy, self.ARM_NAMES[arm])
+                g.facing = u.facing
+                g.morale = u.morale
+                g.rout_threshold = u.rout_threshold
+            g.name = self.ARM_NAMES[arm]
+            g.formation = "linie"
+            g.file = False
+            g.in_line = False
+            g.men_start = g.men
+            g.target = None
+            g.target_id = None
+            g.waypoints = []
+            g.mode = ""
+            for m in men:
+                m.x, m.y = pos[id(m)]
+            out.append(g)
+        self.events.append("Aufgeteilt: " + ", ".join(f"{g.name} {g.men}" for g in out))
+        return out
+
+    def command_merge(self, units: list[Lochos] | None) -> Lochos | None:
+        """Mehrere Gruppen zu einer vereinen: die Männer bleiben stehen und
+        laufen zu den Plätzen der neuen Linie; die größte Gruppe bleibt bestehen."""
+        sel = [u for u in self._selection(units)
+               if not u.loose and not self.on_wall(u) and u.engine is None and u.building is None]
+        if len(sel) < 2:
+            return None
+        keep = max(sel, key=lambda u: (u.men, -u.id))
+        others = [u for u in sel if u is not keep]
+        men = [m for u in sel for m in u.all_men()]
+        pos = {id(m): (m.x, m.y) for m in men}
+        total = len(men)
+        morale = sum(u.morale * u.men for u in sel) / total
+        keep.rows = arrange(men, max(u.width for u in sel))
+        keep.x = sum(m.x for m in men) / total
+        keep.y = sum(m.y for m in men) / total
+        keep.stance = Stance.HALTEN
+        keep.formation = "linie"
+        keep.in_line = False
+        keep.mode = ""
+        keep.target = None
+        keep.target_id = None
+        keep.waypoints = []
+        keep.men_start = keep.men
+        keep.morale = morale
+        if self.mixed(keep):
+            keep.name = "Gemischt"
+        for m in men:
+            m.x, m.y = pos[id(m)]
+        for u in others:
+            u.rows = []
+        self.lochoi = [u for u in self.lochoi if u not in others]
+        self.events.append(f"Vereint: {keep.name} mit {keep.men} Mann")
+        return keep
+
+    def command_attack(self, units: list[Lochos] | None = None) -> list[Lochos]:
         """Freier Angriff, je Waffengattung: Hopliten stürmen den nächsten Gegner,
         Peltasten plänkeln (auf Wurfweite heran, werfen, ausweichen), Reiter
         suchen sich Flanke, Rücken oder ungeordnete Gegner, stoßen zu und
-        setzen sich wieder ab."""
+        setzen sich wieder ab. Gemischte Gruppen teilen sich dafür nach
+        Gattung, so dass jede in ihrem eigenen Tempo losgeht."""
         self.alarm = False
+        out: list[Lochos] = []
         for u in self._selection(units):
-            self._wake(u)
-            arm = u.arm()
-            u.in_line = False
-            u.target_id = None
-            u.target = None
-            u.mode = ""
-            if arm == "peltasten" and u.ammo() > 0:
-                u.stance = Stance.PLAENKELN
-            else:
-                u.stance = Stance.ANGRIFF
-                if arm == "reiter" and u.mounted_men():
-                    u.mode = "sturm"
-                    u.hitrun_until = -1.0
+            for g in self.split_group(u):
+                self._wake(g)
+                arm = g.arm()
+                g.in_line = False
+                g.target_id = None
+                g.target = None
+                g.mode = ""
+                if arm == "peltasten" and g.ammo() > 0:
+                    g.stance = Stance.PLAENKELN
+                else:
+                    g.stance = Stance.ANGRIFF
+                    if arm == "reiter" and g.mounted_men():
+                        g.mode = "sturm"
+                        g.hitrun_until = -1.0
+                out.append(g)
         self.events.append("Freier Angriff")
+        return out
 
     def command_hold(self, units: list[Lochos] | None = None) -> None:
         """Halten: Hopliten bilden an Ort und Stelle eine Phalanx (Front wie sie
@@ -1281,8 +1369,8 @@ class Battle:
         alive = [u for u in self.lochoi if u.alive]
         for i, a in enumerate(alive):
             for b in alive[i + 1:]:
-                if a.side is b.side and (a.stance is Stance.PHALANX or b.stance is Stance.PHALANX):
-                    continue
+                if a.side is b.side and (a.stance is not Stance.HALTEN or b.stance is not Stance.HALTEN):
+                    continue          # eigene Gruppen in Bewegung ziehen aneinander vorbei
                 if a.loose or b.loose or self.on_wall(a) != self.on_wall(b):
                     continue          # aufgelöste Gruppen: die Männer weichen selbst aus
                 if b.id in a.contacts or a.id in b.contacts:

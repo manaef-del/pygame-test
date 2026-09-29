@@ -385,10 +385,14 @@ class Renderer:
         W, gap = config.WIDTH, 6
         arms = {u.arm() for u in sel}
         arm = next(iter(arms)) if len(arms) == 1 else "gemischt"
+        mixed = any(battle.mixed(u) for u in sel)                 # gemischte Gruppe: teilt sich beim Angriff
         items: list[tuple[str, str, float, bool, str | None]] = [           # key, label, Gewicht, aktiv, Unterzeile
-            ("angriff", ATTACK_LABEL.get(arm, "Angriff"), 1.6, False, None),
+            ("angriff", "Angriff" if mixed else ATTACK_LABEL.get(arm, "Angriff"), 1.6, False,
+             "je Gattung" if mixed else None),
             ("halten", "Phalanx bilden" if arm == "hopliten" else "Halten", 1.6, False, None),
         ]
+        if len(sel) >= 2:
+            items.append(("vereinen", "Vereinen", 1.4, False, None))
         if arm != "gemischt":
             opts = sel[0].formation_options()
             for name in opts:

@@ -1207,3 +1207,37 @@ def test_mixed_groups_form_nested_rings_and_u_with_alternating_rows():
     p = Lochos(2, Side.STADT, [men("peltast", 6), men("reiter", 4)], 5.0, 5.0)
     assert p.formation_options() == ("linie", "o")
     assert p.formation_options() == ("linie", "o") and len(p.layers()) == 2
+
+
+def test_mixed_group_splits_by_arm_on_free_attack_and_merges_back():
+    rows = [men("schwer", 10), men("mittel", 10), men("peltast", 6), men("reiter", 6)]
+    for t, row in enumerate(rows):
+        for m in row:
+            m.tier = t
+    army = Army(groups=[GroupSpec("Gemischt", [Tier("schwer", 10), Tier("mittel", 10), Tier("peltast", 6), Tier("reiter", 6)])])
+    b = Battle(raid(16, (8.0, 3.0)), random.Random(0), army=army, ai="einfach")
+    b._ai_raiders = lambda: None
+    (g,) = b.units(Side.STADT)
+    assert b.mixed(g) and g.men == 32
+    before = {id(m): m.pos for m in g.all_men()}
+    parts = b.command_attack([g])
+    assert sorted(p.name for p in parts) == ["Hopliten", "Peltasten", "Reiter"]
+    assert len(b.units(Side.STADT)) == 3 and b.fallen(Side.STADT) == 0
+    by = {p.name: p for p in parts}
+    assert by["Hopliten"] is g and by["Hopliten"].men == 20                  # die größte Gattung behält die Gruppe
+    assert by["Hopliten"].stance is Stance.ANGRIFF
+    assert by["Peltasten"].stance is Stance.PLAENKELN
+    assert by["Reiter"].stance is Stance.ANGRIFF and by["Reiter"].mode == "sturm"
+    assert by["Reiter"].speed > by["Peltasten"].speed > by["Hopliten"].speed
+    for p in parts:
+        for m in p.all_men():
+            assert m.pos == before[id(m)]                                    # niemand springt
+    start = {n: p.y for n, p in by.items()}
+    run(b, 1)
+    moved = {n: start[n] - p.y for n, p in by.items()}
+    assert moved["Reiter"] > moved["Peltasten"] > moved["Hopliten"] > 0     # jede in ihrem Tempo nach vorn
+    merged = b.command_merge(parts)
+    assert merged is not None and merged.men == 32 and len(b.units(Side.STADT)) == 1
+    assert merged.name == "Gemischt" and merged.stance is Stance.HALTEN
+    assert b.fallen(Side.STADT) == 0
+    assert b.command_merge([merged]) is None
