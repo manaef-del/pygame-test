@@ -51,6 +51,17 @@ JAVELIN_DAMAGE = 0.2         # Schaden je Speer (trifft einen bestimmten Mann)
 JAVELIN_RANGE = 3.5          # Kacheln
 JAVELIN_SPEED = 14.0         # Kacheln pro Sekunde (Anzeige und Einschlag)
 
+# Sturmangriff der Reiter
+CHARGE_RUNUP = 2.0           # Kacheln Anlauf, bevor ein Aufprall wirkt
+CHARGE_REACH = 0.6           # Kacheln vor den Reitern: wer dort steht, wird getroffen
+CHARGE_PUSH = 0.9            # Kacheln Wegstoßen je Mann, geteilt durch sein Gewicht (Lebenspunkte)
+CHARGE_IMPACT = 0.6          # Schaden je gestoßenem Mann, geteilt durch sein Gewicht
+CHARGE_SHOCK = 0.08          # Moralverlust der getroffenen Gruppe (von hinten anderthalbfach)
+CHARGE_IMPALE = 0.35         # Schaden je Speer der vorderen Reihe, wenn Reiter in eine Phalanxfront rennen
+CHARGE_IMPALE_CAP = 0.6      # höchstens so viel je Reiter
+CHARGE_SLOW = 0.4            # Geschwindigkeit der Reiter nach dem Aufprall
+CHARGE_SLOW_TIME = 2.5       # Sekunden
+
 # Handgemenge: Binden und Lösen
 MAN_BIND_REACH = 0.7         # Kacheln zum Gegner, bis zu denen ein Mann im Handgemenge steht
 BOUND_LEASH = 1.2            # Kacheln: so weit darf sich die Gruppe von einem gebundenen Mann entfernen, dann reißt er sich los

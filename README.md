@@ -58,6 +58,14 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   niedergemacht. Reiter sind stark gegen Gegner ohne Formation und
   schwach gegen die Front einer Phalanx.
 - **Halten:** stehen bleiben, rundum kämpfen, kein Bonus.
+- **Sturmangriff der Reiter:** Berittene, die mit mindestens zwei Kacheln
+  Anlauf auf eine Gruppe treffen, prallen auf: Die vordersten Männer
+  werden weggestoßen (leichte weiter als schwere, das Gewicht sind ihre
+  Lebenspunkte), verletzt, die Ordnung der Gruppe ist dahin und ihre
+  Moral leidet, von hinten noch mehr. Die Reiter selbst sind danach zwei
+  bis drei Sekunden lang langsam. Gegen die Front einer stehenden
+  Hoplitenphalanx gibt es keinen Aufprall: Die vordersten Reiter rennen
+  in die Speere und fallen, je Speer der vorderen Reihe ein Stück.
 - **Handgemenge bindet:** Jeder Mann, der einen Gegner in Reichweite hat
   (orangener Ring), steht fest, auch wenn seine Gruppe einen neuen Befehl
   bekommt; die anderen formieren sich um ihn herum. Eine vorn gebundene

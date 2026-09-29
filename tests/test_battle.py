@@ -899,3 +899,79 @@ def test_phalanx_bonus_waits_until_every_man_stands():
 
 def dist_of_pt(a, b) -> float:
     return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
+
+
+# ---------------------------------------------------------- Sturmangriff
+def charge_setup(kind: str, facing=(0.0, -1.0), stance=Stance.HALTEN, n: int = 16):
+    """Reiter des Spielers mit Anlauf von Osten gegen eine stehende Gegnergruppe."""
+    scn = raid(n, (8.0, 9.0))
+    army = army_of(GroupSpec("Reiter", [Tier("reiter", 12)]))
+    b = Battle(scn, random.Random(0), army=army, ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    cav = b.units(Side.STADT)[0]
+    foe = b.units(Side.FEIND)[0]
+    foe.rows = arrange(men(kind, n), 8)
+    foe.men_start = n
+    foe.x, foe.y = 8.0, 9.0
+    foe.facing = facing
+    foe.stance = stance
+    foe.target = None
+    foe.place_men()
+    if stance is Stance.PHALANX:
+        foe.in_line = True
+    cav.x, cav.y = 13.5, 9.0
+    cav.facing = (-1.0, 0.0)
+    cav.place_men()
+    b.command_attack_target([cav], foe)
+    return b, cav, foe
+
+
+def test_charge_pushes_men_and_slows_the_riders():
+    b, cav, foe = charge_setup("raeuber")
+    before = {id(m): m.pos for m in foe.all_men()}
+    hp_before = sum(m.hp for m in foe.all_men())
+    for _ in range(int(8 / DT)):
+        b.update(DT)
+        if any("stoßen" in e for e in b.events):
+            break
+    assert any("in die Flanke" in e for e in b.events), b.events[-3:]
+    pushed = [m for m in foe.all_men() if id(m) in before and m.x - before[id(m)][0] < -0.2]   # nach Westen gestoßen
+    assert len(pushed) >= 4
+    assert sum(m.hp for m in foe.all_men()) < hp_before
+    assert foe.morale < 1.0
+    assert cav.charge_slow_until > b.time and cav.runup == 0.0
+
+
+def test_charge_into_a_phalanx_front_impales_the_riders():
+    b, cav, foe = charge_setup("schwer", facing=(1.0, 0.0), stance=Stance.PHALANX)
+    before = {id(m): m.pos for m in foe.all_men()}
+    for _ in range(int(8 / DT)):
+        b.update(DT)
+        if any("Speere" in e for e in b.events):
+            break
+    assert any("rennen in die Speere" in e for e in b.events), b.events[-3:]
+    assert cav.men < 12                                            # Reiter aufgespießt
+    assert all(dist_of_pt(m.pos, before[id(m)]) < 0.05 for m in foe.all_men())   # niemand weggestoßen
+
+
+def test_light_men_fly_farther_than_heavy_ones():
+    def pushed_distance(kind: str) -> float:
+        b, cav, foe = charge_setup(kind)
+        before = {id(m): m.pos for m in foe.all_men()}
+        for _ in range(int(8 / DT)):
+            b.update(DT)
+            if any("stoßen" in e for e in b.events):
+                break
+        moved = [dist_of_pt(m.pos, before[id(m)]) for m in foe.all_men() if id(m) in before]
+        return max(moved) if moved else 0.0
+    assert pushed_distance("peltast") > pushed_distance("schwer") * 1.8
+
+
+def test_no_charge_without_run_up():
+    b, cav, foe = charge_setup("raeuber")
+    cav.x, cav.y = foe.x + foe.half_w + cav.half_d + 0.4, 9.0       # steht schon dicht daneben
+    cav.place_men()
+    run(b, 3)
+    assert not any("stoßen" in e for e in b.events)
+    assert cav.engaged

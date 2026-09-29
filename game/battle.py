@@ -808,6 +808,8 @@ class Battle:
             speed = u.speed * (1.25 if u.stance is Stance.FLUCHT else 1.0)
             if u.engaged and u.stance is not Stance.FLUCHT:
                 speed *= config.ENGAGED_SPEED           # im Handgemenge kommt man kaum vom Fleck
+            if u.charge_slow_until > self.time:
+                speed *= config.CHARGE_SLOW             # der Aufprall hat die Reiter gebremst
             goal, final = self.route(u, u.target)
             d = dist(u.pos, goal)
             if u.mounted_men() and self.is_wall_cell(self.cell(*goal), True) and d <= 1.0:
@@ -838,7 +840,12 @@ class Battle:
             direction = norm(sub(goal, u.pos))
             if u.stance is not Stance.PHALANX:
                 u.facing = direction
+            before = u.pos
             self._step(u, scale(direction, step))
+            if u.mounted_men() and u.stance is Stance.ANGRIFF and not u.engaged:
+                u.runup += dist(before, u.pos)          # Anlauf für den Sturmangriff
+            else:
+                u.runup = 0.0
             if u.stance is Stance.FLUCHT and not self.inside(u.x, u.y):
                 u.withdrawn = True
         self._move_men(dt)
@@ -1134,6 +1141,7 @@ class Battle:
     # -- Kampf -------------------------------------------------------------
     def _combat(self, dt: float) -> None:
         alive = [u for u in self.lochoi if u.alive]
+        previous = {u.id: set(u.contacts) for u in alive}
         for u in alive:
             u.engaged = False
             u.contacts = []
@@ -1148,9 +1156,55 @@ class Battle:
                     pairs.append((a, b))
                     a.engaged = True
                     a.contacts.append(b.id)
+                    if b.id not in previous.get(a.id, ()) and a.runup >= config.CHARGE_RUNUP and a.mounted_men():
+                        self._charge(a, b)                # erster Kontakt mit Anlauf: Aufprall
         hits = [(a, b, *self._melee(a, b, dt)) for a, b in pairs]
         for a, b, dmg, arc_name in hits:
             self._apply_damage(a, b, dmg, arc_name)
+
+    def _charge(self, a: Lochos, b: Lochos) -> None:
+        """Sturmangriff: Reiter mit Anlauf prallen auf eine Gruppe. In die Front einer
+        Phalanx rennen sie in die Speere; sonst stoßen sie einzelne Männer weg
+        (leichte weiter als schwere), verletzen sie und erschüttern die Moral.
+        Der Aufprall bremst die Reiter selbst."""
+        a.runup = 0.0
+        a.charge_slow_until = self.time + config.CHARGE_SLOW_TIME
+        riders = a.mounted_men()
+        arc_name = self.arc_of(b, a.pos)
+        if self._formed(b) and arc_name == "front" and b.shield_factor() > 0 and b.rows:
+            spears = sum(1 for m in b.rows[0] if m.kind.hoplite)
+            dmg = min(spears * config.CHARGE_IMPALE, len(riders) * config.CHARGE_IMPALE_CAP)
+            for m in sorted(riders, key=lambda m: b.rect_distance(m.pos)):   # die vordersten Reiter voll
+                q = min(dmg, m.hp)
+                m.hp -= q
+                dmg -= q
+                if dmg <= 0:
+                    break
+            fallen = a.bury()
+            a.morale -= fallen * (1.0 / max(1, a.men_start)) * a.bravery()
+            self.events.append(f"{a.name} ({a.side.value}) rennen in die Speere von {b.name}")
+            return
+        direction = norm(sub(b.pos, a.pos))
+        reach = self._gap(a, b) + config.CHARGE_REACH      # die vordersten Männer, auf die die Reiter treffen
+        zone = [m for m in b.all_men() if a.rect_distance(m.pos) <= reach]
+        zone.sort(key=lambda m: a.rect_distance(m.pos))
+        zone = zone[:max(1, 2 * len(riders))]
+        if not zone:
+            return
+        for m in zone:
+            weight = max(0.5, m.kind.hp)
+            push = config.CHARGE_PUSH / weight
+            nx, ny = m.x + direction[0] * push, m.y + direction[1] * push
+            if self.inside(nx, ny) and not self.is_blocked(nx, ny, b) and not self.is_wall_cell(self.cell(nx, ny), True):
+                m.x, m.y = nx, ny                         # weggestoßen
+            m.hp -= config.CHARGE_IMPACT / weight
+        fallen = b.bury()
+        b.in_line = False                                  # die Ordnung ist dahin, bis alle wieder stehen
+        shock = config.CHARGE_SHOCK * (1.5 if arc_name == "rear" else 1.0) * b.bravery()
+        b.morale -= shock
+        self._after_hit(b, fallen, arc_name, config.CHARGE_IMPACT * len(zone))
+        where = {"front": "in die Front", "flank": "in die Flanke", "rear": "in den Rücken"}[arc_name]
+        self.events.append(f"{a.name} ({a.side.value}) stoßen {where} von {b.name}: {len(zone)} Mann geworfen")
 
     def _melee(self, a: Lochos, b: Lochos, dt: float) -> tuple[float, str]:
         rate, arc_name = self._melee_rate(a, b)

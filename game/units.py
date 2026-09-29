@@ -164,6 +164,8 @@ class Lochos:
     engaged: bool = False             # in diesem Schritt im Nahkampf
     contacts: list[int] = field(default_factory=list)   # Gegner, mit denen gekämpft wird (ids)
     disengage_until: float = -1.0     # bis dahin gilt die Gruppe als vom Feind gelöst (verwundbar)
+    runup: float = 0.0                # Reiter: Anlauf seit dem letzten Halt oder Kontakt (Kacheln)
+    charge_slow_until: float = -1.0   # nach dem Aufprall: bis dahin langsam
     last_arc: str = ""
     men_start: int = 0
     rout_threshold: float = 0.3
