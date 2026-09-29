@@ -110,10 +110,11 @@ class App:
                 self.menu_slider = slider
                 self._slide(pos)
             return
+        key = self.renderer.button_at(pos, self.battle, self.paused, self.selected, self.menu_open)
+        if key:
+            self.command(key)                      # Leiste unten oder Gruppenkachel am Kartenrand
+            return
         if pos[1] >= config.MAP_H:
-            key = self.renderer.button_at(pos, self.battle, self.paused, self.selected, self.menu_open)
-            if key:
-                self.command(key)
             return
         self.drag_start = self.drag_now = to_tiles(pos)
 

@@ -70,15 +70,27 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
 - **Halten** (nur für gewählte Gruppen): Hopliten bilden an Ort und
   Stelle eine Phalanx mit der Front, wie sie gerade stehen; Peltasten und
   Reiter bleiben stehen und kämpfen rundum ohne Bonus.
-- **Formationen:** Standard ist die Linie. Der Knopf „Formation“ (oder
-  F) schaltet für die gewählte Gruppe weiter. Hopliten: Linie, U-Stellung
-  (drei Seiten Front, nur die offene Rückseite verwundbar, etwas weniger
-  dicht) und Kreis (rundum Front ohne Flanke und Rücken, aber ohne den
-  Rückhalt der Glieder: schwächer nach vorn, nur 60 % der Männer
-  kämpfen); beide für den Fall, dass man umfasst wird oder weit in der
-  Unterzahl ist. Reiter: Linie und Keil; der Keil trifft beim Sturm halb
-  so viele Männer, die aber fast doppelt so hart. Peltasten: Linie und
-  Kreis. Wer eine neue Linie zieht, steht wieder in Linie.
+- **Formationen:** Standard ist die Linie. Die Leiste zeigt für die
+  gewählte Gruppe die möglichen Formationen, F schaltet weiter. Gruppen
+  mit Fußvolk: Linie, U-Stellung (drei Seiten Front, nur die offene
+  Rückseite verwundbar, etwas weniger dicht) und Kreis (rundum Front ohne
+  Flanke und Rücken, aber ohne den Rückhalt der Glieder: schwächer nach
+  vorn, nur 60 % der Männer kämpfen); beide für den Fall, dass man
+  umfasst wird oder weit in der Unterzahl ist. Reine Reiter: Linie und
+  Keil; der Keil trifft beim Sturm halb so viele Männer, die aber fast
+  doppelt so hart. Reine Peltasten: Linie und Kreis. Wer eine neue Linie
+  zieht, steht wieder in Linie.
+- **Gemischte Gruppen in U und Kreis** stehen in Schichten: das Fußvolk
+  bildet den äußeren Ring oder das äußere U, Reiter den mittleren,
+  Peltasten den inneren; jede Schicht ist um einen Reihenabstand nach
+  innen gerückt, die inneren Ringe stehen auf Lücke. Innerhalb einer
+  Schicht wechseln die Reihen ab wie in einer einzigen langen Reihe:
+  ein Mann der ersten Reihe, einer der zweiten, einer der dritten und so
+  fort, damit schwere, mittlere und leichte Hopliten gleichmäßig um die
+  Front verteilt sind. Die übrigen Befehle richten sich nach der
+  Mehrheit der Gruppe: „Angriff“ heißt Sturm, Plänkeln oder Sturmangriff
+  je nach der zahlreichsten Gattung, „Halten“ bildet nur bei
+  Hoplitenmehrheit eine Phalanx.
 - **Sturmangriff der Reiter:** Berittene, die mit mindestens zwei Kacheln
   Anlauf auf eine Gruppe treffen, prallen auf: Die vordersten Männer
   werden weggestoßen (leichte weiter als schwere, das Gewicht sind ihre
@@ -235,11 +247,12 @@ Simulator zu vergleichen.
 
 Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 
-- **Oben eine Karte je eigene Gruppe** mit Farbe der Gattung, Mannzahl,
-  Zustand (hält, unterwegs, Phalanx, plänkelt, greift an, im Kampf,
-  Wehrgang, baut, Flucht) und Moralbalken. Tippen wählt die Gruppe,
-  nochmal tippen wählt ab, „Alle“ wählt alle. Tippen auf die Gruppe im
-  Feld geht weiterhin.
+- **Am rechten Kartenrand eine Kachel je eigene Gruppe**, untereinander,
+  mit Sinnbild der Gattung (Schild, Wurfspeer, Pferdekopf), Mannzahl und
+  Moralbalken; im Kampf orange umrandet, auf der Flucht ausgegraut. Oben
+  „Alle“ beziehungsweise „Keine“. Tippen wählt die Gruppe, nochmal tippen
+  wählt ab; so bleibt auch bei vielen Gruppen Platz. Tippen auf die Gruppe
+  im Feld geht weiterhin.
 - **In der Mitte die Befehle der gewählten Gattung**, benannt nach dem,
   was passiert: Hopliten „Sturm“, „Phalanx bilden“ und die Formationen
   Linie, U, Kreis; Peltasten „Plänkeln“, „Halten“, Linie, Kreis; Reiter
@@ -256,7 +269,7 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 
 | Eingabe | Aktion |
 |---------|--------|
-| Tippen auf Gruppenkarte oder eigene Gruppe | auswählen (erneut tippen: abwählen) |
+| Tippen auf Gruppenkachel oder eigene Gruppe | auswählen (erneut tippen: abwählen) |
 | Tippen auf die Karte | gewählte Gruppen laufen dorthin |
 | Tippen auf Feind | gewählte Gruppen greifen diese an |
 | Tippen auf das Tor | gewählte Gruppen mit Rammbock brechen es auf |

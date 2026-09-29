@@ -39,7 +39,10 @@ class Button:
 
 
 BAR_GAP = 5
-BAR_ROWS = (44, 42, 34)                    # Gruppenkarten, Befehle, Menü und Pause
+BAR_ROWS = (42, 34)                        # Befehle, dann Menü und Pause
+CHIP = 44                                  # Kantenlänge der Gruppenkacheln am rechten Kartenrand
+CHIP_GAP = 4
+CHIP_TOP = 50                              # unter der Kopfzeile und dem Plan des Gegners
 ATTACK_LABEL = {"hopliten": "Sturm", "peltasten": "Plänkeln", "reiter": "Sturmangriff"}
 
 
@@ -314,8 +317,11 @@ class Renderer:
         return lines
 
     def _wrap_center(self, font, text, color, y) -> None:
-        for i, line in enumerate(self._wrap(font, text, config.MAP_W - 32)):
-            self._center_text(font, line, color, y + i * 24)
+        """Mittig im Kartenteil links von der Kachelspalte."""
+        width = config.MAP_W - CHIP - 12 - 24
+        for i, line in enumerate(self._wrap(font, text, width)):
+            img = font.render(line, True, color)
+            self.surface.blit(img, img.get_rect(center=(width // 2 + 12, y + i * 24)))
 
     def _wrap_left(self, font, text, color, y) -> None:
         for i, line in enumerate(self._wrap(font, text, config.MAP_W - 16)[:2]):
@@ -335,21 +341,10 @@ class Renderer:
         Gruppe, in der Mitte nur die Befehle, die gerade gehen, unten fest
         Menü und Pause."""
         W, gap = config.WIDTH, 6
-        (y1, h1), (y2, h2), (y3, h3) = self._bar_rows()
+        (y2, h2), (y3, h3) = self._bar_rows()
         out: list[Button] = []
         sel = [u for u in battle.lochoi if u.id in selected and u.fighting]
-        groups = battle.units(Side.STADT)
-        if groups:
-            alle_w = 62
-            n = len(groups)
-            w = (W - 2 * gap - alle_w - gap * n) // n
-            x = gap
-            for u in groups:
-                out.append(Button(f"group:{u.id}", f"{u.name} {u.men}", pygame.Rect(x, y1, w, h1),
-                                  active=u.id in selected, sub=self._group_state(battle, u)))
-                x += w + gap
-            out.append(Button("alle", "Keine" if selected else "Alle", pygame.Rect(W - gap - alle_w, y1, alle_w, h1),
-                              active=bool(selected)))
+        out.extend(self._chips(battle, selected))
         if battle.outcome is not None or menu_open:
             half = (W - 3 * gap) // 2
             out.append(Button("neu", "Neu", pygame.Rect(gap, y2, half, h2), sub="Szenario noch einmal"))
@@ -382,6 +377,23 @@ class Renderer:
         w = (width - gap * (len(items) - 1)) // len(items)
         return [Button(key, label, pygame.Rect(x + i * (w + gap), y, w, h), active=active)
                 for i, (key, label, active) in enumerate(items)]
+
+    @staticmethod
+    def _chips(battle: Battle, selected: set[int]) -> list[Button]:
+        """Eine Kachel je eigene Gruppe, untereinander am rechten Kartenrand,
+        oben „Alle“; sie wählen aus und zeigen Gattung, Mannzahl und Moral."""
+        groups = battle.units(Side.STADT)
+        if not groups:
+            return []
+        x = config.MAP_W - CHIP - 6
+        out = [Button("alle", "Keine" if selected else "Alle", pygame.Rect(x, CHIP_TOP, CHIP, CHIP), active=bool(selected))]
+        y = CHIP_TOP + CHIP + CHIP_GAP
+        for u in groups:
+            if y + CHIP > config.MAP_H - 44:
+                break                                     # mehr passt nicht neben die Karte
+            out.append(Button(f"group:{u.id}", str(u.men), pygame.Rect(x, y, CHIP, CHIP), active=u.id in selected))
+            y += CHIP + CHIP_GAP
+        return out
 
     def _command_row(self, battle: Battle, sel: list[Lochos], y: int, h: int) -> list[Button]:
         """Befehle je Waffengattung der Auswahl; gemischte Auswahl nur das Gemeinsame."""
@@ -430,11 +442,16 @@ class Renderer:
         s = self.surface
         pygame.draw.rect(s, config.COLOR_BAR, pygame.Rect(0, config.MAP_H, config.WIDTH, config.BAR_H))
         self.buttons = self.layout_bar(battle, paused, selected, menu_open)
-        (y1, h1), (y2, h2), _ = self._bar_rows()
+        (y2, h2), _ = self._bar_rows()
         by_id = {u.id: u for u in battle.lochoi}
         for b in self.buttons:
             if b.key.startswith("group:"):
                 self._draw_chip(b, by_id[int(b.key.split(":")[1])])
+                continue
+            if b.key == "alle":
+                pygame.draw.rect(s, config.COLOR_BUTTON_ACTIVE if b.active else config.COLOR_BUTTON, b.rect, border_radius=6)
+                img = self.small.render(b.label, True, config.COLOR_TEXT)
+                s.blit(img, img.get_rect(center=b.rect.center))
                 continue
             pygame.draw.rect(s, config.COLOR_BUTTON_ACTIVE if b.active else config.COLOR_BUTTON, b.rect, border_radius=6)
             if b.sub:
@@ -453,26 +470,40 @@ class Renderer:
             elif battle.alarm:
                 hint = "Gruppe wählen und aufstellen, Los startet die Schlacht"
             else:
-                hint = "Gruppe wählen: Karte oben oder Gruppe im Feld antippen"
+                hint = "Gruppe wählen: Kachel rechts oder Gruppe im Feld antippen"
             img = self.small.render(hint, True, config.COLOR_TEXT_DIM)
             s.blit(img, img.get_rect(center=(config.WIDTH // 2, y2 + h2 // 2)))
 
     def _draw_chip(self, b: Button, u: Lochos) -> None:
-        """Gruppenkarte: Farbe der Gattung, Name und Mannzahl, Zustand, Moralbalken."""
+        """Gruppenkachel: Sinnbild der Gattung, Mannzahl, Moralbalken; gewählt blau,
+        im Kampf orange umrandet, auf der Flucht ausgegraut."""
         s = self.surface
-        pygame.draw.rect(s, config.COLOR_BUTTON_ACTIVE if b.active else config.COLOR_BUTTON, b.rect, border_radius=6)
         fleeing = u.stance is Stance.FLUCHT
+        pygame.draw.rect(s, config.COLOR_BUTTON_ACTIVE if b.active else config.COLOR_BUTTON, b.rect, border_radius=6)
+        if u.engaged and not fleeing:
+            pygame.draw.rect(s, config.COLOR_BOUND, b.rect, 2, border_radius=6)
+        lead = u.rows[0][0].kind if u.rows and u.rows[0] else None
+        color = config.COLOR_CITY if lead is None else lead.color
+        if fleeing:
+            color = desaturate(color, 0.7)
+        cx, cy = b.rect.x + 11, b.rect.y + 11                 # Sinnbild oben links
+        arm = u.arm()
+        if arm == "reiter":                               # Pferdekopf
+            pygame.draw.polygon(s, color, [(cx - 6, cy + 6), (cx + 6, cy + 6), (cx + 2, cy - 6), (cx - 2, cy - 3)])
+        elif arm == "peltasten":                          # Wurfspeer
+            pygame.draw.line(s, color, (cx - 6, cy + 6), (cx + 5, cy - 5), 2)
+            pygame.draw.polygon(s, color, [(cx + 6, cy - 6), (cx + 1, cy - 5), (cx + 5, cy - 1)])
+        else:                                             # Rundschild
+            pygame.draw.circle(s, color, (cx, cy), 7)
+            pygame.draw.circle(s, config.COLOR_BAR, (cx, cy), 7, 1)
+            pygame.draw.circle(s, config.COLOR_BAR, (cx, cy), 2)
         text = config.COLOR_TEXT_DIM if fleeing else config.COLOR_TEXT
-        lead = u.rows[0][0].kind.color if u.rows and u.rows[0] else config.COLOR_CITY
-        pygame.draw.circle(s, desaturate(lead, 0.6) if fleeing else lead, (b.rect.x + 10, b.rect.y + 12), 5)
-        font = self.font if self.font.size(b.label)[0] <= b.rect.w - 22 else self.small
-        s.blit(font.render(b.label, True, text), (b.rect.x + 19, b.rect.y + 3))
-        s.blit(self.small.render(b.sub or "", True, config.COLOR_TEXT_DIM), (b.rect.x + 19, b.rect.y + 21))
-        bar = pygame.Rect(b.rect.x + 6, b.rect.bottom - 6, b.rect.w - 12, 3)
+        img = self.font.render(b.label, True, text)         # Mannzahl unten rechts
+        s.blit(img, img.get_rect(bottomright=(b.rect.right - 4, b.rect.bottom - 6)))
+        bar = pygame.Rect(b.rect.x + 4, b.rect.bottom - 5, b.rect.w - 8, 2)
         pygame.draw.rect(s, config.COLOR_BAR, bar)
         m = max(0.0, min(1.0, u.morale))
-        color = (int(200 - 120 * m), int(80 + 100 * m), 70)
-        pygame.draw.rect(s, color, pygame.Rect(bar.x, bar.y, int(bar.w * m), bar.h))
+        pygame.draw.rect(s, (int(200 - 120 * m), int(80 + 100 * m), 70), pygame.Rect(bar.x, bar.y, int(bar.w * m), bar.h))
 
     def button_at(self, pos: tuple[int, int], battle: Battle | None = None, paused: bool = False,
                   selected: set[int] | None = None, menu_open: bool = False) -> str | None:

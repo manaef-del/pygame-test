@@ -270,8 +270,38 @@ class Lochos:
     def depth(self) -> int:
         return len(self.rows)
 
+    def layers(self) -> list[list[Man]]:
+        """Schichten für Ring und U-Stellung: Fußvolk außen, Reiter in der Mitte,
+        Peltasten innen. In jeder Schicht wechseln die Reihen ab (ein Mann der
+        ersten, einer der zweiten, einer der dritten, ...), so dass jede
+        Rüstungsstufe gleichmäßig über die Front verteilt ist."""
+        per_layer: tuple[list[list[Man]], ...] = ([], [], [])
+        for row in self.rows:
+            parts: tuple[list[Man], ...] = ([], [], [])
+            for m in row:
+                parts[2 if m.kind.ranged else (1 if m.kind.cavalry else 0)].append(m)
+            for layer, part in zip(per_layer, parts):
+                if part:
+                    layer.append(part)
+        out: list[list[Man]] = []
+        for rows in per_layer:
+            if not rows:
+                continue
+            merged = [r[i] for i in range(max(len(r) for r in rows)) for r in rows if i < len(r)]
+            out.append(merged)
+        return out
+
+    def ring_radii(self) -> list[float]:
+        """Halbmesser je Schicht, von außen nach innen; die äußere ist so weit,
+        dass alle inneren Ringe mit Reihenabstand hineinpassen."""
+        need = [max(0.12, len(layer) * config.MAN_SPACING / (2 * math.pi)) for layer in self.layers()]
+        if not need:
+            return [0.35]
+        outer = max(0.35, max(r + i * config.ROW_SPACING for i, r in enumerate(need)))
+        return [outer - i * config.ROW_SPACING for i in range(len(need))]
+
     def ring_radius(self) -> float:
-        return max(0.35, self.men * config.MAN_SPACING / (2 * math.pi))
+        return self.ring_radii()[0]
 
     def wedge_rows(self) -> int:
         k = 1
@@ -280,9 +310,11 @@ class Lochos:
         return k
 
     def u_shape(self) -> tuple[int, int]:
-        """(Männer in der Front, Männer je Arm) der U-Stellung."""
-        front = max(1, math.ceil(self.men / 2))
-        arm = (self.men - front) // 2
+        """(Männer in der Front, Männer je Arm) der äußeren Schicht der U-Stellung."""
+        layers = self.layers()
+        n = len(layers[0]) if layers else 0
+        front = max(1, math.ceil(n / 2))
+        arm = (n - front) // 2
         return front, arm
 
     @property
@@ -416,12 +448,11 @@ class Lochos:
             return out
         fx, fy = facing
         if self.formation == "o":
-            men = self.all_men()
-            n = len(men)
-            r = self.ring_radius()
-            for i, man in enumerate(men):
-                a = 2 * math.pi * i / max(1, n)
-                out.append((man, (cx + math.cos(a) * r, cy + math.sin(a) * r)))
+            for k, (layer, r) in enumerate(zip(self.layers(), self.ring_radii())):
+                n = len(layer)
+                for i, man in enumerate(layer):
+                    a = 2 * math.pi * (i + 0.5 * k) / max(1, n)    # innere Ringe auf Lücke
+                    out.append((man, (cx + math.cos(a) * r, cy + math.sin(a) * r)))
             return out
         if self.formation == "keil":
             men = self.all_men()
@@ -439,27 +470,44 @@ class Lochos:
                     break
             return out
         if self.formation == "u":
-            men = self.all_men()
+            layers = self.layers()
             front, arm = self.u_shape()
             half_w = front * config.MAN_SPACING / 2
             depth = (arm + 1) * config.ROW_SPACING
             fwd = depth / 2
+
+            def put(man: Man, side: float, forward: float) -> None:
+                out.append((man, (cx + fx * forward - fy * side, cy + fy * forward + fx * side)))
+
+            men = layers[0] if layers else []
             i = 0
-            for j in range(front):
-                side = (j - (front - 1) / 2) * config.MAN_SPACING
-                out.append((men[i], (cx + fx * fwd - fy * side, cy + fy * fwd + fx * side)))
+            for j in range(front):                  # äußere Schicht: Front, dann die Arme
+                put(men[i], (j - (front - 1) / 2) * config.MAN_SPACING, fwd)
                 i += 1
             for k in range(arm):
                 for sign in (-1.0, 1.0):
                     if i >= len(men):
                         break
-                    side = sign * half_w
-                    forward = fwd - (k + 1) * config.ROW_SPACING
-                    out.append((men[i], (cx + fx * forward - fy * side, cy + fy * forward + fx * side)))
+                    put(men[i], sign * half_w, fwd - (k + 1) * config.ROW_SPACING)
                     i += 1
             while i < len(men):                     # Rest in der Mitte hinter der Front
-                out.append((men[i], (cx + fx * (fwd - config.ROW_SPACING), cy + fy * (fwd - config.ROW_SPACING))))
+                put(men[i], 0.0, fwd - config.ROW_SPACING)
                 i += 1
+            for k, layer in enumerate(layers[1:], start=1):   # innere Schichten: kleinere U auf dem gleichen Weg
+                inset = k * config.ROW_SPACING
+                w = max(0.0, 2 * half_w - 2 * inset)          # Breite der inneren Front
+                d = max(0.0, arm * config.ROW_SPACING - inset)  # Tiefe der inneren Arme
+                f = fwd - inset
+                length = w + 2 * d
+                n = len(layer)
+                for i, man in enumerate(layer):
+                    t = (i + 0.5) / n * length if length > 0 else 0.0
+                    if t < d:                                  # linker Arm, von hinten nach vorn
+                        put(man, -w / 2, f - d + t)
+                    elif t <= d + w:                           # Front von links nach rechts
+                        put(man, -w / 2 + (t - d), f)
+                    else:                                      # rechter Arm, von vorn nach hinten
+                        put(man, w / 2, f - (t - d - w))
             return out
         n_rows = len(self.rows)
         for r, row in enumerate(self.rows):
@@ -500,11 +548,13 @@ class Lochos:
         return "hopliten"
 
     def formation_options(self) -> tuple[str, ...]:
-        arm = self.arm()
-        if arm == "reiter":
-            return ("linie", "keil")
-        if arm == "hopliten":
+        """Linie immer; mit Fußvolk auch U und Kreis (Reiter und Peltasten
+        darin in inneren Ringen), reine Reiter den Keil, reine Peltasten den Kreis."""
+        men = self.all_men()
+        if any(not m.kind.cavalry and not m.kind.ranged for m in men):
             return ("linie", "u", "o")
+        if men and all(m.kind.cavalry for m in men):
+            return ("linie", "keil")
         return ("linie", "o")
 
     def cavalry_share(self) -> float:

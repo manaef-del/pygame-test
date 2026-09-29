@@ -1176,3 +1176,34 @@ def test_wedge_hits_fewer_men_harder():
     n_line, far_line = charge("linie")
     n_wedge, far_wedge = charge("keil")
     assert n_wedge < n_line and far_wedge > far_line
+
+
+def test_mixed_groups_form_nested_rings_and_u_with_alternating_rows():
+    rows = [men("schwer", 8), men("mittel", 8), men("leicht", 8), men("reiter", 6), men("peltast", 6)]
+    for t, row in enumerate(rows):
+        for m in row:
+            m.tier = t
+    u = Lochos(1, Side.STADT, rows, 5.0, 5.0)
+    layers = u.layers()
+    assert [len(l) for l in layers] == [24, 6, 6]
+    assert [m.kind.key for m in layers[0][:6]] == ["schwer", "mittel", "leicht"] * 2   # Reihen wechseln ab
+    assert all(m.kind.cavalry for m in layers[1]) and all(m.kind.ranged for m in layers[2])
+    u.formation = "o"
+    r_out, r_cav, r_pelt = u.ring_radii()
+    assert r_out > r_cav > r_pelt > 0.1
+    for m, p in u.slots():
+        want = r_pelt if m.kind.ranged else (r_cav if m.kind.cavalry else r_out)
+        assert abs(dist_of_pt(p, (5.0, 5.0)) - want) < 1e-6
+    u.formation = "u"
+    slots = dict((id(m), p) for m, p in u.slots())
+    front_hop = min(slots[id(m)][1] for m in layers[0])
+    front_cav = min(slots[id(m)][1] for m in layers[1])
+    front_pelt = min(slots[id(m)][1] for m in layers[2])
+    assert front_hop < front_cav < front_pelt                       # innere U liegen hinter der äußeren Front
+    xs_hop = [slots[id(m)][0] for m in layers[0]]
+    xs_pelt = [slots[id(m)][0] for m in layers[2]]
+    assert min(xs_hop) < min(xs_pelt) and max(xs_pelt) < max(xs_hop)   # und innerhalb ihrer Arme
+    assert u.formation_options() == ("linie", "u", "o")
+    p = Lochos(2, Side.STADT, [men("peltast", 6), men("reiter", 4)], 5.0, 5.0)
+    assert p.formation_options() == ("linie", "o")
+    assert p.formation_options() == ("linie", "o") and len(p.layers()) == 2
