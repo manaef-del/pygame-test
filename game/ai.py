@@ -549,6 +549,8 @@ class Brain:
         along, forward = target.local(u.pos)
         in_front = b.arc_of(target, u.pos) == "front"
         if role == "binden":
+            if self._skirmish(b, u, [target]):
+                return True                             # Peltasten binden mit Speeren, nicht im Handgemenge
             if self.flank_ready or b.time >= self.plan_since + config.AI_PIN_DELAY or not in_front:
                 self._attack(b, u, target)
             else:
@@ -706,6 +708,28 @@ class Brain:
             return False
         return b.on_wall(u) or b.path_clear(u.pos, f.pos)
 
+    def _skirmisher(self, b: "Battle", u: Lochos) -> bool:
+        """Peltasten mit Speeren auf dem Boden plänkeln statt zu stürmen."""
+        return (u.share(lambda m: m.kind.ranged) >= 0.5 and u.ammo() > 0 and not b.on_wall(u)
+                and u.engine is None and u.building is None)
+
+    def _skirmish(self, b: "Battle", u: Lochos, foes: list[Lochos]) -> bool:
+        """Plänkeln, wenn ein erreichbarer Gegner nahe genug ist; wer schon
+        plänkelt, bleibt etwas länger dabei. Die Schlacht selbst führt die
+        Gruppe dann (heran, werfen, ausweichen)."""
+        if not self._skirmisher(b, u):
+            return False
+        reach = config.AI_SKIRMISH_KEEP if u.stance is Stance.PLAENKELN else config.AI_SKIRMISH_SEEK
+        if not any(f.rect_distance(u.pos) <= reach and self._reachable(b, u, f) for f in foes):
+            return False
+        if u.stance is not Stance.PLAENKELN:
+            u.stance = Stance.PLAENKELN
+            u.in_line = False
+            u.target_id = None
+            u.target = None
+            u.waypoints = []
+        return True
+
     def _fight_or_move(self, b: "Battle", u: Lochos, r: Report) -> None:
         plan = self.plan or "frontal"
         on_wall = b.on_wall(u)
@@ -717,6 +741,13 @@ class Brain:
             # unterwegs um die Front: nur ungedeckte Gegner oder Flanke/Rücken angreifen
             cands = [f for f in cands if f.id in r.exposed or not formed(f)
                      or b.arc_of(f, u.pos) != "front"]
+            if self._skirmish(b, u, cands):
+                return
+        elif self._skirmish(b, u, r.foes):
+            return
+        if u.stance is Stance.PLAENKELN:
+            u.stance = Stance.HALTEN                     # kein Gegner mehr in Wurfnähe
+            u.target = None
         if plan == "zermuerben" and not on_wall:
             close = self._nearby_foe(b, u, config.ENGAGE_RANGE + 0.4)
             if close is not None:
@@ -848,6 +879,12 @@ class Brain:
             if abs(u.x - x) > 0.8:
                 self._go(b, u, (x, wall_y))
             return
+        foes = [f for f in r.foes if not b.on_wall(f) and (wall_y is None or self._foe_inside(b, f))]
+        if self._skirmish(b, u, foes):
+            return
+        if u.stance is Stance.PLAENKELN:
+            u.stance = Stance.HALTEN
+            u.target = None
         if lines and self.plan == "vorruecken":
             line = min(lines, key=lambda l: dist(l.pos, u.pos))
             fx, fy = line.facing

@@ -402,3 +402,43 @@ def test_settlement_learns_a_better_doctrine_from_memory():
     run(b, 200)
     assert b.outcome is not None
     assert len(mem.gains[key]["reiterlastig"]) == 4          # der Ausgang wurde gemerkt
+
+
+# ------------------------------------------------------------- Plänkeln
+def test_settlement_peltasts_skirmish_beside_their_own_line_and_hold_when_empty():
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    hop, pelt, cav = b.units(Side.STADT)
+    enemy = {u.name: u for u in b.units(Side.FEIND)}
+    ep, eh = enemy["Peltasten"], enemy["Hopliten"]
+    b.command_line([hop], (6.0, 8.5), (10.0, 8.5))               # Phalanx vor die Linie der Siedlung
+    b.command_move([pelt, cav], (8.0, 15.0))
+    hp0 = sum(m.hp for m in hop.all_men())
+    skirmished = False
+    for _ in range(int(14 / DT)):
+        b.update(DT)
+        if ep.stance is Stance.PLAENKELN:
+            skirmished = True
+            assert not (abs(ep.x - eh.x) < eh.half_w and abs(ep.y - eh.y) < eh.half_d + 0.1)   # nie in der eigenen Phalanx
+    assert skirmished
+    assert ep.ammo() < 10 * ep.men                                # es wurde geworfen
+    assert sum(m.hp for m in hop.all_men()) < hp0
+    run(b, 14)
+    assert ep.ammo() == 0
+    assert ep.stance is Stance.HALTEN                             # die Siedlung schickt leere Peltasten nicht ins Handgemenge
+    assert hop.men >= 36
+
+
+def test_ai_skirmishers_back_off_from_charging_hoplites():
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    hop, pelt, cav = b.units(Side.STADT)
+    ep = {u.name: u for u in b.units(Side.FEIND)}["Peltasten"]
+    b.command_line([hop], (6.0, 8.5), (10.0, 8.5))
+    b.command_move([pelt, cav], (8.0, 15.0))
+    run(b, 12)
+    assert ep.stance is Stance.PLAENKELN
+    b.command_attack_target([hop], ep)
+    for _ in range(int(6 / DT)):
+        b.update(DT)
+        assert ep.stance is Stance.PLAENKELN
+        assert not ep.engaged                                     # sie weichen aus, bevor die Hopliten sie fassen
+    assert ep.men == 15

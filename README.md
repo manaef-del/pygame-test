@@ -21,7 +21,8 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
 - **Peltasten** haben zehn Speere je Mann und werfen in Salven. Jeder
   Speer fliegt sichtbar vom werfenden Mann zu einem bestimmten Gegner
   und trifft nur diesen. Sind die Speere verschossen, geht die Gruppe in
-  den Nahkampf über.
+  den Nahkampf über. Das gilt für beide Seiten: auch die Peltasten der
+  Räuber tragen zehn Speere und stürmen, sobald sie leer sind.
 - **Jeder Mann zählt einzeln.** Er hat eigene Trefferpunkte (verwundete
   Punkte sind dunkler) und eine eigene Position: Er läuft zu seinem
   Platz in der Formation, weicht aber selbst aus, durchs Tor nur durch
@@ -58,8 +59,10 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Gegner, mit Anlauf werfen sie ungeordnete Gegner um (mit weniger Wucht
   als Reiter, nie eine Phalanxfront). Peltasten plänkeln: sie gehen auf
   Wurfweite an den nächsten Gegner heran, werfen und weichen zurück,
-  sobald er näher als anderthalb Kacheln kommt; ohne Speere gehen sie in
-  den Nahkampf. Reiter suchen sich das lohnendste Ziel (ungeordnete oder
+  sobald die Lücke zu ihm kleiner als anderthalb Kacheln wird; steht
+  die eigene Phalanx im Weg, rücken sie dicht hinter sie und werfen über
+  die Köpfe, oder gehen um ihr Ende herum, wenn es von dort nicht reicht;
+  ohne Speere gehen sie in den Nahkampf. Reiter suchen sich das lohnendste Ziel (ungeordnete oder
   fliehende Gruppen, sonst Flanke oder Rücken einer Phalanx, nie deren
   Front), nehmen Anlauf, stoßen zu, setzen sich nach dem Aufprall auf
   eine stehende Phalanx drei Kacheln ab und laufen erneut an. Tippt man
@@ -190,8 +193,19 @@ einem Durchbruch oder wenn eine Front auftaucht oder verschwindet:
 | Binden und Umfassen | Räuber, Horde | eine Phalanx sperrt, mindestens zwei Gruppen und leichte Überlegenheit: ein Teil (etwa 70 % der Phalanxstärke, Fußvolk) stellt sich vor die Front und wartet, der Rest (Reiter zuerst) läuft um die Flanke; sobald jemand an der Flanke steht, greifen die Bindenden an, spätestens nach zwölf Sekunden |
 | Tor rammen / Rammbock und Turm | Räuber vor der Palisade | Tor zu; mit Wehrgang-Peltasten oder bewachtem Tor zusätzlich ein Turm am Rand, fern vom Tor |
 | Belagern | Räuber nach dem Durchbruch | eine Phalanx bewacht das Tor: außer Wurfweite warten, über den Turm einsickern, nach 40 s oder sobald die Wache weg ist stürmen |
-| Stellung halten | Siedlung | Grundplan: Linie hält, dreht die Front zu Flankenangriffen, Hopliten decken das Wallstück, an dem ein Turm ansetzt, Wehrgang-Peltasten laufen zum Angriffspunkt, Reiter greifen nur ungedeckte oder allein stehende Gruppen an, oder eine Phalanx, die von der eigenen Linie gebunden ist, und dann um die Front herum in Flanke oder Rücken |
+| Stellung halten | Siedlung | Grundplan: Linie hält, dreht die Front zu Flankenangriffen, Hopliten decken das Wallstück, an dem ein Turm ansetzt, Wehrgang-Peltasten laufen zum Angriffspunkt, Peltasten am Boden plänkeln (siehe unten), Reiter greifen nur ungedeckte oder allein stehende Gruppen an, oder eine Phalanx, die von der eigenen Linie gebunden ist, und dann um die Front herum in Flanke oder Rücken |
 | Vorrücken | Siedlung | Übermacht in der Nähe oder Beschuss durch Peltasten: die Linie rückt in Formation vor |
+
+**Plänkeln der KI.** Eine Peltastengruppe der Gegnerseite mit Speeren,
+die am Boden steht, plänkelt wie die des Spielers, sobald ein
+erreichbarer Gegner näher als fünf Kacheln ist (und bleibt dabei, bis
+er weiter als sechseinhalb weg ist): heran auf Wurfweite, werfen,
+ausweichen, hinter oder neben der eigenen Phalanx werfen. Im Plan
+„Binden und Umfassen“ binden Peltasten die Front mit Speeren statt im
+Handgemenge. Räuberhaufen mischen nur ein Fünftel Peltasten unter, sie
+bleiben daher Haufen und zermürben als Ganzes; reine Peltastengruppen
+stellt die Siedlung. Ohne Speere stehen die Peltasten der Siedlung
+still oder folgen der Linie, die Räuber-Peltasten gehen in den Nahkampf.
 
 **Aufstellung der Siedlung.** Beim Angriff kopiert die Siedlung die
 Mischung des Spielers nicht mehr. Sie ordnet seine Truppe ein

@@ -774,6 +774,7 @@ class Battle:
         else:
             self._ai_raiders()
         self._ai_city()
+        self._skirmishers()
         self._move(dt)
         self._separate()
         self._combat(dt)
@@ -832,9 +833,6 @@ class Battle:
         foes = self.units(Side.FEIND)
         fighting = [f for f in foes if f.fighting]
         for u in self.units(Side.STADT, fighting_only=True):
-            if u.stance is Stance.PLAENKELN:
-                self._skirmish(u, fighting or foes)
-                continue
             if u.stance is not Stance.ANGRIFF:
                 continue
             if u.mode == "sturm":
@@ -849,6 +847,18 @@ class Battle:
             if u.stance is Stance.FLUCHT:
                 u.target = (u.x, self.rows + 3.0)
 
+    def _skirmishers(self) -> None:
+        """Plänkelnde Gruppen beider Seiten (Spieler wie KI) führt die Schlacht
+        selbst: auf Wurfweite heran, werfen, vor dem Nahkampf ausweichen."""
+        for side, other in ((Side.STADT, Side.FEIND), (Side.FEIND, Side.STADT)):
+            skirmishers = [u for u in self.units(side, fighting_only=True) if u.stance is Stance.PLAENKELN]
+            if not skirmishers:
+                continue
+            foes = self.units(other)
+            fighting = [f for f in foes if f.fighting]
+            for u in skirmishers:
+                self._skirmish(u, fighting or foes)
+
     def _skirmish(self, u: Lochos, foes: list[Lochos]) -> None:
         """Plänkeln: auf Wurfweite an den nächsten Gegner heran, werfen, und
         zurückweichen, wenn er näher kommt."""
@@ -859,10 +869,27 @@ class Battle:
         u.target_id = foe.id
         d = foe.rect_distance(u.pos)
         away = norm(sub(u.pos, foe.pos))
-        if d < config.SKIRMISH_NEAR:
+        if self._gap(u, foe) < config.SKIRMISH_NEAR:       # Lücke zwischen den Formationen, wie beim Handgemenge
             u.target = self._free_spot((u.x + away[0] * 1.5, u.y + away[1] * 1.5), u)
         elif d > config.JAVELIN_RANGE - config.SKIRMISH_FAR:
-            u.target = foe.pos
+            own = [o for o in self.units(u.side, fighting_only=True)
+                   if o is not u and self._formed(o) and self.on_wall(o) == self.on_wall(u)]
+            wall = next((o for o in own if self._formation_in_the_way(u, foe, [foe, o])), None)
+            if wall is None:
+                u.target = foe.pos
+            elif d <= config.JAVELIN_RANGE:
+                u.target = None                            # hinter der eigenen Phalanx: über die Köpfe werfen
+            else:
+                back = norm(sub(wall.pos, foe.pos))        # dicht hinter die eigene Phalanx rücken ...
+                keep = wall.half_d + u.half_d + 0.1
+                spot = (wall.x + back[0] * keep, wall.y + back[1] * keep)
+                if foe.rect_distance(spot) > config.JAVELIN_RANGE - 0.1:
+                    along, _ = wall.local(u.pos)          # ... oder um ihr Ende herum, wenn es dort nicht reicht
+                    side = 1.0 if along >= 0 else -1.0
+                    fx, fy = wall.facing
+                    out = side * (wall.half_w + u.half_w + 0.4)
+                    spot = (wall.x - fy * out, wall.y + fx * out)
+                u.target = self._free_spot(spot, u)
         else:
             u.target = None                                # stehen und werfen
 
