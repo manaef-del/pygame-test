@@ -28,11 +28,19 @@ def desaturate(color: tuple[int, int, int], amount: float) -> tuple[int, int, in
 
 
 class Button:
-    def __init__(self, key: str, label: str, rect: pygame.Rect, color=None) -> None:
+    def __init__(self, key: str, label: str, rect: pygame.Rect, color=None,
+                 active: bool = False, sub: str | None = None) -> None:
         self.key = key
         self.label = label
         self.rect = rect
         self.color = color
+        self.active = active
+        self.sub = sub                     # zweite, kleine Zeile
+
+
+BAR_GAP = 5
+BAR_ROWS = (44, 42, 34)                    # Gruppenkarten, Befehle, Menü und Pause
+ATTACK_LABEL = {"hopliten": "Sturm", "peltasten": "Plänkeln", "reiter": "Sturmangriff"}
 
 
 class Renderer:
@@ -42,33 +50,12 @@ class Renderer:
         self.font = pygame.font.Font(None, 24)
         self.small = pygame.font.Font(None, 19)
         self.big = pygame.font.Font(None, 56)
-        self.buttons: list[Button] = self._battle_buttons()
+        self.buttons: list[Button] = []           # die zuletzt gezeichnete Leiste
         self.menu_buttons: list[Button] = []
         self.menu_sliders: list[tuple[int, pygame.Rect]] = []
 
     # ================================================== Schlacht
-    @staticmethod
-    def _battle_buttons() -> list[Button]:
-        top = config.MAP_H
-        gap = 6
-        row_h = (config.BAR_H - 4 * gap) // 3
-        w4 = (config.WIDTH - 5 * gap) // 4
-        r1 = top + gap
-        r2 = top + 2 * gap + row_h
-        r3 = top + 3 * gap + 2 * row_h
-        return [
-            Button("angriff", "Angriff", pygame.Rect(gap, r1, w4, row_h)),
-            Button("halten", "Halten", pygame.Rect(2 * gap + w4, r1, w4, row_h)),
-            Button("alle", "Alle", pygame.Rect(3 * gap + 2 * w4, r1, w4, row_h)),
-            Button("pause", "Pause", pygame.Rect(4 * gap + 3 * w4, r1, w4, row_h)),
-            Button("formation", "Formation", pygame.Rect(gap, r2, 2 * w4 + gap, row_h)),
-            Button("rammbock", "Rammbock", pygame.Rect(3 * gap + 2 * w4, r2, w4, row_h)),
-            Button("turm", "Turm", pygame.Rect(4 * gap + 3 * w4, r2, w4, row_h)),
-            Button("neu", "Neu", pygame.Rect(gap, r3, w4, row_h)),
-            Button("aufstellung", "Aufstellung", pygame.Rect(2 * gap + w4, r3, w4, row_h)),
-        ]
-
-    def draw(self, battle: Battle, drag, paused: bool, selected: set[int]) -> None:
+    def draw(self, battle: Battle, drag, paused: bool, selected: set[int], menu_open: bool = False) -> None:
         s = self.surface
         s.fill(config.COLOR_BG)
         self._draw_ground(battle)
@@ -82,7 +69,7 @@ class Renderer:
         if drag is not None:
             self._draw_line_preview(battle, drag, selected)
         self._draw_hud(battle, paused, selected)
-        self._draw_bar(battle, paused, selected)
+        self._draw_bar(battle, paused, selected, menu_open)
 
     def _draw_destinations(self, battle: Battle, paused: bool, selected: set[int]) -> None:
         """Wohin eine eigene Gruppe unterwegs ist: in der Pause für alle, sonst für
@@ -290,7 +277,7 @@ class Renderer:
             if not battle.attacking:
                 line += f"   Häuser verloren: {r['haeuser'] - r['haeuser_intakt']}"
             self._center_text(self.font, line, config.COLOR_TEXT, config.MAP_H // 2 + 8)
-            self._center_text(self.small, "Neu = noch einmal", config.COLOR_TEXT_DIM, config.MAP_H // 2 + 34)
+            self._center_text(self.small, "Neu = noch einmal, Aufstellung = Truppe ändern", config.COLOR_TEXT_DIM, config.MAP_H // 2 + 34)
         elif battle.alarm:
             self._center_text(self.big, "Alarm!", config.COLOR_TEXT, 60)
             self._wrap_center(self.font, battle.scenario.hint, config.COLOR_TEXT, 110)
@@ -334,46 +321,163 @@ class Renderer:
         for i, line in enumerate(self._wrap(font, text, config.MAP_W - 16)[:2]):
             self.surface.blit(font.render(line, True, color), (8, y + i * 18))
 
-    def _draw_bar(self, battle: Battle, paused: bool, selected: set[int]) -> None:
+    # -- Kontextleiste ------------------------------------------------------
+    @staticmethod
+    def _bar_rows() -> list[tuple[int, int]]:
+        rows, y = [], config.MAP_H + BAR_GAP
+        for h in BAR_ROWS:
+            rows.append((y, h))
+            y += h + BAR_GAP
+        return rows
+
+    def layout_bar(self, battle: Battle, paused: bool, selected: set[int], menu_open: bool = False) -> list[Button]:
+        """Die Leiste für den aktuellen Zustand: oben eine Karte je eigene
+        Gruppe, in der Mitte nur die Befehle, die gerade gehen, unten fest
+        Menü und Pause."""
+        W, gap = config.WIDTH, 6
+        (y1, h1), (y2, h2), (y3, h3) = self._bar_rows()
+        out: list[Button] = []
+        sel = [u for u in battle.lochoi if u.id in selected and u.fighting]
+        groups = battle.units(Side.STADT)
+        if groups:
+            alle_w = 62
+            n = len(groups)
+            w = (W - 2 * gap - alle_w - gap * n) // n
+            x = gap
+            for u in groups:
+                out.append(Button(f"group:{u.id}", f"{u.name} {u.men}", pygame.Rect(x, y1, w, h1),
+                                  active=u.id in selected, sub=self._group_state(battle, u)))
+                x += w + gap
+            out.append(Button("alle", "Keine" if selected else "Alle", pygame.Rect(W - gap - alle_w, y1, alle_w, h1),
+                              active=bool(selected)))
+        if battle.outcome is not None or menu_open:
+            half = (W - 3 * gap) // 2
+            out.append(Button("neu", "Neu", pygame.Rect(gap, y2, half, h2), sub="Szenario noch einmal"))
+            out.append(Button("aufstellung", "Aufstellung", pygame.Rect(2 * gap + half, y2, half, h2), sub="Truppe und Szenario"))
+        elif sel:
+            out.extend(self._command_row(battle, sel, y2, h2))      # auch im Alarm: dort fallen die ersten Befehle
+        menu_w = 96
+        out.append(Button("menue", "Zurück" if menu_open else "Menü", pygame.Rect(gap, y3, menu_w, h3), active=menu_open))
+        if sel and battle.scenario.ram_available and battle.outcome is None and not menu_open:
+            out.extend(self._engine_buttons(battle, sel, 2 * gap + menu_w, W - 2 * gap - 2 * menu_w, y3, h3))
+        pause = "Los" if battle.alarm else ("Weiter" if paused else "Pause")
+        out.append(Button("pause", pause, pygame.Rect(W - gap - menu_w, y3, menu_w, h3), active=paused or battle.alarm))
+        return out
+
+    @staticmethod
+    def _engine_buttons(battle: Battle, sel: list[Lochos], x: int, width: int, y: int, h: int) -> list[Button]:
+        """Rammbock und Turm, nur beim Angriff mit Wall, mit dem Text, der gerade gilt."""
+        gap = 6
+        items = []
+        gate_open = battle.gate is not None and not battle.gate.closed
+        for key, kind, name in (("rammbock", "ram", "Rammbock"), ("turm", "tower", "Turm")):
+            carrying = any(u.engine == kind for u in sel)
+            building = any(u.build_kind == kind for u in sel)
+            if kind == "ram" and gate_open and not carrying and not building:
+                continue                                                  # das Tor ist schon offen
+            label = f"{name} ablegen" if carrying else ("Bau abbrechen" if building else f"{name} bauen")
+            items.append((key, label, carrying or building))
+        if not items:
+            return []
+        w = (width - gap * (len(items) - 1)) // len(items)
+        return [Button(key, label, pygame.Rect(x + i * (w + gap), y, w, h), active=active)
+                for i, (key, label, active) in enumerate(items)]
+
+    def _command_row(self, battle: Battle, sel: list[Lochos], y: int, h: int) -> list[Button]:
+        """Befehle je Waffengattung der Auswahl; gemischte Auswahl nur das Gemeinsame."""
+        W, gap = config.WIDTH, 6
+        arms = {u.arm() for u in sel}
+        arm = next(iter(arms)) if len(arms) == 1 else "gemischt"
+        items: list[tuple[str, str, float, bool, str | None]] = [           # key, label, Gewicht, aktiv, Unterzeile
+            ("angriff", ATTACK_LABEL.get(arm, "Angriff"), 1.7, False, None),
+            ("halten", "Phalanx bilden" if arm == "hopliten" else "Halten", 1.7, False, None),
+        ]
+        if arm != "gemischt":
+            opts = sel[0].formation_options()
+            for name in opts:
+                items.append((f"formation:{name}", FORMATION_NAMES[name].replace("-Stellung", ""), 1.0,
+                              all(u.formation == name for u in sel), None))
+        total = sum(it[2] for it in items)
+        unit = (W - gap * (len(items) + 1)) / total
+        out, x = [], float(gap)
+        for key, label, weight, active, sub in items:
+            w = unit * weight
+            out.append(Button(key, label, pygame.Rect(int(x), y, int(w), h), active=active, sub=sub))
+            x += w + gap
+        return out
+
+    @staticmethod
+    def _group_state(battle: Battle, u: Lochos) -> str:
+        if u.stance is Stance.FLUCHT:
+            return "Flucht"
+        if u.engine is not None:
+            return "Rammbock" if u.engine == "ram" else "Turm"
+        if u.building is not None:
+            return "baut"
+        if u.engaged:
+            return "im Kampf"
+        if battle.on_wall(u):
+            return "Wehrgang"
+        if u.stance is Stance.PHALANX:
+            return "Phalanx" if u.in_phalanx else "formiert sich"
+        if u.stance is Stance.PLAENKELN:
+            return "plänkelt"
+        if u.stance is Stance.ANGRIFF:
+            return "greift an"
+        return "unterwegs" if u.target is not None else "hält"
+
+    def _draw_bar(self, battle: Battle, paused: bool, selected: set[int], menu_open: bool = False) -> None:
         s = self.surface
         pygame.draw.rect(s, config.COLOR_BAR, pygame.Rect(0, config.MAP_H, config.WIDTH, config.BAR_H))
-        sel_units = [u for u in battle.lochoi if u.id in selected and u.fighting]
+        self.buttons = self.layout_bar(battle, paused, selected, menu_open)
+        (y1, h1), (y2, h2), _ = self._bar_rows()
+        by_id = {u.id: u for u in battle.lochoi}
         for b in self.buttons:
-            if b.key in ("rammbock", "turm") and not battle.scenario.ram_available:
+            if b.key.startswith("group:"):
+                self._draw_chip(b, by_id[int(b.key.split(":")[1])])
                 continue
-            active = (b.key == "pause" and paused) or (b.key == "alle" and selected)
-            label = b.label
-            if b.key == "pause":
-                label = "Los" if battle.alarm else ("Weiter" if paused else "Pause")
-            if b.key == "alle" and selected:
-                label = "Keine"
-            if b.key == "formation":
-                if sel_units:
-                    u = sel_units[0]
-                    opts = u.formation_options()
-                    nxt = opts[(opts.index(u.formation) + 1) % len(opts)] if u.formation in opts else opts[0]
-                    label = f"Formation: {FORMATION_NAMES[u.formation]} > {FORMATION_NAMES[nxt]}"
-                else:
-                    label = "Formation (Gruppe wählen)"
-            if b.key in ("rammbock", "turm"):
-                kind = "ram" if b.key == "rammbock" else "tower"
-                if sel_units and any(u.engine == kind for u in sel_units):
-                    label, active = ("Rammbock ablegen" if kind == "ram" else "Turm ablegen"), True
-                elif sel_units and any(u.build_kind == kind for u in sel_units):
-                    label, active = "Bau abbrechen", True
-                elif not sel_units:
-                    label = ("Rammbock" if kind == "ram" else "Turm") + " (Gruppe wählen)"
-                else:
-                    label = "Rammbock bauen" if kind == "ram" else "Turm bauen"
-            pygame.draw.rect(s, config.COLOR_BUTTON_ACTIVE if active else config.COLOR_BUTTON, b.rect, border_radius=6)
-            font = self.font if len(label) <= 12 else self.small
-            img = font.render(label, True, config.COLOR_TEXT)
-            s.blit(img, img.get_rect(center=b.rect.center))
+            pygame.draw.rect(s, config.COLOR_BUTTON_ACTIVE if b.active else config.COLOR_BUTTON, b.rect, border_radius=6)
+            if b.sub:
+                font = self.font if self.font.size(b.label)[0] <= b.rect.w - 8 else self.small
+                img = font.render(b.label, True, config.COLOR_TEXT)
+                s.blit(img, img.get_rect(center=(b.rect.centerx, b.rect.centery - 7)))
+                img = self.small.render(b.sub, True, config.COLOR_TEXT_DIM if not b.active else config.COLOR_TEXT)
+                s.blit(img, img.get_rect(center=(b.rect.centerx, b.rect.centery + 10)))
+            else:
+                font = self.font if self.font.size(b.label)[0] <= b.rect.w - 8 else self.small
+                img = font.render(b.label, True, config.COLOR_TEXT)
+                s.blit(img, img.get_rect(center=b.rect.center))
+        if not any(b.key in ("angriff", "neu") for b in self.buttons):
+            if not battle.units(Side.STADT):
+                hint = ""
+            elif battle.alarm:
+                hint = "Gruppe wählen und aufstellen, Los startet die Schlacht"
+            else:
+                hint = "Gruppe wählen: Karte oben oder Gruppe im Feld antippen"
+            img = self.small.render(hint, True, config.COLOR_TEXT_DIM)
+            s.blit(img, img.get_rect(center=(config.WIDTH // 2, y2 + h2 // 2)))
 
-    def button_at(self, pos: tuple[int, int], battle: Battle | None = None) -> str | None:
-        for b in self.buttons:
-            if b.key in ("rammbock", "turm") and battle is not None and not battle.scenario.ram_available:
-                continue
+    def _draw_chip(self, b: Button, u: Lochos) -> None:
+        """Gruppenkarte: Farbe der Gattung, Name und Mannzahl, Zustand, Moralbalken."""
+        s = self.surface
+        pygame.draw.rect(s, config.COLOR_BUTTON_ACTIVE if b.active else config.COLOR_BUTTON, b.rect, border_radius=6)
+        fleeing = u.stance is Stance.FLUCHT
+        text = config.COLOR_TEXT_DIM if fleeing else config.COLOR_TEXT
+        lead = u.rows[0][0].kind.color if u.rows and u.rows[0] else config.COLOR_CITY
+        pygame.draw.circle(s, desaturate(lead, 0.6) if fleeing else lead, (b.rect.x + 10, b.rect.y + 12), 5)
+        font = self.font if self.font.size(b.label)[0] <= b.rect.w - 22 else self.small
+        s.blit(font.render(b.label, True, text), (b.rect.x + 19, b.rect.y + 3))
+        s.blit(self.small.render(b.sub or "", True, config.COLOR_TEXT_DIM), (b.rect.x + 19, b.rect.y + 21))
+        bar = pygame.Rect(b.rect.x + 6, b.rect.bottom - 6, b.rect.w - 12, 3)
+        pygame.draw.rect(s, config.COLOR_BAR, bar)
+        m = max(0.0, min(1.0, u.morale))
+        color = (int(200 - 120 * m), int(80 + 100 * m), 70)
+        pygame.draw.rect(s, color, pygame.Rect(bar.x, bar.y, int(bar.w * m), bar.h))
+
+    def button_at(self, pos: tuple[int, int], battle: Battle | None = None, paused: bool = False,
+                  selected: set[int] | None = None, menu_open: bool = False) -> str | None:
+        buttons = self.layout_bar(battle, paused, selected or set(), menu_open) if battle is not None else self.buttons
+        for b in buttons:
             if b.rect.collidepoint(pos):
                 return b.key
         return None

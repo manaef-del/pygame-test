@@ -40,6 +40,7 @@ class App:
         self.menu_group = 0
         self.screen = "schlacht" if start_in_battle else "aufstellung"
         self.paused = False
+        self.menu_open = False             # Neu und Aufstellung liegen hinter „Menü“
         self.selected: set[int] = set()
         self.drag_start: tuple[float, float] | None = None
         self.drag_now: tuple[float, float] | None = None
@@ -52,6 +53,7 @@ class App:
     def _new_battle(self) -> Battle:
         rng = random.Random(self.seed) if self.seed is not None else random.Random()
         self.paused = False
+        self.menu_open = False
         self.selected = set()
         self.drag_start = self.drag_now = None
         scn = SCENARIOS[self.scenario_index]
@@ -109,7 +111,7 @@ class App:
                 self._slide(pos)
             return
         if pos[1] >= config.MAP_H:
-            key = self.renderer.button_at(pos, self.battle)
+            key = self.renderer.button_at(pos, self.battle, self.paused, self.selected, self.menu_open)
             if key:
                 self.command(key)
             return
@@ -181,7 +183,17 @@ class App:
 
     def command(self, key: str) -> None:
         b = self.battle
-        if key in ("angriff", "halten", "formation") and b.outcome is None:
+        if key.startswith("group:"):
+            uid = int(key.split(":")[1])
+            u = b.by_id(uid)
+            if u is not None and u.fighting:
+                self.selected = set() if self.selected == {uid} else {uid}
+            self.menu_open = False
+        elif key == "menue":
+            self.menu_open = not self.menu_open
+        elif key in ("angriff", "halten", "formation") or key.startswith("formation:"):
+            if b.outcome is not None:
+                return
             sel = self._selection()
             if not sel:
                 b.events.append("Erst eine Gruppe wählen")
@@ -191,6 +203,8 @@ class App:
             elif key == "halten":
                 b.command_hold(sel)
                 self.paused = False
+            elif key.startswith("formation:"):
+                b.command_formation(sel, key.split(":")[1])
             else:
                 u = sel[0]
                 opts = u.formation_options()
@@ -215,9 +229,13 @@ class App:
             else:
                 self.paused = not self.paused
         elif key == "neu":
-            self.battle = self._new_battle()
+            if b.outcome is None and not self.menu_open:
+                self.menu_open = True          # erst das Menü zeigen, dann Neu: kein Fehlgriff auf dem Handy
+            else:
+                self.battle = self._new_battle()
         elif key == "aufstellung":
             self.screen = "aufstellung"
+            self.menu_open = False
             self.menu_group = min(self.menu_group, len(self.army.groups) - 1)
 
     # ------------------------------------------------------- Aufstellung
@@ -270,7 +288,7 @@ class App:
             scn = SCENARIOS[self.scenario_index]
             self.renderer.draw_menu(self.army, self.menu_group, scn, self.enemy_counts[scn.key], self.own_count)
         else:
-            self.renderer.draw(self.battle, self.drag_rect(), self.paused, self.selected)
+            self.renderer.draw(self.battle, self.drag_rect(), self.paused, self.selected, self.menu_open)
 
 
 async def run(max_frames: int | None = None, seed: int | None = None) -> App:

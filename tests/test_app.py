@@ -28,6 +28,16 @@ def pos_of(app: App, unit) -> tuple[int, int]:
     return (int(unit.x * config.TILE), int(unit.y * config.TILE))
 
 
+def bar(app: App) -> dict[str, tuple[int, int]]:
+    """Die Leiste im aktuellen Zustand: Taste -> Mitte des Knopfs."""
+    buttons = app.renderer.layout_bar(app.battle, app.paused, app.selected, app.menu_open)
+    return {b.key: b.rect.center for b in buttons}
+
+
+def labels(app: App) -> dict[str, str]:
+    return {b.key: b.label for b in app.renderer.layout_bar(app.battle, app.paused, app.selected, app.menu_open)}
+
+
 def test_run_headless_for_some_frames():
     app = asyncio.run(run(max_frames=30, seed=1))
     assert app.screen == "aufstellung"
@@ -109,19 +119,51 @@ def test_drag_draws_line_for_selection():
 
 def test_buttons_in_bar():
     app = make_app()
-    buttons = {b.key: b.rect.center for b in app.renderer.buttons}
-    press(app, buttons["alle"])
+    assert "angriff" not in bar(app)                      # ohne Auswahl keine Befehle
+    press(app, bar(app)["alle"])
     assert len(app.selected) == len(app.battle.units(Side.STADT))
-    press(app, buttons["angriff"])
+    assert labels(app)["angriff"] == "Angriff"            # gemischte Auswahl: nur das Gemeinsame
+    assert not any(k.startswith("formation:") for k in bar(app))
+    press(app, bar(app)["angriff"])
     assert all(u.stance in (Stance.ANGRIFF, Stance.PLAENKELN) for u in app.battle.units(Side.STADT))
     app.tick(1.0)
     assert app.battle.time > 0
-    press(app, buttons["pause"])
+    press(app, bar(app)["pause"])
     t = app.battle.time
     app.tick(1.0)
     assert app.battle.time == t
-    press(app, buttons["aufstellung"])
+    assert "aufstellung" not in bar(app)                  # liegt hinter dem Menü
+    press(app, bar(app)["menue"])
+    press(app, bar(app)["aufstellung"])
     assert app.screen == "aufstellung"
+
+
+def test_context_bar_shows_only_what_the_selection_can_do():
+    app = make_app()
+    b = app.battle
+    hop, pelt, cav = b.units(Side.STADT)
+    press(app, bar(app)[f"group:{hop.id}"])                # Gruppenkarte wählt
+    assert app.selected == {hop.id}
+    lab = labels(app)
+    assert lab["angriff"] == "Sturm" and lab["halten"] == "Phalanx bilden"
+    assert {"formation:linie", "formation:u", "formation:o"} <= set(lab) and "formation:keil" not in lab
+    assert "rammbock" not in lab                           # kein Belagerungsgerät in der Verteidigung
+    press(app, bar(app)["formation:o"])
+    assert hop.formation == "o"
+    press(app, bar(app)[f"group:{cav.id}"])
+    lab = labels(app)
+    assert lab["angriff"] == "Sturmangriff" and "formation:keil" in lab and "formation:u" not in lab
+    press(app, bar(app)[f"group:{pelt.id}"])
+    assert labels(app)["angriff"] == "Plänkeln"
+    press(app, bar(app)[f"group:{pelt.id}"])               # nochmal: abwählen
+    assert app.selected == set()
+    press(app, bar(app)["menue"])                          # Menü: Neu erst nach Bestätigung
+    assert app.menu_open and "neu" in bar(app)
+    app.command("neu")
+    assert app.battle is not b
+    app.command("neu")                                     # Taste R ohne offenes Menü öffnet nur das Menü
+    assert app.menu_open and app.battle.time == 0
+    app.draw()
 
 
 def test_renderer_draws_every_state():
@@ -166,15 +208,13 @@ def test_engine_buttons_gate_and_wall_taps():
     b = app.battle
     assert b.scenario.key == "angriff_wall"
     hop, pelt, cav = b.units(Side.STADT)
-    ram = next(bt for bt in app.renderer.buttons if bt.key == "rammbock")
-    turm = next(bt for bt in app.renderer.buttons if bt.key == "turm")
-    press(app, ram.rect.center)                       # ohne Auswahl passiert nichts
-    assert hop.build_kind is None
+    assert "rammbock" not in bar(app)                 # ohne Auswahl gibt es den Knopf nicht
     press(app, pos_of(app, hop))
-    press(app, ram.rect.center)
+    assert labels(app)["rammbock"] == "Rammbock bauen"
+    press(app, bar(app)["rammbock"])
     assert hop.build_kind == "ram"
     press(app, pos_of(app, cav))
-    press(app, turm.rect.center)
+    press(app, bar(app)["turm"])
     assert cav.build_kind == "tower"
     for _ in range(int((config.TOWER_BUILD_TIME + 1) / config.TIME_SCALE * 30)):
         app.tick(1 / 30)
@@ -196,17 +236,16 @@ def test_pressing_engine_button_again_drops_it():
     app.menu_command("start")
     b = app.battle
     hop, pelt, cav = b.units(Side.STADT)
-    ram = next(bt for bt in app.renderer.buttons if bt.key == "rammbock")
     press(app, pos_of(app, hop))
-    press(app, ram.rect.center)
+    press(app, bar(app)["rammbock"])
     assert hop.build_kind == "ram"
-    press(app, ram.rect.center)                        # während des Baus: abbrechen
+    press(app, bar(app)["rammbock"])                   # während des Baus: abbrechen
     assert hop.build_kind is None and hop.building is None
-    press(app, ram.rect.center)
+    press(app, bar(app)["rammbock"])
     for _ in range(int((config.RAM_BUILD_TIME + 1) / config.TIME_SCALE * 30)):
         app.tick(1 / 30)
     assert hop.engine == "ram"
-    press(app, ram.rect.center)                        # fertig: liegen lassen
+    press(app, bar(app)["rammbock"])                   # fertig: liegen lassen
     assert hop.engine is None and len(b.debris) == 1
     assert hop.speed == UNIT_TYPES_SPEED_SCHWER
 
