@@ -210,7 +210,7 @@ def test_engine_buttons_gate_and_wall_taps():
     hop, pelt, cav = b.units(Side.STADT)
     assert "rammbock" not in bar(app)                 # ohne Auswahl gibt es den Knopf nicht
     press(app, pos_of(app, hop))
-    assert labels(app)["rammbock"] == "Rammbock bauen"
+    assert labels(app)["rammbock"] == "Rammbock"
     press(app, bar(app)["rammbock"])
     assert hop.build_kind == "ram"
     press(app, pos_of(app, cav))

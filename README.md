@@ -253,19 +253,20 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
   „Alle“ beziehungsweise „Keine“. Tippen wählt die Gruppe, nochmal tippen
   wählt ab; so bleibt auch bei vielen Gruppen Platz. Tippen auf die Gruppe
   im Feld geht weiterhin.
-- **In der Mitte die Befehle der gewählten Gattung**, benannt nach dem,
+- **Unten nur die Befehle der gewählten Gruppen**, benannt nach dem,
   was passiert: Hopliten „Sturm“, „Phalanx bilden“ und die Formationen
   Linie, U, Kreis; Peltasten „Plänkeln“, „Halten“, Linie, Kreis; Reiter
   „Sturmangriff“, „Halten“, Linie, Keil. Die aktive Formation ist
   hervorgehoben, ein Tipp setzt sie direkt. Eine gemischte Auswahl zeigt
-  nur „Angriff“ und „Halten“. Ohne Auswahl steht dort ein Hinweis.
-- **Unten fest „Menü“ links und „Pause“ rechts.** Das Menü zeigt „Neu“
-  und „Aufstellung“ und deckt sie sonst ab, damit auf dem Handy kein
-  Fehlgriff die Schlacht neu startet. Beim Angriff mit Wall stehen
-  zwischen beiden „Rammbock bauen“ und „Turm bauen“ für die gewählte
-  Gruppe, mit dem Text, der gerade gilt („Bau abbrechen“, „Rammbock
-  ablegen“); der Rammbock verschwindet, sobald das Tor offen ist.
-- Nach der Schlacht zeigt die Mitte nur „Neu“ und „Aufstellung“.
+  nur „Angriff“ und „Halten“. Beim Angriff mit Wall kommen „Rammbock“
+  und „Turm“ dazu, mit dem Zustand als zweiter Zeile (bauen, abbrechen,
+  ablegen); der Rammbock verschwindet, sobald das Tor offen ist. Ohne
+  Auswahl steht in der Leiste ein Hinweis, nach der Schlacht „Neu“ und
+  „Aufstellung“.
+- **Oben links „Menü“, oben rechts „Pause“** (bei Alarm „Los“, in der
+  Pause „Weiter“). Das Menü klappt „Neu“ und „Aufstellung“ darunter auf
+  und deckt sie sonst ab, damit auf dem Handy kein Fehlgriff die
+  Schlacht neu startet; ein Tipp daneben schließt es wieder.
 
 | Eingabe | Aktion |
 |---------|--------|
@@ -278,7 +279,7 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 | Sturm / Plänkeln / Sturmangriff / A | gewählte Gruppen greifen frei an, je Waffengattung (siehe oben) |
 | Phalanx bilden / Halten / H | Hopliten bilden an Ort und Stelle eine Phalanx, andere bleiben stehen |
 | Linie, U, Kreis, Keil / F | Formation der gewählten Gruppe setzen (F schaltet weiter) |
-| Rammbock bauen, Turm bauen / B, T | gewählte Gruppen bauen das Gerät; erneut drücken: ablegen oder Bau abbrechen (nur beim Angriff mit Wall) |
+| Rammbock, Turm / B, T | gewählte Gruppen bauen das Gerät; erneut drücken: ablegen oder Bau abbrechen (nur beim Angriff mit Wall) |
 | Alle / Keine | alle Gruppen wählen oder Auswahl aufheben |
 | Pause / Leertaste | anhalten, bei Alarm: losgehen; in der Pause zeigt jede Gruppe, die noch unterwegs ist, ihr Ziel als Rechteck mit Front und Weg, sonst nur die gewählten |
 | Menü, dann Neu / R (zweimal) | Szenario neu starten |

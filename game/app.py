@@ -112,7 +112,10 @@ class App:
             return
         key = self.renderer.button_at(pos, self.battle, self.paused, self.selected, self.menu_open)
         if key:
-            self.command(key)                      # Leiste unten oder Gruppenkachel am Kartenrand
+            self.command(key)                      # Leiste unten, Menü und Pause oben, Gruppenkacheln rechts
+            return
+        if self.menu_open:
+            self.menu_open = False                 # Tipp daneben schließt das Menü
             return
         if pos[1] >= config.MAP_H:
             return
