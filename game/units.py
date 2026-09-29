@@ -169,6 +169,7 @@ class Lochos:
     tower_cell: tuple[int, int] | None = None   # Wallstück, an das der Turm gesetzt wird
     tower_progress: float = 0.0
     loose: bool = False               # Formation aufgelöst (Überqueren der Palisade)
+    file: bool = False                # auf dem Wehrgang: eine Reihe längs der Palisade
 
     def __post_init__(self) -> None:
         self.rows = [list(r) for r in self.rows if r]
@@ -336,15 +337,28 @@ class Lochos:
 
     def slots(self) -> list[tuple[Man, tuple[float, float]]]:
         """Platz jedes Mannes in der Formation (Weltkoordinaten)."""
-        fx, fy = self.facing
+        return self.slots_at(self.pos, self.facing, self.file)
+
+    def slots_at(self, centre: tuple[float, float], facing: tuple[float, float],
+                 file: bool = False) -> list[tuple[Man, tuple[float, float]]]:
+        """Die Plätze der Formation um ein beliebiges Zentrum; als ``file`` eine
+        einzelne Reihe längs der Palisade (für den Wehrgang)."""
+        cx, cy = centre
         out = []
+        if file:
+            men = self.all_men()
+            n = len(men)
+            for i, man in enumerate(men):
+                out.append((man, (cx + (i - (n - 1) / 2) * config.MAN_SPACING, cy)))
+            return out
+        fx, fy = facing
         n_rows = len(self.rows)
         for r, row in enumerate(self.rows):
             forward = ((n_rows - 1) / 2 - r) * config.ROW_SPACING
             n = len(row)
             for i, man in enumerate(row):
                 side = (i - (n - 1) / 2) * config.MAN_SPACING
-                out.append((man, (self.x + fx * forward - fy * side, self.y + fy * forward + fx * side)))
+                out.append((man, (cx + fx * forward - fy * side, cy + fy * forward + fx * side)))
         return out
 
     def place_men(self) -> None:

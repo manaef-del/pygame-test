@@ -780,3 +780,30 @@ def test_climbing_is_a_dense_column():
     b.command_move([pelt], (3.5, 8.5))
     run(b, 12)
     assert b.on_wall(pelt) and not pelt.loose              # 15 Mann in unter zwölf Sekunden oben
+
+
+def test_climbing_men_take_their_places_instead_of_one_point():
+    b = Battle(PALISADE, random.Random(1), ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_move([pelt], (4.5, 8.5))
+    spread_up = 0.0
+    for _ in range(int(20 / DT)):
+        b.update(DT)
+        up = [m for m in pelt.all_men() if b.is_wall_cell(b.cell(m.x, m.y), True)]
+        if len(up) >= 6:
+            spread_up = max(spread_up, max(m.x for m in up) - min(m.x for m in up))
+    assert spread_up >= 0.6                                # schon beim Klettern in einer Reihe längs des Walls
+    assert b.on_wall(pelt) and pelt.file
+    xs = [m.x for m in pelt.all_men()]
+    assert max(xs) - min(xs) >= 1.5 and all(abs(m.y - 8.5) < 0.2 for m in pelt.all_men())
+    b.command_move([pelt], (4.5, 11.0))                    # hinunter: sofort in die Aufstellung
+    spread_down = 0.0
+    for _ in range(int(25 / DT)):
+        b.update(DT)
+        down = [m for m in pelt.all_men() if m.y > 9.6]
+        if 4 <= len(down) < pelt.men:
+            spread_down = max(spread_down, max(m.x for m in down) - min(m.x for m in down))
+    assert spread_down >= 0.4                              # die ersten unten stehen schon verteilt
+    assert not pelt.loose and not pelt.file

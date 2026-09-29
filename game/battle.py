@@ -361,6 +361,9 @@ class Battle:
         here, there = self.cell(*p), self.cell(*target)
         if self.is_wall_cell(here, True):
             ladders = {c for c in ladders if self.wall_connected(c, here)}
+            if not ladders:
+                # kein Abstieg zur Zielseite auf diesem Wallstück: irgendwo hinunter, unten weiter
+                ladders = {c for c in set(self.ladders) | self.crossings if self.wall_connected(c, here)}
         elif self.is_wall_cell(there, True):
             ladders = {c for c in ladders if self.wall_connected(c, there)}
         if not ladders:
@@ -813,6 +816,11 @@ class Battle:
                 if target is not None and self._gap(u, target) <= config.ENGAGE_RANGE * 0.8:
                     continue
                 stop_at = 0.0 if target is not None else config.ENGAGE_RANGE
+            if u.stance is Stance.FLUCHT and u.loose and not any(self.inside(m.x, m.y) for m in u.all_men()):
+                u.withdrawn = True            # die Männer sind schon vom Feld
+                continue
+            if u.loose and self._lost_touch(u):
+                continue                      # das Zentrum ist zu seinen Männern gesprungen
             if d <= max(config.ARRIVE_EPS, stop_at):
                 if u.stance is Stance.PHALANX and final and d <= config.ARRIVE_EPS + 0.02:
                     u.x, u.y = u.target
@@ -820,11 +828,6 @@ class Battle:
                 elif u.stance is Stance.HALTEN and final:
                     u.target = None
                 continue
-            if u.stance is Stance.FLUCHT and u.loose and not any(self.inside(m.x, m.y) for m in u.all_men()):
-                u.withdrawn = True            # die Männer sind schon vom Feld
-                continue
-            if u.loose and self._lost_touch(u):
-                continue                      # das Zentrum ist zu seinen Männern gesprungen
             if u.loose and u.stance is not Stance.FLUCHT and self._stragglers(u, u.target):
                 continue                      # die Gruppe wartet auf die Männer, die noch klettern
             step = min(speed * dt, d)
@@ -936,14 +939,18 @@ class Battle:
             if not u.alive:
                 continue
             walker = self.is_walker(u)
+            u.file = self.on_wall(u)
             if u.loose:
                 destination = u.target if u.target is not None else u.pos
                 lead = dist(u.pos, destination)
                 centre_level = self._wall_level(u.pos)
                 dest_level = self._wall_level(destination)
+                # jeder Mann geht an seinen Platz in der Aufstellung am Ziel, nicht auf einen Punkt
+                dest_slots = {id(m): p for m, p in u.slots_at(destination, u.facing, dest_level == "wall")}
                 goals: list[tuple[Man, Point]] = []
                 for man in u.all_men():
-                    if dist(man.pos, destination) <= 0.15:
+                    slot = dest_slots.get(id(man), destination)
+                    if dist(man.pos, slot) <= 0.05:
                         continue
                     man_level = self._wall_level(man.pos)
                     if man_level not in (centre_level, dest_level, "wall", "tor"):
@@ -954,7 +961,7 @@ class Battle:
                     elif man_level == centre_level and dist(man.pos, destination) > lead + config.FOLLOW_LAG:
                         goal, _ = self.route_from(u, man.pos, u.pos)
                     else:
-                        goal, _ = self.route_from(u, man.pos, destination)
+                        goal, _ = self.route_from(u, man.pos, slot)
                     goals.append((man, goal))
                 # vor einer Leiter anstellen: wer näher ist, steht weiter vorn
                 ranks: dict[int, int] = {}
