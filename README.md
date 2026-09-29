@@ -102,7 +102,7 @@ mit halber Geschwindigkeit (`TIME_SCALE`).
 | Verteidigung: Offene Siedlung | Räuberhaufen von Norden, zwei umgehen die Linie. Bei großer Zahl größere Haufen, mit einem Fünftel Peltasten |
 | Verteidigung: Palisade | Das Tor ist zu, die Räuber bauen Rammbock und Turm. Eigene Peltastengruppen dürfen auf den Wehrgang |
 | Angriff: Räuberhorde | Die Horde lagert im Norden und stürmt, sobald man ihr nahe kommt |
-| Angriff: Siedlung ohne Wall | Der Gegner stellt dieselbe Mischung wie die eigene Truppe, skaliert. Hopliten und Peltasten halten, Reiter greifen an |
+| Angriff: Siedlung ohne Wall | Die Siedlung stellt eine eigene Truppe, passend zur Mischung des Spielers (siehe Gegner-KI). Hopliten und Peltasten halten, Reiter greifen an |
 | Angriff: Siedlung mit Wall | Wie oben, hinter einer Palisade mit verschlossenem Tor. Peltasten des Gegners stehen auf dem Wehrgang |
 
 **Wehrgang:** Eine reine Peltastengruppe der Wallseite darf auf die
@@ -167,9 +167,16 @@ einem Durchbruch oder wenn eine Front auftaucht oder verschwindet:
 | Stellung halten | Siedlung | Grundplan: Linie hält, dreht die Front zu Flankenangriffen, Hopliten decken das Wallstück, an dem ein Turm ansetzt, Wehrgang-Peltasten laufen zum Angriffspunkt, Reiter greifen nur ungedeckte oder allein stehende Gruppen an, oder eine Phalanx, die von der eigenen Linie gebunden ist, und dann um die Front herum in Flanke oder Rücken |
 | Vorrücken | Siedlung | Übermacht in der Nähe oder Beschuss durch Peltasten: die Linie rückt in Formation vor |
 
-Die Siedlung ordnet gemischte Gruppen des Spielers bei sich nach
-Waffengattung: Hopliten, Peltasten und Reiter je als eigene Gruppe, damit
-sie getrennt geführt werden können.
+**Aufstellung der Siedlung.** Beim Angriff kopiert die Siedlung die
+Mischung des Spielers nicht mehr. Sie ordnet seine Truppe ein
+(ausgewogen, ohne Reiter, reiterlastig, peltastenlastig, ein Block) und
+wählt aus eigenen Aufstellungen die, die im Simulator gegen diese Klasse
+am besten abschnitt (`game/doctrine.py`): meist die schwere Phalanx,
+gegen reiterlastige Angreifer den Hoplitenwall mit vielen Peltasten. Die
+Truppe steht nach Waffengattung getrennt in Gruppen. Über Schlachten
+hinweg merkt sich die Siedlung je Spielerklasse, wie jede Aufstellung
+ausging, und wechselt, wenn eine andere besser war. Die Wahl steht zu
+Beginn im Ereignisprotokoll („Die Siedlung stellt: …“).
 
 **Stufe 3, Gedächtnis.** Nach jedem Plan wird festgehalten, wie sich
 die Verluste beider Seiten während des Plans verhalten haben. Pläne, die
@@ -253,6 +260,7 @@ Gedächtnis. Ergebnisse und die daraus abgeleiteten Strategien stehen in
 python3 tools/simulate.py --seeds 8
 python3 tools/simulate.py --scenario offen --tactic linie_aktiv --ai klug --army reiterlastig
 python3 tools/simulate.py --lernen 8 --scenario offen --tactic linie
+python3 tools/simulate.py --matrix --seeds 4        # Spieleraufstellung × Aufstellung der Siedlung
 ```
 
 ## Struktur

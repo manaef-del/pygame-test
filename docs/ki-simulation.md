@@ -1,5 +1,127 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 4 (29. September 2026): Welche Aufstellung schlägt welche
+
+Bisher stellte die Siedlung beim Angriff dieselbe Mischung wie der
+Spieler. Für den Wechsel auf eigene Aufstellungen wurde eine Matrix
+gespielt: sechs Spielertruppen (je 75 Mann) gegen sechs Aufstellungen
+der Siedlung (`game/doctrine.py`, je 75 Mann), Angriff ohne Wall mit
+Phalanxstoß und Angriff mit Wall mit Rammbock und Phalanx durchs Tor,
+vier Seeds, kluge KI. Schaden sammelt sich seit diesem Lauf auf schon
+angeschlagenen Männern, so dass Verluste nach und nach eintreten statt
+alle auf einmal.
+
+| Aufstellung der Siedlung | Mischung |
+|---|---|
+| spiegel | wie der Spieler |
+| hoplitenwall | 70 Hopliten (schwer, mittel, leicht), 30 Peltasten, keine Reiter |
+| schwere_phalanx | 80 schwere und mittlere Hopliten, 20 Peltasten |
+| ausgewogen | 50 Hopliten, 20 Peltasten, 30 Reiter |
+| reiterlastig | 30 Hopliten, 20 Peltasten, 50 Reiter |
+| peltastenschwarm | 35 Hopliten, 45 Peltasten in zwei Gruppen, 20 Reiter |
+
+| Spieler | Szenario | Gegner | Siege Spieler | Verlust Spieler | Verlust Siedlung | Dauer |
+|---|---|---|---|---|---|---|
+| standard | angriff_offen | spiegel | 4/4 | 22% | 68% | 69 s |
+| standard | angriff_offen | hoplitenwall | 4/4 | 60% | 71% | 84 s |
+| standard | angriff_offen | schwere_phalanx | 0/4 | 97% | 49% | 91 s |
+| standard | angriff_offen | ausgewogen | 4/4 | 29% | 67% | 78 s |
+| standard | angriff_offen | reiterlastig | 3/4 | 26% | 62% | 147 s |
+| standard | angriff_offen | peltastenschwarm | 4/4 | 21% | 65% | 67 s |
+| standard | angriff_wall | spiegel | 4/4 | 45% | 69% | 55 s |
+| standard | angriff_wall | hoplitenwall | 0/4 | 95% | 62% | 121 s |
+| standard | angriff_wall | schwere_phalanx | 0/4 | 98% | 49% | 125 s |
+| standard | angriff_wall | ausgewogen | 4/4 | 40% | 72% | 54 s |
+| standard | angriff_wall | reiterlastig | 4/4 | 27% | 69% | 126 s |
+| standard | angriff_wall | peltastenschwarm | 4/4 | 50% | 72% | 50 s |
+| ohne_reiter | angriff_offen | spiegel | 4/4 | 8% | 67% | 40 s |
+| ohne_reiter | angriff_offen | hoplitenwall | 0/4 | 95% | 2% | 41 s |
+| ohne_reiter | angriff_offen | schwere_phalanx | 0/4 | 95% | 1% | 42 s |
+| ohne_reiter | angriff_offen | ausgewogen | 0/4 | 93% | 22% | 45 s |
+| ohne_reiter | angriff_offen | reiterlastig | 1/4 | 32% | 62% | 237 s |
+| ohne_reiter | angriff_offen | peltastenschwarm | 1/4 | 93% | 45% | 49 s |
+| ohne_reiter | angriff_wall | spiegel | 3/4 | 73% | 62% | 58 s |
+| ohne_reiter | angriff_wall | hoplitenwall | 0/4 | 88% | 38% | 53 s |
+| ohne_reiter | angriff_wall | schwere_phalanx | 0/4 | 90% | 21% | 51 s |
+| ohne_reiter | angriff_wall | ausgewogen | 1/4 | 87% | 41% | 63 s |
+| ohne_reiter | angriff_wall | reiterlastig | 1/4 | 86% | 54% | 138 s |
+| ohne_reiter | angriff_wall | peltastenschwarm | 4/4 | 56% | 62% | 46 s |
+| gemischt | angriff_offen | spiegel | 0/4 | 72% | 33% | 51 s |
+| gemischt | angriff_offen | hoplitenwall | 0/4 | 100% | 31% | 106 s |
+| gemischt | angriff_offen | schwere_phalanx | 0/4 | 100% | 31% | 98 s |
+| gemischt | angriff_offen | ausgewogen | 0/4 | 74% | 38% | 56 s |
+| gemischt | angriff_offen | reiterlastig | 0/4 | 68% | 53% | 47 s |
+| gemischt | angriff_offen | peltastenschwarm | 0/4 | 21% | 20% | 33 s |
+| gemischt | angriff_wall | spiegel | 4/4 | 14% | 73% | 49 s |
+| gemischt | angriff_wall | hoplitenwall | 4/4 | 37% | 64% | 79 s |
+| gemischt | angriff_wall | schwere_phalanx | 1/4 | 80% | 62% | 79 s |
+| gemischt | angriff_wall | ausgewogen | 4/4 | 13% | 78% | 49 s |
+| gemischt | angriff_wall | reiterlastig | 4/4 | 5% | 65% | 44 s |
+| gemischt | angriff_wall | peltastenschwarm | 4/4 | 6% | 68% | 44 s |
+| reiterlastig | angriff_offen | spiegel | 4/4 | 32% | 64% | 80 s |
+| reiterlastig | angriff_offen | hoplitenwall | 0/4 | 96% | 31% | 73 s |
+| reiterlastig | angriff_offen | schwere_phalanx | 0/4 | 96% | 31% | 70 s |
+| reiterlastig | angriff_offen | ausgewogen | 4/4 | 22% | 64% | 71 s |
+| reiterlastig | angriff_offen | reiterlastig | 4/4 | 40% | 65% | 84 s |
+| reiterlastig | angriff_offen | peltastenschwarm | 4/4 | 24% | 73% | 66 s |
+| reiterlastig | angriff_wall | spiegel | 4/4 | 77% | 66% | 133 s |
+| reiterlastig | angriff_wall | hoplitenwall | 0/4 | 97% | 22% | 129 s |
+| reiterlastig | angriff_wall | schwere_phalanx | 3/4 | 84% | 70% | 137 s |
+| reiterlastig | angriff_wall | ausgewogen | 4/4 | 57% | 73% | 131 s |
+| reiterlastig | angriff_wall | reiterlastig | 4/4 | 63% | 67% | 135 s |
+| reiterlastig | angriff_wall | peltastenschwarm | 1/4 | 86% | 31% | 114 s |
+| zwei_phalangen | angriff_offen | spiegel | 4/4 | 34% | 67% | 47 s |
+| zwei_phalangen | angriff_offen | hoplitenwall | 1/4 | 88% | 61% | 92 s |
+| zwei_phalangen | angriff_offen | schwere_phalanx | 0/4 | 92% | 41% | 72 s |
+| zwei_phalangen | angriff_offen | ausgewogen | 4/4 | 23% | 60% | 53 s |
+| zwei_phalangen | angriff_offen | reiterlastig | 4/4 | 49% | 65% | 90 s |
+| zwei_phalangen | angriff_offen | peltastenschwarm | 4/4 | 5% | 59% | 40 s |
+| zwei_phalangen | angriff_wall | spiegel | 4/4 | 22% | 72% | 51 s |
+| zwei_phalangen | angriff_wall | hoplitenwall | 0/4 | 92% | 50% | 126 s |
+| zwei_phalangen | angriff_wall | schwere_phalanx | 0/4 | 98% | 49% | 128 s |
+| zwei_phalangen | angriff_wall | ausgewogen | 4/4 | 29% | 69% | 126 s |
+| zwei_phalangen | angriff_wall | reiterlastig | 4/4 | 30% | 71% | 132 s |
+| zwei_phalangen | angriff_wall | peltastenschwarm | 4/4 | 61% | 67% | 55 s |
+| peltastenlastig | angriff_offen | spiegel | 4/4 | 2% | 56% | 36 s |
+| peltastenlastig | angriff_offen | hoplitenwall | 0/4 | 88% | 29% | 74 s |
+| peltastenlastig | angriff_offen | schwere_phalanx | 0/4 | 89% | 31% | 77 s |
+| peltastenlastig | angriff_offen | ausgewogen | 4/4 | 48% | 62% | 67 s |
+| peltastenlastig | angriff_offen | reiterlastig | 4/4 | 26% | 67% | 94 s |
+| peltastenlastig | angriff_offen | peltastenschwarm | 4/4 | 8% | 66% | 39 s |
+| peltastenlastig | angriff_wall | spiegel | 4/4 | 64% | 76% | 66 s |
+| peltastenlastig | angriff_wall | hoplitenwall | 0/4 | 96% | 32% | 94 s |
+| peltastenlastig | angriff_wall | schwere_phalanx | 0/4 | 94% | 19% | 75 s |
+| peltastenlastig | angriff_wall | ausgewogen | 0/4 | 87% | 45% | 116 s |
+| peltastenlastig | angriff_wall | reiterlastig | 4/4 | 76% | 68% | 110 s |
+| peltastenlastig | angriff_wall | peltastenschwarm | 0/4 | 99% | 54% | 53 s |
+
+### Was daraus folgt
+
+- **Schwere Hopliten schlagen fast alles.** Gegen `schwere_phalanx`
+  gewinnt kein gescripteter Angriff, weder ohne noch mit Wall, mit einer
+  Ausnahme: reiterlastige Angreifer am Wall (3/4), weil die schwere
+  Phalanx dort langsam ist und die Reiter das Tor früher durchbrechen.
+  `hoplitenwall` ist fast so gut und gegen Reiter noch besser.
+- **Reiter der Siedlung sind gegen einen Phalanxstoß wertlos.** Alle
+  Aufstellungen mit vielen Reitern (`ausgewogen`, `reiterlastig`,
+  `spiegel`) verlieren im Feld 4/4 gegen jede Spielermischung außer der
+  großen gemischten Gruppe. Reiter verteidigen schlecht; sie greifen an.
+- **Der Peltastenschwarm ist eine Falle**: gegen Fußvolk ohne Reiter
+  hält er (Wall 4/4 für den Spieler, aber im Feld 1/4), gegen alles mit
+  Reitern nicht.
+- **Zuordnung** (`COUNTERS` in `game/doctrine.py`): ausgewogene, reiter-
+  lose, peltastenlastige und Ein-Block-Truppen bekommen die schwere
+  Phalanx, reiterlastige den Hoplitenwall (mehr Peltasten gegen die
+  Reiter, am Wall 0/4 statt 3/4).
+- Die Siedlung merkt sich außerdem je Spielerklasse, wie jede
+  Aufstellung ausging, und wechselt, wenn eine andere in den letzten
+  Schlachten besser abschnitt. Die Meldung „Die Siedlung stellt: …“
+  steht zu Beginn im Ereignisprotokoll.
+- Für den Spieler heißt das: Gegen die schwere Phalanx hilft der reine
+  Phalanxstoß nicht mehr. Gefragt sind Peltasten, die die Front
+  beschießen, bevor die Linie anläuft, und Reiter, die die schwere,
+  langsame Linie umgehen, sobald sie gebunden ist.
+
 ## Lauf 3 (29. September 2026): Handgemenge bindet
 
 Stand des Commits, der diesen Abschnitt einführt: Männer mit einem

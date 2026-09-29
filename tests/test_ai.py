@@ -182,7 +182,7 @@ def test_horde_sleeps_then_picks_a_plan():
 
 # ------------------------------------------------------------- Siedlung
 def test_settlement_cavalry_ignores_the_phalanx_but_charges_exposed_peltasts():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1))
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     b.command_line([hop], (4.0, 9.5), (12.0, 9.5))
     b.command_line([pelt], (5.0, 10.6), (11.0, 10.6))
@@ -191,12 +191,17 @@ def test_settlement_cavalry_ignores_the_phalanx_but_charges_exposed_peltasts():
     enemy = {u.name: u for u in b.units(Side.FEIND)}
     assert enemy["Reiter"].stance is not Stance.ANGRIFF          # nichts Lohnendes in Reichweite
     b.command_move([pelt], (3.0, 7.5))                           # Peltasten allein nach vorn
-    run(b, 6)
-    assert enemy["Reiter"].stance is Stance.ANGRIFF and enemy["Reiter"].target_id == pelt.id
+    charged = False
+    for _ in range(int(8 / DT)):
+        b.update(DT)
+        if enemy["Reiter"].stance is Stance.ANGRIFF and enemy["Reiter"].target_id == pelt.id:
+            charged = True
+            break
+    assert charged
 
 
 def test_settlement_line_turns_its_front_towards_a_flank_attack():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1))
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     enemy = {u.name: u for u in b.units(Side.FEIND)}
     line = enemy["Hopliten"]
@@ -209,7 +214,7 @@ def test_settlement_line_turns_its_front_towards_a_flank_attack():
 
 
 def test_wall_defenders_shift_towards_the_siege_tower():
-    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    b = Battle(SIEDLUNG_WALL, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     enemy = {u.name: u for u in b.units(Side.FEIND)}
     b.command_build([cav], "tower")
@@ -319,13 +324,13 @@ def test_settlement_splits_mixed_groups_by_arm():
     parts = split_by_arm(army)
     assert [g.name for g in parts.groups] == ["Alle", "Peltasten", "Reiter"]
     assert parts.total_men() == 42
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), army=army, enemy_count=42)
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), army=army, enemy_count=42, doctrine="spiegel")
     assert len(b.units(Side.FEIND)) == 3
     assert len(b.units(Side.STADT)) == 1                    # der Spieler behält seine eine Gruppe
 
 
 def test_settlement_cavalry_flanks_a_pinned_phalanx():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1))
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     enemy = {u.name: u for u in b.units(Side.FEIND)}
     line = enemy["Hopliten"]
@@ -340,3 +345,60 @@ def test_settlement_cavalry_flanks_a_pinned_phalanx():
             break
     assert seen                                             # die Reiter greifen die gebundene Phalanx an
     assert hop.last_arc in ("flank", "rear")                # und zwar von der Seite
+
+
+# ------------------------------------------------------------- Doktrinen
+def test_doctrine_classifies_the_players_army():
+    from game.doctrine import classify, shares
+    from game.army import default_army
+    std = default_army()
+    s = shares(std)
+    assert abs(s["hopliten"] - 40 / 75) < 0.01 and abs(s["reiter"] - 20 / 75) < 0.01
+    assert classify(std) == "ausgewogen"
+    assert classify(Army(groups=[GroupSpec("H", [Tier("schwer", 40)]), GroupSpec("P", [Tier("peltast", 20)])])) == "ohne_reiter"
+    assert classify(Army(groups=[GroupSpec("R", [Tier("reiter", 40)]), GroupSpec("H", [Tier("schwer", 20)])])) == "reiterlastig"
+    assert classify(Army(groups=[GroupSpec("Alle", [Tier("schwer", 30), Tier("peltast", 15), Tier("reiter", 20)])])) == "ein_block"
+    assert classify(Army(groups=[GroupSpec("P", [Tier("peltast", 40)]), GroupSpec("H", [Tier("schwer", 20)]), GroupSpec("R", [Tier("reiter", 10)])])) == "peltastenlastig"
+
+
+def test_settlement_uses_its_own_doctrine_not_a_copy():
+    from game.doctrine import DOCTRINES, enemy_army
+    army = Army(groups=[GroupSpec("Alle", [Tier("schwer", 30), Tier("peltast", 15), Tier("reiter", 30)])])
+    forced = Battle(SIEDLUNG_OFFEN, random.Random(1), army=army, enemy_count=90, doctrine="schwere_phalanx")
+    assert forced.doctrine == "schwere_phalanx"
+    assert forced.men(Side.FEIND) == 90
+    assert not any(m.kind.cavalry for u in forced.units(Side.FEIND) for m in u.all_men())   # keine Reiter in der schweren Phalanx
+    mirror = Battle(SIEDLUNG_OFFEN, random.Random(1), army=army, enemy_count=90, doctrine="spiegel")
+    assert sum(1 for u in mirror.units(Side.FEIND) for m in u.all_men() if m.kind.cavalry) == 36   # 30 von 75, auf 90 skaliert
+    for name, template in DOCTRINES.items():
+        scaled = enemy_army(army, 120, name)
+        assert scaled.total_men() == 120, name
+
+
+def test_settlement_picks_a_counter_for_every_player_class():
+    from game.doctrine import COUNTERS, choose_doctrine
+    from game.army import default_army
+    assert set(COUNTERS) == {"reiterlastig", "peltastenlastig", "ohne_reiter", "ein_block", "ausgewogen"}
+    assert all(v != "spiegel" for v in COUNTERS.values())          # die Siedlung kopiert nicht mehr
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), army=default_army())
+    assert b.doctrine == choose_doctrine(default_army()) != "spiegel"
+    assert any("Siedlung stellt" in e for e in b.events)
+
+
+def test_settlement_learns_a_better_doctrine_from_memory():
+    from game.doctrine import MEMORY_KEY, choose_doctrine, classify
+    from game.army import default_army
+    army = default_army()
+    mem = Memory()
+    assert choose_doctrine(army, mem) == choose_doctrine(army)
+    key = f"{MEMORY_KEY}:{classify(army)}"
+    for _ in range(3):
+        mem.record(key, choose_doctrine(army), -0.6)          # die Vorgabe hat verloren
+        mem.record(key, "reiterlastig", 0.5)                  # eine andere hat gewonnen
+    assert choose_doctrine(army, mem) == "reiterlastig"
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), army=army, memory=mem)
+    assert b.doctrine == "reiterlastig"
+    b.command_attack()
+    run(b, 200)
+    assert b.outcome is not None
+    assert len(mem.gains[key]["reiterlastig"]) == 4          # der Ausgang wurde gemerkt

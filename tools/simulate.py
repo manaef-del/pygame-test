@@ -55,6 +55,12 @@ ARMIES = {
         GroupSpec("Reiter", [Tier("reiter", 20)]),
         GroupSpec("Reiter II", [Tier("reiter", 15)]),
     ]),
+    "peltastenlastig": lambda: Army(groups=[
+        GroupSpec("Hopliten", [Tier("schwer", 10), Tier("mittel", 10)]),
+        GroupSpec("Peltasten", [Tier("peltast", 20)]),
+        GroupSpec("Peltasten II", [Tier("peltast", 15)]),
+        GroupSpec("Reiter", [Tier("reiter", 20)]),
+    ]),
     "zwei_phalangen": lambda: Army(groups=[
         GroupSpec("Phalanx W", [Tier("schwer", 14), Tier("mittel", 8), Tier("leicht", 6)]),
         GroupSpec("Phalanx O", [Tier("mittel", 6), Tier("leicht", 6), Tier("peltast", 15)]),
@@ -280,8 +286,10 @@ def _guard_empty_selection(b: Battle) -> None:
         setattr(b, name, wrapped)
 
 
-def play(scenario, tactic, seed: int, ai: str, memory: Memory | None = None, enemy_count=None, army: str = "standard") -> dict:
-    b = Battle(scenario, random.Random(seed), ai=ai, memory=memory, enemy_count=enemy_count, army=ARMIES[army]())
+def play(scenario, tactic, seed: int, ai: str, memory: Memory | None = None, enemy_count=None, army: str = "standard",
+         doctrine: str | None = None) -> dict:
+    b = Battle(scenario, random.Random(seed), ai=ai, memory=memory, enemy_count=enemy_count, army=ARMIES[army](),
+               doctrine=doctrine)
     _guard_empty_selection(b)
     schedule = TACTICS[scenario.key][tactic](b)
     steps = int(LIMIT / DT)
@@ -330,10 +338,29 @@ def main() -> None:
     ap.add_argument("--lernen", type=int, default=0, help="dieselbe Taktik n-mal mit Gedächtnis")
     ap.add_argument("--enemy", type=int, default=None, help="Gegnerstärke statt Vorgabe des Szenarios")
     ap.add_argument("--army", default="standard", choices=sorted(ARMIES), help="eigene Truppenmischung")
+    ap.add_argument("--doctrine", default=None, help="Aufstellung der Siedlung erzwingen (siehe game/doctrine.py)")
+    ap.add_argument("--matrix", action="store_true", help="Spieleraufstellung × Gegneraufstellung gegen die Siedlung")
     args = ap.parse_args()
 
     ais = ["einfach", "klug"] if args.ai == "beide" else [args.ai]
     started = time.time()
+    if args.matrix:
+        from game.doctrine import DOCTRINES
+        pairs = [("angriff_offen", "phalanxstoss"), ("angriff_wall", "tor_phalanx")]
+        print("| Spieler | Szenario | Gegner | Siege Spieler | Verlust Spieler | Verlust Siedlung | Dauer |")
+        print("|---|---|---|---|---|---|---|")
+        for army in ARMIES:
+            if args.army != "standard" and army != args.army:
+                continue
+            for key, tactic in pairs:
+                scn = next(s for s in SCENARIOS if s.key == key)
+                for doctrine in DOCTRINES:
+                    rows = [play(scn, tactic, seed, "klug", army=army, doctrine=doctrine) for seed in range(args.seeds)]
+                    s = summarize(rows)
+                    print(f"| {army} | {key} | {doctrine} | {s['siege']}/{s['n']} | {s['verlust_stadt']:.0%} | "
+                          f"{s['verlust_feind']:.0%} | {s['zeit']:.0f} s |", flush=True)
+        print(f"\n{time.time() - started:.0f} s Rechenzeit", file=sys.stderr)
+        return
     if args.lernen:
         scn = next(s for s in SCENARIOS if s.key == (args.scenario or "offen"))
         tactic = args.tactic or next(iter(TACTICS[scn.key]))
@@ -358,7 +385,7 @@ def main() -> None:
             if args.tactic and tactic != args.tactic:
                 continue
             for ai in ais:
-                rows = [play(scn, tactic, seed, ai, enemy_count=args.enemy, army=args.army) for seed in range(args.seeds)]
+                rows = [play(scn, tactic, seed, ai, enemy_count=args.enemy, army=args.army, doctrine=args.doctrine) for seed in range(args.seeds)]
                 s = summarize(rows)
                 plans = ", ".join(f"{p}×{c}" for p, c in s["plaene"].most_common()) if ai == "klug" else "–"
                 print(f"| {scn.key} | {tactic} | {ai} | {s['siege']}/{s['n']} | {s['verlust_stadt']:.0%} | "

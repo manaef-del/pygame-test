@@ -184,11 +184,18 @@ class Brain:
             self._orders_settlement(b)
 
     def finish(self, b: "Battle") -> None:
-        """Schlacht zu Ende: den laufenden Plan bewerten und merken."""
+        """Schlacht zu Ende: den laufenden Plan bewerten und merken, bei der
+        Siedlung auch die gewählte Aufstellung gegen diese Spielertruppe."""
         if self.finished or self.plan is None:
             return
         self.finished = True
         self._record(b)
+        if b.scenario.enemy_kind != "raeuber" and b.doctrine:
+            from .doctrine import MEMORY_KEY, classify
+            own_start = max(1, b.men_start.get(Side.FEIND, 1))
+            foe_start = max(1, b.men_start.get(Side.STADT, 1))
+            gain = b.fallen(Side.STADT) / foe_start - b.fallen(Side.FEIND) / own_start
+            self.memory.record(f"{MEMORY_KEY}:{classify(b.army)}", b.doctrine, gain)
 
     def plan_name(self) -> str:
         return PLAN_NAMES.get(self.plan or "", "")

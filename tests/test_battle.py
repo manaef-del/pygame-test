@@ -421,7 +421,7 @@ def test_mirror_army_scales_composition():
     assert mirror.total_men() == 150
     assert [g.name for g in mirror.groups] == ["Hopliten", "Peltasten", "Reiter"]
     assert mirror.groups[2].tiers[0].count == 40
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), enemy_count=50)
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), enemy_count=50, doctrine="spiegel")
     assert b.men(Side.FEIND) == 50
     assert all(u.y < 8 for u in b.units(Side.FEIND))     # Gegner im Norden
     assert all(u.y > 12 for u in b.units(Side.STADT))    # Angreifer im Süden
@@ -440,7 +440,7 @@ def test_horde_waits_then_charges():
 
 
 def test_settlement_defenders_hold_but_cavalry_charges():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1))
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     b.command_move([cav], (4.5, 8.0))
     run(b, 6)
@@ -450,7 +450,7 @@ def test_settlement_defenders_hold_but_cavalry_charges():
 
 
 def test_closed_gate_blocks_and_ram_opens_it():
-    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    b = Battle(SIEDLUNG_WALL, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     gx, gy = b.gate.center
     assert b.gate.closed and b.is_blocked(gx, gy, hop)
@@ -473,7 +473,7 @@ def test_closed_gate_blocks_and_ram_opens_it():
 
 
 def test_each_group_builds_its_own_engine():
-    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    b = Battle(SIEDLUNG_WALL, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     assert b.command_build([hop, cav], "ram") == 2
     run(b, config.RAM_BUILD_TIME + 1)
@@ -481,7 +481,7 @@ def test_each_group_builds_its_own_engine():
 
 
 def test_siege_tower_opens_a_crossing():
-    b = Battle(SIEDLUNG_WALL, random.Random(1), ai="einfach")   # Mechanik, nicht Gegnerverhalten
+    b = Battle(SIEDLUNG_WALL, random.Random(1), ai="einfach", doctrine="spiegel")   # Mechanik, nicht Gegnerverhalten
     hop, pelt, cav = b.units(Side.STADT)
     assert b.command_tower_wall([cav], (13, 7)) == 0      # ohne Turm
     assert b.command_build([cav], "tower") == 1
@@ -506,7 +506,7 @@ def test_siege_tower_opens_a_crossing():
 
 
 def test_losing_the_engine_group_loses_the_engine():
-    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    b = Battle(SIEDLUNG_WALL, random.Random(1), doctrine="spiegel")
     hop = b.units(Side.STADT)[0]
     b.command_build([hop], "ram")
     run(b, config.RAM_BUILD_TIME + 1)
@@ -572,7 +572,7 @@ def test_only_peltasts_of_wall_side_may_enter_the_wall():
 
 
 def test_enemy_peltasts_start_on_the_wall():
-    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    b = Battle(SIEDLUNG_WALL, random.Random(1), doctrine="spiegel")
     pelt = next(u for u in b.units(Side.FEIND) if u.name == "Peltasten")
     assert b.on_wall(pelt)
 
@@ -632,7 +632,8 @@ def test_peltasts_route_over_ladders():
 
 # ------------------------------------------------------- Einzelne Männer
 def test_men_flow_through_the_gate_individually():
-    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    b = Battle(SIEDLUNG_WALL, random.Random(1), ai="einfach", doctrine="spiegel")
+    b._ai_defenders = lambda: None                            # Mechanik, nicht Gegnerverhalten
     hop, pelt, cav = b.units(Side.STADT)
     b.gate.closed = False
     b.gate.hp = 0.0
@@ -645,7 +646,7 @@ def test_men_flow_through_the_gate_individually():
 
 
 def test_cavalry_dismounts_for_siege_work_and_before_ladders():
-    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    b = Battle(SIEDLUNG_WALL, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     assert cav.speed == UNIT_TYPES["reiter"].speed
     b.command_build([cav], "tower")
@@ -657,7 +658,7 @@ def test_cavalry_dismounts_for_siege_work_and_before_ladders():
 
 
 def test_tower_is_one_way_up_from_outside():
-    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    b = Battle(SIEDLUNG_WALL, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     b.crossings.add((12, 7))
     assert b.can_step(hop, (12.5, 8.6), (12.5, 7.5))            # von außen hinauf
@@ -670,7 +671,7 @@ def test_tower_is_one_way_up_from_outside():
 
 # ------------------------------------------------- Überqueren und Aufsitzen
 def test_crossing_dissolves_formation_and_reforms_inside():
-    b = Battle(SIEDLUNG_WALL, random.Random(1), ai="einfach")
+    b = Battle(SIEDLUNG_WALL, random.Random(1), ai="einfach", doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     enemy_pelt = next(u for u in b.units(Side.FEIND) if u.name == "Peltasten")
     b.crossings.add((12, 7))
@@ -710,7 +711,7 @@ def test_no_phalanx_bonus_on_the_wall():
 
 
 def test_dismounted_cavalry_remounts_at_their_horses():
-    b = Battle(SIEDLUNG_WALL, random.Random(1))
+    b = Battle(SIEDLUNG_WALL, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     b.command_build([cav], "ram")
     assert cav.mounted_men() == []

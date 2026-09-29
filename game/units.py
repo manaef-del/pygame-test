@@ -424,25 +424,21 @@ class Lochos:
         if not self.rows or dmg <= 0:
             return 0
         row = min(row, len(self.rows) - 1)
-        pick = rng.randrange if rng is not None else (lambda n: 0)
-        while dmg > 0:
-            living = [m for m in self.rows[row] if m.hp > HP_EPS]
-            if not living:
-                break
-            q = min(config.DAMAGE_QUANTUM, dmg)
-            living[pick(len(living))].hp -= q
-            dmg -= q
-        return self.bury()
+        return self.take_damage_men(self.rows[row], dmg, rng)
 
     def take_damage_men(self, men: list[Man], dmg: float, rng=None) -> int:
-        """Schaden nur auf bestimmte Männer (aufgelöste Formation: die, die da sind)."""
+        """Schaden in Häppchen auf einzelne Männer. Der Druck sammelt sich: von zwei
+        zufällig gewählten Männern trifft es den schon angeschlagenen, so fallen
+        Männer nach und nach statt alle auf einmal."""
         pick = rng.randrange if rng is not None else (lambda n: 0)
         while dmg > 0:
             living = [m for m in men if m.hp > HP_EPS]
             if not living:
                 break
             q = min(config.DAMAGE_QUANTUM, dmg)
-            living[pick(len(living))].hp -= q
+            a = living[pick(len(living))]
+            c = living[pick(len(living))]
+            (a if a.hp <= c.hp else c).hp -= q
             dmg -= q
         return self.bury()
 

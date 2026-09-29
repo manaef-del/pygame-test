@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from . import config
 from .ai import Memory, make_brain
 from .army import Army, default_army, scaled_army, split_by_arm
+from .doctrine import DOCTRINE_NAMES, choose_doctrine, enemy_army
 from .geometry import add, arc, dist, norm, scale, snap4, sub
 from .scenarios import Scenario
 from .units import UNIT_TYPES, Lochos, Man, Side, Stance, arrange, default_width
@@ -120,6 +121,7 @@ class Battle:
     horde_awake: bool = False
     ai: str = config.AI_DEFAULT          # "klug" oder "einfach"
     memory: Memory | None = None         # Gedächtnis der Gegner über Schlachten hinweg
+    doctrine: str | None = None          # Aufstellung der Siedlung; None = passend zum Spieler wählen
     _next_id: int = 0
 
     # ------------------------------------------------------------ Aufbau
@@ -197,7 +199,9 @@ class Battle:
 
     def _spawn_mirror(self) -> None:
         """Die Siedlung stellt dieselbe Mischung wie der Spieler, skaliert."""
-        mirror = split_by_arm(scaled_army(self.army, self.enemy_count))
+        self.doctrine = self.doctrine or choose_doctrine(self.army, self.memory)
+        mirror = split_by_arm(enemy_army(self.army, self.enemy_count, self.doctrine))
+        self.events.append(f"Die Siedlung stellt: {DOCTRINE_NAMES.get(self.doctrine, self.doctrine)}")
         s = self.scenario
         y_line = s.enemy_deploy_y
         hoplite_specs = [g for g in mirror.groups if g.men() and not all(t.kind in ("peltast", "reiter") for t in g.tiers)]
