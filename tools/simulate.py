@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from game import config                                       # noqa: E402
 from game.ai import Memory                                    # noqa: E402
+from game.army import Army, GroupSpec, Tier, default_army     # noqa: E402
 from game.battle import Battle                                # noqa: E402
 from game.scenarios import SCENARIOS                          # noqa: E402
 from game.units import Side, Stance                           # noqa: E402
@@ -35,6 +36,31 @@ def groups(b: Battle):
     pelt = [u for u in b.units(Side.STADT) if u.share(lambda m: m.kind.ranged) >= 0.5]
     cav = [u for u in b.units(Side.STADT) if u.share(lambda m: m.kind.cavalry) >= 0.5]
     return hop, pelt, cav
+
+
+# ------------------------------------------------------------ Truppenmischungen
+ARMIES = {
+    "standard": lambda: default_army(),                                  # 40 Hopliten, 15 Peltasten, 20 Reiter
+    "ohne_reiter": lambda: Army(groups=[
+        GroupSpec("Hopliten", [Tier("schwer", 14), Tier("mittel", 14), Tier("leicht", 12)]),
+        GroupSpec("Hopliten II", [Tier("mittel", 10), Tier("leicht", 10)]),
+        GroupSpec("Peltasten", [Tier("peltast", 15)]),
+    ]),
+    "gemischt": lambda: Army(groups=[                                    # eine große gemischte Gruppe
+        GroupSpec("Alle", [Tier("schwer", 14), Tier("mittel", 14), Tier("leicht", 12), Tier("peltast", 15), Tier("reiter", 20)]),
+    ]),
+    "reiterlastig": lambda: Army(groups=[
+        GroupSpec("Hopliten", [Tier("schwer", 14), Tier("mittel", 11)]),
+        GroupSpec("Peltasten", [Tier("peltast", 15)]),
+        GroupSpec("Reiter", [Tier("reiter", 20)]),
+        GroupSpec("Reiter II", [Tier("reiter", 15)]),
+    ]),
+    "zwei_phalangen": lambda: Army(groups=[
+        GroupSpec("Phalanx W", [Tier("schwer", 14), Tier("mittel", 8), Tier("leicht", 6)]),
+        GroupSpec("Phalanx O", [Tier("mittel", 6), Tier("leicht", 6), Tier("peltast", 15)]),
+        GroupSpec("Reiter", [Tier("reiter", 20)]),
+    ]),
+}
 
 
 # ---------------------------------------------------------------- Taktiken
@@ -68,12 +94,44 @@ def t_linie_reiter_aktiv(b: Battle) -> dict:
     return plan
 
 
+def t_linie_aktiv(b: Battle) -> dict:
+    """Linie mit Flankenschutz: alle vier Sekunden schaut der Spieler hin. Die Reiter
+    greifen die Gruppe an, die der Phalanx in Flanke oder Rücken geht, die Phalanx
+    dreht die Front zur stärksten Bedrohung, wenn vorn niemand mehr steht."""
+    from game.geometry import arc as arc_of, norm, sub
+    hop, pelt, cav = groups(b)
+    plan = t_linie(b)
+
+    def react(b: Battle):
+        foes = b.units(Side.FEIND, fighting_only=True)
+        if not foes:
+            return
+        for line in hop:
+            if not line.fighting:
+                continue
+            near = [f for f in foes if line.rect_distance(f.pos) <= 3.0]
+            side = [f for f in near if arc_of(line.facing, sub(f.pos, line.pos), config.FRONT_ARC, config.REAR_ARC) != "front"]
+            front = [f for f in near if f not in side]
+            if side and cav and cav[0].fighting:
+                b.command_attack_target(cav, min(side, key=lambda f: line.rect_distance(f.pos)))
+            elif side and not front and line.in_phalanx:
+                threat = max(side, key=lambda f: f.men)
+                line.facing = norm(sub(threat.pos, line.pos))      # Front drehen (wie eine neue Linie)
+        if cav and cav[0].fighting and cav[0].stance is not Stance.ANGRIFF:
+            weak = [f for f in foes if f.stance is Stance.FLUCHT or f.loose]
+            if weak:
+                b.command_attack_target(cav, min(weak, key=lambda f: f.rect_distance(cav[0].pos)))
+    for t in range(4, 240, 4):
+        plan[t] = react
+    return plan
+
+
 def t_passiv(b: Battle) -> dict:
-    return {0: lambda b: b.command_hold()}
+    return {0: lambda b: b.command_hold(None)}
 
 
 def t_angriff(b: Battle) -> dict:
-    return {0: lambda b: b.command_attack()}
+    return {0: lambda b: b.command_attack(None)}
 
 
 def t_tor_halten(b: Battle) -> dict:
@@ -111,7 +169,7 @@ def t_vorruecken(b: Battle) -> dict:
                       b.command_move(cav, (13.5, 13.5))),
         20: lambda b: (b.command_line(hop, (4.0, 8.5), (12.0, 8.5)),
                        b.command_line(pelt, (5.0, 9.6), (11.0, 9.6))),
-        45: lambda b: b.command_attack(),
+        45: lambda b: b.command_attack(None),
     }
 
 
@@ -123,7 +181,7 @@ def t_belagerung(b: Battle) -> dict:
                       b.command_move(pelt, (8.0, 13.0))),
         config.RAM_BUILD_TIME + 2: lambda b: b.command_ram_gate(hop),
         config.TOWER_BUILD_TIME + 2: lambda b: b.command_tower_wall(cav, (13, 7)),
-        40: lambda b: b.command_attack(),
+        40: lambda b: b.command_attack(None),
     }
 
 
@@ -159,12 +217,12 @@ def t_tor_phalanx(b: Battle) -> dict:
             b.command_line(pelt, (gx - 1.5, gy - 0.6), (gx + 1.5, gy - 0.6))
     for t in range(12, 90, 2):
         plan[t] = through
-    plan[120] = lambda b: b.command_attack()
+    plan[120] = lambda b: b.command_attack(None)
     return plan
 
 
 TACTICS = {
-    "offen": {"linie": t_linie, "linie_reiter": t_linie_reiter_aktiv, "passiv": t_passiv, "angriff": t_angriff},
+    "offen": {"linie": t_linie, "linie_reiter": t_linie_reiter_aktiv, "linie_aktiv": t_linie_aktiv, "passiv": t_passiv, "angriff": t_angriff},
     "palisade": {"tor_halten": t_tor_halten, "tor_reserve": t_tor_halten_reserve, "passiv": t_passiv},
     "horde": {"vorruecken": t_vorruecken, "angriff": t_angriff},
     "angriff_offen": {"phalanxstoss": t_phalanxstoss, "vorruecken": t_vorruecken, "angriff": t_angriff},
@@ -173,8 +231,22 @@ TACTICS = {
 
 
 # ----------------------------------------------------------------- Laufen
-def play(scenario, tactic, seed: int, ai: str, memory: Memory | None = None, enemy_count=None) -> dict:
-    b = Battle(scenario, random.Random(seed), ai=ai, memory=memory, enemy_count=enemy_count)
+def _guard_empty_selection(b: Battle) -> None:
+    """Eine leere Auswahl bedeutet in Battle „alle“; im Skript soll sie „niemand“ heißen."""
+    for name in ("command_move", "command_line", "command_attack_target", "command_build",
+                 "command_ram_gate", "command_tower_wall", "command_attack", "command_hold"):
+        orig = getattr(b, name)
+
+        def wrapped(units, *args, _orig=orig):
+            if units is not None and len(units) == 0:
+                return 0
+            return _orig(units, *args)
+        setattr(b, name, wrapped)
+
+
+def play(scenario, tactic, seed: int, ai: str, memory: Memory | None = None, enemy_count=None, army: str = "standard") -> dict:
+    b = Battle(scenario, random.Random(seed), ai=ai, memory=memory, enemy_count=enemy_count, army=ARMIES[army]())
+    _guard_empty_selection(b)
     schedule = TACTICS[scenario.key][tactic](b)
     steps = int(LIMIT / DT)
     plans: list[str] = []
@@ -221,6 +293,7 @@ def main() -> None:
     ap.add_argument("--tactic", default=None)
     ap.add_argument("--lernen", type=int, default=0, help="dieselbe Taktik n-mal mit Gedächtnis")
     ap.add_argument("--enemy", type=int, default=None, help="Gegnerstärke statt Vorgabe des Szenarios")
+    ap.add_argument("--army", default="standard", choices=sorted(ARMIES), help="eigene Truppenmischung")
     args = ap.parse_args()
 
     ais = ["einfach", "klug"] if args.ai == "beide" else [args.ai]
@@ -239,6 +312,7 @@ def main() -> None:
                   f"| {r['haeuser'] - r['haeuser_intakt']} | {' → '.join(r['plaene'])} | {w} |")
         return
 
+    print(f"Truppe: {args.army}" + (f", Gegner: {args.enemy}" if args.enemy else ""))
     print("| Szenario | Taktik | KI | Siege | Verlust Stadt | Verlust Feind | Häuser verloren | Dauer | Pläne |")
     print("|---|---|---|---|---|---|---|---|---|")
     for scn in SCENARIOS:
@@ -248,7 +322,7 @@ def main() -> None:
             if args.tactic and tactic != args.tactic:
                 continue
             for ai in ais:
-                rows = [play(scn, tactic, seed, ai, enemy_count=args.enemy) for seed in range(args.seeds)]
+                rows = [play(scn, tactic, seed, ai, enemy_count=args.enemy, army=args.army) for seed in range(args.seeds)]
                 s = summarize(rows)
                 plans = ", ".join(f"{p}×{c}" for p, c in s["plaene"].most_common()) if ai == "klug" else "–"
                 print(f"| {scn.key} | {tactic} | {ai} | {s['siege']}/{s['n']} | {s['verlust_stadt']:.0%} | "

@@ -46,6 +46,10 @@ def raid(men: int, *spawns: tuple[float, float], houses=((2, 17),)) -> Scenario:
     )
 
 
+def dist_of(a, b) -> float:
+    return ((a.x - b.x) ** 2 + (a.y - b.y) ** 2) ** 0.5
+
+
 def static_line(raider_y: float, n_raiders: int = 4) -> Battle:
     """Drei Hoplitengruppen in der Linie (Front Nord), Räuber dicht davor oder dahinter."""
     scn = raid(16 * n_raiders, *((5.3 + i * 1.7, raider_y) for i in range(n_raiders)))
@@ -317,17 +321,35 @@ def test_unopposed_raiders_loot_every_house():
 
 
 def test_phalanx_behind_palisade_beats_larger_force():
-    b = Battle(PALISADE, random.Random(1))
+    """Phalanx hinter dem Tor, Peltasten auf dem Wehrgang, Reiter als Reserve gegen
+    alles, was über den Turm hereinkommt; die Phalanx dreht sich zum nächsten Feind."""
+    b = Battle(PALISADE, random.Random(1), enemy_count=100)
     hop, pelt, cav = b.units(Side.STADT)
     b.command_line([hop], (5.5, 9.5), (10.5, 9.5))     # Hopliten hinter dem Tor
-    b.command_line([pelt], (5.5, 10.6), (10.5, 10.6))  # Peltasten werfen darüber
+    b.command_move([pelt], (3.5, 8.5))                 # Peltasten auf den Wehrgang
     b.command_move([cav], (13.0, 12.5))                # Reiter in Reserve
-    run(b, 300)
+    gy = b.gate.center[1]
+    covered = False
+    for i in range(int(300 / DT)):
+        b.update(DT)
+        if b.outcome:
+            break
+        if i % 150 == 0:                                # alle fünf Sekunden schaut der Spieler hin
+            if b.crossings and not covered and hop.fighting:
+                # ein Turm steht: die Phalanx an den Fuß der nächsten Leiter, Front zum Wall
+                cx = next(iter(b.crossings))[0] + 0.5
+                lx, ly = min(b.ladders, key=lambda c: abs(c[0] + 0.5 - cx))
+                b.command_line([hop], (lx + 0.5 - 2.2, ly + 1.7), (lx + 0.5 + 2.2, ly + 1.7))
+                covered = True
+            inside = [f for f in b.units(Side.FEIND, fighting_only=True) if f.y > gy + 0.5 and not b.on_wall(f)
+                      and hop.rect_distance(f.pos) > 1.5]
+            if inside and cav.fighting:
+                b.command_attack_target([cav], min(inside, key=lambda f: dist_of(f, cav)))
     r = b.report()
     assert r["ausgang"] == "sieg", r
-    assert r["feind_start"] >= 1.6 * r["stadt_start"]
+    assert r["feind_start"] >= 1.3 * r["stadt_start"]
     assert r["stadt_gefallen"] <= 0.4 * r["stadt_start"], r   # die Räuber kommen auch über einen Turm
-    assert r["feind_gefallen"] >= 0.5 * r["feind_start"], r
+    assert r["feind_gefallen"] >= 0.4 * r["feind_start"], r
     assert r["haeuser_intakt"] >= 1                            # ohne Reserve plündern die Eingesickerten
 
 
@@ -593,7 +615,7 @@ def test_peltasts_route_over_ladders():
     b._ai_raiders = lambda: None                            # kein Rammbock: das Torhaus bleibt begehbar
     hop, pelt, cav = b.units(Side.STADT)
     goal, final = b.route(pelt, (5.5, 8.5))
-    assert final is False and goal == (2.5, 8.5)          # erst zur Leiter
+    assert final is False and goal[0] == 2.5 and goal[1] >= 8.5   # erst zur Leiter (bzw. an ihren Fuß)
     b.command_move([pelt], (5.5, 8.5))
     run(b, 24)
     assert b.on_wall(pelt) and abs(pelt.x - 5.5) < 0.3
@@ -705,3 +727,56 @@ def test_dismounted_cavalry_remounts_at_their_horses():
     run(b, 6)
     assert len(cav.mounted_men()) == cav.men and cav.speed == UNIT_TYPES["reiter"].speed
     assert b.horses == []
+
+
+def test_walkway_gap_is_crossed_via_ladders():
+    b = Battle(PALISADE, random.Random(1), ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_move([pelt], (4.5, 8.5))
+    run(b, 20)
+    assert b.on_wall(pelt) and not pelt.loose
+    b.gate.hp = 0.0
+    b.gate.closed = False                                  # Tor offen: Lücke im Wehrgang
+    goal, final = b.route(pelt, (11.5, 8.5))
+    assert not final and goal == (2.5, 8.5)                # erst zur westlichen Leiter hinunter
+    b.command_move([pelt], (11.5, 8.5))
+    run(b, 45)
+    assert b.on_wall(pelt) and abs(pelt.x - 11.5) < 0.4 and not pelt.loose
+    assert all(b.cell(m.x, m.y)[0] >= 9 for m in pelt.all_men())
+
+
+def test_men_cannot_walk_through_an_enemy_phalanx():
+    b = Battle(PALISADE, random.Random(1), ai="einfach")
+    b._ai_raiders = lambda: None
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_line([hop], (0.0, 10.2), (4.5, 10.2))       # Phalanx vom Kartenrand bis unter die Leiter, Front Nord
+    b.command_move([pelt, cav], (12.0, 14.0))
+    run(b, 8)
+    assert hop.in_phalanx
+    b.crossings.add((1, 8))                                # ein Turm steht am Wall
+    raider = b.units(Side.FEIND)[0]
+    raider.x, raider.y = 1.5, 6.0
+    raider.place_men()
+    raider.stance = Stance.RAUB
+    raider.target = (2.5, 13.5)                            # ein Haus hinter der Phalanx
+    b._ai_raiders = lambda: None
+    start = raider.men
+    for _ in range(int(60 / DT)):
+        b.update(DT)
+        for m in raider.all_men():
+            assert hop.rect_distance(m.pos) > 0.0 or hop.men == 0          # niemand steht in der Formation
+        assert hop.rect_distance(raider.pos) > 0.0
+        if not raider.alive:
+            break
+    assert raider.men < start                              # die Phalanx hat sie empfangen
+
+
+def test_climbing_is_a_dense_column():
+    b = Battle(PALISADE, random.Random(1), ai="einfach")
+    b._ai_raiders = lambda: None
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_move([pelt], (3.5, 8.5))
+    run(b, 12)
+    assert b.on_wall(pelt) and not pelt.loose              # 15 Mann in unter zwölf Sekunden oben

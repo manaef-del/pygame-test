@@ -95,7 +95,7 @@ def test_raiders_go_around_or_harass_a_phalanx_but_charge_an_open_settlement():
     b.command_line([pelt], (5.0, 11.6), (11.0, 11.6))
     b.command_move([cav], (14.0, 12.5))
     run(b, 8)
-    assert b.brain.plan in ("umgehen_west", "umgehen_ost", "zermuerben"), b.brain.plan
+    assert b.brain.plan in ("umgehen_west", "umgehen_ost", "zermuerben", "flankieren"), b.brain.plan
     assert any(e.startswith("Die Räuber:") for e in b.events)
 
     b2 = Battle(OFFENE_SIEDLUNG, random.Random(2))
@@ -288,3 +288,55 @@ def test_legacy_ai_still_available():
     run(b, 2)
     assert b.enemy_plan == "" and not isinstance(b.brain, Brain)
     assert all(u.stance in (Stance.RAUB, Stance.ANGRIFF) for u in b.units(Side.FEIND))
+
+
+def test_raiders_pin_the_front_and_flank_the_phalanx():
+    b = Battle(OFFENE_SIEDLUNG, random.Random(4), enemy_count=96)
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_line([hop], (4.5, 10.5), (11.5, 10.5))
+    b.command_move([pelt], (8.0, 12.0))
+    b.command_move([cav], (8.0, 13.5))
+    run(b, 6)
+    assert b.brain.plan == "flankieren", b.brain.plan
+    roles = set(b.brain.roles.values())
+    assert roles == {"binden", "flanke"}
+    assert b.brain.flank_target == hop.id
+    assert any("umfassen" in e for e in b.events)
+    arcs = set()
+    for _ in range(int(40 / DT)):
+        b.update(DT)
+        if hop.last_arc:
+            arcs.add(hop.last_arc)
+        if b.outcome:
+            break
+    assert "flank" in arcs or "rear" in arcs                # die Phalanx wurde von der Seite getroffen
+    assert "front" in arcs                                  # und vorn gebunden
+
+
+def test_settlement_splits_mixed_groups_by_arm():
+    from game.army import split_by_arm
+    army = Army(groups=[GroupSpec("Alle", [Tier("schwer", 20), Tier("peltast", 10), Tier("reiter", 12)])])
+    parts = split_by_arm(army)
+    assert [g.name for g in parts.groups] == ["Alle", "Peltasten", "Reiter"]
+    assert parts.total_men() == 42
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), army=army, enemy_count=42)
+    assert len(b.units(Side.FEIND)) == 3
+    assert len(b.units(Side.STADT)) == 1                    # der Spieler behält seine eine Gruppe
+
+
+def test_settlement_cavalry_flanks_a_pinned_phalanx():
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    enemy = {u.name: u for u in b.units(Side.FEIND)}
+    line = enemy["Hopliten"]
+    b.command_move([pelt, cav], (8.0, 15.5))
+    b.command_line([hop], (5.0, line.y + line.half_d + 1.0), (11.0, line.y + line.half_d + 1.0))
+    seen = False
+    for _ in range(int(45 / DT)):
+        b.update(DT)
+        if enemy["Reiter"].stance is Stance.ANGRIFF and enemy["Reiter"].target_id == hop.id:
+            seen = True
+        if seen and hop.last_arc in ("flank", "rear"):
+            break
+    assert seen                                             # die Reiter greifen die gebundene Phalanx an
+    assert hop.last_arc in ("flank", "rear")                # und zwar von der Seite

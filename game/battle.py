@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 
 from . import config
 from .ai import Memory, make_brain
-from .army import Army, default_army, scaled_army
+from .army import Army, default_army, scaled_army, split_by_arm
 from .geometry import add, arc, dist, norm, scale, snap4, sub
 from .scenarios import Scenario
 from .units import UNIT_TYPES, Lochos, Man, Side, Stance, arrange, default_width
@@ -115,6 +115,7 @@ class Battle:
     towers: list[tuple[float, float]] = field(default_factory=list)                # am Wall stehende Türme
     horses: list[tuple[float, float, int]] = field(default_factory=list)           # zurückgelassene Pferde
     climb_budget: dict[tuple[int, int], float] = field(default_factory=dict)       # Durchsatz je Leiter/Turm
+    _barrier_cache: dict = field(default_factory=dict)
     enemy_ram_id: int | None = None      # Räubergruppe, die den Rammbock baut
     horde_awake: bool = False
     ai: str = config.AI_DEFAULT          # "klug" oder "einfach"
@@ -196,7 +197,7 @@ class Battle:
 
     def _spawn_mirror(self) -> None:
         """Die Siedlung stellt dieselbe Mischung wie der Spieler, skaliert."""
-        mirror = scaled_army(self.army, self.enemy_count)
+        mirror = split_by_arm(scaled_army(self.army, self.enemy_count))
         s = self.scenario
         y_line = s.enemy_deploy_y
         hoplite_specs = [g for g in mirror.groups if g.men() and not all(t.kind in ("peltast", "reiter") for t in g.tiers)]
@@ -304,6 +305,8 @@ class Battle:
         und nur zwischen Wehrgang und Außenseite."""
         outside_south = self.wall_side() is Side.FEIND
         ground = target if (pos is not None and self.is_wall_cell(self.cell(*pos), True)) else pos
+        if ground is not None and self.is_wall_cell(self.cell(*ground), True):
+            ground = None                          # Ziel oben: jeder Auf- oder Abstieg kommt in Frage
         out: set[tuple[int, int]] = set()
         for c in self.ladders:                     # Leitern stehen innen
             if ground is None or (ground[1] > c[1] + 0.5) != outside_south:
@@ -343,12 +346,31 @@ class Battle:
             return (ground_cell[1] > wall_cell[1]) == outside_south
         return False
 
+    def wall_connected(self, a: tuple[int, int], b: tuple[int, int]) -> bool:
+        """Liegen zwei Wallstücke auf demselben Wehrgang ohne Lücke (offenes Tor) dazwischen?"""
+        if a[1] != b[1]:
+            return False
+        lo, hi = sorted((a[0], b[0]))
+        return all(self.is_wall_cell((x, a[1]), True) for x in range(lo, hi + 1))
+
     def nearest_ladder(self, u: Lochos, p: Point, target: Point) -> Point | None:
+        """Der Auf- oder Abstieg, der auf dem Weg liegt: steht man oben, einer, der von
+        hier aus über den Wehrgang erreichbar ist; will man hinauf, einer, von dem aus
+        das Ziel oben erreichbar ist."""
         ladders = self.ladders_for(u, p, target)
+        here, there = self.cell(*p), self.cell(*target)
+        if self.is_wall_cell(here, True):
+            ladders = {c for c in ladders if self.wall_connected(c, here)}
+        elif self.is_wall_cell(there, True):
+            ladders = {c for c in ladders if self.wall_connected(c, there)}
         if not ladders:
             return None
         best = min(ladders, key=lambda c: dist(p, (c[0] + 0.5, c[1] + 0.5)) + dist((c[0] + 0.5, c[1] + 0.5), target))
         return (best[0] + 0.5, best[1] + 0.5)
+
+    def _inner_dir(self) -> float:
+        """Richtung (y) von der Palisade zur Innenseite, wo die Leitern stehen."""
+        return 1.0 if self.wall_side() is Side.STADT else -1.0
 
     def wall_side(self) -> Side | None:
         return {"stadt": Side.STADT, "feind": Side.FEIND, None: None}[self.scenario.wall_side]
@@ -388,17 +410,38 @@ class Battle:
         if walker:
             on = self.is_wall_cell(self.cell(*pos), True)
             want = self.is_wall_cell(self.cell(*target), True)
+            if on and want and not self.wall_connected(self.cell(*pos), self.cell(*target)):
+                want = False          # Lücke im Wehrgang: erst hinunter, unten weiter, drüben wieder hinauf
             if on != want:
                 ladder = self.nearest_ladder(u, pos, target)
                 if ladder is not None and self.cell(*ladder) != self.cell(*pos):
+                    if not on:
+                        # unten: erst an den Fuß der Leiter, notfalls seitlich, nie schräg an die Palisade
+                        lc = self.cell(*ladder)
+                        side = self._inner_dir() if lc in self.ladders else -self._inner_dir()
+                        foot = (ladder[0], ladder[1] + side)
+                        under = abs(pos[0] - ladder[0]) <= 0.3 and (pos[1] - ladder[1]) * side > 0
+                        if not under:
+                            if self.path_clear(pos, foot, None):
+                                return foot, False
+                            wp = (ladder[0], pos[1])
+                            if dist(pos, wp) > 0.1 and self.path_clear(pos, wp, None):
+                                return wp, False
                     return ladder, False
                 if ladder is not None and on:
-                    # auf der Leiter: gerade hinunter auf die Zielseite, dann weiter
-                    down = 1.0 if target[1] > ladder[1] else -1.0
+                    # auf der Leiter: gerade hinunter (Leitern innen, der Turm außen), dann weiter
+                    down = self._inner_dir() if self.cell(*ladder) in self.ladders else -self._inner_dir()
                     return (ladder[0], ladder[1] + down), False
                 return target, True
             if on and want:
                 return target, True
+        # am Boden auf derselben Seite: erst seitlich, dann zum Ziel, nicht schräg in die Palisade
+        if self.blocked and not self.path_clear(pos, target, None):
+            here, there = self._wall_level(pos), self._wall_level(target)
+            if here != "wall" and (there == here or there == "wall"):
+                wp = (target[0], pos[1])
+                if self.path_clear(pos, wp, None) and dist(pos, wp) > 0.1:
+                    return wp, False
         # am Boden: Palisade ist für alle eine Sperre, Übergang nur durchs Tor oder über Leiter/Turm
         if self.gate is None and not self.blocked:
             return target, True
@@ -406,7 +449,10 @@ class Battle:
             return target, True
         if self.gate is not None and not self.gate.closed:
             gx, gy = self.gate.center
-            above = pos[1] < gy
+            if self.cell(*pos) in self.gate.cells:
+                above = target[1] > gy         # im Durchgang: auf die Zielseite weiter
+            else:
+                above = pos[1] < gy
             beyond = (gx, gy + 1.2) if above else (gx, gy - 1.2)
             if self.path_clear(pos, beyond, None):
                 return beyond, False
@@ -774,7 +820,10 @@ class Battle:
                 elif u.stance is Stance.HALTEN and final:
                     u.target = None
                 continue
-            if u.loose and self._stragglers(u, u.target):
+            if u.stance is Stance.FLUCHT and u.loose and not any(self.inside(m.x, m.y) for m in u.all_men()):
+                u.withdrawn = True            # die Männer sind schon vom Feld
+                continue
+            if u.loose and u.stance is not Stance.FLUCHT and self._stragglers(u, u.target):
                 continue                      # die Gruppe wartet auf die Männer, die noch klettern
             step = min(speed * dt, d)
             direction = norm(sub(goal, u.pos))
@@ -798,15 +847,20 @@ class Battle:
         man_level, centre_level, dest_level = self._wall_level(m.pos), self._wall_level(u.pos), self._wall_level(destination)
         if man_level == centre_level:
             return dist(m.pos, destination) > lead + config.FOLLOW_LAG
+        if man_level == "tor":
+            return False                       # im Durchgang: er kommt
         if man_level == "wall":
             return centre_level == dest_level
         return man_level != dest_level
 
     def _wall_level(self, p: Point) -> str:
-        """"nord", "sued" oder "wall": auf welcher Seite der Palisade ein Punkt liegt."""
+        """"nord", "sued", "wall" oder "tor": auf welcher Seite der Palisade ein Punkt
+        liegt; das offene Tor ist der Durchgang dazwischen."""
         c = self.cell(*p)
         if self.is_wall_cell(c, True):
             return "wall"
+        if self.gate is not None and c in self.gate.cells:
+            return "tor"
         if not self.blocked:
             return "sued"
         wall_y = next(iter(self.blocked))[1]
@@ -863,6 +917,8 @@ class Battle:
         Bei aufgelöster Formation folgt jeder Mann dem Weg der Gruppe für sich."""
         for c in self.climb_budget:
             self.climb_budget[c] = min(1.0, self.climb_budget[c] + config.CLIMB_RATE * dt)
+        self._barrier_cache = {side: [e for e in self.lochoi if e.side is not side and e.fighting and not e.loose]
+                               for side in Side}
         for u in self.lochoi:
             if not u.alive:
                 continue
@@ -877,9 +933,11 @@ class Battle:
                     if dist(man.pos, destination) <= 0.15:
                         continue
                     man_level = self._wall_level(man.pos)
-                    if man_level not in (centre_level, dest_level, "wall"):
+                    if man_level not in (centre_level, dest_level, "wall", "tor"):
                         # falsche Wallseite: dem Zentrum nach, denselben Weg über Turm oder Leiter
-                        goal = self.nearest_ladder(u, man.pos, u.pos) or u.pos
+                        goal = self.nearest_ladder(u, man.pos, u.pos)
+                        if goal is None:
+                            goal, _ = self.route_from(u, man.pos, u.pos)
                     elif man_level == centre_level and dist(man.pos, destination) > lead + config.FOLLOW_LAG:
                         goal, _ = self.route_from(u, man.pos, u.pos)
                     else:
@@ -938,6 +996,10 @@ class Battle:
         wa = self.is_wall_cell(ca, walker)
         if self.is_blocked(b[0], b[1], u, from_wall=wa):
             return False
+        if self.inside(*a) and not self.inside(*b) and u.stance is not Stance.FLUCHT:
+            return False                      # der Kartenrand ist keine Umgehung
+        if self._walled_off(u, a, b, self._barrier_cache.get(u.side, [])):
+            return False
         wb = self.is_wall_cell(cb, walker)
         if wa == wb:
             return True
@@ -960,8 +1022,23 @@ class Battle:
         self.climb_budget[cell] = budget - 1.0
         return True
 
+    def _barriers(self, u: Lochos) -> list[Lochos]:
+        """Feindliche Gruppen in Formation, durch die niemand hindurchläuft."""
+        return [e for e in self.lochoi if e.side is not u.side and e.fighting and not e.loose]
+
+    def _walled_off(self, u: Lochos, a: Point, b: Point, barriers: list[Lochos]) -> bool:
+        """Führt der Schritt in eine feindliche Formation hinein?"""
+        for e in barriers:
+            if dist(e.pos, b) > e.radius + 0.3:
+                continue
+            if e.rect_distance(b) <= config.BARRIER_MARGIN < e.rect_distance(a):
+                return True
+        return False
+
     def _step(self, u: Lochos, delta: Point) -> None:
         nx, ny = u.x + delta[0], u.y + delta[1]
+        if self._walled_off(u, u.pos, (nx, ny), self._barriers(u)):
+            return
         if self.can_step(u, u.pos, (nx, ny)):
             u.x, u.y = nx, ny
         elif self.can_step(u, u.pos, (nx, u.y)):
@@ -1018,7 +1095,7 @@ class Battle:
         return u.in_phalanx and not self.on_wall(u)
 
     def _defense_mod(self, a: Lochos, b: Lochos) -> tuple[float, str]:
-        arc_name = arc(b.facing, sub(a.pos, b.pos), config.FRONT_ARC, config.REAR_ARC)
+        arc_name = self.arc_of(b, a.pos)
         mod = 1.0
         if self._formed(b):
             shield = b.shield_factor()
@@ -1037,14 +1114,42 @@ class Battle:
         reach = config.ENGAGE_RANGE + 0.4
         return [m for m in u.all_men() if foe.surface_distance(m.pos) <= reach]
 
+    def arc_of(self, u: Lochos, p: Point) -> str:
+        """Front, Flanke oder Rücken aus Sicht der Formation; neben dem Ende der
+        Front zählt es noch als Front, wenn dort ein Nachbar in der Linie steht."""
+        a = u.arc_to(p)
+        if a != "flank" or not self._formed(u):
+            return a
+        along, forward = u.local(p)
+        if forward < -u.half_d:
+            return a
+        for o in self.lochoi:
+            if o is u or o.side is not u.side or not o.in_phalanx or self._gap(u, o) > config.LINE_SEAM:
+                continue
+            o_along, _ = u.local(o.pos)
+            if (o_along > 0) == (along > 0):
+                return "front"                  # die Linie geht dort weiter
+        return a
+
+    def _side_men(self, u: Lochos, arc_name: str) -> int:
+        """Wie viele Männer einer Formation können sich zur Flanke oder nach hinten wehren."""
+        if arc_name == "rear":
+            return len(u.rows[-1]) if u.rows else 0
+        return min(u.men, config.FLANK_FILE * u.depth)
+
     def _melee_rate(self, a: Lochos, b: Lochos) -> tuple[float, str]:
         base = a.melee_attack() * config.BASE_RATE
         if a.loose and a.men:
             base *= len(self._present(a, b)) / a.men
         attack_mod = 1.0
         if self._formed(a):
-            front = arc(a.facing, sub(b.pos, a.pos), config.FRONT_ARC, config.REAR_ARC) == "front"
-            attack_mod = config.PHALANX_ATTACK_FRONT if front else config.PHALANX_ATTACK_SIDE
+            own_arc = self.arc_of(a, b.pos)
+            if own_arc == "front":
+                attack_mod = config.PHALANX_ATTACK_FRONT
+            else:
+                # in Formation wehren sich nur die Männer am Rand, wo der Gegner steht
+                per_man = a.melee_attack() / max(1, len(a.rows[0]))
+                base = min(base, self._side_men(a, own_arc) * per_man * config.BASE_RATE)
         defense_mod, arc_name = self._defense_mod(a, b)
         cav = a.cavalry_share()
         if cav > 0:
@@ -1074,6 +1179,10 @@ class Battle:
             near = self._present(b, a)
             if not near:
                 return
+            fallen = b.take_damage_men(near, dmg, self.rng)
+        elif self._formed(b) and row_arc in ("flank", "rear"):
+            # Flanke und Rücken: es trifft die Männer am Rand, nicht die ganze Reihe
+            near = sorted(b.all_men(), key=lambda m: dist(m.pos, a.pos))[:self._side_men(b, row_arc) + 2]
             fallen = b.take_damage_men(near, dmg, self.rng)
         else:
             fallen = b.take_damage(b.exposed_row(row_arc), dmg, self.rng)

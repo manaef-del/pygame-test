@@ -25,15 +25,19 @@ PHALANX_FLANK = 1.0
 PHALANX_REAR = 1.8
 PHALANX_ATTACK_FRONT = 1.3   # Speere in der Linie
 PHALANX_ATTACK_SIDE = 0.4    # umdrehen, einzeln kämpfen
+FLANK_FILE = 3               # Männer je Reihe, die sich an der Flanke wehren (und getroffen werden)
 PHALANX_SUPPORT = 0.15       # Schildwall: je Nachbar weniger Schaden
 PHALANX_SUPPORT_MIN = 0.55
 CAVALRY_VS_FRONT = 0.3       # Pferde laufen nicht in Speere
 CAVALRY_CHARGE = 1.5         # Reiter gegen Gegner ohne Formation
 ROUTED_DAMAGE = 2.0          # Fliehende werden niedergemacht
 
-# Winkel (Grad) für Front / Flanke / Rücken
+# Winkel (Grad) für Front / Flanke / Rücken (nur noch für Hilfsrechnungen)
 FRONT_ARC = 60
 REAR_ARC = 120
+ARC_TOLERANCE = 0.25         # Kacheln neben dem Ende der Front, die noch als Front zählen
+FLANK_DEPTH = 0.6            # Kacheln vor der Front, ab denen ein Gegner neben dem Ende noch „vorn“ steht
+LINE_SEAM = 1.0              # Kacheln Lücke zum Nachbarn, bis zu der die Linie als geschlossen gilt
 
 # Moral
 MORALE_REGEN = 0.03          # pro Sekunde, wenn nicht im Kampf
@@ -72,7 +76,8 @@ TOWER_BUILD_TIME = 12.0
 TOWER_SPEED_FACTOR = 0.6
 TOWER_DEPLOY_TIME = 3.0      # Sekunden am Wall, bis der Übergang steht
 TOWER_REACH = 0.7
-CLIMB_RATE = 1.2             # Männer je Sekunde, die eine Leiter oder ein Turm durchlässt
+CLIMB_RATE = 3.0             # Männer je Sekunde, die eine Leiter oder ein Turm durchlässt (dichte Kolonne)
+BARRIER_MARGIN = 0.25        # Kacheln: so nah an einer feindlichen Formation kommt niemand vorbei
 FOLLOW_LAG = 2.5             # Kacheln: so weit darf die Gruppe ihren Männern beim Klettern vorauseilen
 ENEMY_RALLY_DISTANCE = 2.6   # Kacheln vor dem Tor, wo Räuber warten und bauen
 HORDE_TRIGGER = 4.0          # Kacheln: ab hier stürmt die Horde
@@ -92,6 +97,11 @@ AI_RETREAT_MORALE = 0.15     # Moralabstand zur Flucht, ab dem eine Gruppe liebe
 AI_RETREAT_DISTANCE = 3.0
 AI_RETREAT_TIME = 10.0       # Sekunden, die eine zurückgewichene Gruppe sammelt
 AI_HARASS_TIME = 30.0        # Sekunden Zermürben, bevor gestürmt wird
+AI_FLANK_RATIO = 1.1         # Stärkeverhältnis, ab dem gebunden und umfasst wird
+AI_PIN_SHARE = 0.7           # Anteil der Phalanxstärke, den die bindenden Gruppen aufbringen
+AI_PIN_DISTANCE = 1.3        # Kacheln vor der Front, wo die Bindenden auf die Umfassung warten
+AI_PIN_DELAY = 12.0          # Sekunden, nach denen die Bindenden spätestens angreifen
+AI_PINNED_BONUS = 0.5        # Zielwert einer Phalanx, die von der eigenen Linie gebunden ist
 AI_SIEGE_PATIENCE = 40.0     # Sekunden Belagern vor dem bewachten Tor
 AI_GATHER_TIME = 6.0         # Sekunden nach dem Durchbruch, in denen sich die Räuber sammeln
 AI_TOWER_BUILD_DISTANCE = 2.6

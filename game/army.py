@@ -146,3 +146,34 @@ def default_army() -> Army:
         GroupSpec("Peltasten", [Tier("peltast", 15)]),
         GroupSpec("Reiter", [Tier("reiter", 20)]),
     ])
+
+
+def arm_of(kind: str) -> str:
+    t = UNIT_TYPES[kind]
+    return "reiter" if t.cavalry else ("peltasten" if t.ranged else "hopliten")
+
+
+def split_by_arm(army: Army, min_men: int = 4) -> Army:
+    """Die Siedlung ordnet gemischte Gruppen nach Waffengattung: Hopliten, Peltasten
+    und Reiter je als eigene Gruppe, damit sie getrennt geführt werden können.
+    Zu kleine Abschnitte bleiben bei den Hopliten."""
+    out: list[GroupSpec] = []
+    for g in army.groups:
+        parts: dict[str, list[Tier]] = {}
+        for t in g.tiers:
+            if t.count > 0:
+                parts.setdefault(arm_of(t.kind), []).append(Tier(t.kind, t.count))
+        if len(parts) <= 1:
+            out.append(GroupSpec(g.name, [Tier(t.kind, t.count) for t in g.tiers if t.count > 0]))
+            continue
+        main = "hopliten" if "hopliten" in parts else next(iter(parts))
+        for arm, tiers in parts.items():
+            n = sum(t.count for t in tiers)
+            if arm != main and n < min_men:
+                parts[main].extend(tiers)
+        for arm, tiers in parts.items():
+            if arm != main and sum(t.count for t in tiers) < min_men:
+                continue
+            name = g.name if arm == main else {"reiter": "Reiter", "peltasten": "Peltasten", "hopliten": "Hopliten"}[arm]
+            out.append(GroupSpec(name, tiers))
+    return Army(groups=out)

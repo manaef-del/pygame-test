@@ -41,6 +41,7 @@ PLAN_NAMES = {
     "umgehen_west": "Umgehen im Westen",
     "umgehen_ost": "Umgehen im Osten",
     "zermuerben": "Zermürben mit Speeren",
+    "flankieren": "Binden und Umfassen",
     "tor": "Tor rammen",
     "turm": "Rammbock und Turm",
     "belagern": "Belagern",
@@ -165,6 +166,9 @@ class Brain:
         self.finished = False
         self.gate_was_closed: bool | None = None
         self.front_was_blocked: bool | None = None
+        self.roles: dict[int, str] = {}          # flankieren: "binden" oder "flanke" je Gruppe
+        self.flank_target: int | None = None
+        self.flank_ready = False
 
     # -- Takt ---------------------------------------------------------------
     def think(self, b: "Battle") -> None:
@@ -278,7 +282,7 @@ class Brain:
         if r is not None and foe.id in r.exposed:
             v = 2.0
         elif formed(foe):
-            a = arc(foe.facing, sub(u.pos, foe.pos), config.FRONT_ARC, config.REAR_ARC)
+            a = b.arc_of(foe, u.pos)
             v = {"front": 0.45, "flank": 1.1, "rear": 1.3}[a]
         if b.on_wall(foe) != b.on_wall(u):
             v *= 0.3
@@ -307,7 +311,7 @@ class Brain:
         if not formed(foe):
             return None
         along, forward = foe.local(u.pos)
-        if arc(foe.facing, sub(u.pos, foe.pos), config.FRONT_ARC, config.REAR_ARC) != "front":
+        if b.arc_of(foe, u.pos) != "front":
             return None
         outer = foe.half_w + config.AI_FLANK_MARGIN
 
@@ -376,7 +380,7 @@ class Brain:
         shaken = u.morale <= u.rout_threshold + config.AI_RETREAT_MORALE
         if (lost < config.AI_RETREAT_LOSS and not shaken) or u.morale <= u.rout_threshold + 0.03:
             return False
-        if arc(foe.facing, sub(u.pos, foe.pos), config.FRONT_ARC, config.REAR_ARC) != "front":
+        if b.arc_of(foe, u.pos) != "front":
             return False
         away = norm(sub(u.pos, foe.pos))
         spot = (u.x + away[0] * config.AI_RETREAT_DISTANCE, u.y + away[1] * config.AI_RETREAT_DISTANCE)
@@ -403,6 +407,10 @@ class Brain:
         if self.plan == "zermuerben" and not self.exhausted:
             if r.own_ammo == 0 or b.time >= self.plan_since + config.AI_HARASS_TIME:
                 self.exhausted = True
+                due = True
+        if self.plan == "flankieren":
+            target = b.by_id(self.flank_target) if self.flank_target is not None else None
+            if target is None or not target.fighting or not formed(target) and not target.engaged:
                 due = True
         if self.plan == "belagern" and not self.storm:
             if not r.gate_guarded or b.time >= self.plan_since + config.AI_SIEGE_PATIENCE:
@@ -463,6 +471,9 @@ class Brain:
         s["frontal"] = 1.0 + (0.8 if r.ratio >= 1.5 else 0.0) - (0.9 if r.front_blocked else 0.0)
         if r.front_blocked:
             n = max(1, len(r.foes))
+            reachable = [g for g in groups if not b.on_wall(g) and self._flank_candidate(b, g, r)]
+            if len(reachable) >= 2 and r.ratio >= config.AI_FLANK_RATIO:
+                s["flankieren"] = 1.3 + (0.2 if any(g.cavalry_share() > 0 for g in reachable) else 0.0)
             s["umgehen_west"] = 0.9 + (0.3 if r.room_west >= 2.5 else 0.0) - (0.6 if r.room_west < 1.5 else 0.0) \
                 - 0.3 * r.foes_west / n
             s["umgehen_ost"] = 0.9 + (0.3 if r.room_east >= 2.5 else 0.0) - (0.6 if r.room_east < 1.5 else 0.0) \
@@ -486,7 +497,9 @@ class Brain:
                 u.target_id = None
         elif plan == "turm":
             self._assign_tower(b, r)
-        if plan in ("frontal", "zermuerben", "belagern", "tor"):
+        elif plan == "flankieren":
+            self._assign_flank_roles(b, r)
+        if plan in ("frontal", "zermuerben", "belagern", "tor", "flankieren"):
             for u in b.units(Side.FEIND, fighting_only=True):
                 u.waypoints = []
 
@@ -496,6 +509,79 @@ class Brain:
         foe_start = max(1, b.men_start.get(Side.STADT, 1))
         gain = (b.fallen(Side.STADT) - foe0) / foe_start - (b.fallen(Side.FEIND) - own0) / own_start
         self.memory.record(b.scenario.key, self.plan, gain)
+
+    # -- Binden und Umfassen --------------------------------------------------
+    def _flank_candidate(self, b: "Battle", g: Lochos, r: Report) -> bool:
+        target = self._blocking_phalanx(b, r)
+        return target is not None and b.path_clear(g.pos, target.pos)
+
+    def _blocking_phalanx(self, b: "Battle", r: Report) -> Lochos | None:
+        own = [g for g in b.units(Side.FEIND, fighting_only=True) if not b.on_wall(g)]
+        if not own or not r.phalanxes:
+            return None
+        cx = sum(g.x for g in own) / len(own)
+        cy = sum(g.y for g in own) / len(own)
+        facing_us = [p for p in r.phalanxes
+                     if arc(p.facing, sub((cx, cy), p.pos), config.FRONT_ARC, config.REAR_ARC) == "front"]
+        pool = facing_us or r.phalanxes
+        return max(pool, key=lambda p: strength([p]) / (1.0 + dist(p.pos, (cx, cy)) / 6.0))
+
+    def _assign_flank_roles(self, b: "Battle", r: Report) -> None:
+        """Ein Teil bindet die Front, der Rest (Reiter zuerst) geht um die Flanke."""
+        target = self._blocking_phalanx(b, r)
+        self.roles = {}
+        self.flank_ready = False
+        self.flank_target = target.id if target is not None else None
+        if target is None:
+            return
+        groups = [g for g in b.units(Side.FEIND, fighting_only=True) if not b.on_wall(g) and g is not self._ram_unit_if(b)]
+        if len(groups) < 2:
+            return
+        need = config.AI_PIN_SHARE * strength([target])
+        # Binden: die Gruppen, die am ehesten vor der Front stehen (nah, Fußvolk, mittig)
+        def pin_order(g: Lochos) -> tuple:
+            along, forward = target.local(g.pos)
+            return (g.cavalry_share() > 0, abs(along), -forward)
+        pinned = 0.0
+        for g in sorted(groups, key=pin_order):
+            if pinned >= need and len([x for x in self.roles.values() if x == "binden"]) >= 1:
+                self.roles[g.id] = "flanke"
+            else:
+                self.roles[g.id] = "binden"
+                pinned += strength([g])
+        if all(v == "binden" for v in self.roles.values()):
+            # Übermacht ohne Rest: die letzte Gruppe geht trotzdem um die Flanke
+            last = sorted(groups, key=pin_order)[-1]
+            self.roles[last.id] = "flanke"
+        b.events.append(f"{sum(1 for v in self.roles.values() if v == 'binden')} Gruppe(n) binden, "
+                        f"{sum(1 for v in self.roles.values() if v == 'flanke')} umfassen {target.name}")
+
+    def _flank_orders(self, b: "Battle", u: Lochos, r: Report) -> bool:
+        target = b.by_id(self.flank_target) if self.flank_target is not None else None
+        if target is None or not target.fighting or not self._reachable(b, u, target):
+            return False
+        role = self.roles.get(u.id)
+        if role is None:
+            role = self.roles[u.id] = "flanke"
+        along, forward = target.local(u.pos)
+        in_front = b.arc_of(target, u.pos) == "front"
+        if role == "binden":
+            if self.flank_ready or b.time >= self.plan_since + config.AI_PIN_DELAY or not in_front:
+                self._attack(b, u, target)
+            else:
+                keep = target.half_d + config.AI_PIN_DISTANCE
+                spot = local_to_world(target, max(-target.half_w, min(target.half_w, along)), keep)
+                if dist(u.pos, spot) > 0.4:
+                    self._go(b, u, spot)
+            return True
+        wp = self.flank_route(b, u, target)
+        if wp is None:
+            self._attack(b, u, target)
+        else:
+            self._go(b, u, wp)
+        if not in_front and target.rect_distance(u.pos) <= config.AI_FLANK_MARGIN + 0.7:
+            self.flank_ready = True                 # jemand steht an der Flanke: die Bindenden greifen an
+        return True
 
     # -- Räuber und Horde -----------------------------------------------------
     def _ram_unit_if(self, b: "Battle") -> Lochos | None:
@@ -640,12 +726,14 @@ class Brain:
     def _fight_or_move(self, b: "Battle", u: Lochos, r: Report) -> None:
         plan = self.plan or "frontal"
         on_wall = b.on_wall(u)
+        if plan == "flankieren" and not on_wall and self._flank_orders(b, u, r):
+            return
         seek = config.SEEK_RANGE if not b.attacking else 99.0
         cands = [f for f in r.foes if f.rect_distance(u.pos) <= seek and self._reachable(b, u, f)]
         if plan.startswith("umgehen") and u.waypoints:
             # unterwegs um die Front: nur ungedeckte Gegner oder Flanke/Rücken angreifen
             cands = [f for f in cands if f.id in r.exposed or not formed(f)
-                     or arc(f.facing, sub(u.pos, f.pos), config.FRONT_ARC, config.REAR_ARC) != "front"]
+                     or b.arc_of(f, u.pos) != "front"]
         if plan == "zermuerben" and not on_wall:
             close = self._nearby_foe(b, u, config.ENGAGE_RANGE + 0.4)
             if close is not None:
@@ -747,11 +835,23 @@ class Brain:
             if not b.path_clear(u.pos, f.pos, u):
                 continue
             cands.append(f)
-        weak = [f for f in cands if self.target_value(b, u, f) >= config.AI_CAVALRY_MIN_VALUE]
-        foe = self.pick_target(b, u, weak)
+        own = b.units(Side.FEIND, fighting_only=True)
+
+        def value(f: Lochos) -> float:
+            v = self.target_value(b, u, f)
+            if formed(f) and any(o is not u and o.engaged and b._gap(o, f) <= config.ENGAGE_RANGE for o in own):
+                v += config.AI_PINNED_BONUS          # von der eigenen Linie gebunden: Flanke frei
+            return v
+
+        weak = [f for f in cands if value(f) >= config.AI_CAVALRY_MIN_VALUE]
+        foe = max(weak, key=lambda f: value(f) / (1.0 + f.rect_distance(u.pos) / 3.0)) if weak else None
         if foe is not None:
-            self._attack(b, u, foe)
-            b.events.append(f"Reiter der Siedlung stoßen auf {foe.name} vor")
+            if formed(foe):
+                self._engage(b, u, foe)               # um die Front herum in Flanke oder Rücken
+            else:
+                self._attack(b, u, foe)
+            if u.stance is Stance.ANGRIFF and u.target_id == foe.id:
+                b.events.append(f"Reiter der Siedlung stoßen auf {foe.name} vor")
         elif u.stance is Stance.ANGRIFF:
             u.stance = Stance.HALTEN
             u.target_id = None
@@ -801,7 +901,7 @@ class Brain:
         near = [f for f in r.foes if dist(f.pos, u.pos) <= config.AI_REFACE_RANGE and not b.on_wall(f)]
         if near and u.stance is Stance.PHALANX:
             foe = min(near, key=lambda f: dist(f.pos, u.pos))
-            if arc(u.facing, sub(foe.pos, u.pos), config.FRONT_ARC, config.REAR_ARC) != "front":
+            if b.arc_of(u, foe.pos) != "front":
                 u.facing = norm(sub(foe.pos, u.pos))
                 b.events.append(f"{u.name} der Siedlung drehen die Front")
 

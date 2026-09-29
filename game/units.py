@@ -271,6 +271,18 @@ class Lochos:
         forward = dx * fx + dy * fy
         return (along, forward)
 
+    def arc_to(self, p: tuple[float, float]) -> str:
+        """Von wo ein Punkt die Formation trifft: "front" oder "rear", wenn er
+        innerhalb der Breite der Front liegt, sonst "flank" (neben den Enden).
+        Gemessen am Rechteck, nicht am Winkel vom Zentrum: bei einer breiten,
+        flachen Linie steht ein Gegner vor ihrem Ende vor der Front, nicht daneben."""
+        along, forward = self.local(p)
+        if abs(along) <= self.half_w + config.ARC_TOLERANCE:
+            return "front" if forward >= 0 else "rear"
+        if forward > self.half_d + config.FLANK_DEPTH:
+            return "front"                     # weit vor dem Ende: noch vor der Speerwand
+        return "flank"
+
     def rect_distance(self, p: tuple[float, float]) -> float:
         """Abstand eines Punkts zum Rechteck der Formation (0 = innen)."""
         along, forward = self.local(p)

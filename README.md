@@ -45,7 +45,14 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Linie.
 - **Phalanx:** eine aufgezogene Gruppe hält die Stellung. Stark von vorn,
   verwundbar in Flanke und Rücken. Der Bonus hängt vom Hoplitenanteil der
-  vorderen Reihe ab. Nachbarn stützen sich (Schildwall).
+  vorderen Reihe ab. Nachbarn stützen sich (Schildwall). Front, Flanke und
+  Rücken werden am Rechteck der Formation gemessen, nicht am Winkel vom
+  Zentrum: Wer vor der Breite der Front steht, steht vorn; wer neben ihrem
+  Ende steht, in der Flanke, es sei denn, dort schließt ein Nachbar die
+  Linie oder er steht noch weit vor der Speerwand. Von der Flanke oder
+  von hinten wehren sich nur die Männer am Rand (drei je Reihe, hinten
+  die letzte Reihe), und nur sie werden getroffen; eine umfasste Phalanx
+  verliert dort schnell Männer und Moral.
 - **Freier Angriff** löst die Formation: die Gruppen verfolgen den
   nächsten Gegner, schneller, aber ohne Formationsbonus. Fliehende werden
   niedergemacht. Reiter sind stark gegen Gegner ohne Formation und
@@ -99,12 +106,17 @@ jeder steigt selbst am Turm hinauf, läuft über den Wehrgang und klettert
 an einer Leiter hinunter; drinnen sammelt sich die Gruppe wieder. Auf
 dem Wehrgang gibt es keinen Phalanxbonus, dort kämpft Mann gegen Mann.
 Über den Turm geht es nur zurück nach außen. Leitern und Türme lassen
-etwa einen Mann pro Sekunde durch; die Gruppe wartet auf ihre Nachzügler
-und die Nachzügler nehmen denselben Weg wie die Gruppe. Solange eine
+etwa drei Männer pro Sekunde durch, eine dichte Kolonne; die Gruppe
+wartet auf ihre Nachzügler und die Nachzügler nehmen denselben Weg wie
+die Gruppe, wer warten muss, stellt sich vor der Leiter an. Solange eine
 Gruppe aufgelöst ist, kämpfen nur die Männer, die beim Gegner sind, und
 nur sie werden getroffen. Leitern führen nur zur Innenseite des Walls.
 Ein aufgebrochenes Tor ist unten ein Durchgang und oben eine Lücke im
-Wehrgang. Fällt eine Gruppe oder flieht sie, ist ihr Gerät verloren. Bei
+Wehrgang: wer oben auf die andere Seite will, steigt an der Leiter ab,
+läuft unten hinüber und drüben wieder hinauf. Durch eine feindliche
+Formation läuft niemand hindurch, weder eine Gruppe noch ein einzelner
+Mann; wer von der Leiter in eine Phalanx kommt, muss sie durchkämpfen
+oder außen herum. Der Kartenrand ist keine Umgehung. Fällt eine Gruppe oder flieht sie, ist ihr Gerät verloren. Bei
 der Verteidigung mit Palisade bauen die Räuber selbst Rammbock und Turm.
 
 ## Gegner-KI
@@ -130,10 +142,15 @@ einem Durchbruch oder wenn eine Front auftaucht oder verschwindet:
 | Frontal | Räuber, Horde | keine Front im Weg oder deutliche Übermacht |
 | Umgehen (West/Ost) | Räuber, Horde | eine Phalanx sperrt; die Seite mit mehr Platz und weniger Gegnern |
 | Zermürben | Räuber, Horde | eine Phalanx sperrt und die Räuber haben noch Speere: außerhalb des Nahkampfs stehen und werfen, dann stürmen |
+| Binden und Umfassen | Räuber, Horde | eine Phalanx sperrt, mindestens zwei Gruppen und leichte Überlegenheit: ein Teil (etwa 70 % der Phalanxstärke, Fußvolk) stellt sich vor die Front und wartet, der Rest (Reiter zuerst) läuft um die Flanke; sobald jemand an der Flanke steht, greifen die Bindenden an, spätestens nach zwölf Sekunden |
 | Tor rammen / Rammbock und Turm | Räuber vor der Palisade | Tor zu; mit Wehrgang-Peltasten oder bewachtem Tor zusätzlich ein Turm am Rand, fern vom Tor |
 | Belagern | Räuber nach dem Durchbruch | eine Phalanx bewacht das Tor: außer Wurfweite warten, über den Turm einsickern, nach 40 s oder sobald die Wache weg ist stürmen |
-| Stellung halten | Siedlung | Grundplan: Linie hält, dreht die Front zu Flankenangriffen, Hopliten decken das Wallstück, an dem ein Turm ansetzt, Wehrgang-Peltasten laufen zum Angriffspunkt, Reiter greifen nur ungedeckte oder allein stehende Gruppen an |
+| Stellung halten | Siedlung | Grundplan: Linie hält, dreht die Front zu Flankenangriffen, Hopliten decken das Wallstück, an dem ein Turm ansetzt, Wehrgang-Peltasten laufen zum Angriffspunkt, Reiter greifen nur ungedeckte oder allein stehende Gruppen an, oder eine Phalanx, die von der eigenen Linie gebunden ist, und dann um die Front herum in Flanke oder Rücken |
 | Vorrücken | Siedlung | Übermacht in der Nähe oder Beschuss durch Peltasten: die Linie rückt in Formation vor |
+
+Die Siedlung ordnet gemischte Gruppen des Spielers bei sich nach
+Waffengattung: Hopliten, Peltasten und Reiter je als eigene Gruppe, damit
+sie getrennt geführt werden können.
 
 **Stufe 3, Gedächtnis.** Nach jedem Plan wird festgehalten, wie sich
 die Verluste beider Seiten während des Plans verhalten haben. Pläne, die
