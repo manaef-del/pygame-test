@@ -1,5 +1,30 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 6 (29. September 2026): Peltasten der KI plänkeln
+
+Reine Peltastengruppen der Gegnerseite (die Siedlung stellt sie, Räuber
+mischen nur ein Fünftel Peltasten in ihre Haufen) plänkeln jetzt wie die
+des Spielers: heran auf Wurfweite, werfen, ausweichen, hinter oder neben
+der eigenen Phalanx werfen. Vergleich vorher/nachher mit denselben vier
+Seeds: Standardtruppe, Angriff ohne Wall, Phalanxstoß, kluge KI, die
+Aufstellung der Siedlung erzwungen.
+
+| Gegner | Siege vorher | Verlust Spieler / Siedlung vorher | Dauer vorher | Siege nachher | Verlust Spieler / Siedlung nachher | Dauer nachher |
+|---|---|---|---|---|---|---|
+| spiegel | 4/4 | 13% / 39% | 78 s | 4/4 | 9% / 34% | 43 s |
+| schwere_phalanx | 1/4 | 57% / 49% | 183 s | 0/4 | 58% / 45% | 169 s |
+| peltastenschwarm | 4/4 | 10% / 34% | 65 s | 4/4 | 14% / 45% | 72 s |
+
+Der Ausgang ändert sich kaum. Die Peltasten der Siedlung verschießen
+ihre Speere jetzt vollständig und früher (die Schlacht gegen das
+Spiegelbild ist fast doppelt so schnell vorbei), gegen den
+Peltastenschwarm kostet das den Spieler etwas mehr. Dafür verlassen die
+Peltasten die Deckung ihrer Linie, um um ihr Ende herum zu werfen, und
+werden dort von Reitern und stürmenden Hopliten gefasst: die Siedlung
+verliert entsprechend mehr. Gegen anrückende Hopliten halten sie den
+Abstand (Peltasten laufen 1,7 gegen 1,0 Kacheln je Sekunde), gegen
+Reiter nicht.
+
 ## Lauf 5 (29. September 2026): Moral für beide Seiten, erhöhter Wehrgang, eigene Aufstellung der Siedlung
 
 Stand des Commits, der diesen Abschnitt einführt: Gruppen beider Seiten
