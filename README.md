@@ -77,8 +77,14 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   hinten angegriffen (anderthalbfacher Schaden, kein Formationsbonus).
   Lösen ist eine Entscheidung mit Preis, auch für die Räuber, die nach
   einem gescheiterten Angriff zurückweichen.
-- **Moral:** Verluste und Angriffe von hinten drücken die Moral; unter
-  der Schwelle flieht ein Lochos. Räuber brechen früher als Hopliten.
+- **Moral, je Gruppe, für beide Seiten:** Verluste drücken die Moral, aus
+  Flanke und Rücken stärker, von vorn in der Phalanx schwächer; unter der
+  Schwelle flieht die Gruppe. Eine Gruppe aus mittleren Hopliten bricht
+  etwa nach einem Drittel Verlusten aus der Flanke, schwere später,
+  Peltasten früher. Flieht eine Nachbargruppe, wankt die eigene mit. Ist
+  die Schlacht aussichtslos (eigene Seite unter 40 %, der Gegner noch
+  über 60 %), sinkt die Moral aller Gruppen dieser Seite von selbst.
+  Die Moral der gewählten Gruppe steht in der Statuszeile.
 - **Räuber** ziehen zu den Häusern und plündern, wenn niemand sie stört.
   Sind sie zu geschwächt, ziehen sie ab.
 - **Palisade mit Tor:** der einzige Durchgang. Wegfindung leitet durchs Tor.
@@ -109,8 +115,10 @@ mit halber Geschwindigkeit (`TIME_SCALE`).
 Palisade, aber nur über die Leitern hinauf und hinunter (helle Sprossen
 auf der Palisade). Oben läuft sie entlang, auch über das Torhaus. Über
 die Palisade wirft nur, wer oben steht, dafür eine Kachel weiter.
-Nahkampf gegen den Wehrgang (und von ihm herab) wirkt nur zu einem
-Drittel.
+Der Wehrgang ist erhöht: Wer unten steht, kommt an die Männer oben nicht
+heran und ist mit ihnen auch nicht im Handgemenge; von oben schlägt man
+hinunter, mit einem Drittel der Wirkung. Nach oben helfen nur Speere,
+Leitern oder ein Turm.
 
 **Belagerungsgerät:** Beim Angriff auf die Siedlung mit Wall ist das Tor
 verschlossen. Jede gewählte Gruppe kann ein Gerät bauen:
@@ -200,6 +208,7 @@ Simulator zu vergleichen.
 | Tippen auf Feind | gewählte Gruppen greifen diese an |
 | Tippen auf das Tor | gewählte Gruppen mit Rammbock brechen es auf |
 | Tippen auf den Wall | gewählte Gruppen mit Turm setzen ihn dort an |
+| Pause | hält an und zeigt für jede Gruppe, die noch unterwegs ist, ihr Ziel als Rechteck mit Front und Weg; ohne Pause sieht man das nur für gewählte Gruppen |
 | Rammbock / B, Turm / T | gewählte Gruppen bauen das Gerät; erneut drücken: ablegen oder Bau abbrechen (nur beim Angriff mit Wall) |
 | Ziehen auf der Karte | Front aufziehen: Länge = Breite, Richtung = Blickrichtung |
 | Angriff / A | freier Angriff (Auswahl, sonst alle) |

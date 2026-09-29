@@ -511,9 +511,14 @@ class Battle:
         return max(0.0, min(a.rect_distance(b.pos) - b.core, b.rect_distance(a.pos) - a.core))
 
     def _in_contact(self, a: Lochos, b: Lochos) -> bool:
+        """Ob ``a`` gegen ``b`` kämpft. Der Wehrgang ist erhöht: von unten kommt
+        niemand an die Männer oben heran, von oben schlägt man hinunter."""
         if self._gap(a, b) > config.ENGAGE_RANGE:
             return False
-        if self.on_wall(a) or self.on_wall(b):
+        up_a, up_b = self.on_wall(a), self.on_wall(b)
+        if up_b and not up_a:
+            return False
+        if up_a or up_b:
             return True
         return self.path_clear(a.pos, b.pos)
 
@@ -1010,7 +1015,8 @@ class Battle:
         """Wer einen Gegner in Reichweite hat, steht im Handgemenge fest. Zieht die
         Gruppe weiter als die Leine, reißt er sich los, und die Gruppe ist eine
         Weile verwundbar (Lösen kostet)."""
-        foes = [e for e in self.lochoi if e.side is not u.side and e.fighting
+        up = self.on_wall(u)
+        foes = [e for e in self.lochoi if e.side is not u.side and e.fighting and self.on_wall(e) == up
                 and dist(e.pos, u.pos) <= e.radius + u.radius + config.MAN_BIND_REACH + 1.0]
         if not foes or u.stance is Stance.FLUCHT:
             for m in u.all_men():
@@ -1321,7 +1327,7 @@ class Battle:
             morale_mod = {"rear": 1.5, "flank": 1.2}.get(arc_name, 1.0)
             if b.in_phalanx and arc_name == "front":
                 morale_mod = config.MORALE_LOSS_FRONT_PHALANX
-            b.morale -= fallen * (1.0 / max(1, b.men_start)) * b.bravery() * morale_mod
+            b.morale -= fallen * (config.MORALE_SCALE / max(1, b.men_start)) * b.bravery() * morale_mod
         if b.in_phalanx and arc_name == "rear":
             b.morale -= config.MORALE_REAR_DRAIN * b.bravery() * dmg
         if b.men <= 0:
@@ -1455,12 +1461,28 @@ class Battle:
                 break
 
     # -- Moral -------------------------------------------------------------
+    def _hopeless(self, side: Side) -> bool:
+        """Die Schlacht ist für eine Seite aussichtslos: sie hat den Großteil
+        verloren, der Gegner steht noch weitgehend."""
+        own_start = self.men_start.get(side, 0)
+        foe = Side.FEIND if side is Side.STADT else Side.STADT
+        foe_start = self.men_start.get(foe, 0)
+        if not own_start or not foe_start:
+            return False
+        own = self.men(side, fighting_only=True) / own_start
+        theirs = self.men(foe, fighting_only=True) / foe_start
+        return own <= config.MORALE_HOPELESS_OWN and theirs >= config.MORALE_HOPELESS_FOE
+
     def _morale(self, dt: float) -> None:
+        hopeless = {side: self._hopeless(side) for side in Side}
+        broke: list[Lochos] = []
         for u in self.lochoi:
             if not u.alive or u.stance is Stance.FLUCHT:
                 continue
             if not u.engaged:
                 u.morale = min(1.0, u.morale + config.MORALE_REGEN * dt)
+            if hopeless[u.side]:
+                u.morale -= config.MORALE_HOPELESS_DRAIN * u.bravery() * dt
             if u.morale <= u.rout_threshold:
                 u.stance = Stance.FLUCHT
                 u.in_line = False
@@ -1468,6 +1490,11 @@ class Battle:
                 u.target_id = None
                 self.events.append(f"{u.name} ({u.side.value}) flieht")
                 self._lose_engine(u)
+                broke.append(u)
+        for u in broke:                                  # Ansteckung: wer Nachbarn fliehen sieht, wankt
+            for o in self.lochoi:
+                if o is not u and o.side is u.side and o.fighting and dist(o.pos, u.pos) <= config.MORALE_CONTAGION_RANGE:
+                    o.morale -= config.MORALE_CONTAGION * o.bravery()
 
     def _check_withdraw(self) -> None:
         start = self.men_start.get(Side.FEIND, 0)

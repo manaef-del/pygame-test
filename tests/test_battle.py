@@ -560,15 +560,17 @@ def test_only_peltasts_of_wall_side_may_enter_the_wall():
     b.command_move([pelt], wall_tile)
     run(b, 22)                                             # einer nach dem anderen die Leiter hinauf
     assert b.on_wall(pelt) and not pelt.loose
-    # Auf dem Wall: weiter werfen, im Nahkampf geschützt
+    # Auf dem Wall: weiter werfen; von unten kommt niemand heran, von oben schlägt man hinunter
     raider.x, raider.y = pelt.x, pelt.y + 1.0
-    assert b._in_contact(raider, pelt)
-    rate_up, _ = b._melee_rate(raider, pelt)
+    assert not b._in_contact(raider, pelt)                # der Wehrgang ist erhöht
+    assert b._in_contact(pelt, raider)
+    rate_down, _ = b._melee_rate(pelt, raider)
     pelt_off = Lochos(99, Side.STADT, [men("peltast", 15)], pelt.x, pelt.y + 2.5)
     b.lochoi.append(pelt_off)
     raider.y = pelt_off.y + 1.0
-    rate_ground, _ = b._melee_rate(raider, pelt_off)
-    assert rate_up == pytest.approx(rate_ground * config.WALL_MELEE_FACTOR)
+    rate_ground, _ = b._melee_rate(pelt_off, raider)
+    assert 0 < rate_down < rate_ground * config.WALL_MELEE_FACTOR + 1e-9
+    assert b._melee_rate(raider, pelt)[0] > 0 and not b._in_contact(raider, pelt)   # er käme heran, aber nicht hinauf
 
 
 def test_enemy_peltasts_start_on_the_wall():
@@ -638,11 +640,15 @@ def test_men_flow_through_the_gate_individually():
     b.gate.closed = False
     b.gate.hp = 0.0
     b.command_move([hop], (8.0, 3.5))
+    through = False
     for _ in range(int(30 / DT)):
         b.update(DT)
         for m in hop.all_men():
             assert b.cell(m.x, m.y) not in b.blocked            # niemand steckt in der Palisade
-    assert all(m.y < 7.0 for m in hop.all_men())               # alle sind hindurch
+        if all(m.y < 7.0 for m in hop.all_men()):
+            through = True                                      # alle sind hindurch (bevor die Linie drüben sie bricht)
+            break
+    assert through
 
 
 def test_cavalry_dismounts_for_siege_work_and_before_ladders():
@@ -976,3 +982,49 @@ def test_no_charge_without_run_up():
     run(b, 3)
     assert not any("stoßen" in e for e in b.events)
     assert cav.engaged
+
+
+
+# ------------------------------------------------------------------ Moral
+def test_city_group_breaks_after_heavy_losses():
+    b = Battle(raid(48, (8.0, 3.0)), random.Random(0), army=army_of(GroupSpec("H", [Tier("mittel", 30)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    hop = b.units(Side.STADT)[0]
+    hop.x, hop.y = 8.0, 9.0
+    hop.stance = Stance.HALTEN
+    hop.place_men()
+    fallen_at_rout = None
+    for i in range(40):
+        hop.take_damage_men(hop.all_men()[:3], 2.2 * 2, b.rng)         # zwei Männer je Schlag
+        b._after_hit(hop, 2, "flank", 4.4)
+        b._morale(DT)
+        if hop.stance is Stance.FLUCHT:
+            fallen_at_rout = 30 - hop.men
+            break
+    assert fallen_at_rout is not None
+    assert 8 <= fallen_at_rout <= 16                       # bricht zwischen einem Viertel und der Hälfte
+
+
+def test_routing_neighbours_shake_the_line():
+    b = Battle(raid(16, (8.0, 3.0)), random.Random(0), army=army_of(
+        GroupSpec("A", [Tier("mittel", 20)]), GroupSpec("B", [Tier("mittel", 20)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    a, c = b.units(Side.STADT)
+    a.x, a.y, c.x, c.y = 7.0, 9.0, 9.0, 9.0
+    a.morale = config.ROUT_THRESHOLD_CITY - 0.01
+    b._morale(DT)
+    assert a.stance is Stance.FLUCHT
+    assert c.morale < 1.0                                  # Ansteckung
+
+
+def test_hopeless_battle_drains_morale():
+    b = Battle(raid(64, (8.0, 3.0)), random.Random(0), army=army_of(GroupSpec("H", [Tier("mittel", 20)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    hop = b.units(Side.STADT)[0]
+    for m in hop.all_men()[:14]:
+        m.hp = 0.0
+    hop.bury()                                             # nur noch 6 von 20, der Feind steht komplett
+    assert b._hopeless(Side.STADT) and not b._hopeless(Side.FEIND)
+    m0 = hop.morale
+    b._morale(1.0)
+    assert hop.morale < m0

@@ -47,17 +47,17 @@ class UnitType:
 
 UNIT_TYPES: dict[str, UnitType] = {
     "schwer": UnitType("schwer", "Schwere Hopliten", "S", attack=1.2, hp=3.0, speed=1.0,
-                       color=config.COLOR_HOPLIT_SCHWER, bravery=0.6, hoplite=True),
+                       color=config.COLOR_HOPLIT_SCHWER, bravery=0.8, hoplite=True),
     "mittel": UnitType("mittel", "Mittlere Hopliten", "M", attack=1.0, hp=2.2, speed=1.2,
-                       color=config.COLOR_HOPLIT_MITTEL, bravery=0.7, hoplite=True),
+                       color=config.COLOR_HOPLIT_MITTEL, bravery=0.9, hoplite=True),
     "leicht": UnitType("leicht", "Leichte Hopliten", "L", attack=0.9, hp=1.5, speed=1.5,
-                       color=config.COLOR_HOPLIT_LEICHT, bravery=0.9, hoplite=True),
+                       color=config.COLOR_HOPLIT_LEICHT, bravery=1.0, hoplite=True),
     "peltast": UnitType("peltast", "Peltasten", "P", attack=0.6, hp=1.0, speed=1.7,
-                        color=config.COLOR_PELTAST, ranged=True, bravery=1.1),
+                        color=config.COLOR_PELTAST, ranged=True, bravery=1.2),
     "reiter": UnitType("reiter", "Reiter", "R", attack=1.4, hp=2.0, speed=3.0,
-                       color=config.COLOR_REITER, bravery=0.8, cavalry=True),
+                       color=config.COLOR_REITER, bravery=0.9, cavalry=True),
     "raeuber": UnitType("raeuber", "Räuber", "X", attack=1.1, hp=2.0, speed=1.5,
-                        color=config.COLOR_RAEUBER, bravery=1.3),
+                        color=config.COLOR_RAEUBER, bravery=0.8),
 }
 
 PLAYER_TYPES = ("schwer", "mittel", "leicht", "peltast", "reiter")
@@ -168,7 +168,7 @@ class Lochos:
     charge_slow_until: float = -1.0   # nach dem Aufprall: bis dahin langsam
     last_arc: str = ""
     men_start: int = 0
-    rout_threshold: float = 0.3
+    rout_threshold: float = config.ROUT_THRESHOLD_CITY
     volley_timer: float = 0.0
     engine: str | None = None         # "ram" oder "tower", wenn fertig gebaut
     build_kind: str | None = None     # was gerade gebaut wird
@@ -310,14 +310,19 @@ class Lochos:
         return math.hypot(ox, oy)
 
     def corners(self) -> list[tuple[float, float]]:
-        fx, fy = self.facing
+        return self.corners_at(self.pos, self.facing)
+
+    def corners_at(self, centre: tuple[float, float], facing: tuple[float, float]) -> list[tuple[float, float]]:
+        """Die Ecken der Formation um ein beliebiges Zentrum (etwa das Ziel)."""
+        cx, cy = centre
+        fx, fy = facing
         ax, ay = -fy, fx
         w, d = self.half_w, self.half_d
         return [
-            (self.x + ax * w + fx * d, self.y + ay * w + fy * d),
-            (self.x - ax * w + fx * d, self.y - ay * w + fy * d),
-            (self.x - ax * w - fx * d, self.y - ay * w - fy * d),
-            (self.x + ax * w - fx * d, self.y + ay * w - fy * d),
+            (cx + ax * w + fx * d, cy + ay * w + fy * d),
+            (cx - ax * w + fx * d, cy - ay * w + fy * d),
+            (cx - ax * w - fx * d, cy - ay * w - fy * d),
+            (cx + ax * w - fx * d, cy + ay * w - fy * d),
         ]
 
     def all_men(self) -> list[Man]:

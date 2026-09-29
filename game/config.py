@@ -40,9 +40,16 @@ FLANK_DEPTH = 0.6            # Kacheln vor der Front, ab denen ein Gegner neben 
 LINE_SEAM = 1.0              # Kacheln Lücke zum Nachbarn, bis zu der die Linie als geschlossen gilt
 
 # Moral
+MORALE_SCALE = 1.6           # Moralverlust je Gefallenem = SCALE / Startstärke * Tapferkeit * Richtung
 MORALE_REGEN = 0.03          # pro Sekunde, wenn nicht im Kampf
 MORALE_REAR_DRAIN = 0.05     # pro Sekunde, Phalanx von hinten angegriffen
-MORALE_LOSS_FRONT_PHALANX = 0.5
+MORALE_LOSS_FRONT_PHALANX = 0.8
+MORALE_CONTAGION = 0.12      # Moralverlust, wenn eine Nachbargruppe flieht
+MORALE_CONTAGION_RANGE = 3.0
+MORALE_HOPELESS_OWN = 0.4    # eigene Seite unter diesem Anteil ...
+MORALE_HOPELESS_FOE = 0.6    # ... und der Gegner noch über diesem: die Schlacht ist aussichtslos
+MORALE_HOPELESS_DRAIN = 0.03 # Moralverlust je Sekunde in aussichtsloser Lage
+ROUT_THRESHOLD_CITY = 0.35   # Flucht unter dieser Moral (Räuber 0.4, Siedlung 0.3)
 
 # Peltasten
 JAVELINS = 10                # Würfe je Peltast

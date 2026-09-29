@@ -7,6 +7,7 @@ import math
 import pygame
 
 from . import config
+from .geometry import dist
 from .army import MAX_TIERS, OWN_MAX, OWN_MIN, Army
 from .battle import Battle
 from .units import PLAYER_TYPES, UNIT_TYPES, Lochos, Side, Stance
@@ -77,10 +78,28 @@ class Renderer:
                 self._draw_lochos(u, u.id in selected)
         for pr in battle.projectiles:
             self._draw_javelin(pr)
+        self._draw_destinations(battle, paused, selected)
         if drag is not None:
             self._draw_line_preview(battle, drag, selected)
         self._draw_hud(battle, paused, selected)
         self._draw_bar(battle, paused, selected)
+
+    def _draw_destinations(self, battle: Battle, paused: bool, selected: set[int]) -> None:
+        """Wohin eine eigene Gruppe unterwegs ist: in der Pause für alle, sonst für
+        die gewählten. Das Rechteck steht am Ziel, so wie die Gruppe dort stehen wird."""
+        s = self.surface
+        for u in battle.units(Side.STADT, fighting_only=True):
+            if u.target is None or (not paused and u.id not in selected):
+                continue
+            if u.stance is Stance.ANGRIFF or dist(u.pos, u.target) < 0.3:
+                continue
+            corners = [px(c) for c in u.corners_at(u.target, u.facing)]
+            color = config.COLOR_SELECT if u.id in selected else config.COLOR_RECT
+            pygame.draw.polygon(s, color, corners, 1)
+            pygame.draw.line(s, color, px(u.pos), px(u.target), 1)
+            if u.stance is Stance.PHALANX:
+                a, b = corners[0], corners[1]
+                pygame.draw.line(s, color, a, b, 3)
 
     def _draw_javelin(self, pr) -> None:
         x, y = pr.pos
@@ -274,7 +293,7 @@ class Renderer:
         else:
             sel = [u for u in battle.lochoi if u.id in selected and u.alive]
             if sel:
-                names = ", ".join(f"{u.name} ({u.summary()})" for u in sel[:3])
+                names = ", ".join(f"{u.name} ({u.summary()}, Moral {int(u.morale * 100)} %)" for u in sel[:3])
                 if len(sel) > 3:
                     names += f" +{len(sel) - 3}"
                 msg = "Gewählt: " + names + "  ·  Tippen = hin, Feind = Angriff, Ziehen = Front, Tor/Wall = Gerät ansetzen"
