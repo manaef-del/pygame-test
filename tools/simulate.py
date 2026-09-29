@@ -171,6 +171,31 @@ def t_tor_halten_reserve(b: Battle) -> dict:
     return plan
 
 
+def t_tor_leiter(b: Battle) -> dict:
+    """Wie Tor halten, aber sobald ein Turm steht, stellt sich die Phalanx an den Fuß
+    der nächsten Leiter (Front zum Wall); die Reiter jagen, was trotzdem durchkommt."""
+    plan = t_tor_halten(b)
+    hop, pelt, cav = groups(b)
+    state = {"covered": False}
+
+    def react(b: Battle):
+        if b.crossings and not state["covered"] and hop and hop[0].fighting:
+            cx = next(iter(b.crossings))[0] + 0.5
+            lx, ly = min(b.ladders, key=lambda c: abs(c[0] + 0.5 - cx))
+            b.command_line(hop, (lx + 0.5 - 2.2, ly + 1.7), (lx + 0.5 + 2.2, ly + 1.7))
+            state["covered"] = True
+        if not cav or not cav[0].fighting or b.gate is None:
+            return
+        line = hop[0] if hop else None
+        inside = [f for f in b.units(Side.FEIND, fighting_only=True) if f.y > b.gate.center[1] + 0.5 and not b.on_wall(f)
+                  and (line is None or line.rect_distance(f.pos) > 1.5)]
+        if inside:
+            b.command_attack_target(cav, min(inside, key=lambda f: f.rect_distance(cav[0].pos)))
+    for t in range(5, 240, 5):
+        plan[t] = react
+    return plan
+
+
 def t_vorruecken(b: Battle) -> dict:
     """Angriff: Linie bilden, vorrücken, dann Angriff."""
     hop, pelt, cav = groups(b)
@@ -234,7 +259,7 @@ def t_tor_phalanx(b: Battle) -> dict:
 
 TACTICS = {
     "offen": {"linie": t_linie, "linie_reiter": t_linie_reiter_aktiv, "linie_aktiv": t_linie_aktiv, "linie_tief": t_linie_tief, "passiv": t_passiv, "angriff": t_angriff},
-    "palisade": {"tor_halten": t_tor_halten, "tor_reserve": t_tor_halten_reserve, "passiv": t_passiv},
+    "palisade": {"tor_halten": t_tor_halten, "tor_reserve": t_tor_halten_reserve, "tor_leiter": t_tor_leiter, "passiv": t_passiv},
     "horde": {"vorruecken": t_vorruecken, "angriff": t_angriff},
     "angriff_offen": {"phalanxstoss": t_phalanxstoss, "vorruecken": t_vorruecken, "angriff": t_angriff},
     "angriff_wall": {"tor_phalanx": t_tor_phalanx, "belagerung": t_belagerung},

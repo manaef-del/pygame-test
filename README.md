@@ -234,7 +234,7 @@ Alle Balancezahlen stehen in `game/config.py` und `game/units.py`.
 
 **Simulator:** `tools/simulate.py` spielt Schlachten kopflos mit
 gescripteten Spielertaktiken (Linie, Linie mit Flankenschutz, Tor
-halten, Phalanxstoß, freier Angriff …) und mit verschiedenen
+halten, Leiterfuß decken, Phalanxstoß, freier Angriff …) und mit verschiedenen
 Truppenmischungen (`--army standard|ohne_reiter|gemischt|reiterlastig|zwei_phalangen`)
 gegen beide KIs durch und gibt Siege, Verluste, Dauer und die gewählten
 Pläne als Tabelle aus. `--lernen 8` spielt dieselbe Taktik achtmal mit
