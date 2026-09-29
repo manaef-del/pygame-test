@@ -1,5 +1,166 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 2 (29. September 2026): Binden und Umfassen, Truppenmischungen
+
+Stand des Commits, der diesen Abschnitt einführt: die Räuber und die
+Horde binden die Front und umfassen die Flanke, die Siedlung teilt
+gemischte Gruppen nach Waffengattung und lässt ihre Reiter einer
+gebundenen Phalanx in die Flanke fallen; Front, Flanke und Rücken werden
+am Rechteck gemessen und an der Flanke wehren sich nur die Männer am
+Rand. Sechs Seeds je Zeile, nur die kluge KI, jeweils mit der Vorgabe
+des Szenarios (128 Räuber bei der Verteidigung, 96 bei der Horde, 75
+bei der Siedlung).
+
+### Fünf Truppenmischungen (je 75 Mann)
+
+| Truppe | Zusammensetzung |
+|---|---|
+| standard | 40 Hopliten, 15 Peltasten, 20 Reiter in drei Gruppen |
+| ohne_reiter | 60 Hopliten in zwei Gruppen, 15 Peltasten |
+| gemischt | eine einzige Gruppe mit allem |
+| reiterlastig | 25 Hopliten, 15 Peltasten, 35 Reiter in zwei Gruppen |
+| zwei_phalangen | zwei Hoplitengruppen (die zweite mit den Peltasten gemischt), 20 Reiter |
+
+Taktiken: `linie` = Phalanx quer, Peltasten dahinter, Reiter stehen;
+`linie_aktiv` = dazu alle vier Sekunden: die Reiter greifen an, wer der
+Phalanx in Flanke oder Rücken geht, die Phalanx dreht die Front, wenn
+vorn niemand mehr steht; `vorruecken` (Horde) = Linie, vorrücken,
+freier Angriff; `phalanxstoss` = in Formation bis vor die feindliche
+Linie; `tor_reserve` = Phalanx hinters Tor, Peltasten auf den Wall,
+Reiter jagen Eingedrungene; `tor_phalanx` = Rammbock, dann in Formation
+durchs Tor.
+
+| Truppe | Szenario | Taktik | KI | Siege | Verlust Stadt | Verlust Feind | Häuser verloren | Dauer | Pläne |
+|---|---|---|---|---|---|---|---|---|---|
+| standard | offen | linie | klug | 6/6 | 14% | 60% | 0.0 | 35 s | flankieren×6, umgehen_west×6, zermuerben×2 |
+| standard | offen | linie_aktiv | klug | 6/6 | 25% | 69% | 0.0 | 28 s | flankieren×6, umgehen_west×6 |
+| standard | horde | vorruecken | klug | 6/6 | 6% | 56% | 0.0 | 45 s | lagern×6, flankieren×6, umgehen_west×6, frontal×6 |
+| standard | angriff_offen | phalanxstoss | klug | 6/6 | 32% | 73% | 0.0 | 81 s | halten×6, vorruecken×6 |
+| standard | palisade | tor_reserve | klug | 4/6 | 56% | 74% | 1.7 | 86 s | turm×6, belagern×6, frontal×6, umgehen_west×4, flankieren×1, zermuerben×1 |
+| standard | angriff_wall | tor_phalanx | klug | 5/6 | 62% | 69% | 0.0 | 127 s | halten×6, vorruecken×5 |
+| ohne_reiter | offen | linie | klug | 6/6 | 16% | 56% | 0.0 | 35 s | flankieren×6, frontal×6, zermuerben×5, umgehen_ost×3, umgehen_west×3 |
+| ohne_reiter | offen | linie_aktiv | klug | 6/6 | 2% | 62% | 0.0 | 28 s | flankieren×6, umgehen_west×6 |
+| ohne_reiter | horde | vorruecken | klug | 6/6 | 7% | 50% | 0.0 | 50 s | lagern×6, flankieren×6, frontal×6 |
+| ohne_reiter | angriff_offen | phalanxstoss | klug | 0/6 | 71% | 59% | 0.0 | 300 s | halten×6, vorruecken×6 |
+| ohne_reiter | palisade | tor_reserve | klug | 6/6 | 3% | 58% | 0.0 | 103 s | turm×6, belagern×6, flankieren×6, umgehen_ost×6, zermuerben×2 |
+| ohne_reiter | angriff_wall | tor_phalanx | klug | 4/6 | 65% | 63% | 0.0 | 89 s | halten×6, vorruecken×3 |
+| gemischt | offen | linie | klug | 6/6 | 55% | 50% | 0.0 | 43 s | flankieren×6, umgehen_west×6, frontal×1 |
+| gemischt | offen | linie_aktiv | klug | 1/6 | 29% | 37% | 0.3 | 28 s | flankieren×6, frontal×6, umgehen_west×2 |
+| gemischt | horde | vorruecken | klug | 6/6 | 10% | 38% | 0.0 | 50 s | lagern×6, flankieren×6, umgehen_west×6, frontal×6 |
+| gemischt | angriff_offen | phalanxstoss | klug | 0/6 | 41% | 25% | 0.0 | 53 s | halten×6 |
+| gemischt | palisade | tor_reserve | klug | 0/6 | 3% | 12% | 8.0 | 56 s | turm×6, belagern×6 |
+| gemischt | angriff_wall | tor_phalanx | klug | 5/6 | 58% | 63% | 0.0 | 90 s | halten×6, vorruecken×1 |
+| reiterlastig | offen | linie | klug | 0/6 | 49% | 38% | 8.0 | 37 s | flankieren×6, frontal×6 |
+| reiterlastig | offen | linie_aktiv | klug | 6/6 | 44% | 67% | 0.0 | 29 s | flankieren×6, umgehen_west×6 |
+| reiterlastig | horde | vorruecken | klug | 6/6 | 20% | 69% | 0.0 | 51 s | lagern×6, flankieren×6, umgehen_west×6, frontal×6, zermuerben×1, umgehen_ost×1 |
+| reiterlastig | angriff_offen | phalanxstoss | klug | 6/6 | 44% | 72% | 0.0 | 86 s | halten×6, vorruecken×6 |
+| reiterlastig | palisade | tor_reserve | klug | 6/6 | 53% | 90% | 1.3 | 87 s | turm×6, belagern×6, frontal×5, umgehen_west×5, flankieren×1, zermuerben×1, umgehen_ost×1 |
+| reiterlastig | angriff_wall | tor_phalanx | klug | 0/6 | 95% | 49% | 0.0 | 135 s | halten×6, vorruecken×6 |
+| zwei_phalangen | offen | linie | klug | 5/6 | 50% | 46% | 1.3 | 43 s | flankieren×6, umgehen_west×4, frontal×3 |
+| zwei_phalangen | offen | linie_aktiv | klug | 6/6 | 41% | 59% | 0.0 | 34 s | flankieren×6, umgehen_west×4, zermuerben×1 |
+| zwei_phalangen | horde | vorruecken | klug | 6/6 | 4% | 53% | 0.0 | 46 s | lagern×6, flankieren×6, umgehen_west×6, frontal×5 |
+| zwei_phalangen | angriff_offen | phalanxstoss | klug | 6/6 | 50% | 71% | 0.0 | 51 s | halten×6, vorruecken×6 |
+| zwei_phalangen | palisade | tor_reserve | klug | 1/6 | 65% | 65% | 7.2 | 82 s | turm×6, belagern×6, frontal×6, umgehen_west×1 |
+| zwei_phalangen | angriff_wall | tor_phalanx | klug | 0/6 | 91% | 38% | 0.0 | 73 s | halten×6, vorruecken×6 |
+
+Zusätzlich `linie_tief` (kurze Linie mit zwei bis drei Gliedern statt
+einer breiten Einer-Reihe, sonst wie `linie_aktiv`): standard 6/6 mit
+22 % Verlusten, zwei_phalangen 6/6 mit 32 %, reiterlastig 6/6 mit 47 %.
+Kaum ein Unterschied zur breiten Linie, weil neben dem Ende der Front
+ohnehin nur drei Mann je Glied kämpfen.
+
+### Abgeleitete Strategien
+
+1. **Eine Linie braucht eine Reserve.** Gegen „Binden und Umfassen“
+   verliert eine stehende Linie ihre Flanke. Mit 40 Hopliten hält sie
+   (14 % Verluste), aber nur weil die Räuber sich an der Front
+   verbluten; mit einer kleinen Phalanx (reiterlastig, 25 Hopliten) und
+   untätigen Reitern verliert man alles (0/6). Sobald die Reiter die
+   Umfasser angreifen (`linie_aktiv`), gewinnt jede Mischung mit Reitern.
+2. **Tiefe schlägt Breite nicht, Nachbarn schon.** Neben dem Ende einer
+   Linie kämpfen nur drei Mann je Glied. Eine zweite Gruppe direkt daneben
+   (Lücke unter einer Kachel) schließt die Naht: dort zählt ein Angreifer
+   als Front. Zwei Phalangen nebeneinander verlieren trotzdem 50 %, weil
+   die äußeren Enden offen bleiben; die Enden gehören an den Kartenrand,
+   an den Wall oder hinter eine Reserve.
+3. **Eine große gemischte Gruppe ist die schlechteste Wahl.** Sie kann
+   nicht reagieren: kein Flankenschutz, keine Reserve, beim Angriff kein
+   eigener Flankenstoß (0/6), hinter der Palisade plündern die
+   Eingesickerten alle Häuser, während der Block am Tor steht (0/6). Die
+   Siedlung selbst sortiert genau deshalb nach Waffengattung.
+4. **Ohne Reiter verteidigt man am besten, greift aber schlecht an.**
+   60 Hopliten halten Linie und Palisade fast verlustfrei (2 % und 3 %),
+   aber gegen die Siedlung ohne Wall gibt es keinen Sieg: ihre Reiter
+   fallen der gebundenen Phalanx in die Flanke, und niemand fängt sie ab.
+5. **Reiterlastig gewinnt im Feld und scheitert am Wall.** Phalanxstoß
+   6/6, Palisadenverteidigung 6/6 mit 90 % Feindverlusten, aber der
+   Angriff auf die Siedlung mit Wall geht 0/6 verloren: Reiter sitzen ab,
+   klettern langsam und kämpfen zu Fuß schwach.
+6. **Gegen die Siedlung: erst binden, dann die Flanke.** Der Phalanxstoß
+   gewinnt nur, wenn die eigenen Reiter die feindlichen Reiter abfangen
+   oder ihrerseits die gebundene Linie umfassen; im Skript stehen sie bis
+   Sekunde 60 herum, deshalb 31 % Verluste bei standard und Niederlagen
+   ohne Reiter.
+7. **Am Wall: Rammbock und Phalanx durchs Tor, nicht der Turm.** Mit
+   gleicher Stärke gewinnt standard 6/8 (62 % Verluste), reiterlastig
+   nie. Der freie Angriff verliert immer, weil die Siedlung das Tor von
+   innen deckt und vorrückt, während die Angreifer noch in der Lücke
+   stehen.
+
+### Alle Szenarien, beide KIs (standard, 8 Seeds)
+
+| Szenario | Taktik | KI | Siege | Verlust Stadt | Verlust Feind | Häuser verloren | Dauer | Pläne |
+|---|---|---|---|---|---|---|---|---|
+| offen | linie | einfach | 8/8 | 0% | 39% | 0.0 | 19 s | – |
+| offen | linie | klug | 8/8 | 14% | 59% | 0.0 | 33 s | flankieren×8, umgehen_west×8, zermuerben×2 |
+| offen | linie_reiter | einfach | 8/8 | 0% | 39% | 0.0 | 19 s | – |
+| offen | linie_reiter | klug | 8/8 | 12% | 72% | 0.0 | 30 s | flankieren×8, umgehen_west×8, zermuerben×1 |
+| offen | linie_aktiv | einfach | 8/8 | 0% | 48% | 0.0 | 19 s | – |
+| offen | linie_aktiv | klug | 8/8 | 28% | 69% | 0.0 | 29 s | flankieren×8, umgehen_west×8 |
+| offen | passiv | einfach | 8/8 | 28% | 38% | 4.0 | 29 s | – |
+| offen | passiv | klug | 8/8 | 41% | 38% | 0.0 | 27 s | frontal×8 |
+| offen | angriff | einfach | 3/8 | 47% | 41% | 7.2 | 29 s | – |
+| offen | angriff | klug | 2/8 | 47% | 46% | 7.8 | 30 s | frontal×8 |
+| palisade | tor_halten | einfach | 8/8 | 0% | 71% | 0.0 | 44 s | – |
+| palisade | tor_halten | klug | 1/8 | 68% | 38% | 7.0 | 84 s | turm×8, belagern×8, frontal×8, flankieren×1, zermuerben×1, umgehen_west×1 |
+| palisade | tor_reserve | einfach | 8/8 | 0% | 71% | 0.0 | 44 s | – |
+| palisade | tor_reserve | klug | 5/8 | 58% | 74% | 1.5 | 91 s | turm×8, belagern×8, frontal×8, umgehen_west×5, flankieren×1, zermuerben×1 |
+| palisade | passiv | einfach | 8/8 | 44% | 45% | 2.2 | 49 s | – |
+| palisade | passiv | klug | 4/8 | 45% | 38% | 5.9 | 50 s | tor×8, frontal×8 |
+| horde | vorruecken | einfach | 8/8 | 0% | 51% | 0.0 | 33 s | – |
+| horde | vorruecken | klug | 8/8 | 6% | 55% | 0.0 | 46 s | lagern×8, flankieren×8, umgehen_west×8, frontal×8, umgehen_ost×1 |
+| horde | angriff | einfach | 8/8 | 41% | 55% | 0.0 | 22 s | – |
+| horde | angriff | klug | 8/8 | 47% | 57% | 0.0 | 22 s | lagern×8, frontal×8 |
+| angriff_offen | phalanxstoss | einfach | 8/8 | 31% | 80% | 0.0 | 72 s | – |
+| angriff_offen | phalanxstoss | klug | 8/8 | 31% | 73% | 0.0 | 81 s | halten×8, vorruecken×8 |
+| angriff_offen | vorruecken | einfach | 0/8 | 97% | 26% | 0.0 | 62 s | – |
+| angriff_offen | vorruecken | klug | 0/8 | 96% | 31% | 0.0 | 60 s | halten×8, vorruecken×8 |
+| angriff_offen | angriff | einfach | 0/8 | 86% | 10% | 0.0 | 25 s | – |
+| angriff_offen | angriff | klug | 0/8 | 87% | 11% | 0.0 | 24 s | halten×8, vorruecken×8 |
+| angriff_wall | tor_phalanx | einfach | 8/8 | 30% | 79% | 0.0 | 80 s | – |
+| angriff_wall | tor_phalanx | klug | 6/8 | 62% | 67% | 0.0 | 121 s | halten×8, vorruecken×5 |
+| angriff_wall | belagerung | einfach | 0/8 | 99% | 13% | 0.0 | 81 s | – |
+| angriff_wall | belagerung | klug | 0/4 | 99% | 22% | 0.0 | 71 s | halten×4, vorruecken×4 |
+
+Gegenüber dem ersten Lauf hat sich die alte KI kaum verändert; die
+kluge zwingt jetzt zu Reserven und Flankenschutz, bleibt aber gegen eine
+geführte Phalanx schlagbar. Die Zeile `belagerung` wurde nach dem Lauf
+mit vier Seeds wiederholt, weil im ersten Durchgang das Zentrum einer
+aufgelösten Gruppe von seinen Männern getrennt am Tor stehen blieb (ein
+Fehler, inzwischen behoben: das Zentrum springt zu seinen Männern).
+
+### Offene Punkte
+
+- Die Umfasser kommen einzeln an und werden an der Flanke aufgerieben,
+  wenn die Phalanx groß ist; die Räuber könnten ihre Umfassung sammeln
+  und gemeinsam anlaufen.
+- Die Siedlung mit Wall macht noch keinen Ausfall gegen abgesessene
+  Reiter oder Turmbauer vor dem Wall.
+- Der freie Angriff („Angriff“ ohne Ziel) wählt auch Gegner auf dem
+  Wehrgang und läuft dann unter die Palisade; er sollte Unerreichbares
+  überspringen.
+
+
 Lauf vom 29. September 2026 mit `python3 tools/simulate.py --seeds 8`
 (Stand des Commits, der diese Datei einführt). Jede Zeile sind acht
 Schlachten mit den Seeds 0 bis 7, Spielzeit bis 300 s. „einfach“ ist die

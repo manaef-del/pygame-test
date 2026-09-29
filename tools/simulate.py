@@ -126,6 +126,17 @@ def t_linie_aktiv(b: Battle) -> dict:
     return plan
 
 
+def t_linie_tief(b: Battle) -> dict:
+    """Kurze, tiefe Linie (drei Kacheln, zwei bis drei Glieder) statt einer breiten
+    Einer-Reihe, Peltasten dahinter, Reiter als Flankenschutz wie bei linie_aktiv."""
+    hop, pelt, cav = groups(b)
+    plan = t_linie_aktiv(b)
+    plan[0] = lambda b: (b.command_line(hop, (6.5, 10.5), (9.5, 10.5)),
+                         b.command_line(pelt, (6.5, 11.4), (9.5, 11.4)),
+                         b.command_move(cav, (12.0, 11.5)))
+    return plan
+
+
 def t_passiv(b: Battle) -> dict:
     return {0: lambda b: b.command_hold(None)}
 
@@ -222,7 +233,7 @@ def t_tor_phalanx(b: Battle) -> dict:
 
 
 TACTICS = {
-    "offen": {"linie": t_linie, "linie_reiter": t_linie_reiter_aktiv, "linie_aktiv": t_linie_aktiv, "passiv": t_passiv, "angriff": t_angriff},
+    "offen": {"linie": t_linie, "linie_reiter": t_linie_reiter_aktiv, "linie_aktiv": t_linie_aktiv, "linie_tief": t_linie_tief, "passiv": t_passiv, "angriff": t_angriff},
     "palisade": {"tor_halten": t_tor_halten, "tor_reserve": t_tor_halten_reserve, "passiv": t_passiv},
     "horde": {"vorruecken": t_vorruecken, "angriff": t_angriff},
     "angriff_offen": {"phalanxstoss": t_phalanxstoss, "vorruecken": t_vorruecken, "angriff": t_angriff},

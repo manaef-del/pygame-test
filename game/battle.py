@@ -823,6 +823,8 @@ class Battle:
             if u.stance is Stance.FLUCHT and u.loose and not any(self.inside(m.x, m.y) for m in u.all_men()):
                 u.withdrawn = True            # die Männer sind schon vom Feld
                 continue
+            if u.loose and self._lost_touch(u):
+                continue                      # das Zentrum ist zu seinen Männern gesprungen
             if u.loose and u.stance is not Stance.FLUCHT and self._stragglers(u, u.target):
                 continue                      # die Gruppe wartet auf die Männer, die noch klettern
             step = min(speed * dt, d)
@@ -833,6 +835,17 @@ class Battle:
             if u.stance is Stance.FLUCHT and not self.inside(u.x, u.y):
                 u.withdrawn = True
         self._move_men(dt)
+
+    def _lost_touch(self, u: Lochos) -> bool:
+        """Aufgelöste Formation: Hat das Zentrum keinen Mann mehr in der Nähe, springt
+        es zu dem Mann, der dem Ziel am nächsten ist; die Männer sind die Gruppe."""
+        men = u.all_men()
+        if not men or any(dist(m.pos, u.pos) <= config.FOLLOW_LAG for m in men):
+            return False
+        goal = u.target if u.target is not None else u.pos
+        lead = min(men, key=lambda m: dist(m.pos, goal))
+        u.x, u.y = lead.x, lead.y
+        return True
 
     def _stragglers(self, u: Lochos, destination: Point) -> bool:
         """Aufgelöste Formation: Ist ein Mann deutlich weiter vom Ziel entfernt als

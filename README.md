@@ -222,15 +222,17 @@ pytest
 Alle Balancezahlen stehen in `game/config.py` und `game/units.py`.
 
 **Simulator:** `tools/simulate.py` spielt Schlachten kopflos mit
-gescripteten Spielertaktiken (Linie, Tor halten, Phalanxstoß, freier
-Angriff …) gegen beide KIs durch und gibt Siege, Verluste, Dauer und die
-gewählten Pläne als Tabelle aus. `--lernen 8` spielt dieselbe Taktik
-achtmal mit Gedächtnis. Ergebnisse eines Laufs stehen in
+gescripteten Spielertaktiken (Linie, Linie mit Flankenschutz, Tor
+halten, Phalanxstoß, freier Angriff …) und mit verschiedenen
+Truppenmischungen (`--army standard|ohne_reiter|gemischt|reiterlastig|zwei_phalangen`)
+gegen beide KIs durch und gibt Siege, Verluste, Dauer und die gewählten
+Pläne als Tabelle aus. `--lernen 8` spielt dieselbe Taktik achtmal mit
+Gedächtnis. Ergebnisse und die daraus abgeleiteten Strategien stehen in
 `docs/ki-simulation.md`.
 
 ```bash
 python3 tools/simulate.py --seeds 8
-python3 tools/simulate.py --scenario palisade --tactic tor_reserve --ai klug --enemy 160
+python3 tools/simulate.py --scenario offen --tactic linie_aktiv --ai klug --army reiterlastig
 python3 tools/simulate.py --lernen 8 --scenario offen --tactic linie
 ```
 
