@@ -1487,18 +1487,51 @@ class Battle:
             return foe.pos
         t0 = param(u.pos)
 
+        def offset_of(t: float) -> float:
+            return (t - t0 + perimeter / 2) % perimeter - perimeter / 2
+
         def offset(m: Man) -> float:
             """Lage des Mannes entlang des Umrisses, relativ zur Mitte des Angriffs."""
-            return (param(m.pos) - t0 + perimeter / 2) % perimeter - perimeter / 2
+            return offset_of(param(m.pos))
 
+        # Nur dort, wo wirklich Feinde stehen: der Umriss wird abgetastet, und ein Stück
+        # zählt nur, wenn ein feindlicher Mann daran steht (nicht das leere Rechteck)
+        enemy_men = foe.all_men()
+        step = config.MAN_SPACING / 2
+        manned: list[float] = []
+        t = 0.0
+        while t < perimeter:
+            px_, py_ = point(t, 0.0)
+            if any((m.x - px_) ** 2 + (m.y - py_) ** 2 <= config.ASSAULT_MANNED ** 2 for m in enemy_men):
+                manned.append(t)
+            t += step
+        if not manned:
+            return None
+        # zusammenhängende besetzte Stücke bilden; das nächste davon ist das Ziel
+        runs: list[list[float]] = []
+        for off in sorted(offset_of(t) for t in manned):
+            if runs and off - runs[-1][-1] <= step * 2.5:     # eine einzelne Lücke (etwa an einer Ecke) trennt nicht
+                runs[-1].append(off)
+            else:
+                runs.append([off])
+        if len(runs) > 1 and runs[0][0] + perimeter - runs[-1][-1] <= step * 2.5:
+            runs[0] = runs.pop() + [o + perimeter for o in runs[0]]     # über den Umlaufanfang hinweg zusammenhängend
+        run_near = min(runs, key=lambda r: min(abs(o) for o in r))
+        run_near.sort(key=abs)                                # vom nächsten Punkt aus nach außen
         out: list[tuple[Man, Point]] = []
         for k, row in enumerate(u.rows):                      # Reihe für Reihe: die vordere innen, jede behält ihre Nachbarn
             layer = sorted(row, key=offset)
             n = len(layer)
-            spacing = min(config.MAN_SPACING, perimeter / max(1, n))
+            want = max(1, min(len(run_near), math.ceil(n * config.MAN_SPACING / step)))
+            offs = sorted(run_near[:want])                    # das nächste besetzte Stück, relativ zur Angriffsmitte
+            span = offs[-1] - offs[0]
+            per_rank = max(1, int(span / config.MAN_SPACING) + 1)   # so viele passen nebeneinander
             outward = config.ASSAULT_GAP + k * config.ROW_SPACING
             for i, m in enumerate(layer):
-                out.append((m, point(t0 + (i - (n - 1) / 2) * spacing, outward)))
+                rank, col = divmod(i, per_rank)               # wer nicht mehr passt, steht eine Reihe weiter hinten
+                cols = min(per_rank, n - rank * per_rank)
+                tt = t0 + offs[0] + span / 2 + (col - (cols - 1) / 2) * config.MAN_SPACING
+                out.append((m, point(tt, outward + rank * len(u.rows) * config.ROW_SPACING)))
         return out
 
     def _man_step(self, u: Lochos, man: Man, goal: Point, step: float, walker: bool, slide: bool = True,

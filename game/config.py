@@ -92,6 +92,7 @@ HITRUN_TIME = 5.0            # Sekunden, längstens
 # Handgemenge: Binden und Lösen
 MAN_BIND_REACH = 0.7         # Kacheln zum Gegner, bis zu denen ein Mann im Handgemenge steht
 ASSAULT_GAP = 0.12           # Kacheln: so dicht legen sich Angreifer um den Umriss des Gegners
+ASSAULT_MANNED = 0.3         # Kacheln: ein Stück Umriss zählt nur, wenn ein feindlicher Mann so nah daran steht
 RING_MAX = 3.0               # Kacheln: größter Halbmesser, den man dem Kreis ziehen kann
 BOUND_LEASH = 1.2            # Kacheln: so weit darf sich die Gruppe von einem gebundenen Mann entfernen, dann reißt er sich los
 ENGAGED_SPEED = 0.33         # Geschwindigkeit einer Gruppe im Nahkampf

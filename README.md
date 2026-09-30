@@ -31,7 +31,8 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
 - **Haufen legen sich um den Gegner.** Räuber und Peltasten im freien
   Angriff behalten im Handgemenge nicht ihr Rechteck: Ihre Männer
   verteilen sich Reihe für Reihe dicht am Umriss der feindlichen
-  Formation, um das nächstgelegene Stück herum. Wer das Ende einer Linie
+  Formation, um das nächstgelegene Stück herum, und zwar nur dort, wo
+  wirklich feindliche Männer stehen, nicht am leeren Teil des Rechtecks. Wer das Ende einer Linie
   angreift, zieht sich wie ein C darum und greift sie auch von vorn und
   hinten an, statt starr daneben zu stehen. Hopliten und Reiter tun das
   nicht: Sie halten ihre Reihen auch im Sturm, damit die Phalanx nicht um

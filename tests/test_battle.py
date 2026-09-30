@@ -1441,3 +1441,32 @@ def test_charging_hoplites_keep_their_rows_instead_of_encircling():
     assert hop.engaged and b._assault_slots(hop) is None
     assert hop.on_slots(0.3, 0.8)                                          # die Reihen stehen noch
     assert {raider.arc_to(m.pos) for m in hop.all_men()} != {"front", "flank", "rear"}
+
+
+def test_attackers_line_up_at_the_enemy_men_not_at_an_empty_rectangle():
+    """Stehen die Männer des Gegners nur in einem Teil seines Rechtecks, reihen sich
+    die Angreifer an den Männern auf, nicht am leeren Rest."""
+    scn = raid(16, (13.0, 9.0))
+    army = army_of(GroupSpec("Hopliten", [Tier("schwer", 14), Tier("mittel", 14)]))
+    b = Battle(scn, random.Random(0), army=army, ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    b.alarm = False
+    hop = b.units(Side.STADT)[0]
+    raider = b.units(Side.FEIND)[0]
+    b.command_line([hop], (5.0, 9.0), (11.0, 9.0))
+    run(b, 6)
+    for m in hop.all_men():                                   # die Männer stehen nur in der Westhälfte
+        m.x = min(m.x, 7.9)
+    b._move_men = lambda dt: None                             # ... und bleiben dort
+    raider.x, raider.y, raider.facing = 10.4, 9.0, (-1.0, 0.0)   # am Ostende des Rechtecks, im Kontakt
+    raider.place_men()
+    raider.stance = Stance.ANGRIFF
+    raider.target_id = hop.id
+    raider.target = hop.pos
+    b.update(DT)
+    slots = b._assault_slots(raider)
+    assert slots is not None
+    for _, p in slots:
+        assert min(dist_of_pt(p, m.pos) for m in hop.all_men()) <= 0.6, p    # jeder Platz liegt bei einem Mann (zweite Reihe dahinter)
+    assert all(p[0] < 8.6 for _, p in slots)                                  # keiner am leeren Ostteil des Rechtecks
