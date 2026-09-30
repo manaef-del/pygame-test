@@ -23,6 +23,11 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   und trifft nur diesen. Sind die Speere verschossen, geht die Gruppe in
   den Nahkampf über. Das gilt für beide Seiten: auch die Peltasten der
   Räuber tragen zehn Speere und stürmen, sobald sie leer sind.
+- **Schild an Schild.** Der Kampf beginnt auf Speerweite (gut eine halbe
+  Kachel Lücke zwischen den Formationen), angreifende Gruppen schließen
+  aber weiter auf, bis nur noch ein Spalt bleibt. Wer im Handgemenge
+  steht, kommt erst mit gut einer Kachel Abstand wieder los, das Lösen
+  dauert also.
 - **Jeder Mann zählt einzeln.** Er hat eigene Trefferpunkte (verwundete
   Punkte sind dunkler) und eine eigene Position: Er läuft zu seinem
   Platz in der Formation, weicht aber selbst aus, durchs Tor nur durch
@@ -72,16 +77,15 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Reiter bleiben stehen und kämpfen rundum ohne Bonus.
 - **Formationen:** Standard ist die Linie. Die Leiste zeigt für die
   gewählte Gruppe die möglichen Formationen, F schaltet weiter. Gruppen
-  mit Fußvolk: Linie, U-Stellung (drei Seiten Front, nur die offene
-  Rückseite verwundbar, etwas weniger dicht) und Kreis (rundum Front ohne
-  Flanke und Rücken, aber ohne den Rückhalt der Glieder: schwächer nach
-  vorn, nur 60 % der Männer kämpfen); beide für den Fall, dass man
-  umfasst wird oder weit in der Unterzahl ist. Reine Reiter: Linie und
+  mit Fußvolk: Linie und Kreis (rundum Front ohne Flanke und Rücken,
+  aber ohne den Rückhalt der Glieder: schwächer nach vorn, nur 60 % der
+  Männer kämpfen) für den Fall, dass man umfasst wird oder weit in der
+  Unterzahl ist. Reine Reiter: Linie und
   Keil; der Keil trifft beim Sturm halb so viele Männer, die aber fast
   doppelt so hart. Reine Peltasten: Linie und Kreis. Wer eine neue Linie
   zieht, steht wieder in Linie.
-- **Gemischte Gruppen in U und Kreis** stehen in Schichten: das Fußvolk
-  bildet den äußeren Ring oder das äußere U, Reiter den mittleren,
+- **Gemischte Gruppen im Kreis** stehen in Schichten: das Fußvolk
+  bildet den äußeren Ring, Reiter den mittleren,
   Peltasten den inneren; jede Schicht ist um einen Reihenabstand nach
   innen gerückt, die inneren Ringe stehen auf Lücke. Innerhalb einer
   Schicht wechseln die Reihen ab wie in einer einzigen langen Reihe:
@@ -279,7 +283,7 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
   im Feld geht weiterhin.
 - **Unten nur die Befehle der gewählten Gruppen**, benannt nach dem,
   was passiert: Hopliten „Sturm“, „Phalanx bilden“ und die Formationen
-  Linie, U, Kreis; Peltasten „Plänkeln“, „Halten“, Linie, Kreis; Reiter
+  Linie, Kreis; Peltasten „Plänkeln“, „Halten“, Linie, Kreis; Reiter
   „Sturmangriff“, „Halten“, Linie, Keil. Die aktive Formation ist
   hervorgehoben, ein Tipp setzt sie direkt. Eine gemischte Auswahl zeigt
   nur „Angriff“ und „Halten“. Beim Angriff mit Wall kommen „Rammbock“
@@ -303,7 +307,7 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 | Sturm / Plänkeln / Sturmangriff / A | gewählte Gruppen greifen frei an, je Waffengattung (siehe oben); gemischte Gruppen teilen sich dafür nach Gattung |
 | Vereinen / V | mehrere gewählte Gruppen werden eine |
 | Phalanx bilden / Halten / H | Hopliten bilden an Ort und Stelle eine Phalanx, andere bleiben stehen |
-| Linie, U, Kreis, Keil / F | Formation der gewählten Gruppe setzen (F schaltet weiter) |
+| Linie, Kreis, Keil / F | Formation der gewählten Gruppe setzen (F schaltet weiter) |
 | Rammbock, Turm / B, T | gewählte Gruppen bauen das Gerät; erneut drücken: ablegen oder Bau abbrechen (nur beim Angriff mit Wall) |
 | Alle / Keine | alle Gruppen wählen oder Auswahl aufheben |
 | Pause / Leertaste | anhalten, bei Alarm: losgehen; in der Pause zeigt jede Gruppe, die noch unterwegs ist, ihr Ziel als Rechteck mit Front und Weg, sonst nur die gewählten |

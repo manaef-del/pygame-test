@@ -13,7 +13,9 @@ FPS = 60
 
 # --- Kampf ----------------------------------------------------------------
 LOCHOS_MEN = 8               # Mann je Lochos
-ENGAGE_RANGE = 1.15          # Kacheln: ab hier wird gekämpft
+ENGAGE_RANGE = 0.6           # Kacheln Lücke zwischen den Formationen: Speerweite, ab hier wird gekämpft
+CONTACT_GAP = 0.15           # Kacheln: bis hierhin schließt ein Angreifer auf, Schild an Schild
+CONTACT_HOLD = 0.5           # Kacheln über die Speerweite hinaus: wer schon kämpft, kommt so schwer wieder los
 SEEK_RANGE = 2.2             # Kacheln: Räuber wenden sich Verteidigern zu
 SEPARATION = 0.2             # Zusatzabstand zu den Radien zweier Gruppen
 BASE_RATE = 0.09             # Schaden pro Sekunde je Angriffspunkt
@@ -23,10 +25,8 @@ ARRIVE_EPS = 0.08
 PHALANX_FRONT = 0.35
 PHALANX_FLANK = 1.0
 PHALANX_REAR = 1.8
-PHALANX_FRONT_U = 0.45       # U-Stellung: drei Seiten Front, etwas weniger dicht
 PHALANX_FRONT_O = 0.55       # Kreis: rundum Front, ohne den Rückhalt der Glieder
 RING_ATTACK_SHARE = 0.6      # Anteil aller Männer, die im Kreis kämpfen
-U_ATTACK_SHARE = 0.8         # Anteil aller Männer, die in der U-Stellung kämpfen
 PHALANX_ATTACK_FRONT = 1.3   # Speere in der Linie
 PHALANX_ATTACK_SIDE = 0.4    # umdrehen, einzeln kämpfen
 FLANK_FILE = 3               # Männer je Reihe, die sich an der Flanke wehren (und getroffen werden)

@@ -146,13 +146,13 @@ def test_context_bar_shows_only_what_the_selection_can_do():
     assert app.selected == {hop.id}
     lab = labels(app)
     assert lab["angriff"] == "Sturm" and lab["halten"] == "Phalanx bilden"
-    assert {"formation:linie", "formation:u", "formation:o"} <= set(lab) and "formation:keil" not in lab
+    assert {"formation:linie", "formation:o"} <= set(lab) and "formation:keil" not in lab and "formation:u" not in lab
     assert "rammbock" not in lab                           # kein Belagerungsgerät in der Verteidigung
     press(app, bar(app)["formation:o"])
     assert hop.formation == "o"
     press(app, bar(app)[f"group:{cav.id}"])
     lab = labels(app)
-    assert lab["angriff"] == "Sturmangriff" and "formation:keil" in lab and "formation:u" not in lab
+    assert lab["angriff"] == "Sturmangriff" and "formation:keil" in lab and "formation:o" not in lab
     press(app, bar(app)[f"group:{pelt.id}"])
     assert labels(app)["angriff"] == "Plänkeln"
     press(app, bar(app)[f"group:{pelt.id}"])               # nochmal: abwählen
@@ -276,8 +276,6 @@ def test_attack_and_hold_need_a_selection_and_formation_cycles():
     app.selected = {hop.id}
     app.command("halten")
     assert hop.stance is Stance.PHALANX                                    # Phalanx an Ort und Stelle
-    app.command("formation")
-    assert hop.formation == "u"
     app.command("formation")
     assert hop.formation == "o"
     app.command("formation")

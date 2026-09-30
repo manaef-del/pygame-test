@@ -31,8 +31,8 @@ class Stance(Enum):
     FLUCHT = "flucht"      # geschlagen, läuft vom Feld
 
 
-FORMATIONS = ("linie", "u", "o", "keil")
-FORMATION_NAMES = {"linie": "Linie", "u": "U-Stellung", "o": "Kreis", "keil": "Keil"}
+FORMATIONS = ("linie", "o", "keil")
+FORMATION_NAMES = {"linie": "Linie", "o": "Kreis", "keil": "Keil"}
 
 
 @dataclass(frozen=True)
@@ -186,7 +186,7 @@ class Lochos:
     tower_progress: float = 0.0
     loose: bool = False               # Formation aufgelöst (Überqueren der Palisade)
     file: bool = False                # auf dem Wehrgang: eine Reihe längs der Palisade
-    formation: str = "linie"          # "linie", "u", "o" (Kreis) oder "keil" (Reiter)
+    formation: str = "linie"          # "linie", "o" (Kreis) oder "keil" (Reiter)
     mode: str = ""                    # freier Angriff je Waffengattung: "", "sturm" (Reiter: Stoß und Lösen)
     hitrun_until: float = -1.0        # Reiter: bis dahin wird vom Feind abgesetzt
 
@@ -275,7 +275,7 @@ class Lochos:
         return len(self.rows)
 
     def layers(self) -> list[list[Man]]:
-        """Schichten für Ring und U-Stellung: Fußvolk außen, Reiter in der Mitte,
+        """Schichten für den Kreis: Fußvolk außen, Reiter in der Mitte,
         Peltasten innen. In jeder Schicht wechseln die Reihen ab (ein Mann der
         ersten, einer der zweiten, einer der dritten, ...), so dass jede
         Rüstungsstufe gleichmäßig über die Front verteilt ist."""
@@ -313,14 +313,6 @@ class Lochos:
             k += 1
         return k
 
-    def u_shape(self) -> tuple[int, int]:
-        """(Männer in der Front, Männer je Arm) der äußeren Schicht der U-Stellung."""
-        layers = self.layers()
-        n = len(layers[0]) if layers else 0
-        front = max(1, math.ceil(n / 2))
-        arm = (n - front) // 2
-        return front, arm
-
     @property
     def half_w(self) -> float:
         """Halbe Breite der Formation in Kacheln (entlang der Front)."""
@@ -328,8 +320,6 @@ class Lochos:
             return self.ring_radius() + 0.08
         if self.formation == "keil":
             return max(0.2, self.wedge_rows() * config.MAN_SPACING / 2 + 0.08)
-        if self.formation == "u":
-            return max(0.2, self.u_shape()[0] * config.MAN_SPACING / 2 + 0.08)
         return max(0.2, self.width * config.MAN_SPACING / 2 + 0.08)
 
     @property
@@ -339,8 +329,6 @@ class Lochos:
             return self.ring_radius() + 0.08
         if self.formation == "keil":
             return max(0.2, self.wedge_rows() * config.ROW_SPACING / 2 + 0.08)
-        if self.formation == "u":
-            return max(0.2, (self.u_shape()[1] + 1) * config.ROW_SPACING / 2 + 0.08)
         return max(0.2, self.depth * config.ROW_SPACING / 2 + 0.08)
 
     @property
@@ -369,9 +357,6 @@ class Lochos:
         along, forward = self.local(p)
         if self.formation == "o":
             return "front"                     # der Kreis hat keine Flanke und keinen Rücken
-        if self.formation == "u":
-            # drei Seiten sind Front, nur die offene Rückseite ist verwundbar
-            return "rear" if (forward < -self.half_d * 0.5 and abs(along) <= self.half_w) else "front"
         if abs(along) <= self.half_w + config.ARC_TOLERANCE:
             return "front" if forward >= 0 else "rear"
         if forward > self.half_d + config.FLANK_DEPTH:
@@ -473,46 +458,6 @@ class Lochos:
                 if i >= len(men):
                     break
             return out
-        if self.formation == "u":
-            layers = self.layers()
-            front, arm = self.u_shape()
-            half_w = front * config.MAN_SPACING / 2
-            depth = (arm + 1) * config.ROW_SPACING
-            fwd = depth / 2
-
-            def put(man: Man, side: float, forward: float) -> None:
-                out.append((man, (cx + fx * forward - fy * side, cy + fy * forward + fx * side)))
-
-            men = layers[0] if layers else []
-            i = 0
-            for j in range(front):                  # äußere Schicht: Front, dann die Arme
-                put(men[i], (j - (front - 1) / 2) * config.MAN_SPACING, fwd)
-                i += 1
-            for k in range(arm):
-                for sign in (-1.0, 1.0):
-                    if i >= len(men):
-                        break
-                    put(men[i], sign * half_w, fwd - (k + 1) * config.ROW_SPACING)
-                    i += 1
-            while i < len(men):                     # Rest in der Mitte hinter der Front
-                put(men[i], 0.0, fwd - config.ROW_SPACING)
-                i += 1
-            for k, layer in enumerate(layers[1:], start=1):   # innere Schichten: kleinere U auf dem gleichen Weg
-                inset = k * config.ROW_SPACING
-                w = max(0.0, 2 * half_w - 2 * inset)          # Breite der inneren Front
-                d = max(0.0, arm * config.ROW_SPACING - inset)  # Tiefe der inneren Arme
-                f = fwd - inset
-                length = w + 2 * d
-                n = len(layer)
-                for i, man in enumerate(layer):
-                    t = (i + 0.5) / n * length if length > 0 else 0.0
-                    if t < d:                                  # linker Arm, von hinten nach vorn
-                        put(man, -w / 2, f - d + t)
-                    elif t <= d + w:                           # Front von links nach rechts
-                        put(man, -w / 2 + (t - d), f)
-                    else:                                      # rechter Arm, von vorn nach hinten
-                        put(man, w / 2, f - (t - d - w))
-            return out
         n_rows = len(self.rows)
         for r, row in enumerate(self.rows):
             forward = ((n_rows - 1) / 2 - r) * config.ROW_SPACING
@@ -530,14 +475,11 @@ class Lochos:
     # ------------------------------------------------------------ Kampf
     def melee_attack(self) -> float:
         """Angriffspunkte: vordere Reihe, dazu Speere der zweiten. Im Kreis kämpft
-        jeder nach außen, aber ohne den Rückhalt der Glieder; in der U-Stellung
-        stehen Front und Arme."""
+        jeder nach außen, aber ohne den Rückhalt der Glieder."""
         if not self.rows:
             return 0.0
         if self.formation == "o":
             return config.RING_ATTACK_SHARE * sum(m.attack for m in self.all_men())
-        if self.formation == "u":
-            return config.U_ATTACK_SHARE * sum(m.attack for m in self.all_men())
         total = sum(m.attack for m in self.rows[0])
         if len(self.rows) > 1:
             total += 0.5 * sum(m.attack for m in self.rows[1] if m.kind.hoplite)
@@ -552,11 +494,11 @@ class Lochos:
         return "hopliten"
 
     def formation_options(self) -> tuple[str, ...]:
-        """Linie immer; mit Fußvolk auch U und Kreis (Reiter und Peltasten
-        darin in inneren Ringen), reine Reiter den Keil, reine Peltasten den Kreis."""
+        """Linie immer; mit Fußvolk auch den Kreis (Reiter und Peltasten darin
+        in inneren Ringen), reine Reiter den Keil, reine Peltasten den Kreis."""
         men = self.all_men()
         if any(not m.kind.cavalry and not m.kind.ranged for m in men):
-            return ("linie", "u", "o")
+            return ("linie", "o")
         if men and all(m.kind.cavalry for m in men):
             return ("linie", "keil")
         return ("linie", "o")

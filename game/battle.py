@@ -510,10 +510,12 @@ class Battle:
                 return max(0.0, min(dist(m.pos, n.pos) for m in men_a for n in men_b) - 0.2)
         return max(0.0, min(a.rect_distance(b.pos) - b.core, b.rect_distance(a.pos) - a.core))
 
-    def _in_contact(self, a: Lochos, b: Lochos) -> bool:
-        """Ob ``a`` gegen ``b`` kämpft. Der Wehrgang ist erhöht: von unten kommt
-        niemand an die Männer oben heran, von oben schlägt man hinunter."""
-        if self._gap(a, b) > config.ENGAGE_RANGE:
+    def _in_contact(self, a: Lochos, b: Lochos, held: bool = False) -> bool:
+        """Ob ``a`` gegen ``b`` kämpft: Schild an Schild ab einer kleinen Lücke;
+        wer schon im Handgemenge steht, kommt erst mit etwas Abstand wieder los.
+        Der Wehrgang ist erhöht: von unten kommt niemand an die Männer oben
+        heran, von oben schlägt man hinunter."""
+        if self._gap(a, b) > config.ENGAGE_RANGE + (config.CONTACT_HOLD if held else 0.0):
             return False
         up_a, up_b = self.on_wall(a), self.on_wall(b)
         if up_b and not up_a:
@@ -927,8 +929,9 @@ class Battle:
                 self._hit_and_run(u, fighting or foes)
                 continue
             target = self.by_id(u.target_id) if u.target_id is not None else None
-            if target is None or not target.alive or not self.inside(target.x, target.y):
-                target, _ = self._nearest(u, fighting or foes)
+            if target is None or not target.alive or not self.inside(target.x, target.y) or (
+                    not target.fighting and fighting):
+                target, _ = self._nearest(u, fighting or foes)     # Geschlagene nicht verfolgen, solange andere kämpfen
                 u.target_id = target.id if target else None
             u.target = target.pos if target else None
         for u in self.units(Side.STADT):
@@ -1074,11 +1077,11 @@ class Battle:
             if u.stance is Stance.ANGRIFF and final:
                 target = self.by_id(u.target_id) if u.target_id is not None else None
                 withdrawing = u.hitrun_until > self.time                 # Reiter setzen ab: nicht am Feind kleben
-                if target is not None and not withdrawing and self._gap(u, target) <= config.ENGAGE_RANGE * 0.8:
+                if target is not None and not withdrawing and self._gap(u, target) <= config.CONTACT_GAP:
                     if self._rides(u) and u.vel > 0.05 and u.ride_in < config.CHARGE_PENETRATION:
                         u.vel = max(0.0, u.vel - config.CHARGE_BRAKE * dt)   # der Schwung trägt in den Feind hinein
                         step = u.vel * dt
-                        self._step(u, scale(u.heading, step))
+                        self._step(u, scale(u.heading, step), through=True)
                         u.ride_in += step
                     else:
                         u.vel = 0.0
@@ -1147,7 +1150,10 @@ class Battle:
             ang = max(-omega * dt, min(omega * dt, ang))
             c, s_ = math.cos(ang), math.sin(ang)
             head = (head[0] * c - head[1] * s_, head[0] * s_ + head[1] * c)
-        want_v = min(top, math.sqrt(2.0 * config.CAVALRY_BRAKE * d), 3.0 * d + 0.05)   # Bremsweg, zuletzt weich auslaufen
+        if u.stance is Stance.ANGRIFF and u.target_id is not None and u.hitrun_until <= self.time:
+            want_v = top                                                     # Sturm: nicht vor dem Feind bremsen
+        else:
+            want_v = min(top, math.sqrt(2.0 * config.CAVALRY_BRAKE * d), 3.0 * d + 0.05)   # Bremsweg, zuletzt weich auslaufen
         if u.vel < want_v:
             u.vel = min(want_v, u.vel + config.CAVALRY_ACCEL * dt)
         else:
@@ -1460,9 +1466,9 @@ class Battle:
                 return True
         return False
 
-    def _step(self, u: Lochos, delta: Point) -> None:
+    def _step(self, u: Lochos, delta: Point, through: bool = False) -> None:
         nx, ny = u.x + delta[0], u.y + delta[1]
-        if self._walled_off(u, u.pos, (nx, ny), self._barriers(u)):
+        if not through and self._walled_off(u, u.pos, (nx, ny), self._barriers(u)):
             return
         if self.can_step(u, u.pos, (nx, ny)):
             u.x, u.y = nx, ny
@@ -1508,7 +1514,7 @@ class Battle:
             for b in alive:
                 if b.side is a.side:
                     continue
-                if self._in_contact(a, b):
+                if self._in_contact(a, b, held=b.id in previous.get(a.id, ())):
                     pairs.append((a, b))
                     a.engaged = True
                     a.contacts.append(b.id)
@@ -1589,7 +1595,7 @@ class Battle:
         if self._formed(b):
             shield = b.shield_factor()
             if arc_name == "front":
-                front = {"u": config.PHALANX_FRONT_U, "o": config.PHALANX_FRONT_O}.get(b.formation, config.PHALANX_FRONT)
+                front = config.PHALANX_FRONT_O if b.formation == "o" else config.PHALANX_FRONT
                 mod = 1.0 + (front - 1.0) * shield
             elif arc_name == "rear":
                 mod = config.PHALANX_REAR
@@ -1635,7 +1641,7 @@ class Battle:
         if self._formed(a):
             own_arc = self.arc_of(a, b.pos)
             if own_arc == "front":
-                attack_mod = config.PHALANX_ATTACK_FRONT if a.formation in ("linie", "u") else 1.0
+                attack_mod = config.PHALANX_ATTACK_FRONT if a.formation == "linie" else 1.0
             else:
                 # in Formation wehren sich nur die Männer am Rand, wo der Gegner steht
                 per_man = a.melee_attack() / max(1, len(a.rows[0]))

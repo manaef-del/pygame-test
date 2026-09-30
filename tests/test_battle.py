@@ -198,7 +198,7 @@ def test_javelins_fly_and_run_out():
 
 
 def test_shield_factor_scales_phalanx_bonus():
-    b = static_line(raider_y=8.4, n_raiders=1)
+    b = static_line(raider_y=8.75, n_raiders=1)
     raider = b.units(Side.FEIND)[0]
     hoplites = b.units(Side.STADT)[0]
     cav = Lochos(99, Side.STADT, [men("reiter", 8)], 6.0, 9.5, facing=(0, -1), stance=Stance.PHALANX, in_line=True)
@@ -211,15 +211,15 @@ def test_shield_factor_scales_phalanx_bonus():
 
 # --------------------------------------------------------- Auflösung
 def test_phalanx_holds_from_the_front():
-    b = static_line(raider_y=8.4)
+    b = static_line(raider_y=8.75)
     resolve_only(b, 40)
     assert b.fallen(Side.STADT) <= 10, b.report()
     assert b.men(Side.FEIND, fighting_only=True) < 32, b.report()
 
 
 def test_phalanx_breaks_from_the_rear():
-    front = static_line(raider_y=8.4)
-    rear = static_line(raider_y=10.6)
+    front = static_line(raider_y=8.75)
+    rear = static_line(raider_y=10.25)
     resolve_only(front, 20)
     resolve_only(rear, 20)
     assert rear.fallen(Side.STADT) > 2 * front.fallen(Side.STADT), (front.report(), rear.report())
@@ -227,7 +227,7 @@ def test_phalanx_breaks_from_the_rear():
 
 
 def test_cavalry_weak_against_phalanx_front_strong_in_the_open():
-    b = static_line(raider_y=8.4, n_raiders=1)
+    b = static_line(raider_y=8.75, n_raiders=1)
     hoplit = b.units(Side.STADT)[1]
     cav = Lochos(99, Side.FEIND, [men("reiter", 8)], hoplit.x, 8.4)
     b.lochoi.append(cav)
@@ -239,7 +239,7 @@ def test_cavalry_weak_against_phalanx_front_strong_in_the_open():
 
 
 def test_routed_units_take_double_damage():
-    b = static_line(raider_y=8.4, n_raiders=1)
+    b = static_line(raider_y=8.75, n_raiders=1)
     raider = b.units(Side.FEIND)[0]
     hoplit = b.units(Side.STADT)[1]
     normal, _ = b._melee_rate(hoplit, raider)
@@ -321,30 +321,24 @@ def test_unopposed_raiders_loot_every_house():
 
 
 def test_phalanx_behind_palisade_beats_larger_force():
-    """Phalanx hinter dem Tor, Peltasten auf dem Wehrgang, Reiter als Reserve gegen
-    alles, was über den Turm hereinkommt; die Phalanx dreht sich zum nächsten Feind."""
+    """Phalanx hinter dem Tor, Peltasten auf dem Wehrgang, Reiter als Reserve: Steht
+    ein Turm, decken die Reiter den Fuß der nächsten Leiter; die Phalanx hält das Tor."""
     b = Battle(PALISADE, random.Random(1), enemy_count=112)
     hop, pelt, cav = b.units(Side.STADT)
     b.command_line([hop], (5.5, 9.5), (10.5, 9.5))     # Hopliten hinter dem Tor
     b.command_move([pelt], (3.5, 8.5))                 # Peltasten auf den Wehrgang
     b.command_move([cav], (13.0, 12.5))                # Reiter in Reserve
-    gy = b.gate.center[1]
     covered = False
     for i in range(int(300 / DT)):
         b.update(DT)
         if b.outcome:
             break
-        if i % 150 == 0:                                # alle fünf Sekunden schaut der Spieler hin
-            if b.crossings and not covered and hop.fighting:
-                # ein Turm steht: die Phalanx an den Fuß der nächsten Leiter, Front zum Wall
-                cx = next(iter(b.crossings))[0] + 0.5
-                lx, ly = min(b.ladders, key=lambda c: abs(c[0] + 0.5 - cx))
-                b.command_line([hop], (lx + 0.5 - 2.2, ly + 1.7), (lx + 0.5 + 2.2, ly + 1.7))
-                covered = True
-            inside = [f for f in b.units(Side.FEIND, fighting_only=True) if f.y > gy + 0.5 and not b.on_wall(f)
-                      and hop.rect_distance(f.pos) > 1.5]
-            if inside and cav.fighting:
-                b.command_attack_target([cav], min(inside, key=lambda f: dist_of(f, cav)))
+        if i % 150 == 0 and b.crossings and not covered and cav.fighting:   # alle fünf Sekunden schaut der Spieler hin
+            # ein Turm steht: die Reiter an den Fuß der nächsten Leiter, Front zum Wall
+            cx = next(iter(b.crossings))[0] + 0.5
+            lx, ly = min(b.ladders, key=lambda c: abs(c[0] + 0.5 - cx))
+            b.command_line([cav], (lx + 0.5 - 1.5, ly + 1.7), (lx + 0.5 + 1.5, ly + 1.7))
+            covered = True
     r = b.report()
     assert r["ausgang"] == "sieg", r
     assert r["feind_start"] >= 1.3 * r["stadt_start"]
@@ -354,12 +348,19 @@ def test_phalanx_behind_palisade_beats_larger_force():
 
 
 def test_open_settlement_phalanx_then_pursuit_wins():
+    """Hopliten vorn, Peltasten dahinter, Reiter in Reserve; nach dem ersten Stoß
+    greifen alle frei an: Reiter und Peltasten fassen die Plünderer, die den
+    langsamen Hopliten davonlaufen würden."""
     b = Battle(OFFENE_SIEDLUNG, random.Random(1))
-    b.command_line(None, (3.0, 10.5), (13.0, 10.5))
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_line([hop], (3.0, 10.5), (13.0, 10.5))
+    b.command_line([pelt], (5.0, 11.6), (11.0, 11.6))
+    b.command_move([cav], (14.0, 12.5))
     run(b, 14)
     b.command_attack()
     run(b, 240)
     assert b.outcome == "sieg", b.report()
+    assert b.houses_intact() >= 6
 
 
 def test_weak_army_loses_houses():
@@ -1038,19 +1039,17 @@ def test_formations_geometry_and_arcs():
     assert u.arc_to((5.0, 7.0)) == "front" and u.arc_to((7.0, 5.0)) == "front"
     r = u.ring_radius()
     assert all(abs(dist_of_pt(p, (5.0, 5.0)) - r) < 1e-6 for _, p in u.slots())
-    u.formation = "u"
-    assert u.arc_to((5.0, 4.0)) == "front" and u.arc_to((7.0, 5.0)) == "front" and u.arc_to((5.0, 7.0)) == "rear"
     u.formation = "keil"
     assert u.wedge_rows() == 6
     tip = min(u.slots(), key=lambda mp: mp[1][1])[1]
     assert abs(tip[0] - 5.0) < 1e-6                                       # die Spitze liegt vorn in der Mitte
-    assert u.formation_options() == ("linie", "u", "o")
+    assert u.formation_options() == ("linie", "o")
     c = Lochos(2, Side.STADT, [men("reiter", 8)], 5.0, 5.0)
     assert c.formation_options() == ("linie", "keil")
 
 
 def test_ring_is_strong_all_round_but_weaker_in_front():
-    b = static_line(raider_y=8.4, n_raiders=1)
+    b = static_line(raider_y=8.75, n_raiders=1)
     hop = b.units(Side.STADT)[2]                                           # die östliche Gruppe: dort endet die Linie
     raider = b.units(Side.FEIND)[0]
     raider.x, raider.y = hop.x, hop.y - 1.1
@@ -1182,7 +1181,7 @@ def test_wedge_hits_fewer_men_harder():
     assert n_wedge < n_line and far_wedge > far_line
 
 
-def test_mixed_groups_form_nested_rings_and_u_with_alternating_rows():
+def test_mixed_groups_form_nested_rings_with_alternating_rows():
     rows = [men("schwer", 8), men("mittel", 8), men("leicht", 8), men("reiter", 6), men("peltast", 6)]
     for t, row in enumerate(rows):
         for m in row:
@@ -1198,16 +1197,7 @@ def test_mixed_groups_form_nested_rings_and_u_with_alternating_rows():
     for m, p in u.slots():
         want = r_pelt if m.kind.ranged else (r_cav if m.kind.cavalry else r_out)
         assert abs(dist_of_pt(p, (5.0, 5.0)) - want) < 1e-6
-    u.formation = "u"
-    slots = dict((id(m), p) for m, p in u.slots())
-    front_hop = min(slots[id(m)][1] for m in layers[0])
-    front_cav = min(slots[id(m)][1] for m in layers[1])
-    front_pelt = min(slots[id(m)][1] for m in layers[2])
-    assert front_hop < front_cav < front_pelt                       # innere U liegen hinter der äußeren Front
-    xs_hop = [slots[id(m)][0] for m in layers[0]]
-    xs_pelt = [slots[id(m)][0] for m in layers[2]]
-    assert min(xs_hop) < min(xs_pelt) and max(xs_pelt) < max(xs_hop)   # und innerhalb ihrer Arme
-    assert u.formation_options() == ("linie", "u", "o")
+    assert u.formation_options() == ("linie", "o")
     p = Lochos(2, Side.STADT, [men("peltast", 6), men("reiter", 4)], 5.0, 5.0)
     assert p.formation_options() == ("linie", "o")
     assert p.formation_options() == ("linie", "o") and len(p.layers()) == 2

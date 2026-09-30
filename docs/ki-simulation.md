@@ -1,5 +1,27 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 7 (30. September 2026): Schild an Schild
+
+Die Kampfreichweite ist von 1,15 Kacheln Lücke auf Speerweite (0,6)
+gesunken, Angreifer schließen bis auf 0,15 auf, wer kämpft, löst sich
+erst ab 1,1. Folge für die beiden Schlacht-Tests, die feste Taktiken
+durchspielen: Langsame Hopliten fassen davonlaufende Plünderer nicht
+mehr, weil niemand mehr aus einer Kachel Abstand „gefangen“ wird. Beide
+Taktiken wurden entsprechend geändert, mit denselben Seeds:
+
+| Szenario | Taktik | Ausgang | Verlust Stadt | Verlust Räuber | Häuser intakt |
+|---|---|---|---|---|---|
+| offen, 128 Räuber | alle in einer Linie, dann Hopliten allein hinterher (alt) | Niederlage | 15 | 43 | 0 |
+| offen, 128 Räuber | Hopliten vorn, Peltasten dahinter, Reiter in Reserve, dann alle frei (neu) | Sieg | 12 | 64 | 8 |
+| Palisade, 112 Räuber | Phalanx vom Tor an den Leiterfuß (alt) | Niederlage | 30 | 44 | 0 |
+| Palisade, 112 Räuber | Phalanx bleibt am Tor, Reiter decken den Leiterfuß (neu) | Sieg | 19 | 75 | 8 |
+| Palisade, 112 Räuber | Phalanx am Leiterfuß und stürmt Eingedrungene (Variante) | Sieg | 20 | 107 | 6 |
+
+Lehre: Wer Plünderer fassen will, braucht Reiter oder Peltasten; die
+Phalanx hält eine Stelle, sie jagt nicht. Nebenbei behoben: stürmende
+Gruppen verfolgten geschlagene Gegner vom Feld, während andere noch
+plünderten; jetzt wenden sie sich dem nächsten Kämpfenden zu.
+
 ## Lauf 6 (29. September 2026): Peltasten der KI plänkeln
 
 Reine Peltastengruppen der Gegnerseite (die Siedlung stellt sie, Räuber
