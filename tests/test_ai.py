@@ -301,6 +301,7 @@ def test_raiders_pin_the_front_and_flank_the_phalanx():
     b.command_line([hop], (4.5, 10.5), (11.5, 10.5))
     b.command_move([pelt], (8.0, 12.0))
     b.command_move([cav], (8.0, 13.5))
+    b.brain.memory.gains = {"offen": {"ruecken": [-1.0] * 5}}   # der Rückenangriff ist verbrannt: Flanke
     run(b, 6)
     assert b.brain.plan == "flankieren", b.brain.plan
     roles = set(b.brain.roles.values())
