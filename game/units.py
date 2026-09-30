@@ -168,6 +168,8 @@ class Lochos:
     withdrawn: bool = False           # hat das Feld verlassen
     engaged: bool = False             # in diesem Schritt im Nahkampf
     contacts: list[int] = field(default_factory=list)   # Gegner, mit denen gekämpft wird (ids)
+    contact_since: dict[int, float] = field(default_factory=dict)   # seit wann (Schlachtzeit) je Gegner-id
+    assault_slots: list = field(default_factory=list)   # zuletzt zugewiesene Plätze am feindlichen Umriss (Weltkoordinaten)
     disengage_until: float = -1.0     # bis dahin gilt die Gruppe als vom Feind gelöst (verwundbar)
     runup: float = 0.0                # Reiter: Anlauf seit dem letzten Halt oder Kontakt (Kacheln)
     vel: float = 0.0                  # Reiter: augenblickliches Tempo (Kacheln/s), Schwung
@@ -485,13 +487,35 @@ class Lochos:
     def melee_attack(self) -> float:
         """Angriffspunkte: vordere Reihe, dazu Speere der zweiten. Im Kreis kämpft
         jeder nach außen, aber ohne den Rückhalt der Glieder."""
+        return self.melee_attack_against(lambda m: 0.0, float("inf"))
+
+    def melee_attack_against(self, distance, reach: float, arc: str = "front") -> float:
+        """Angriffspunkte gegen einen bestimmten Gegner: Es kämpft nur, wer ihn
+        erreicht (``distance`` misst je Mann den Abstand zum Gegner). Vorn die
+        vordere Reihe in Reichweite, dazu die Speere der zweiten dahinter; an
+        Flanke und Rücken (``arc``) dreht sich jeder Mann in Reichweite um und
+        kämpft einzeln, gleich in welcher Reihe er steht; im Kreis jeder in
+        Reichweite, ohne den Rückhalt der Glieder. Erreicht ihn niemand, halten
+        die zwei nächsten Männer notdürftig den Kontakt."""
         if not self.rows:
             return 0.0
         if self.formation == "o":
-            return config.RING_ATTACK_SHARE * sum(m.attack for m in self.all_men())
-        total = sum(m.attack for m in self.rows[0])
+            near = [m for m in self.all_men() if distance(m) <= reach]
+            return config.RING_ATTACK_SHARE * sum(m.attack for m in near)
+        if arc != "front":
+            near = [m for m in self.all_men() if distance(m) <= reach]
+            if not near:
+                near = sorted(self.all_men(), key=distance)[:2]
+                return 0.5 * sum(m.attack for m in near)
+            return sum(m.attack for m in near)
+        front = [m for m in self.rows[0] if distance(m) <= reach]
+        total = sum(m.attack for m in front)
         if len(self.rows) > 1:
-            total += 0.5 * sum(m.attack for m in self.rows[1] if m.kind.hoplite)
+            total += config.SECOND_ROW_SPEARS * sum(m.attack for m in self.rows[1]
+                                                    if m.kind.hoplite and distance(m) <= reach + config.ROW_SPACING)
+        if not front:
+            nearest = sorted(self.rows[0], key=distance)[:2]
+            total = 0.5 * sum(m.attack for m in nearest)
         return total
 
     def arm(self) -> str:

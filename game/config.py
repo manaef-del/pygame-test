@@ -19,6 +19,7 @@ CONTACT_HOLD = 0.5           # Kacheln über die Speerweite hinaus: wer schon k�
 SEEK_RANGE = 2.2             # Kacheln: Räuber wenden sich Verteidigern zu
 SEPARATION = 0.2             # Zusatzabstand zu den Radien zweier Gruppen
 BASE_RATE = 0.09             # Schaden pro Sekunde je Angriffspunkt
+CONTACT_REACH = 0.6          # Kacheln von Mann zu Mann: so weit reicht ein Mann an den nächsten Feind (Rechteck an Rechteck stehen die Reihen 0,55 auseinander, um ein Linienende gelegt 0,32); wer weiter weg steht, kämpft nicht mit
 ARRIVE_EPS = 0.08
 
 # Phalanx: wie stark trifft ein Angriff je nach Richtung
@@ -28,8 +29,8 @@ PHALANX_REAR = 1.8
 PHALANX_FRONT_O = 0.55       # Kreis: rundum Front, ohne den Rückhalt der Glieder
 RING_ATTACK_SHARE = 0.6      # Anteil aller Männer, die im Kreis kämpfen
 PHALANX_ATTACK_FRONT = 1.3   # Speere in der Linie
+SECOND_ROW_SPEARS = 0.5      # Anteil, mit dem die Hopliten der zweiten Reihe über die Schultern mitstechen
 PHALANX_ATTACK_SIDE = 0.4    # umdrehen, einzeln kämpfen
-FLANK_FILE = 3               # Männer je Reihe, die sich an der Flanke wehren (und getroffen werden)
 PHALANX_SUPPORT = 0.15       # Schildwall: je Nachbar weniger Schaden
 PHALANX_SUPPORT_MIN = 0.55
 CAVALRY_VS_FRONT = 0.3       # Pferde laufen nicht in Speere

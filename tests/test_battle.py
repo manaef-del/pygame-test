@@ -51,8 +51,9 @@ def dist_of(a, b) -> float:
 
 
 def static_line(raider_y: float, n_raiders: int = 4) -> Battle:
-    """Drei Hoplitengruppen in der Linie (Front Nord), Räuber dicht davor oder dahinter."""
-    scn = raid(16 * n_raiders, *((5.3 + i * 1.7, raider_y) for i in range(n_raiders)))
+    """Drei Hoplitengruppen in der Linie (Front Nord), Räuber dicht davor oder dahinter,
+    jede Räubergruppe genau vor einer Hoplitengruppe (die vierte neben dem Ende)."""
+    scn = raid(16 * n_raiders, *((6.0 + i * 1.7, raider_y) for i in range(n_raiders)))
     army = army_of(
         GroupSpec("A", [Tier("schwer", 7), Tier("mittel", 7)]),
         GroupSpec("B", [Tier("schwer", 7), Tier("mittel", 6)]),
@@ -65,8 +66,10 @@ def static_line(raider_y: float, n_raiders: int = 4) -> Battle:
         u.stance = Stance.PHALANX
         u.in_line = True
         u.facing = (0.0, -1.0)
+        u.place_men()
     for u in b.units(Side.FEIND):
         u.stance = Stance.ANGRIFF
+        u.place_men()
     return b
 
 
@@ -202,7 +205,7 @@ def test_javelins_fly_and_run_out():
 
 
 def test_shield_factor_scales_phalanx_bonus():
-    b = static_line(raider_y=8.75, n_raiders=1)
+    b = static_line(raider_y=8.8, n_raiders=1)
     raider = b.units(Side.FEIND)[0]
     hoplites = b.units(Side.STADT)[0]
     cav = Lochos(99, Side.STADT, [men("reiter", 8)], 6.0, 9.5, facing=(0, -1), stance=Stance.PHALANX, in_line=True)
@@ -215,15 +218,15 @@ def test_shield_factor_scales_phalanx_bonus():
 
 # --------------------------------------------------------- Auflösung
 def test_phalanx_holds_from_the_front():
-    b = static_line(raider_y=8.75)
+    b = static_line(raider_y=8.8)
     resolve_only(b, 40)
     assert b.fallen(Side.STADT) <= 13, b.report()             # die Räuber rücken vorn nach, das kostet etwas mehr
     assert b.men(Side.FEIND, fighting_only=True) < 32, b.report()
 
 
 def test_phalanx_breaks_from_the_rear():
-    front = static_line(raider_y=8.75)
-    rear = static_line(raider_y=10.25)
+    front = static_line(raider_y=8.8)
+    rear = static_line(raider_y=10.2)
     resolve_only(front, 20)
     resolve_only(rear, 20)
     assert rear.fallen(Side.STADT) > 2 * front.fallen(Side.STADT), (front.report(), rear.report())
@@ -231,7 +234,7 @@ def test_phalanx_breaks_from_the_rear():
 
 
 def test_cavalry_weak_against_phalanx_front_strong_in_the_open():
-    b = static_line(raider_y=8.75, n_raiders=1)
+    b = static_line(raider_y=8.8, n_raiders=1)
     hoplit = b.units(Side.STADT)[1]
     cav = Lochos(99, Side.FEIND, [men("reiter", 8)], hoplit.x, 8.4)
     b.lochoi.append(cav)
@@ -243,7 +246,7 @@ def test_cavalry_weak_against_phalanx_front_strong_in_the_open():
 
 
 def test_routed_units_take_double_damage():
-    b = static_line(raider_y=8.75, n_raiders=1)
+    b = static_line(raider_y=8.8, n_raiders=1)
     raider = b.units(Side.FEIND)[0]
     hoplit = b.units(Side.STADT)[1]
     normal, _ = b._melee_rate(hoplit, raider)
@@ -325,11 +328,12 @@ def test_unopposed_raiders_loot_every_house():
 
 
 def test_phalanx_behind_palisade_beats_larger_force():
-    """Phalanx hinter dem Tor, Peltasten auf dem Wehrgang, Reiter als Reserve: Steht
-    ein Turm, decken die Reiter den Fuß der nächsten Leiter; die Phalanx hält das Tor."""
+    """Phalanx in zwei Gliedern hinter dem Tor, Peltasten auf dem Wehrgang, Reiter als
+    Reserve: Steht ein Turm, decken die Reiter den Fuß der nächsten Leiter; die Phalanx
+    hält das Tor."""
     b = Battle(PALISADE, random.Random(1), enemy_count=112)
     hop, pelt, cav = b.units(Side.STADT)
-    b.command_line([hop], (5.5, 9.5), (10.5, 9.5))     # Hopliten hinter dem Tor
+    b.command_line([hop], (6.5, 9.5), (9.5, 9.5))       # Hopliten hinter dem Tor, kurz und tief
     b.command_move([pelt], (3.5, 8.5))                 # Peltasten auf den Wehrgang
     b.command_move([cav], (13.0, 12.5))                # Reiter in Reserve
     covered = False
@@ -352,19 +356,46 @@ def test_phalanx_behind_palisade_beats_larger_force():
 
 
 def test_open_settlement_phalanx_then_pursuit_wins():
-    """Hopliten vorn, Peltasten dahinter, Reiter in Reserve; nach dem ersten Stoß
-    greifen alle frei an: Reiter und Peltasten fassen die Plünderer, die den
-    langsamen Hopliten davonlaufen würden."""
+    """Kurze, tiefe Linie, Peltasten dahinter, Reiter am Flügel: Alle vier Sekunden
+    schaut der Spieler hin, die Reiter fassen, wer der Phalanx in Flanke oder Rücken
+    geht, die Phalanx dreht die Front zur Bedrohung, wenn vorn niemand mehr steht.
+    Ist die Hälfte der Räuber gefallen oder geflohen, greifen alle frei an: Reiter
+    und Peltasten fassen die Plünderer, die den langsamen Hopliten davonlaufen würden."""
+    from game.geometry import norm, sub
     b = Battle(OFFENE_SIEDLUNG, random.Random(1))
     hop, pelt, cav = b.units(Side.STADT)
-    b.command_line([hop], (3.0, 10.5), (13.0, 10.5))
-    b.command_line([pelt], (5.0, 11.6), (11.0, 11.6))
-    b.command_move([cav], (14.0, 12.5))
-    run(b, 14)
-    b.command_attack()
-    run(b, 240)
+    b.command_line([hop], (6.5, 10.5), (9.5, 10.5))
+    b.command_line([pelt], (6.5, 11.4), (9.5, 11.4))
+    b.command_move([cav], (12.0, 11.5))
+    start = b.men(Side.FEIND, fighting_only=True)
+    pursuing = False
+    for i in range(int(300 / DT)):
+        b.update(DT)
+        if b.outcome:
+            break
+        if i % 120 or pursuing:
+            continue
+        foes = b.units(Side.FEIND, fighting_only=True)
+        if not foes:
+            continue
+        if b.men(Side.FEIND, fighting_only=True) < 0.5 * start:
+            b.command_attack()
+            pursuing = True
+            continue
+        if hop.fighting:
+            near = [f for f in foes if hop.rect_distance(f.pos) <= 3.0]
+            side = [f for f in near if arc(hop.facing, sub(f.pos, hop.pos), config.FRONT_ARC, config.REAR_ARC) != "front"]
+            if side and cav.fighting:
+                b.command_attack_target([cav], min(side, key=lambda f: hop.rect_distance(f.pos)))
+            elif side and len(side) == len(near) and hop.in_phalanx:
+                hop.facing = norm(sub(max(side, key=lambda f: f.men).pos, hop.pos))
+        if cav.fighting and cav.stance is not Stance.ANGRIFF:
+            weak = [f for f in foes if f.loose or f.stance is Stance.FLUCHT]
+            if weak:
+                b.command_attack_target([cav], min(weak, key=lambda f: f.rect_distance(cav.pos)))
     assert b.outcome == "sieg", b.report()
     assert b.houses_intact() >= 6
+    assert b.fallen(Side.STADT) <= 0.3 * 75, b.report()
 
 
 def test_weak_army_loses_houses():
@@ -1053,7 +1084,7 @@ def test_formations_geometry_and_arcs():
 
 
 def test_ring_is_strong_all_round_but_weaker_in_front():
-    b = static_line(raider_y=8.75, n_raiders=1)
+    b = static_line(raider_y=8.8, n_raiders=1)
     hop = b.units(Side.STADT)[2]                                           # die östliche Gruppe: dort endet die Linie
     raider = b.units(Side.FEIND)[0]
     raider.x, raider.y = hop.x, hop.y - 1.1
@@ -1493,3 +1524,84 @@ def test_wings_stay_in_line_when_another_horde_is_near():
     assert b._assault_slots(hop) is None
     assert all(raider.local(m.pos)[1] >= raider.half_d - 0.05 for m in hop.all_men())   # alle bleiben vor dem Gegner
     assert hop.on_slots(0.3, 0.8)
+
+
+def test_only_men_within_reach_of_the_enemy_fight():
+    """Ein schmaler Haufen am Ende einer langen Linie: nur das Ende kämpft mit."""
+    hop = Lochos(1, Side.STADT, arrange(men("mittel", 28), 14), 8.0, 9.0, facing=(0.0, -1.0), stance=Stance.PHALANX, in_line=True)
+    raider = Lochos(2, Side.FEIND, arrange(men("raeuber", 16), 8), 9.2, 8.5, facing=(0.0, 1.0), stance=Stance.HALTEN)
+    hop.place_men()
+    raider.place_men()
+    full = hop.melee_attack()
+    partial = hop.melee_attack_against(lambda m: raider.surface_distance(m.pos), config.CONTACT_REACH)
+    assert 0.3 * full < partial < 0.75 * full                            # ein Teil der Front, nicht alles
+    wide = Lochos(3, Side.FEIND, arrange(men("raeuber", 32), 16), 8.0, 8.5, facing=(0.0, 1.0), stance=Stance.HALTEN)
+    wide.place_men()
+    assert hop.melee_attack_against(lambda m: wide.surface_distance(m.pos), config.CONTACT_REACH) == full
+    far = Lochos(4, Side.FEIND, arrange(men("raeuber", 16), 8), 8.0, 6.0, facing=(0.0, 1.0), stance=Stance.HALTEN)
+    far.place_men()
+    floor = hop.melee_attack_against(lambda m: far.surface_distance(m.pos), config.CONTACT_REACH)
+    assert 0 < floor <= 1.0                                                 # außer Reichweite: nur der Notkontakt
+
+
+def test_second_group_takes_the_next_free_stretch_of_the_outline():
+    """Zwei Räubergruppen fallen nacheinander über dasselbe Linienende her: Die
+    zweite stellt sich nicht in die erste hinein, sondern daneben an das nächste
+    freie Stück des Umrisses; beide kommen an den Feind."""
+    scn = raid(32, (13.0, 9.0), (13.0, 10.5))
+    army = army_of(GroupSpec("Hopliten", [Tier("schwer", 14), Tier("mittel", 14)]))
+    b = Battle(scn, random.Random(0), army=army, ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    b.alarm = False
+    hop = b.units(Side.STADT)[0]
+    first, second = b.units(Side.FEIND)
+    b.command_line([hop], (5.0, 9.0), (11.0, 9.0))
+    run(b, 6)
+    for r, (x, y) in ((first, (13.0, 9.0)), (second, (13.0, 10.5))):
+        r.x, r.y, r.facing = x, y, (-1.0, 0.0)
+        r.place_men()
+        r.stance = Stance.ANGRIFF
+        r.target_id = hop.id
+        r.target = hop.pos
+    run(b, 10)
+    assert first.engaged and second.engaged
+    closest = min(dist_of_pt(m.pos, n.pos) for m in first.all_men() for n in second.all_men())
+    assert closest > 0.5 * config.MAN_SPACING, closest                    # niemand steht im anderen
+    for r in (first, second):
+        near = [m for m in r.all_men() if hop.rect_distance(m.pos) <= config.ASSAULT_GAP + 2 * config.ROW_SPACING + 0.1]
+        assert len(near) >= 0.8 * r.men, (r.name, len(near))              # beide liegen am Umriss
+    assert first.contact_since[hop.id] <= second.contact_since[hop.id]
+
+
+def test_flank_men_of_every_row_fight_but_only_within_reach():
+    """An der Flanke dreht sich um, wer den Gegner erreicht, gleich in welcher
+    Reihe er steht; vorn kämpft nur die vordere Reihe (und die Speere der zweiten)."""
+    hop = Lochos(1, Side.STADT, arrange(men("mittel", 30), 10), 8.0, 9.0, facing=(0.0, -1.0), stance=Stance.PHALANX, in_line=True)
+    hop.place_men()
+    east = hop.x + hop.half_w + 0.3
+    raider = Lochos(2, Side.FEIND, arrange(men("raeuber", 6), 2), east + 0.2, 9.0, facing=(-1.0, 0.0), stance=Stance.HALTEN)
+    raider.place_men()
+    b = Battle(raid(16, (13.0, 3.0)), random.Random(0), army=army_of(GroupSpec("H", [Tier("mittel", 10)])))
+    distance = b._reach_to(raider)
+    flank = hop.melee_attack_against(distance, config.CONTACT_REACH, "flank")
+    as_front = hop.melee_attack_against(distance, config.CONTACT_REACH, "front")
+    assert 3 * UNIT_TYPES["mittel"].attack <= flank <= 9 * UNIT_TYPES["mittel"].attack, flank   # die äußeren Rotten
+    assert as_front < flank                                                # vorn zählt nur die erste Reihe
+    assert flank < 0.5 * hop.melee_attack()                                # längst nicht die ganze Front
+
+
+def test_losses_fall_where_the_enemy_stands():
+    """Ein Haufen am Ostende einer langen Reihe (leichtes Volk): Es fallen die
+    Männer dort, die Westhälfte bleibt unberührt."""
+    hop = Lochos(1, Side.STADT, arrange(men("peltast", 40), 40), 8.0, 9.0, facing=(0.0, -1.0), stance=Stance.PHALANX, in_line=True)
+    hop.place_men()
+    raider = Lochos(2, Side.FEIND, arrange(men("raeuber", 16), 8), hop.x + hop.half_w - 0.5, hop.y - 0.6, facing=(0.0, 1.0), stance=Stance.ANGRIFF)
+    raider.place_men()
+    b = Battle(raid(16, (13.0, 3.0)), random.Random(0), army=army_of(GroupSpec("H", [Tier("mittel", 10)])))
+    b.lochoi = [hop, raider]
+    for _ in range(int(30 / DT)):                                           # nur Kampf, keine Moral (sonst fliehen die Räuber vorher)
+        b._combat(DT)
+    assert hop.men < 40
+    west = [m for m in hop.all_men() if m.x < hop.x - 0.3]
+    assert len(west) >= 18, len(west)                                       # (fast) alle 20 der Westhälfte leben noch

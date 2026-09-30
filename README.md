@@ -23,6 +23,18 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   und trifft nur diesen. Sind die Speere verschossen, geht die Gruppe in
   den Nahkampf über. Das gilt für beide Seiten: auch die Peltasten der
   Räuber tragen zehn Speere und stürmen, sobald sie leer sind.
+- **Es kämpft, wer den Gegner erreicht.** Von der vorderen Reihe kämpfen
+  nur die Männer, die einen Feind in Speerweite haben (von Mann zu Mann
+  gemessen), dazu die Speere der zweiten Reihe dahinter; an Flanke und
+  Rücken dreht sich um, wer den Gegner erreicht, gleich in welcher Reihe
+  er steht. Die Verluste fallen dort, wo der Gegner steht. Berührt ein
+  schmaler Haufen nur das Ende einer langen Linie, kämpft dort auch nur
+  das Ende; wer sich um den Gegner legt oder die Flügel einklappt,
+  bringt entsprechend mehr Männer in den Kampf, und eine lange Linie in
+  einem Glied wird an den Enden aufgerollt. Eine zweite Gruppe, die
+  denselben Gegner anfällt, stellt sich nicht in die erste hinein,
+  sondern daneben an das nächste freie Stück seines Umrisses. Erreicht
+  niemand den Gegner, halten die zwei nächsten Männer den Kontakt.
 - **Schild an Schild.** Der Kampf beginnt auf Speerweite (gut eine halbe
   Kachel Lücke zwischen den Formationen), angreifende Gruppen schließen
   aber weiter auf, bis nur noch ein Spalt bleibt. Wer im Handgemenge

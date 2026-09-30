@@ -504,11 +504,14 @@ class Battle:
         return best, best_d
 
     def _gap(self, a: Lochos, b: Lochos) -> float:
+        """Lücke zwischen zwei Formationen: der kleinste Abstand einer Ecke der
+        einen zum Rechteck der anderen (bei aufgelösten Gruppen zwischen den Männern)."""
         if a.loose or b.loose:
             men_a, men_b = a.all_men(), b.all_men()
             if men_a and men_b:
                 return max(0.0, min(dist(m.pos, n.pos) for m in men_a for n in men_b) - 0.2)
-        return max(0.0, min(a.rect_distance(b.pos) - b.core, b.rect_distance(a.pos) - a.core))
+        return max(0.0, min(min(b.rect_distance(c) for c in a.corners()),
+                            min(a.rect_distance(c) for c in b.corners())))
 
     def _in_contact(self, a: Lochos, b: Lochos, held: bool = False) -> bool:
         """Ob ``a`` gegen ``b`` kämpft: Schild an Schild ab einer kleinen Lücke;
@@ -1374,6 +1377,7 @@ class Battle:
                     self._man_step(u, man, goal, speed * dt, walker)
                 continue
             assault = self._assault_slots(u)
+            u.assault_slots = [slot for _, slot in assault] if assault is not None else []
             for man, slot in (assault if assault is not None else u.slots()):
                 d = dist(man.pos, slot)
                 if assault is not None:               # um den Gegner herum: dicht an seinen Umriss, nie hinein
@@ -1521,6 +1525,32 @@ class Battle:
         run_near.sort(key=abs)                                # vom nächsten Punkt aus nach außen
         if hoplites:
             return self._wing_slots(u, foe, param, offset_of, point, lengths, perimeter, run_near)
+        # Wo schon eine eigene Gruppe am Gegner steht (die früher im Handgemenge war),
+        # stellt sich niemand hinein: Man legt sich daneben an das nächste freie Stück
+        since = u.contact_since.get(foe.id, self.time)
+        band = config.ASSAULT_GAP + 3 * config.ROW_SPACING
+        taken: set[int] = set()
+        for o in self.lochoi:
+            if o is u or o.side is not u.side or not o.alive or foe.id not in o.contacts:
+                continue
+            o_since = o.contact_since.get(foe.id, self.time)
+            if (o_since, o.id) >= (since, u.id):
+                continue                                      # wer später kam, weicht
+            for q in [n.pos for n in o.all_men()] + o.assault_slots:     # wo sie stehen und wo sie hinwollen
+                if foe.rect_distance(q) <= band:
+                    k = round((param(q) % perimeter) / step)
+                    taken.update((k - 1, k, k + 1))
+        if taken:
+            free = [o for o in run_near if round(((t0 + o) % perimeter) / step) not in taken]
+            pieces: list[list[float]] = []
+            for off in sorted(free):
+                if pieces and off - pieces[-1][-1] <= step * 2.5:
+                    pieces[-1].append(off)
+                else:
+                    pieces.append([off])
+            if pieces:
+                run_near = min(pieces, key=lambda r: min(abs(o) for o in r))
+                run_near.sort(key=abs)
         out: list[tuple[Man, Point]] = []
         for k, row in enumerate(u.rows):                      # Reihe für Reihe: die vordere innen, jede behält ihre Nachbarn
             layer = sorted(row, key=offset)
@@ -1714,6 +1744,8 @@ class Battle:
                     a.contacts.append(b.id)
                     if b.id not in previous.get(a.id, ()) and a.runup >= config.CHARGE_RUNUP and not a.loose:
                         self._charge(a, b)                # erster Kontakt mit Anlauf: Aufprall
+        for u in alive:
+            u.contact_since = {bid: u.contact_since.get(bid, self.time) for bid in u.contacts}
         hits = [(a, b, *self._melee(a, b, dt)) for a, b in pairs]
         for a, b, dmg, arc_name in hits:
             self._apply_damage(a, b, dmg, arc_name)
@@ -1821,25 +1853,41 @@ class Battle:
                 return "front"                  # die Linie geht dort weiter
         return a
 
-    def _side_men(self, u: Lochos, arc_name: str) -> int:
-        """Wie viele Männer einer Formation können sich zur Flanke oder nach hinten wehren."""
-        if arc_name == "rear":
-            return len(u.rows[-1]) if u.rows else 0
-        return min(u.men, config.FLANK_FILE * u.depth)
+    def _reach_to(self, foe: Lochos):
+        """Abstand eines Mannes zum nächsten Mann des Gegners, von Mann zu Mann gemessen,
+        nicht zum Formationsrechteck: Wer sich um ein Linienende legt oder vor seinem
+        Rechteck steht, wird dort gefasst, wo er wirklich steht. Das Rechteck dient nur
+        als schnelle Vorprüfung (kein Mann des Gegners steht weiter als ``spread``
+        davon entfernt)."""
+        men = foe.all_men()
+        if not men:
+            return lambda m: float("inf")
+        spread = max(foe.rect_distance(n.pos) for n in men)
+        limit = config.CONTACT_REACH + spread
+
+        def distance(m: Man) -> float:
+            d = foe.rect_distance(m.pos)
+            if d > limit:
+                return d
+            return min(math.hypot(m.x - n.x, m.y - n.y) for n in men)
+        return distance
+
+    def _in_reach(self, men: list[Man], foe: Lochos, extra: float = 0.0) -> list[Man]:
+        distance = self._reach_to(foe)
+        return [m for m in men if distance(m) <= config.CONTACT_REACH + extra]
 
     def _melee_rate(self, a: Lochos, b: Lochos) -> tuple[float, str]:
-        base = a.melee_attack() * config.BASE_RATE
+        # Es kämpft nur, wer den Gegner erreicht: die Berührungsbreite entscheidet, nicht die ganze Front
+        own_arc = self.arc_of(a, b.pos) if self._formed(a) else "front"
+        attack = a.melee_attack_against(self._reach_to(b), config.CONTACT_REACH, own_arc)
+        base = attack * config.BASE_RATE
         if a.loose and a.men:
             base *= len(self._present(a, b)) / a.men
         attack_mod = 1.0
         if self._formed(a):
-            own_arc = self.arc_of(a, b.pos)
             if own_arc == "front":
                 attack_mod = config.PHALANX_ATTACK_FRONT if a.formation == "linie" else 1.0
-            else:
-                # in Formation wehren sich nur die Männer am Rand, wo der Gegner steht
-                per_man = a.melee_attack() / max(1, len(a.rows[0]))
-                base = min(base, self._side_men(a, own_arc) * per_man * config.BASE_RATE)
+            # an Flanke und Rücken wehren sich nur die Männer am Rand, die den Gegner erreichen (ohne Speerwand)
         defense_mod, arc_name = self._defense_mod(a, b)
         cav = a.cavalry_share()
         if cav > 0:
@@ -1871,11 +1919,18 @@ class Battle:
                 return
             fallen = b.take_damage_men(near, dmg, self.rng)
         elif self._formed(b) and row_arc in ("flank", "rear"):
-            # Flanke und Rücken: es trifft die Männer am Rand, nicht die ganze Reihe
-            near = sorted(b.all_men(), key=lambda m: dist(m.pos, a.pos))[:self._side_men(b, row_arc) + 2]
+            # Flanke und Rücken: es trifft die Männer am Rand, die der Angreifer erreicht, nicht die ganze Reihe
+            near = self._in_reach(b.all_men(), a) or sorted(b.all_men(), key=lambda m: dist(m.pos, a.pos))[:2]
             fallen = b.take_damage_men(near, dmg, self.rng)
         else:
-            fallen = b.take_damage(b.exposed_row(row_arc), dmg, self.rng)
+            # es trifft, wer den Angreifer erreicht; erreicht ihn niemand, die ganze Reihe
+            row = b.exposed_row(row_arc)
+            candidates = b.all_men() if b.formation == "o" else b.rows[row] if b.rows else []
+            near = self._in_reach(candidates, a) if arc_name != "ranged" else []
+            if near:
+                fallen = b.take_damage_men(near, dmg, self.rng)
+            else:
+                fallen = b.take_damage(row, dmg, self.rng)
         self._after_hit(b, fallen, arc_name, dmg)
 
     def _after_hit(self, b: Lochos, fallen: int, arc_name: str, dmg: float) -> None:

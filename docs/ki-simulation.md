@@ -1,5 +1,58 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 9 (30. September 2026): Kämpfen nach Berührungsbreite
+
+Bisher kämpfte eine Gruppe im Handgemenge mit ihrer ganzen vorderen Reihe
+gegen jeden Gegner, den sie berührte: Eine breite Linie, an deren Ende
+sich ein Haufen legte, stach mit allen vierzig Speeren auf ihn ein, und
+das gegen jeden der sieben Haufen ringsum noch einmal. Jetzt kämpft nur,
+wer den Gegner wirklich erreicht, von Mann zu Mann gemessen (0,6
+Kacheln), und die Verluste fallen auch dort, wo der Gegner steht. An
+Flanke und Rücken dreht sich um, wer den Gegner erreicht, gleich in
+welcher Reihe er steht. Dazu zwei Folgen für die Aufstellung am Umriss:
+Eine zweite eigene Gruppe, die denselben Gegner anfällt, stellt sich
+nicht mehr in die erste hinein, sondern an das nächste freie Stück des
+Umrisses (vorher standen bis zu drei Haufen deckungsgleich auf einem
+Linienende und schlugen dreifach zu); und Angreifer werden dort gefasst,
+wo ihre Männer stehen, nicht an ihrem Rechteck.
+
+Vier Seeds je Zeile, kluge KI, Truppe standard; „alt“ ist der Stand vor
+der Regel, mit denselben Seeds.
+
+| Szenario | Taktik | Siege alt → neu | Verlust Stadt alt → neu | Verlust Feind alt → neu | Häuser verloren alt → neu | Dauer neu |
+|---|---|---|---|---|---|---|
+| offen | linie | 0/4 → 0/4 | 43% → 42% | 18% → 10% | 8.0 → 8.0 | 37 s |
+| offen | linie_reiter | 4/4 → 0/4 | 34% → 42% | 35% → 28% | 0.0 → 4.0 | 34 s |
+| offen | linie_aktiv | 4/4 → 0/4 | 25% → 37% | 42% → 31% | 0.0 → 0.0 | 27 s |
+| offen | linie_tief | 4/4 → 4/4 | 20% → 17% | 44% → 38% | 0.0 → 0.2 | 45 s |
+| offen | passiv | 0/4 → 0/4 | 32% → 25% | 17% → 13% | 0.0 → 0.0 | 18 s |
+| offen | angriff | 4/4 → 4/4 | 28% → 34% | 64% → 56% | 4.0 → 4.0 | 32 s |
+| palisade | tor_halten | 1/4 → 1/4 | 20% → 22% | 31% → 23% | 6.0 → 6.0 | 73 s |
+| palisade | tor_reserve | 1/4 → 1/4 | 30% → 24% | 42% → 29% | 2.8 → 4.2 | 74 s |
+| palisade | tor_leiter | 4/4 → 3/4 | 13% → 19% | 54% → 39% | 0.0 → 0.0 | 79 s |
+| palisade | passiv | 0/4 → 0/4 | 17% → 27% | 20% → 42% | 8.0 → 8.0 | 85 s |
+| horde | vorruecken | 4/4 → 4/4 | 39% → 19% | 50% → 42% | 0.0 → 0.0 | 53 s |
+| horde | angriff | 4/4 → 4/4 | 45% → 27% | 85% → 53% | 0.0 → 0.0 | 33 s |
+| angriff_offen | phalanxstoss | 4/4 → 4/4 | 25% → 14% | 41% → 16% | 0.0 → 0.0 | 107 s |
+| angriff_offen | vorruecken | 0/4 → 0/4 | 59% → 51% | 6% → 1% | 0.0 → 0.0 | 90 s |
+| angriff_offen | angriff | 0/4 → 2/4 | 41% → 35% | 6% → 20% | 0.0 → 0.0 | 62 s |
+| angriff_wall | tor_phalanx | 0/4 → 0/4 | 50% → 48% | 24% → 15% | 0.0 → 0.0 | 140 s |
+| angriff_wall | belagerung | 0/4 → 0/4 | 65% → 14% | 0% → 0% | 0.0 → 0.0 | 300 s |
+
+Lehre: Die Regel trifft genau eine Aufstellung, die vorher gewann: die
+lange Linie in **einem** Glied (`linie_aktiv`, `linie_reiter`: vierzig
+Hopliten über fünf Kacheln). Sie wird an beiden Enden umfasst, ein
+Haufen legt sich als C um das Ende, der nächste daneben in den Rücken,
+und die Speere in der Mitte der Linie erreichen niemanden mehr. Die
+kurze Linie mit zwei bis drei Gliedern (`linie_tief`) gewinnt weiter
+und verliert dabei weniger als zuvor; vorn bleibt die Phalanx mit
+Speerwand und Schilden etwa vier zu eins überlegen, und die Stöße der
+Reiter, das Plänkeln und die Belagerungen ändern sich kaum. Die beiden
+Schlacht-Tests wurden entsprechend angepasst: die offene Siedlung hält
+mit einer tiefen Linie (Reiter gegen Umfassende), verfolgt erst, wenn
+die Hälfte der Räuber gefallen oder geflohen ist; hinter der Palisade
+steht die Phalanx in zwei Gliedern hinter dem Tor.
+
 ## Lauf 8 (30. September 2026): Umgehen und in den Rücken fallen
 
 Neuer Plan neben „Binden und Umfassen“: Die Umfassenden laufen ganz herum
