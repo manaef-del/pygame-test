@@ -1419,3 +1419,25 @@ def test_attackers_wrap_around_the_end_of_a_line():
     near = [m for m in raider.all_men() if hop.rect_distance(m.pos) <= config.ASSAULT_GAP + config.ROW_SPACING + 0.1]
     assert len(near) >= 0.8 * raider.men                                   # (fast) alle sind am Feind
     assert all(hop.rect_distance(m.pos) > 0.0 for m in raider.all_men())   # aber keiner steckt in der Formation
+
+
+def test_charging_hoplites_keep_their_rows_instead_of_encircling():
+    """Stürmende Hopliten fließen nicht um einen kleineren Haufen herum."""
+    b = Battle(raid(16, (8.0, 6.0)), random.Random(0), army=army_of(GroupSpec("Hopliten", [Tier("schwer", 20), Tier("mittel", 20)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    b.alarm = False
+    hop = b.units(Side.STADT)[0]
+    raider = b.units(Side.FEIND)[0]
+    raider.stance, raider.target = Stance.HALTEN, None
+    b.command_line([hop], (5.0, 9.0), (11.0, 9.0))
+    run(b, 5)
+    b.command_attack([hop])
+    for _ in range(int(12 / DT)):
+        b.update(DT)
+        if hop.engaged:
+            break
+    run(b, 4)
+    assert hop.engaged and b._assault_slots(hop) is None
+    assert hop.on_slots(0.3, 0.8)                                          # die Reihen stehen noch
+    assert {raider.arc_to(m.pos) for m in hop.all_men()} != {"front", "flank", "rear"}

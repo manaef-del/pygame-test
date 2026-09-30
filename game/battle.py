@@ -1441,6 +1441,8 @@ class Battle:
         Linie. So kommen alle an den Feind, statt hinten im Rechteck zu warten."""
         if u.stance is not Stance.ANGRIFF or u.loose or not u.contacts or self.on_wall(u) or u.formation == "keil":
             return None
+        if u.share(lambda m: m.kind.hoplite) >= 0.5 or u.mounted_men():
+            return None                                   # Hopliten und Reiter halten ihre Reihen, auch im Sturm
         foe = self.by_id(u.target_id) if u.target_id in u.contacts else self.by_id(u.contacts[0])
         if foe is None or not foe.alive or foe.loose or self.on_wall(foe):
             return None
