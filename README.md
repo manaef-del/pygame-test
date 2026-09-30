@@ -34,9 +34,13 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Formation, um das nächstgelegene Stück herum, und zwar nur dort, wo
   wirklich feindliche Männer stehen, nicht am leeren Teil des Rechtecks. Wer das Ende einer Linie
   angreift, zieht sich wie ein C darum und greift sie auch von vorn und
-  hinten an, statt starr daneben zu stehen. Hopliten und Reiter tun das
-  nicht: Sie halten ihre Reihen auch im Sturm, damit die Phalanx nicht um
-  einen kleineren Haufen herumfließt und zerfällt. Fällt ein Mann der
+  hinten an, statt starr daneben zu stehen. Reiter tun das nicht, und
+  Hopliten bleiben ein Block: Stürmen sie einen schmaleren Gegner,
+  klappen nur die überstehenden Flügel an dessen Ecken ein, bis an seine
+  Flanken und nie in seinen Rücken, die Mitte bleibt gerade, und die
+  Reihe schließt neben der Ecke auf. Steht ein weiterer Feind näher als
+  drei Kacheln, klappt nichts ein, damit niemand ihm den Rücken zukehrt.
+  Fällt ein Mann der
   ersten Reihe, rückt sofort einer aus der Reihe dahinter in die Lücke;
   die Front bleibt voll, die letzte Reihe schrumpft.
 - **Jeder Mann zählt einzeln.** Er hat eigene Trefferpunkte (verwundete

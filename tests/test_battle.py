@@ -1421,28 +1421,6 @@ def test_attackers_wrap_around_the_end_of_a_line():
     assert all(hop.rect_distance(m.pos) > 0.0 for m in raider.all_men())   # aber keiner steckt in der Formation
 
 
-def test_charging_hoplites_keep_their_rows_instead_of_encircling():
-    """Stürmende Hopliten fließen nicht um einen kleineren Haufen herum."""
-    b = Battle(raid(16, (8.0, 6.0)), random.Random(0), army=army_of(GroupSpec("Hopliten", [Tier("schwer", 20), Tier("mittel", 20)])), ai="einfach")
-    b._ai_raiders = lambda: None
-    b._volleys = lambda dt: None
-    b.alarm = False
-    hop = b.units(Side.STADT)[0]
-    raider = b.units(Side.FEIND)[0]
-    raider.stance, raider.target = Stance.HALTEN, None
-    b.command_line([hop], (5.0, 9.0), (11.0, 9.0))
-    run(b, 5)
-    b.command_attack([hop])
-    for _ in range(int(12 / DT)):
-        b.update(DT)
-        if hop.engaged:
-            break
-    run(b, 4)
-    assert hop.engaged and b._assault_slots(hop) is None
-    assert hop.on_slots(0.3, 0.8)                                          # die Reihen stehen noch
-    assert {raider.arc_to(m.pos) for m in hop.all_men()} != {"front", "flank", "rear"}
-
-
 def test_attackers_line_up_at_the_enemy_men_not_at_an_empty_rectangle():
     """Stehen die Männer des Gegners nur in einem Teil seines Rechtecks, reihen sich
     die Angreifer an den Männern auf, nicht am leeren Rest."""
@@ -1470,3 +1448,48 @@ def test_attackers_line_up_at_the_enemy_men_not_at_an_empty_rectangle():
     for _, p in slots:
         assert min(dist_of_pt(p, m.pos) for m in hop.all_men()) <= 0.6, p    # jeder Platz liegt bei einem Mann (zweite Reihe dahinter)
     assert all(p[0] < 8.6 for _, p in slots)                                  # keiner am leeren Ostteil des Rechtecks
+
+
+def wing_setup(second_horde: bool):
+    spawns = [(8.0, 6.0)] + ([(11.6, 6.4)] if second_horde else [])
+    b = Battle(raid(16 * len(spawns), *spawns), random.Random(0),
+               army=army_of(GroupSpec("Hopliten", [Tier("schwer", 20), Tier("mittel", 20)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    b.alarm = False
+    hop = b.units(Side.STADT)[0]
+    raiders = b.units(Side.FEIND)
+    for r in raiders:
+        r.stance, r.target = Stance.HALTEN, None
+    b.command_line([hop], (5.0, 9.0), (11.0, 9.0))
+    run(b, 5)
+    b.command_attack([hop])
+    for _ in range(int(12 / DT)):
+        b.update(DT)
+        if hop.engaged:
+            break
+    run(b, 4)
+    assert hop.engaged
+    return b, hop, raiders[0]
+
+
+def test_charging_hoplites_fold_their_wings_around_a_smaller_group():
+    b, hop, raider = wing_setup(second_horde=False)
+    local = [raider.local(m.pos) for m in hop.all_men()]
+    beside = [(al, fw) for al, fw in local if abs(al) > raider.half_w and fw < raider.half_d - 0.05]
+    assert len(beside) >= 4                                                 # die Flügel sind eingeklappt, an den Flanken
+    assert all(fw >= -raider.half_d - 0.05 for _, fw in local)              # aber nie in den Rücken
+    slots = dict((id(m), p) for m, p in hop.slots())
+    centre = [m for m in hop.rows[0] if dist_of_pt(m.pos, slots[id(m)]) < 0.1]
+    assert len(centre) >= 6                                                 # die Mitte steht in der Reihe
+    assert all(raider.rect_distance(m.pos) > 0.0 for m in hop.all_men())
+    front = sorted(m.x for m in hop.rows[0] if raider.local(m.pos)[1] >= raider.half_d)
+    gaps = [b_ - a_ for a_, b_ in zip(front, front[1:])]
+    assert max(gaps) < 2 * config.MAN_SPACING + 0.05                        # keine Lücke in der Reihe
+
+
+def test_wings_stay_in_line_when_another_horde_is_near():
+    b, hop, raider = wing_setup(second_horde=True)
+    assert b._assault_slots(hop) is None
+    assert all(raider.local(m.pos)[1] >= raider.half_d - 0.05 for m in hop.all_men())   # alle bleiben vor dem Gegner
+    assert hop.on_slots(0.3, 0.8)

@@ -1441,8 +1441,9 @@ class Battle:
         Linie. So kommen alle an den Feind, statt hinten im Rechteck zu warten."""
         if u.stance is not Stance.ANGRIFF or u.loose or not u.contacts or self.on_wall(u) or u.formation == "keil":
             return None
-        if u.share(lambda m: m.kind.hoplite) >= 0.5 or u.mounted_men():
-            return None                                   # Hopliten und Reiter halten ihre Reihen, auch im Sturm
+        if u.mounted_men():
+            return None                                   # Reiter halten ihre Reihen, auch im Sturm
+        hoplites = u.share(lambda m: m.kind.hoplite) >= 0.5   # Hopliten bleiben ein Block, nur die Flügel klappen ein
         foe = self.by_id(u.target_id) if u.target_id in u.contacts else self.by_id(u.contacts[0])
         if foe is None or not foe.alive or foe.loose or self.on_wall(foe):
             return None
@@ -1518,6 +1519,8 @@ class Battle:
             runs[0] = runs.pop() + [o + perimeter for o in runs[0]]     # über den Umlaufanfang hinweg zusammenhängend
         run_near = min(runs, key=lambda r: min(abs(o) for o in r))
         run_near.sort(key=abs)                                # vom nächsten Punkt aus nach außen
+        if hoplites:
+            return self._wing_slots(u, foe, param, offset_of, point, lengths, perimeter, run_near)
         out: list[tuple[Man, Point]] = []
         for k, row in enumerate(u.rows):                      # Reihe für Reihe: die vordere innen, jede behält ihre Nachbarn
             layer = sorted(row, key=offset)
@@ -1532,6 +1535,69 @@ class Battle:
                 cols = min(per_rank, n - rank * per_rank)
                 tt = t0 + offs[0] + span / 2 + (col - (cols - 1) / 2) * config.MAN_SPACING
                 out.append((m, point(tt, outward + rank * len(u.rows) * config.ROW_SPACING)))
+        return out
+
+    def _wing_slots(self, u: Lochos, foe: Lochos, param, offset_of, point, lengths, perimeter,
+                    manned: list[float]) -> list[tuple[Man, Point]] | None:
+        """Stürmende Hopliten gegen einen schmaleren Gegner: Der Block bleibt, nur
+        die überstehenden Flügel klappen an den Ecken des Gegners bis an seine
+        Flanken ein, nie in seinen Rücken, und nur wenn kein anderer Feind in der
+        Nähe steht, dem die eingeklappten Männer den Rücken zukehren würden."""
+        others = [e for e in self.lochoi if e.side is not u.side and e is not foe and e.fighting
+                  and dist(e.pos, u.pos) <= e.radius + u.radius + config.WING_SAFE]
+        if others:
+            return None
+        rect_slots = u.slots()
+        # die Kante des Gegners, an der der Block anliegt, und ihre Ecken (Umlaufparameter)
+        t0 = param(u.pos) % perimeter
+        start, edge, edge_len = 0.0, 0, lengths[0]
+        for i, ln in enumerate(lengths):
+            if t0 <= start + ln:
+                edge, edge_len = i, ln
+                break
+            start += ln
+        corner_a, corner_b = start, start + edge_len          # in Umlaufrichtung: erst a, dann b
+        side_before, side_after = lengths[(edge - 1) % 4], lengths[(edge + 1) % 4]
+        manned_set = {round(o, 3) for o in manned}
+
+        def is_manned(t: float) -> bool:
+            o = offset_of(t)
+            return any(abs(o - m) <= config.MAN_SPACING for m in manned_set)
+
+        pa, pb = point(corner_a, 0.0), point(corner_b, 0.0)
+        edge_dir = norm(sub(pb, pa))                          # Richtung der Kante, von Ecke a nach Ecke b
+        out: list[tuple[Man, Point]] = []
+        for k, row in enumerate(u.rows):
+            row_slots = [(m, next(p for mm, p in rect_slots if mm is m)) for m in row]
+            # die Reihe bleibt auf ihrem Abstand zum Gegner; die Flügel klappen auf demselben Abstand ein
+            outward = min((foe.rect_distance(p) for _, p in row_slots), default=config.ASSAULT_GAP)
+            outward = max(config.ASSAULT_GAP, outward)
+            beyond_a: list[tuple[float, Man]] = []
+            beyond_b: list[tuple[float, Man]] = []
+            for m, slot in row_slots:
+                t = param(slot) % perimeter
+                if corner_a + 0.05 <= t <= corner_b - 0.05:
+                    out.append((m, slot))                     # steht dem Gegner gegenüber: bleibt in der Reihe
+                else:
+                    o = offset_of(t)
+                    (beyond_a if o < 0 else beyond_b).append((dist(slot, pa if o < 0 else pb), m))
+            for corner, wing, side_len, direction, sign in ((corner_a, beyond_a, side_before, -1.0, -1.0),
+                                                              (corner_b, beyond_b, side_after, 1.0, 1.0)):
+                wing.sort(key=lambda x: x[0])                 # die der Ecke nächsten klappen zuerst ein
+                folded = 0
+                standing: list[Man] = []
+                for _, m in wing:
+                    along_side = (folded + 1) * config.MAN_SPACING
+                    t = corner + direction * along_side
+                    if along_side <= side_len - config.MAN_SPACING and is_manned(t):   # bis vor die hintere Ecke
+                        out.append((m, point(t, outward)))
+                        folded += 1
+                    else:
+                        standing.append(m)
+                base = point(corner, outward)
+                for i, m in enumerate(standing):              # Flanke voll: schließt in der Reihe zur Ecke auf, keine Lücke
+                    out.append((m, (base[0] + edge_dir[0] * sign * (i + 1) * config.MAN_SPACING,
+                                    base[1] + edge_dir[1] * sign * (i + 1) * config.MAN_SPACING)))
         return out
 
     def _man_step(self, u: Lochos, man: Man, goal: Point, step: float, walker: bool, slide: bool = True,
