@@ -97,6 +97,12 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   eigene Gruppen mit eigener Kachel. Alle Teile bleiben gewählt. Sind
   mehrere Gruppen gewählt, vereint „Vereinen“ (V) sie wieder zu einer
   Linie an ihrem gemeinsamen Schwerpunkt.
+- **Schwung der Reiter:** Berittene fahren an (in gut einer Sekunde auf
+  vollen Galopp), bremsen vor dem Ziel ab und wenden im Galopp in Bögen,
+  deren Halbmesser mit dem Tempo wächst; im Stand drehen sie frei. Ohne
+  Ziel rollen sie aus statt stehen zu bleiben. Beim Aufprall trägt der
+  Schwung sie bis zu knapp eine Kachel in die feindliche Formation
+  hinein, erst dort kommen sie zum Stehen.
 - **Sturmangriff der Reiter:** Berittene, die mit mindestens zwei Kacheln
   Anlauf auf eine Gruppe treffen, prallen auf: Die vordersten Männer
   werden weggestoßen (leichte weiter als schwere, das Gewicht sind ihre

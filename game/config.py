@@ -72,6 +72,11 @@ CHARGE_IMPALE = 0.35         # Schaden je Speer der vorderen Reihe, wenn Reiter 
 CHARGE_IMPALE_CAP = 0.6      # höchstens so viel je Reiter
 CHARGE_FOOT = 0.4            # Fußvolk stößt mit diesem Anteil der Wirkung
 CHARGE_WEDGE = 1.8           # Keil: halb so viele Getroffene, dafür so viel härter
+CAVALRY_ACCEL = 2.5          # Kacheln/s²: Reiter fahren an
+CAVALRY_BRAKE = 4.0          # Kacheln/s²: Reiter bremsen vor dem Ziel
+CAVALRY_TURN_RATE = 6.0      # rad/s im Schritt; geteilt durch das Tempo darüber (Bogen wächst mit dem Tempo)
+CHARGE_BRAKE = 6.0           # Kacheln/s²: der Feind bremst die Reiter beim Eindringen
+CHARGE_PENETRATION = 0.8     # Kacheln: so weit tragen die Reiter höchstens in den Feind hinein
 CHARGE_SLOW = 0.4            # Geschwindigkeit der Reiter nach dem Aufprall
 CHARGE_SLOW_TIME = 2.5       # Sekunden
 

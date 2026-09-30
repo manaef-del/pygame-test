@@ -170,6 +170,9 @@ class Lochos:
     contacts: list[int] = field(default_factory=list)   # Gegner, mit denen gekämpft wird (ids)
     disengage_until: float = -1.0     # bis dahin gilt die Gruppe als vom Feind gelöst (verwundbar)
     runup: float = 0.0                # Reiter: Anlauf seit dem letzten Halt oder Kontakt (Kacheln)
+    vel: float = 0.0                  # Reiter: augenblickliches Tempo (Kacheln/s), Schwung
+    heading: tuple[float, float] = (0.0, -1.0)   # Reiter: Fahrtrichtung
+    ride_in: float = 0.0              # Reiter: wie weit sie in den Feind hineingetragen wurden
     charge_slow_until: float = -1.0   # nach dem Aufprall: bis dahin langsam
     last_arc: str = ""
     men_start: int = 0

@@ -1133,8 +1133,12 @@ def test_cavalry_free_attack_charges_the_flank_and_pulls_back():
         if pulled and "flank" in arcs | {"rear"}:
             break
     assert "flank" in arcs or "rear" in arcs                              # nicht in die Front
+    # nach dem Stoß: von einer stehenden Phalanx abgesetzt, sonst steckt der Stoß in der
+    # aufgebrochenen Formation und die Reiter bleiben im Handgemenge
     assert pulled                                                          # nach dem Stoß abgesetzt
     assert cav.men >= 12                                                   # nicht in den Speeren geblieben
+    run(b, 4)
+    assert b._gap(cav, foe) > 1.5                                          # und wirklich weggeritten
 
 
 def test_foot_charge_pushes_but_never_a_phalanx_front():
@@ -1233,7 +1237,7 @@ def test_mixed_group_splits_by_arm_on_free_attack_and_merges_back():
         for m in p.all_men():
             assert m.pos == before[id(m)]                                    # niemand springt
     start = {n: p.y for n, p in by.items()}
-    run(b, 1)
+    run(b, 2)                                                                # die Reiter müssen erst anfahren
     moved = {n: start[n] - p.y for n, p in by.items()}
     assert moved["Reiter"] > moved["Peltasten"] > moved["Hopliten"] > 0     # jede in ihrem Tempo nach vorn
     merged = b.command_merge(parts)
@@ -1241,3 +1245,55 @@ def test_mixed_group_splits_by_arm_on_free_attack_and_merges_back():
     assert merged.name == "Gemischt" and merged.stance is Stance.HALTEN
     assert b.fallen(Side.STADT) == 0
     assert b.command_merge([merged]) is None
+
+
+# ------------------------------------------------------------ Schwung der Reiter
+def open_field_cavalry():
+    b = Battle(raid(16, (8.0, 1.0)), random.Random(0), army=army_of(GroupSpec("R", [Tier("reiter", 12)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    cav = b.units(Side.STADT)[0]
+    cav.x, cav.y = 8.0, 14.0
+    cav.place_men()
+    return b, cav
+
+
+def test_cavalry_accelerates_turns_in_an_arc_and_brakes():
+    b, cav = open_field_cavalry()
+    b.command_move([cav], (8.0, 6.0))
+    run(b, 0.2)
+    assert 0.0 < cav.vel < cav.speed and 14.0 - cav.y < cav.speed * 0.2      # fährt an statt sofort zu galoppieren
+    run(b, 1.3)
+    assert abs(cav.vel - cav.speed) < 1e-6 and cav.heading == (0.0, -1.0)
+    y_turn, x_turn = cav.y, cav.x
+    b.command_move([cav], (14.0, y_turn))                                    # im Galopp nach Osten
+    run(b, 0.3)
+    assert cav.y < y_turn - 0.3 and cav.x > x_turn + 0.2                     # Bogen: noch nach Norden, schon nach Osten
+    assert cav.vel > 2.0                                                     # ohne anzuhalten
+    run(b, 4.0)
+    assert dist_of_pt(cav.pos, (14.0, y_turn)) < 0.3 and cav.vel == 0.0
+    b.command_move([cav], (cav.x, cav.y - 3.0))
+    speeds = []
+    for _ in range(int(4 / DT)):
+        b.update(DT)
+        speeds.append(cav.vel)
+        if cav.target is None:
+            break
+    drops = [a - c for a, c in zip(speeds, speeds[1:])]
+    assert max(drops[:-1]) <= config.CAVALRY_BRAKE * DT + 1e-6               # kein Stopp aus vollem Galopp
+    assert drops[-1] < 1.2                                                   # der letzte Schritt ist nur noch ein Rest (Schrittgeschwindigkeit)
+    assert any(0.5 < v < 2.5 for v in speeds[-20:])                          # es wird ausgerollt
+
+
+def test_charging_cavalry_rides_into_the_enemy_before_it_stops():
+    b, cav, foe = charge_setup("raeuber")
+    x_contact = None
+    for _ in range(int(8 / DT)):
+        b.update(DT)
+        if cav.engaged and x_contact is None:
+            x_contact = cav.x
+        if x_contact is not None and cav.vel == 0.0:
+            break
+    assert x_contact is not None
+    assert x_contact - cav.x > 0.3 and cav.ride_in > 0.3                     # weiter nach Westen in den Feind hinein
+    assert cav.ride_in <= config.CHARGE_PENETRATION + 1e-6

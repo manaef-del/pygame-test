@@ -1032,8 +1032,8 @@ class Battle:
             u.target = None
             return
         u.target_id = foe.id
-        if u.engaged and self._formed(foe) and u.charge_slow_until > self.time - 0.5:
-            # gerade aufgeprallt: lösen und Anlauf nehmen
+        if u.engaged and u.charge_slow_until > self.time - 0.5 and foe.stance is not Stance.FLUCHT and not foe.loose:
+            # gerade aufgeprallt: lösen und neuen Anlauf nehmen, statt im Handgemenge zu bleiben
             away = norm(sub(u.pos, foe.pos))
             u.target = self._free_spot((u.x + away[0] * config.HITRUN_DISTANCE, u.y + away[1] * config.HITRUN_DISTANCE), u)
             u.hitrun_until = self.time + config.HITRUN_TIME
@@ -1053,6 +1053,8 @@ class Battle:
                 self._update_loose(u)
                 self._try_remount(u)
             if not u.alive or u.target is None or u.in_phalanx or u.building is not None:
+                if u.alive and u.vel > 0.0:
+                    self._coast(u, dt)                  # Reiter laufen aus statt auf der Stelle zu stehen
                 continue
             speed = u.speed * (1.25 if u.stance is Stance.FLUCHT else 1.0)
             if u.engaged and u.stance is not Stance.FLUCHT:
@@ -1066,8 +1068,17 @@ class Battle:
             stop_at = 0.0
             if u.stance is Stance.ANGRIFF and final:
                 target = self.by_id(u.target_id) if u.target_id is not None else None
-                if target is not None and self._gap(u, target) <= config.ENGAGE_RANGE * 0.8:
+                withdrawing = u.hitrun_until > self.time                 # Reiter setzen ab: nicht am Feind kleben
+                if target is not None and not withdrawing and self._gap(u, target) <= config.ENGAGE_RANGE * 0.8:
+                    if self._rides(u) and u.vel > 0.05 and u.ride_in < config.CHARGE_PENETRATION:
+                        u.vel = max(0.0, u.vel - config.CHARGE_BRAKE * dt)   # der Schwung trägt in den Feind hinein
+                        step = u.vel * dt
+                        self._step(u, scale(u.heading, step))
+                        u.ride_in += step
+                    else:
+                        u.vel = 0.0
                     continue
+                u.ride_in = 0.0
                 stop_at = 0.0 if target is not None else config.ENGAGE_RANGE
             if u.stance is Stance.FLUCHT and u.loose and not any(self.inside(m.x, m.y) for m in u.all_men()):
                 u.withdrawn = True            # die Männer sind schon vom Feld
@@ -1075,6 +1086,7 @@ class Battle:
             if u.loose and self._lost_touch(u):
                 continue                      # das Zentrum ist zu seinen Männern gesprungen
             if d <= max(config.ARRIVE_EPS, stop_at):
+                u.vel = 0.0
                 if u.stance is Stance.PHALANX and final and d <= config.ARRIVE_EPS + 0.02:
                     u.x, u.y = u.target
                     u.in_line = u.on_slots(config.SLOT_TOLERANCE, config.SLOT_SHARE) and all(
@@ -1085,12 +1097,16 @@ class Battle:
                 continue
             if u.loose and u.stance is not Stance.FLUCHT and self._stragglers(u, u.target):
                 continue                      # die Gruppe wartet auf die Männer, die noch klettern
-            step = min(speed * dt, d)
-            direction = norm(sub(goal, u.pos))
-            if u.stance is not Stance.PHALANX:
-                u.facing = direction
             before = u.pos
-            self._step(u, scale(direction, step))
+            if self._rides(u):
+                self._ride(u, dt, goal, speed, d)
+            else:
+                u.vel = 0.0
+                step = min(speed * dt, d)
+                direction = norm(sub(goal, u.pos))
+                if u.stance is not Stance.PHALANX:
+                    u.facing = direction
+                self._step(u, scale(direction, step))
             if u.stance is Stance.ANGRIFF and not u.engaged:
                 u.runup += dist(before, u.pos)          # Anlauf für den Sturmangriff
             else:
@@ -1098,6 +1114,46 @@ class Battle:
             if u.stance is Stance.FLUCHT and not self.inside(u.x, u.y):
                 u.withdrawn = True
         self._move_men(dt)
+
+    def _rides(self, u: Lochos) -> bool:
+        """Beritten und im Gelände unterwegs: Bewegung mit Schwung."""
+        return bool(u.mounted_men()) and not u.loose and not self.on_wall(u) and u.engine is None
+
+    def _ride(self, u: Lochos, dt: float, goal: Point, top: float, d: float) -> None:
+        """Reiter haben Schwung: Sie fahren an, bremsen vor dem Ziel ab und wenden in
+        Bögen, deren Halbmesser mit dem Tempo wächst; im Stand drehen sie frei."""
+        want = norm(sub(goal, u.pos))
+        ang = 0.0
+        if u.vel <= 0.05 or u.heading == (0.0, 0.0):
+            head = want
+        else:
+            head = u.heading
+            ang = math.atan2(head[0] * want[1] - head[1] * want[0], head[0] * want[0] + head[1] * want[1])
+            omega = config.CAVALRY_TURN_RATE / max(1.0, u.vel)
+            ang = max(-omega * dt, min(omega * dt, ang))
+            c, s_ = math.cos(ang), math.sin(ang)
+            head = (head[0] * c - head[1] * s_, head[0] * s_ + head[1] * c)
+        want_v = min(top, math.sqrt(2.0 * config.CAVALRY_BRAKE * d), 3.0 * d + 0.05)   # Bremsweg, zuletzt weich auslaufen
+        if u.vel < want_v:
+            u.vel = min(want_v, u.vel + config.CAVALRY_ACCEL * dt)
+        else:
+            u.vel = max(want_v, u.vel - config.CAVALRY_BRAKE * dt)
+        u.heading = head
+        if u.stance is not Stance.PHALANX:
+            u.facing = head
+        step = u.vel * dt
+        if abs(ang) < 1e-3 and dist(head, want) < 1e-3:
+            step = min(step, d)
+        self._step(u, scale(head, step))
+
+    def _coast(self, u: Lochos, dt: float) -> None:
+        """Ohne Ziel: Reiter bremsen ab und rollen dabei noch aus."""
+        if not self._rides(u):
+            u.vel = 0.0
+            return
+        u.vel = max(0.0, u.vel - config.CAVALRY_BRAKE * dt)
+        if u.vel > 0.0:
+            self._step(u, scale(u.heading, u.vel * dt))
 
     def _lost_touch(self, u: Lochos) -> bool:
         """Aufgelöste Formation: Hat das Zentrum keinen Mann mehr in der Nähe, springt
