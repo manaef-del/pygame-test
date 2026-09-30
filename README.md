@@ -28,12 +28,15 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   aber weiter auf, bis nur noch ein Spalt bleibt. Wer im Handgemenge
   steht, kommt erst mit gut einer Kachel Abstand wieder los, das Lösen
   dauert also.
-- **Gerangel in der ersten Reihe.** Wer in der ersten Reihe (im Kreis:
-  überall) einen Gegner in Reichweite hat, schiebt sich bis auf
-  Schildweite an ihn heran statt auf seinem Platz stehen zu bleiben,
-  aber nie weiter, als sein Platz im Handgemenge erlaubt. Fällt ein Mann
-  der ersten Reihe, rückt sofort einer aus der Reihe dahinter in die
-  Lücke; die Front bleibt voll, die letzte Reihe schrumpft.
+- **Angreifer legen sich um den Gegner.** Eine Gruppe im freien Angriff
+  behält im Handgemenge nicht ihr Rechteck: Ihre Männer verteilen sich
+  Reihe für Reihe dicht am Umriss der feindlichen Formation, um das
+  nächstgelegene Stück herum. Wer das Ende einer Linie angreift, zieht
+  sich wie ein C darum und greift sie auch von vorn und hinten an, statt
+  starr daneben zu stehen. Eine haltende Phalanx tut das nicht, sie hält
+  ihre Front. Fällt ein Mann der ersten Reihe, rückt sofort einer aus der
+  Reihe dahinter in die Lücke; die Front bleibt voll, die letzte Reihe
+  schrumpft.
 - **Jeder Mann zählt einzeln.** Er hat eigene Trefferpunkte (verwundete
   Punkte sind dunkler) und eine eigene Position: Er läuft zu seinem
   Platz in der Formation, weicht aber selbst aus, durchs Tor nur durch

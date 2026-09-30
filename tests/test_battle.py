@@ -1393,14 +1393,29 @@ def test_second_row_steps_into_gaps_of_the_first():
     assert u.men == 14
 
 
-def test_front_row_men_close_to_shield_contact():
-    b, hop, pelt, raider = melee_pair()
-    run(b, 3)
-    front = hop.rows[0]
-    enemy_men = raider.all_men()
-    bound_front = [m for m in front if m.bound]
-    facing_someone = [m for m in bound_front if min(dist_of_pt(m.pos, n.pos) for n in enemy_men) <= config.MAN_BIND_REACH]
-    assert len(facing_someone) >= 6                           # der Räuberhaufen ist schmaler als die Linie
-    close = [m for m in facing_someone if min(dist_of_pt(m.pos, n.pos) for n in enemy_men) <= 0.3]
-    assert len(close) >= 0.7 * len(facing_someone)            # das Gerangel: Schild an Schild
-    assert all(dist_of_pt(m.pos, m.stand) <= config.BOUND_SHUFFLE + 1e-6 for m in bound_front if m.stand)
+def test_attackers_wrap_around_the_end_of_a_line():
+    """Räuber greifen das Ostende einer Hoplitenlinie von der Flanke an: ihre Männer
+    legen sich wie ein C um das Ende, vorn, seitlich und hinten."""
+    scn = raid(16, (13.0, 9.0))
+    army = army_of(GroupSpec("Hopliten", [Tier("schwer", 14), Tier("mittel", 14)]))
+    b = Battle(scn, random.Random(0), army=army, ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    b.alarm = False
+    hop = b.units(Side.STADT)[0]
+    raider = b.units(Side.FEIND)[0]
+    b.command_line([hop], (5.0, 9.0), (11.0, 9.0))
+    run(b, 6)
+    assert hop.in_phalanx
+    raider.x, raider.y, raider.facing = 13.0, 9.0, (-1.0, 0.0)
+    raider.place_men()
+    raider.stance = Stance.ANGRIFF
+    raider.target_id = hop.id
+    raider.target = hop.pos
+    run(b, 8)
+    assert raider.engaged
+    arcs = {hop.arc_to(m.pos) for m in raider.all_men()}
+    assert {"front", "flank", "rear"} <= arcs, arcs                       # das C um das Linienende
+    near = [m for m in raider.all_men() if hop.rect_distance(m.pos) <= config.ASSAULT_GAP + config.ROW_SPACING + 0.1]
+    assert len(near) >= 0.8 * raider.men                                   # (fast) alle sind am Feind
+    assert all(hop.rect_distance(m.pos) > 0.0 for m in raider.all_men())   # aber keiner steckt in der Formation

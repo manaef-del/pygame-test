@@ -1373,16 +1373,14 @@ class Battle:
                     speed = max(u.speed, man.speed) * config.MAN_CATCHUP
                     self._man_step(u, man, goal, speed * dt, walker)
                 continue
-            seeking = self._contact_goals(u)
-            for man, slot in u.slots():
+            assault = self._assault_slots(u)
+            for man, slot in (assault if assault is not None else u.slots()):
                 d = dist(man.pos, slot)
-                if man.bound:
-                    goal = seeking.get(id(man))
-                    if goal is not None:              # erste Reihe: Schild an Schild an den Gegner heran
-                        self._man_step(u, man, goal, max(u.speed, man.speed) * config.CONTACT_SEEK * dt, walker, through=True)
-                        continue
-                    if dist(slot, man.stand or man.pos) > config.BOUND_SHUFFLE:
-                        continue                      # steht im Handgemenge fest, rückt höchstens etwas nach
+                if assault is not None:               # um den Gegner herum: dicht an seinen Umriss, nie hinein
+                    self._man_step(u, man, slot, max(u.speed, man.speed) * config.MAN_CATCHUP * dt, walker, through=True)
+                    continue
+                if man.bound and dist(slot, man.stand or man.pos) > config.BOUND_SHUFFLE:
+                    continue                          # steht im Handgemenge fest, rückt höchstens etwas nach
                 if d <= 0.02:
                     if self._man_can_step(u, man, man.pos, slot, walker):
                         man.x, man.y = slot
@@ -1436,35 +1434,69 @@ class Battle:
         side = 1.0 if man.y > cell[1] + 0.5 else -1.0
         return (cell[0] + 0.5 + ((i % 6) - 2.5) * 0.14, cell[1] + 0.5 + side * (0.75 + (i // 6) * 0.15))
 
-    def _contact_goals(self, u: Lochos) -> dict[int, Point]:
-        """Gebundene Männer der ersten Reihe (im Kreis alle) schieben sich bis auf
-        Schildweite an den nächsten feindlichen Mann heran, aber nie weiter als
-        ihr Platz im Handgemenge erlaubt."""
-        if u.loose or not any(m.bound for m in u.all_men()):
-            return {}
-        up = self.on_wall(u)
-        foes = [e for e in self.lochoi if e.side is not u.side and e.fighting and self.on_wall(e) == up
-                and dist(e.pos, u.pos) <= e.radius + u.radius + config.MAN_BIND_REACH + 0.5]
-        enemy_men = [(m, e) for e in foes for m in e.all_men()]
-        if not enemy_men:
-            return {}
-        front = u.rows[0] if u.formation == "linie" and u.rows else u.all_men()
-        out: dict[int, Point] = {}
-        for man in front:
-            if not man.bound:
-                continue
-            best, group = min(enemy_men, key=lambda pair: (pair[0].x - man.x) ** 2 + (pair[0].y - man.y) ** 2)
-            d = dist(man.pos, best.pos)
-            if d <= config.CONTACT_REACH + 0.02 or d > config.MAN_BIND_REACH:
-                continue
-            # bis auf Schildweite heran, aber nie in die feindliche Formation hinein
-            advance = min(d - config.CONTACT_REACH, max(0.0, group.rect_distance(man.pos) - 0.03))
-            if advance <= 0.01:
-                continue
-            spot = (man.x + (best.x - man.x) / d * advance, man.y + (best.y - man.y) / d * advance)
-            if dist(spot, man.stand or man.pos) > config.BOUND_SHUFFLE:
-                continue
-            out[id(man)] = spot
+    def _assault_slots(self, u: Lochos) -> list[tuple[Man, Point]] | None:
+        """Eine angreifende Gruppe im Handgemenge legt sich um den Gegner: Ihre
+        Männer verteilen sich Reihe für Reihe entlang des feindlichen Umrisses,
+        um das nächstgelegene Stück herum, also wie ein C um das Ende einer
+        Linie. So kommen alle an den Feind, statt hinten im Rechteck zu warten."""
+        if u.stance is not Stance.ANGRIFF or u.loose or not u.contacts or self.on_wall(u) or u.formation == "keil":
+            return None
+        foe = self.by_id(u.target_id) if u.target_id in u.contacts else self.by_id(u.contacts[0])
+        if foe is None or not foe.alive or foe.loose or self.on_wall(foe):
+            return None
+        fx, fy = foe.facing
+        ax, ay = -fy, fx
+        W, D = foe.half_w, foe.half_d
+        corners = [(-W, D), (W, D), (W, -D), (-W, -D)]          # Front, rechte Seite, Rücken, linke Seite
+        normals = [(0.0, 1.0), (1.0, 0.0), (0.0, -1.0), (-1.0, 0.0)]
+        lengths = [2 * W, 2 * D, 2 * W, 2 * D]
+        perimeter = sum(lengths)
+
+        def local(p: Point) -> tuple[float, float]:
+            dx, dy = p[0] - foe.x, p[1] - foe.y
+            return (dx * ax + dy * ay, dx * fx + dy * fy)
+
+        def param(p: Point) -> float:
+            """Umlaufparameter des Umrisspunkts, der ``p`` am nächsten liegt."""
+            al, fw = local(p)
+            best, best_d = 0.0, float("inf")
+            t = 0.0
+            for (c, n, ln) in zip(corners, normals, lengths):
+                nxt = corners[(corners.index(c) + 1) % 4]
+                # Projektion auf die Kante c -> nxt
+                ex, ey = nxt[0] - c[0], nxt[1] - c[1]
+                s_ = max(0.0, min(1.0, ((al - c[0]) * ex + (fw - c[1]) * ey) / (ln * ln)))
+                qx, qy = c[0] + ex * s_, c[1] + ey * s_
+                d = (al - qx) ** 2 + (fw - qy) ** 2
+                if d < best_d:
+                    best, best_d = t + s_ * ln, d
+                t += ln
+            return best
+
+        def point(t: float, out: float) -> Point:
+            t %= perimeter
+            for c, n, ln in zip(corners, normals, lengths):
+                if t <= ln:
+                    nxt = corners[(corners.index(c) + 1) % 4]
+                    al = c[0] + (nxt[0] - c[0]) * t / ln + n[0] * out
+                    fw = c[1] + (nxt[1] - c[1]) * t / ln + n[1] * out
+                    return (foe.x + ax * al + fx * fw, foe.y + ay * al + fy * fw)
+                t -= ln
+            return foe.pos
+        t0 = param(u.pos)
+
+        def offset(m: Man) -> float:
+            """Lage des Mannes entlang des Umrisses, relativ zur Mitte des Angriffs."""
+            return (param(m.pos) - t0 + perimeter / 2) % perimeter - perimeter / 2
+
+        out: list[tuple[Man, Point]] = []
+        for k, row in enumerate(u.rows):                      # Reihe für Reihe: die vordere innen, jede behält ihre Nachbarn
+            layer = sorted(row, key=offset)
+            n = len(layer)
+            spacing = min(config.MAN_SPACING, perimeter / max(1, n))
+            outward = config.ASSAULT_GAP + k * config.ROW_SPACING
+            for i, m in enumerate(layer):
+                out.append((m, point(t0 + (i - (n - 1) / 2) * spacing, outward)))
         return out
 
     def _man_step(self, u: Lochos, man: Man, goal: Point, step: float, walker: bool, slide: bool = True,
