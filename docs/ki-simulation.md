@@ -1,5 +1,28 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 8 (30. September 2026): Umgehen und in den Rücken fallen
+
+Neuer Plan neben „Binden und Umfassen“: Die Umfassenden laufen ganz herum
+(neben die Flanke, hinter die Ecke, hinter die Mitte) und greifen von
+hinten an, wo es am härtesten trifft. Er kommt nur in Frage, wenn hinter
+der Phalanx mindestens zwei Kacheln Platz sind, und steht bei offenem
+Rücken gleichauf mit dem Flankieren; welcher der beiden gewinnt,
+entscheidet das Gedächtnis. Sechs Seeds je Zeile, kluge KI.
+
+| Truppe | Szenario | Taktik | Siege | Verlust Stadt | Verlust Feind | Häuser verloren | Dauer | Pläne |
+|---|---|---|---|---|---|---|---|---|
+| standard | offen | linie | 0/6 | 42% | 19% | 8.0 | 34 s | ruecken×6, flankieren×6, frontal×6 |
+| standard | offen | linie_aktiv | 6/6 | 24% | 46% | 0.0 | 24 s | ruecken×6, flankieren×6, frontal×6, umgehen_west×6 |
+| ohne_reiter | offen | linie | 6/6 | 2% | 51% | 0.0 | 20 s | ruecken×6 |
+
+Lernlauf, offen / linie, acht Schlachten hintereinander: Das Gedächtnis
+bewertet den Rückenangriff nach acht Schlachten mit 1,14, das Flankieren
+mit 0,87 und den Frontalangriff mit 1,25. Gegen eine stehende Linie ohne
+Reserve ist der Weg in den Rücken für die Räuber also besser als das
+Umfassen, der Frontalstoß mit Übermacht bleibt am stärksten. Gegen eine
+Linie, die selbst angreift (linie_aktiv), oder ohne Reiter beim Spieler
+ändert der Plan am Ausgang nichts.
+
 ## Lauf 7 (30. September 2026): Schild an Schild
 
 Die Kampfreichweite ist von 1,15 Kacheln Lücke auf Speerweite (0,6)

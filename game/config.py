@@ -152,6 +152,7 @@ AI_SKIRMISH_KEEP = 6.5       # Kacheln: bis hierhin bleiben sie dabei (Hysterese
 AI_HARASS_TIME = 30.0        # Sekunden Zermürben, bevor gestürmt wird
 AI_FLANK_RATIO = 1.1         # Stärkeverhältnis, ab dem gebunden und umfasst wird
 AI_PIN_SHARE = 0.7           # Anteil der Phalanxstärke, den die bindenden Gruppen aufbringen
+AI_REAR_ROOM = 2.0           # Kacheln freier Raum hinter einer Phalanx, damit „in den Rücken fallen“ in Frage kommt
 AI_PIN_DISTANCE = 1.3        # Kacheln vor der Front, wo die Bindenden auf die Umfassung warten
 AI_PIN_DELAY = 12.0          # Sekunden, nach denen die Bindenden spätestens angreifen
 AI_PINNED_BONUS = 0.5        # Zielwert einer Phalanx, die von der eigenen Linie gebunden ist

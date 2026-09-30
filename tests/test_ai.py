@@ -318,6 +318,33 @@ def test_raiders_pin_the_front_and_flank_the_phalanx():
     assert "front" in arcs                                  # und vorn gebunden
 
 
+def test_raiders_go_around_and_fall_on_the_rear():
+    b = Battle(OFFENE_SIEDLUNG, random.Random(4), enemy_count=96)
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_line([hop], (4.5, 10.5), (11.5, 10.5))
+    b.command_move([pelt], (8.0, 12.0))
+    b.command_move([cav], (8.0, 13.5))
+    b.brain.memory.gains = {"offen": {"flankieren": [-1.0] * 5, "umgehen_west": [-1.0] * 5,
+                                      "umgehen_ost": [-1.0] * 5, "zermuerben": [-1.0] * 5}}
+    run(b, 6)
+    assert b.brain.plan == "ruecken", b.brain.plan
+    assert set(b.brain.roles.values()) == {"binden", "flanke"}
+    assert any("in den Rücken" in e for e in b.events)
+    rear_hit = False
+    for _ in range(int(40 / DT)):
+        b.update(DT)
+        if hop.last_arc == "rear":
+            rear_hit = True
+            break
+        if b.outcome:
+            break
+    assert rear_hit                                          # jemand ist ganz herumgelaufen
+    hop2 = Lochos(90, Side.STADT, [men("mittel", 12)], 8.0, 6.0, facing=(0.0, -1.0), stance=Stance.PHALANX, in_line=True)
+    assert b.brain._room_behind(b, hop2) >= 2.0
+    hop3 = Lochos(91, Side.STADT, [men("mittel", 12)], 8.0, 17.4, facing=(0.0, -1.0), stance=Stance.PHALANX, in_line=True)
+    assert b.brain._room_behind(b, hop3) < 1.0                # mit dem Rücken am Kartenrand: kein Platz
+
+
 def test_settlement_splits_mixed_groups_by_arm():
     from game.army import split_by_arm
     army = Army(groups=[GroupSpec("Alle", [Tier("schwer", 20), Tier("peltast", 10), Tier("reiter", 12)])])
