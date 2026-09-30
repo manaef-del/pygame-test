@@ -173,6 +173,7 @@ class Lochos:
     vel: float = 0.0                  # Reiter: augenblickliches Tempo (Kacheln/s), Schwung
     heading: tuple[float, float] = (0.0, -1.0)   # Reiter: Fahrtrichtung
     ride_in: float = 0.0              # Reiter: wie weit sie in den Feind hineingetragen wurden
+    face_to: tuple[float, float] | None = None   # befohlene Front, auf die die Gruppe schwenkt
     charge_slow_until: float = -1.0   # nach dem Aufprall: bis dahin langsam
     last_arc: str = ""
     men_start: int = 0

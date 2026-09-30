@@ -103,9 +103,12 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Plätzen mit, und erst wenn die Richtung grob stimmt (45 Grad), geht es
   los. Liegt das Ziel hinter der Gruppe, macht sie kehrt: Die hintere
   Reihe wird die vordere, links wird rechts, und jeder Mann bleibt fast
-  auf seinem Platz. Das gilt für Reiter und Fußvolk; nur Fliehende und
-  Kletternde wenden ohne Zeremonie, und eine Phalanx behält beim Marsch
-  ihre Front wie bisher.
+  auf seinem Platz. Das gilt für Reiter und Fußvolk, für Spieler und
+  Gegner gleichermaßen; nur Fliehende und Kletternde wenden ohne
+  Zeremonie. Auch eine befohlene Front (gezogene Linie, Rammbock am
+  Tor, die Siedlung dreht ihre Linie zum Angreifer) wird mit derselben
+  Drehrate eingeschwenkt, eine Phalanx tauscht dabei aber keine Reihen:
+  Ihre schweren Männer bleiben vorn, sie schwenkt den vollen Winkel.
 - **Schwung der Reiter:** Berittene fahren an (in gut einer Sekunde auf
   vollen Galopp), bremsen vor dem Ziel ab und wenden im Galopp in Bögen,
   deren Halbmesser mit dem Tempo wächst; im Stand drehen sie frei. Ohne

@@ -766,7 +766,7 @@ class Battle:
             u.in_line = False
             u.target_id = None
             u.target = (gx + (i - (len(sel) - 1) / 2) * 0.8, gy + side * (0.5 + u.half_d + 0.35))
-            u.facing = (0.0, -side)
+            u.face_to = (0.0, -side)
         self.events.append("Rammbock geht ans Tor")
         return len(sel)
 
@@ -788,7 +788,7 @@ class Battle:
             u.tower_cell = cell
             u.tower_progress = 0.0
             u.target = (cx, cy + side * (0.5 + u.half_d + 0.3))
-            u.facing = (0.0, -side)
+            u.face_to = (0.0, -side)
         self.events.append("Belagerungsturm rollt an den Wall")
         return len(sel)
 
@@ -830,7 +830,7 @@ class Battle:
             u.reform(plan.width)
             u.stance = Stance.PHALANX
             u.in_line = False
-            u.facing = plan.facing
+            u.face_to = plan.facing                  # die Front schwenkt mit begrenzter Rate dorthin
             u.target = plan.center
             u.target_id = None
             u.waypoints = []
@@ -902,7 +902,7 @@ class Battle:
         u.target_id = None
         if u.engine == "ram":
             u.target = (gx, gy - (0.5 + u.half_d + 0.35))
-            u.facing = (0.0, 1.0)
+            u.face_to = (0.0, 1.0)
             return
         if u.building is not None:
             u.target = None
@@ -1052,6 +1052,11 @@ class Battle:
             if u.alive:
                 self._update_loose(u)
                 self._try_remount(u)
+            if u.alive and u.face_to is not None and not u.loose and (u.target is None or u.stance is Stance.PHALANX):
+                # befohlene Front: im Stand oder als Phalanx auf dem Marsch schwenken; eine Phalanx
+                # tauscht dabei keine Reihen, ihre Front bleibt die befohlene
+                if self._turn_towards(u, u.face_to, dt, about=u.stance is not Stance.PHALANX) == 0.0:
+                    u.face_to = None
             if not u.alive or u.target is None or u.in_phalanx or u.building is not None:
                 if u.alive and u.vel > 0.0:
                     self._coast(u, dt)                  # Reiter laufen aus statt auf der Stelle zu stehen
@@ -1160,7 +1165,7 @@ class Battle:
         """Vorzeichenbehafteter Winkel von der Blickrichtung zur gewünschten Richtung."""
         return math.atan2(facing[0] * want[1] - facing[1] * want[0], facing[0] * want[0] + facing[1] * want[1])
 
-    def _turn_towards(self, u: Lochos, want: Point, dt: float) -> float:
+    def _turn_towards(self, u: Lochos, want: Point, dt: float, about: bool = True) -> float:
         """Im Stand wenden: Die Front dreht sich mit begrenzter Rate, die Männer
         schwenken auf ihren Plätzen mit. Liegt das Ziel hinter der Gruppe, macht
         sie kehrt: Die Reihen tauschen, jeder Mann bleibt fast auf seinem Platz
@@ -1169,7 +1174,7 @@ class Battle:
             u.facing = want
             return 0.0
         ang = self._angle_to(u.facing, want)
-        if abs(ang) > config.ABOUT_TURN and not u.loose:
+        if about and abs(ang) > config.ABOUT_TURN and not u.loose:
             self._about_turn(u)
             ang = self._angle_to(u.facing, want)
         limit = config.STAND_TURN_RATE * dt

@@ -603,7 +603,7 @@ class Brain:
             u.target_id = None
             u.tower_cell = cell
             u.target = (cx, cy + outside * (0.5 + u.half_d + 0.3))
-            u.facing = (0.0, -outside)
+            u.face_to = (0.0, -outside)
             return
         if u.building is not None:
             u.target = None
@@ -904,7 +904,7 @@ class Brain:
             if dist(u.pos, spot) > 0.7 and not (b.gate is not None and abs(r.threat_x - b.gate.center[0]) < 1.0
                                                 and dist(u.pos, spot) < 2.0):
                 self._go(b, u, spot, Stance.PHALANX)
-                u.facing = (0.0, 1.0)
+                u.face_to = (0.0, 1.0)
                 return
         if self.plan == "vorruecken" and r.foes:
             foe = min(r.foes, key=lambda f: dist(f.pos, u.pos))
@@ -921,8 +921,8 @@ class Brain:
         near = [f for f in r.foes if dist(f.pos, u.pos) <= config.AI_REFACE_RANGE and not b.on_wall(f)]
         if near and u.stance is Stance.PHALANX:
             foe = min(near, key=lambda f: dist(f.pos, u.pos))
-            if b.arc_of(u, foe.pos) != "front":
-                u.facing = norm(sub(foe.pos, u.pos))
+            if b.arc_of(u, foe.pos) != "front" and u.face_to is None:
+                u.face_to = norm(sub(foe.pos, u.pos))      # schwenkt mit derselben Drehrate wie alle
                 b.events.append(f"{u.name} der Siedlung drehen die Front")
 
 

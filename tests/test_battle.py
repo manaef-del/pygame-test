@@ -1337,3 +1337,33 @@ def test_standing_group_wheels_before_it_marches(kind):
     assert abs(u.x - x0) < 0.05                                            # noch nicht losmarschiert
     run(b, 0.5)
     assert abs(u.facing[0] - 1.0) < 1e-6 and u.x > x0 + 0.1                # ausgerichtet und unterwegs
+
+
+def test_phalanx_wheels_to_its_ordered_front_without_swapping_rows():
+    b, u = standing_group("mittel", 12, 6)
+    heavy = list(u.rows[0])
+    b.command_line([u], (10.0, 12.0), (6.0, 12.0))                         # Front nach Süden, an Ort und Stelle
+    assert u.face_to == (0.0, 1.0) and u.facing == (0.0, -1.0)             # noch nicht gesprungen
+    run(b, 0.3)
+    assert -0.9 < u.facing[1] < 0.9                                        # mitten im Schwenk
+    assert u.rows[0][0] is heavy[0]                                        # eine Phalanx tauscht keine Reihen
+    run(b, 1.5)
+    assert u.facing == (0.0, 1.0) and u.face_to is None
+
+
+def test_enemy_groups_wheel_and_about_turn_like_the_player():
+    b = Battle(OFFENE_SIEDLUNG, random.Random(1), ai="einfach")
+    b._ai_raiders = lambda: None
+    b.alarm = False
+    raider = b.units(Side.FEIND)[0]
+    raider.stance, raider.target, raider.target_id = Stance.HALTEN, None, None
+    raider.x, raider.y, raider.facing = 8.0, 6.0, (0.0, 1.0)
+    raider.place_men()
+    front = list(raider.rows[0])
+    raider.stance, raider.target = Stance.HALTEN, (8.0, 2.0)              # zurück nach Norden
+    b.update(DT)
+    assert raider.facing == (0.0, -1.0) and raider.rows[-1] == list(reversed(front))
+    raider.target = (13.0, raider.y)                                        # und nun nach Osten
+    x0 = raider.x
+    run(b, 0.15)
+    assert 0.3 < raider.facing[0] < 0.95 and abs(raider.x - x0) < 0.05     # schwenkt erst, marschiert dann

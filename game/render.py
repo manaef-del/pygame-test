@@ -85,7 +85,7 @@ class Renderer:
                 continue
             if u.stance is Stance.ANGRIFF or dist(u.pos, u.target) < 0.3:
                 continue
-            corners = [px(c) for c in u.corners_at(u.target, u.facing)]
+            corners = [px(c) for c in u.corners_at(u.target, u.face_to or u.facing)]
             color = config.COLOR_SELECT if u.id in selected else config.COLOR_RECT
             pygame.draw.polygon(s, color, corners, 1)
             pygame.draw.line(s, color, px(u.pos), px(u.target), 1)
