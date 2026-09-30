@@ -117,6 +117,8 @@ class Battle:
     horses: list[tuple[float, float, int]] = field(default_factory=list)           # zurückgelassene Pferde
     climb_budget: dict[tuple[int, int], float] = field(default_factory=dict)       # Durchsatz je Leiter/Turm
     _barrier_cache: dict = field(default_factory=dict)
+    _man_grid: dict = field(default_factory=dict)      # Männer je Rasterzelle (0,5 Kacheln), je Schritt neu
+    _man_group: dict = field(default_factory=dict)     # id(Mann) -> Gruppen-id, je Schritt neu
     enemy_ram_id: int | None = None      # Räubergruppe, die den Rammbock baut
     horde_awake: bool = False
     ai: str = config.AI_DEFAULT          # "klug" oder "einfach"
@@ -1124,14 +1126,18 @@ class Battle:
                 if u.stance is Stance.PHALANX and final and d <= config.ARRIVE_EPS + 0.02:
                     u.x, u.y = u.target
                     u.in_line = u.on_slots(config.SLOT_TOLERANCE, config.SLOT_SHARE) and all(
-                        dist(m.pos, p) <= config.SLOT_TOLERANCE for m, p in u.slots() if m.bound
-                    )                                                   # erst wenn (fast) alle stehen, die Gebundenen sicher
+                        dist(m.pos, p) <= config.SLOT_TOLERANCE or self._crowding(m, m.pos, p, u.id) is not None
+                        for m, p in u.slots() if m.bound
+                    )                       # erst wenn (fast) alle stehen, die Gebundenen sicher, oder ihr Platz ist vom Feind besetzt
                 elif u.stance in (Stance.HALTEN, Stance.PLAENKELN) and final:
                     u.target = None
+                    u.still_since = self.time
                 continue
             if u.loose and u.stance is not Stance.FLUCHT and self._stragglers(u, u.target):
                 continue                      # die Gruppe wartet auf die Männer, die noch klettern
             before = u.pos
+            if not u.loose and not self.on_wall(u):
+                goal = self._around(u, goal)              # eigene und fremde Gruppen im Weg werden umgangen
             if self._rides(u):
                 self._ride(u, dt, goal, speed, d)
             else:
@@ -1151,6 +1157,51 @@ class Battle:
             if u.stance is Stance.FLUCHT and not self.inside(u.x, u.y):
                 u.withdrawn = True
         self._move_men(dt)
+
+    def _around(self, u: Lochos, goal: Point) -> Point:
+        """Steht eine eigene Gruppe still auf dem Weg, geht die befohlene Gruppe um sie
+        herum, statt sie zu schieben: Zwischenziel neben der Gruppe, auf der Seite, die
+        dem Weg näher liegt. Gruppen, die selbst unterwegs sind, gehen einander aus dem
+        Weg (Mann für Mann); Feinde sind keine Umgehung wert, an ihnen bleibt man
+        hängen und kämpft. Eine breite Linie weicht keinem kleinen Haufen aus, der
+        muss ihr Platz machen."""
+        d = dist(u.pos, goal)
+        if d < 1e-6:
+            return goal
+        direction = norm(sub(goal, u.pos))
+        px, py = -direction[1], direction[0]
+
+        def extent(g: Lochos) -> float:                   # halbe Ausdehnung quer zum Weg
+            fx, fy = g.facing
+            return abs(fx * px + fy * py) * g.half_d + abs(-fy * px + fx * py) * g.half_w
+
+        best: tuple[float, Point] | None = None
+        for o in self.lochoi:
+            if o is u or not o.alive or o.loose or o.side is not u.side or self.on_wall(o) != self.on_wall(u):
+                continue
+            if o.target is not None and o.building is None:
+                continue                                  # selbst unterwegs
+            if o.id == u.target_id or o.id in u.contacts:
+                continue
+            clear = extent(u) + extent(o) + config.DETOUR_MARGIN
+            if clear > config.DETOUR_MAX:
+                continue                                  # zu breit zum Ausweichen: die Männer fließen drum herum
+            ox, oy = o.x - u.x, o.y - u.y
+            along = ox * direction[0] + oy * direction[1]
+            if along <= 0.0 or along - o.radius > d:
+                continue                                  # hinter uns oder erst hinter dem Ziel
+            off = ox * px + oy * py
+            if abs(off) >= clear:
+                continue                                  # geht knapp vorbei
+            if dist(goal, o.pos) < clear and along > d - o.radius:
+                continue                                  # das Ziel liegt bei ihr: Ankunft, Auseinanderrücken regelt den Rest
+            if best is None or along < best[0]:
+                side = 1.0 if off < 0 else -1.0           # auf der Seite vorbei, die dem Weg näher liegt
+                best = (along, (o.x + px * side * clear, o.y + py * side * clear))
+        if best is None:
+            return goal
+        wp = best[1]
+        return wp if self.inside(*wp) and not self.is_blocked(*wp) else goal
 
     def _rides(self, u: Lochos) -> bool:
         """Beritten und im Gelände unterwegs: Bewegung mit Schwung."""
@@ -1333,6 +1384,13 @@ class Battle:
             self.climb_budget[c] = min(1.0, self.climb_budget[c] + config.CLIMB_RATE * dt)
         self._barrier_cache = {side: [e for e in self.lochoi if e.side is not side and e.fighting and not e.loose]
                                for side in Side}
+        self._man_grid = {}
+        self._man_group = {}
+        for u in self.lochoi:
+            if u.alive:
+                for m in u.all_men():
+                    self._man_grid.setdefault(self._grid_cell(m.x, m.y), []).append((m, u.id))
+                    self._man_group[id(m)] = u.id
         for u in self.lochoi:
             if not u.alive:
                 continue
@@ -1386,7 +1444,7 @@ class Battle:
                 if man.bound and dist(slot, man.stand or man.pos) > config.BOUND_SHUFFLE:
                     continue                          # steht im Handgemenge fest, rückt höchstens etwas nach
                 if d <= 0.02:
-                    if self._man_can_step(u, man, man.pos, slot, walker):
+                    if self._crowding(man, man.pos, slot, u.id) is None and self._man_can_step(u, man, man.pos, slot, walker):
                         man.x, man.y = slot
                     continue
                 speed = max(u.speed, man.speed) * config.MAN_CATCHUP
@@ -1630,6 +1688,49 @@ class Battle:
                                     base[1] + edge_dir[1] * sign * (i + 1) * config.MAN_SPACING)))
         return out
 
+    @staticmethod
+    def _grid_cell(x: float, y: float) -> tuple[int, int]:
+        return (int(x * 2), int(y * 2))
+
+    def _crowding(self, man: Man, a: Point, b: Point, own: int = -1) -> Man | None:
+        """Der Mann, dem der Schritt von ``a`` nach ``b`` zu nahe käme: Kein Mann teilt
+        seinen Platz mit einem anderen, auch nicht mit einem Fliehenden. Zwischen
+        Männern verschiedener Gruppen bleibt es bei zwei Halbmessern; in der eigenen
+        Gruppe (``own``) rückt man Schulter an Schulter, bis auf einen. Wer schon zu
+        dicht steht, darf sich entfernen."""
+        cx, cy = self._grid_cell(*b)
+        near: list[tuple[Man, bool, float, float]] = []
+        nearest = {True: float("inf"), False: float("inf")}   # wie dicht er jetzt schon steht: eigene / fremde
+        for gx in (cx - 1, cx, cx + 1):
+            for gy in (cy - 1, cy, cy + 1):
+                for o, uid in self._man_grid.get((gx, gy), ()):
+                    if o is man or o.hp <= 0.0:
+                        continue
+                    mine = uid == own
+                    da = math.hypot(a[0] - o.x, a[1] - o.y)
+                    nearest[mine] = min(nearest[mine], da)
+                    near.append((o, mine, da, math.hypot(b[0] - o.x, b[1] - o.y)))
+        for o, mine, da, db in near:
+            limit = config.MAN_RADIUS if mine else 2 * config.MAN_RADIUS
+            # zu nah, und näher als bisher an diesen Mann und als an den nächsten seiner Art:
+            # wer schon an einer Reihe steht, darf an ihr entlang, nur nicht hinein
+            if db < limit and db < da and db < nearest[mine] - 1e-9:
+                return o
+        return None
+
+    def _shove(self, man: Man, other: Man, u: Lochos) -> bool:
+        """Stürmende Reiter drängen einen Mann beiseite, statt vor ihm zu halten."""
+        dx, dy = other.x - man.x, other.y - man.y
+        d = math.hypot(dx, dy)
+        if d < 1e-6:
+            dx, dy, d = -u.facing[0], -u.facing[1], 1.0
+        push = 2 * config.MAN_RADIUS - d + 0.01
+        nx, ny = other.x + dx / d * push, other.y + dy / d * push
+        if not self.inside(nx, ny) or self.is_blocked(nx, ny) or self._crowding(other, other.pos, (nx, ny), self._man_group.get(id(other), -1)) is not None:
+            return False
+        other.x, other.y = nx, ny
+        return True
+
     def _man_step(self, u: Lochos, man: Man, goal: Point, step: float, walker: bool, slide: bool = True,
                   through: bool = False) -> bool:
         d = dist(man.pos, goal)
@@ -1637,11 +1738,44 @@ class Battle:
             return True
         step = min(step, d)
         dx, dy = (goal[0] - man.x) / d * step, (goal[1] - man.y) / d * step
-        options = ((man.x + dx, man.y + dy), (man.x + dx, man.y), (man.x, man.y + dy)) if slide else ((man.x + dx, man.y + dy),)
+        options = [(man.x + dx, man.y + dy)]
+        if slide:
+            options += [(man.x + dx, man.y), (man.x, man.y + dy)]
+        crowded: Man | None = None
+        # erst die Enge prüfen, dann das Gelände: die Leiter zählt einen Aufstieg schon beim Prüfen
         for nx, ny in options:
             if (nx, ny) == (man.x, man.y):
                 continue
+            blocker = self._crowding(man, man.pos, (nx, ny), u.id)
+            if blocker is not None:
+                crowded = crowded or blocker
+                continue
             if self._man_can_step(u, man, (man.x, man.y), (nx, ny), walker, through):
+                man.x, man.y = nx, ny
+                man.dodge = 0.0                          # der Weg ist frei
+                return True
+        if crowded is None or man.bound:
+            return False                                 # Gebundene rücken nur nach, sie weichen niemandem aus
+        if self._rides(u) and u.ride_in > 0.0 and u.vel > 0.05 and self._shove(man, crowded, u):
+            nx, ny = man.x + dx, man.y + dy                 # der Sturm drängt hindurch
+            if self._crowding(man, man.pos, (nx, ny), u.id) is None and self._man_can_step(u, man, man.pos, (nx, ny), walker, through):
+                man.x, man.y = nx, ny
+                return True
+        # jemand steht im Weg: an ihm entlang (in Richtung des Ziels), sonst schräg zurück, sonst zurück
+        ax, ay = man.x - crowded.x, man.y - crowded.y
+        n = math.hypot(ax, ay)
+        if n < 1e-6:
+            ax, ay, n = -dy, dx, step
+        ax, ay = ax / n, ay / n                          # weg vom Blockierer
+        tx, ty = -ay, ax                                 # an ihm entlang
+        if man.dodge == 0.0:                             # eine Seite wählen und dabei bleiben, bis der Weg frei ist
+            along = tx * dx + ty * dy
+            man.dodge = (1.0 if along > 0 else -1.0) if abs(along) > 0.2 * step else (1.0 if id(man) % 2 else -1.0)
+        tx, ty = tx * man.dodge, ty * man.dodge
+        for vx, vy in ((tx, ty), (-tx, -ty), (tx + ax, ty + ay), (-tx + ax, -ty + ay), (ax, ay)):
+            m_ = math.hypot(vx, vy)
+            nx, ny = man.x + vx / m_ * step, man.y + vy / m_ * step
+            if self._crowding(man, man.pos, (nx, ny), u.id) is None and self._man_can_step(u, man, man.pos, (nx, ny), walker, through):
                 man.x, man.y = nx, ny
                 return True
         return False
@@ -1705,8 +1839,10 @@ class Battle:
         alive = [u for u in self.lochoi if u.alive]
         for i, a in enumerate(alive):
             for b in alive[i + 1:]:
-                if a.side is b.side and (a.stance is not Stance.HALTEN or b.stance is not Stance.HALTEN):
-                    continue          # eigene Gruppen in Bewegung ziehen aneinander vorbei
+                station_a = a.target is not None or a.stance is Stance.PHALANX
+                station_b = b.target is not None or b.stance is Stance.PHALANX
+                if a.side is b.side and station_a and station_b:
+                    continue          # eigene Gruppen unterwegs oder auf Posten umgehen einander
                 if a.loose or b.loose or self.on_wall(a) != self.on_wall(b):
                     continue          # aufgelöste Gruppen: die Männer weichen selbst aus
                 if b.id in a.contacts or a.id in b.contacts:
@@ -1717,11 +1853,22 @@ class Battle:
                 overlap = config.SEPARATION - self._gap(a, b)
                 if overlap <= 0:
                     continue
-                push = overlap / 2
                 direction = norm(sub(b.pos, a.pos))
-                if not a.in_phalanx and a.building is None:
+                move_a = not a.in_phalanx and a.building is None
+                move_b = not b.in_phalanx and b.building is None
+                if a.side is b.side and move_a and move_b:
+                    # wer nur herumsteht, macht der befohlenen Gruppe Platz; unter Stehenden
+                    # weicht, wer zuletzt kam
+                    if station_a != station_b:
+                        move_a, move_b = not station_a, not station_b
+                    elif a.still_since > b.still_since:
+                        move_b = False
+                    elif b.still_since > a.still_since:
+                        move_a = False
+                push = overlap if move_a != move_b else overlap / 2
+                if move_a:
                     self._step(a, scale(direction, -push))
-                if not b.in_phalanx and b.building is None:
+                if move_b:
                     self._step(b, scale(direction, push))
 
     # -- Kampf -------------------------------------------------------------
@@ -1791,8 +1938,9 @@ class Battle:
             weight = max(0.5, m.kind.hp)
             push = config.CHARGE_PUSH * factor / weight
             nx, ny = m.x + direction[0] * push, m.y + direction[1] * push
-            if self.inside(nx, ny) and not self.is_blocked(nx, ny, b) and not self.is_wall_cell(self.cell(nx, ny), True):
-                m.x, m.y = nx, ny                         # weggestoßen
+            if (self.inside(nx, ny) and not self.is_blocked(nx, ny, b) and not self.is_wall_cell(self.cell(nx, ny), True)
+                    and self._crowding(m, m.pos, (nx, ny), b.id) is None):
+                m.x, m.y = nx, ny                         # weggestoßen, aber nicht in einen anderen hinein
             m.hp -= config.CHARGE_IMPACT * factor / weight
         fallen = b.bury()
         b.in_line = False                                  # die Ordnung ist dahin, bis alle wieder stehen

@@ -673,10 +673,16 @@ class Brain:
                     u.stance = Stance.HALTEN
                 return
         ram = b._raider_ram_unit()
-        tower = b.by_id(self.tower_id) if self.plan == "turm" and self.tower_id is not None else None
+        tower = b.by_id(self.tower_id) if self.tower_id is not None else None
         if tower is not None and (not tower.fighting or tower is ram):
             tower = None
             self.tower_id = None
+        if tower is None and self.tower_cell is not None:
+            # ein fertiger (oder halb gebauter) Turm wird an den Wall gefahren, gleich unter welchem Plan
+            built = [u for u in own if u.engine == "tower" or (u.building is not None and u.build_kind == "tower")]
+            if built:
+                tower = built[0]
+                self.tower_id = tower.id
         if self.plan == "turm" and tower is None and self.tower_cell not in b.crossings:
             self._assign_tower(b, r)
             tower = b.by_id(self.tower_id) if self.tower_id is not None else None
@@ -691,7 +697,7 @@ class Brain:
             if u is ram:
                 b._drive_raider_ram(u)
                 continue
-            if u is tower and self.tower_cell not in b.crossings:
+            if u is tower and self.tower_cell is not None and self.tower_cell not in b.crossings:
                 self._drive_tower(b, u)
                 continue
             if b.gate is not None and not b.on_wall(u) and (

@@ -59,6 +59,19 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Punkte sind dunkler) und eine eigene Position: Er läuft zu seinem
   Platz in der Formation, weicht aber selbst aus, durchs Tor nur durch
   die Öffnung, auf den Wall nur über Leiter oder Turm.
+- **Niemand steht im anderen.** Kein Mann teilt seinen Platz mit einem
+  anderen, auch nicht mit einem Fliehenden oder einem Feind: Zwischen
+  Männern verschiedener Gruppen bleiben immer zwei Halbmesser, in der
+  eigenen Gruppe rückt man höchstens Schulter an Schulter. Wer jemanden
+  im Weg hat, geht schräg an ihm vorbei; nur stürmende Reiter drängen
+  Fußvolk beiseite, solange ihr Schwung sie in den Feind trägt.
+- **Gruppen umgehen einander.** Steht eine eigene Gruppe still auf dem
+  Weg, geht die befohlene Gruppe um sie herum, statt sie zu schieben;
+  Gruppen, die beide unterwegs sind, gehen einander Mann für Mann aus
+  dem Weg, und eine breite Linie weicht keinem kleinen Haufen aus, der
+  muss ihr Platz machen. Liegt das Ziel genau dort, wo eine andere nur
+  herumsteht, macht die Stehende Platz; unter Stehenden weicht, wer
+  zuletzt kam. An Feinden bleibt man hängen und kämpft.
 - **Reiter** sitzen ab, sobald sie Rammbock oder Turm bauen oder auf den
   Wehrgang steigen. Die Pferde bleiben als braune Punkte zurück; danach
   sind sie so schnell wie Fußvolk und ohne Reiterbonus. Ohne Gerät zu

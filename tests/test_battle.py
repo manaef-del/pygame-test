@@ -1262,7 +1262,7 @@ def test_mixed_group_splits_by_arm_on_free_attack_and_merges_back():
         for m in p.all_men():
             assert m.pos == before[id(m)]                                    # niemand springt
     start = {n: p.y for n, p in by.items()}
-    run(b, 2)                                                                # die Reiter müssen erst anfahren
+    run(b, 3)                                    # die Reiter müssen erst anfahren und um die eigenen Hopliten herum
     moved = {n: start[n] - p.y for n, p in by.items()}
     assert moved["Reiter"] > moved["Peltasten"] > moved["Hopliten"] > 0     # jede in ihrem Tempo nach vorn
     merged = b.command_merge(parts)
@@ -1605,3 +1605,64 @@ def test_losses_fall_where_the_enemy_stands():
     assert hop.men < 40
     west = [m for m in hop.all_men() if m.x < hop.x - 0.3]
     assert len(west) >= 18, len(west)                                       # (fast) alle 20 der Westhälfte leben noch
+
+
+# ------------------------------------------------- Niemand steht im anderen
+def test_no_two_men_ever_share_a_position():
+    """Jeder Mann hat seinen Platz: Zwischen Männern verschiedener Gruppen bleiben
+    immer zwei Halbmesser, auch beim Sturm, beim Umfassen und durch Fliehende
+    hindurch; in der eigenen Gruppe rückt man höchstens Schulter an Schulter."""
+    b = Battle(OFFENE_SIEDLUNG, random.Random(2))
+    b.command_attack()
+    for i in range(int(40 / DT)):
+        b.update(DT)
+        if b.outcome:
+            break
+        if i % 30:
+            continue
+        men = [(m, u.id) for u in b.lochoi if u.alive for m in u.all_men()]
+        for j, (a, ua) in enumerate(men):
+            for c, uc in men[j + 1:]:
+                least = config.MAN_RADIUS if ua == uc else 2 * config.MAN_RADIUS
+                assert dist_of_pt(a.pos, c.pos) >= least - 1e-6, (i / 30, ua, uc, a.pos, c.pos)
+
+
+def two_own_groups(standing: tuple[float, float], mover: tuple[float, float]) -> tuple[Battle, Lochos, Lochos]:
+    b = Battle(raid(16, (14.0, 1.0)), random.Random(0),
+               army=army_of(GroupSpec("Steher", [Tier("mittel", 16)]), GroupSpec("Läufer", [Tier("leicht", 16)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    b.alarm = False
+    stand, walk = b.units(Side.STADT)
+    for u, (x, y) in ((stand, standing), (walk, mover)):
+        u.x, u.y = x, y
+        u.facing = (0.0, -1.0)
+        u.target = None
+        u.stance = Stance.HALTEN
+        u.place_men()
+    return b, stand, walk
+
+
+def test_group_walks_around_a_standing_friendly_group():
+    """Steht eine eigene Gruppe auf dem Weg, geht die befohlene um sie herum; die
+    Stehende wird nicht verschoben."""
+    b, stand, walk = two_own_groups((8.0, 8.0), (8.0, 12.0))
+    b.command_move([walk], (8.0, 4.0))
+    origin = stand.pos
+    closest = 9.0
+    for _ in range(int(20 / DT)):
+        b.update(DT)
+        closest = min(closest, b._gap(stand, walk))
+    assert dist_of_pt(stand.pos, origin) < 0.05, (origin, stand.pos)          # nicht geschoben
+    assert dist_of_pt(walk.pos, (8.0, 4.0)) < 0.3, walk.pos                   # angekommen
+    assert closest > 0.0, closest                                             # nie ineinander
+
+
+def test_arriving_group_makes_the_idle_one_yield():
+    """Wird eine Gruppe genau dorthin befohlen, wo eine andere nur herumsteht,
+    macht die Stehende Platz (wer später kam, weicht sonst)."""
+    b, stand, walk = two_own_groups((8.0, 8.0), (8.0, 12.0))
+    b.command_move([walk], (8.0, 8.0))
+    run(b, 20)
+    assert dist_of_pt(walk.pos, (8.0, 8.0)) < 0.3, walk.pos
+    assert b._gap(stand, walk) >= 0.0 and dist_of_pt(stand.pos, (8.0, 8.0)) > 0.5, stand.pos

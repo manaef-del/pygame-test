@@ -82,6 +82,7 @@ class Man:
     bound: bool = False  # im Handgemenge: steht fest, bis die Gruppe ihn wegzieht
     anchor: tuple[float, float] | None = None   # Gruppenzentrum, als er gebunden wurde
     stand: tuple[float, float] | None = None    # sein eigener Platz, als er gebunden wurde
+    dodge: float = 0.0   # Ausweichseite (+1/-1), solange jemand im Weg steht; 0 = frei
 
     def __post_init__(self) -> None:
         if self.hp == 0.0:
@@ -170,6 +171,7 @@ class Lochos:
     contacts: list[int] = field(default_factory=list)   # Gegner, mit denen gekämpft wird (ids)
     contact_since: dict[int, float] = field(default_factory=dict)   # seit wann (Schlachtzeit) je Gegner-id
     assault_slots: list = field(default_factory=list)   # zuletzt zugewiesene Plätze am feindlichen Umriss (Weltkoordinaten)
+    still_since: float = 0.0          # seit wann die Gruppe steht (wer später kam, weicht beim Auseinanderrücken)
     disengage_until: float = -1.0     # bis dahin gilt die Gruppe als vom Feind gelöst (verwundbar)
     runup: float = 0.0                # Reiter: Anlauf seit dem letzten Halt oder Kontakt (Kacheln)
     vel: float = 0.0                  # Reiter: augenblickliches Tempo (Kacheln/s), Schwung

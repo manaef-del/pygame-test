@@ -1,5 +1,61 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 10 (30. September 2026): Niemand steht im anderen
+
+Kein Mann teilt mehr seinen Platz mit einem anderen: Zwischen Männern
+verschiedener Gruppen bleiben zwei Halbmesser (0,11 Kacheln), in der
+eigenen Gruppe rückt man Schulter an Schulter (0,055), auch Fliehende
+und Feinde sind fest. Wer jemanden im Weg hat, geht an ihm entlang
+(eine Seite wählen und dabei bleiben, bis der Weg frei ist), sonst
+schräg zurück; nur stürmende Reiter drängen Fußvolk beiseite. Eine
+befohlene Gruppe geht um eine stehende eigene Gruppe herum, statt sie
+zu schieben; wer nur herumsteht, macht am Ziel Platz.
+
+Beim Einbau zeigte sich, wie empfindlich die Schlacht auf das Umgehen
+reagiert: Umgingen Gruppen *jede* eigene Gruppe auf dem Weg, auch
+solche, die selbst unterwegs waren, bogen die Räuberhaufen hintereinander
+immer weiter außen um die Linie und fielen ihr reihenweise in den
+Rücken (`linie_tief` 1/4, `horde vorruecken` 0/4, der Phalanxstoß ein
+Patt über 300 s, weil die feindliche Linie um ihre eigenen Peltasten
+herumlief statt vorzurücken). Ohne Umgehen, nur mit dem Ausschluss der
+Männer, blieb alles beim Alten. Darum umgeht eine Gruppe jetzt nur
+noch stehende eigene Gruppen, und nur, wenn der Seitenversatz unter
+2,5 Kacheln bleibt; eine breite Linie weicht keinem Haufen aus, der
+muss ihr Platz machen. Vier Seeds je Zeile, kluge KI, Truppe standard,
+verglichen mit Lauf 9:
+
+| Szenario | Taktik | Siege Lauf 9 → 10 | Verlust Stadt | Verlust Feind | Häuser verloren | Dauer |
+|---|---|---|---|---|---|---|
+| offen | linie | 0/4 → 0/4 | 42% → 21% | 10% → 1% | 8.0 → 8.0 | 26 s |
+| offen | linie_reiter | 0/4 → 0/4 | 42% → 31% | 28% → 9% | 4.0 → 2.0 | 23 s |
+| offen | linie_aktiv | 0/4 → 0/4 | 37% → 25% | 31% → 9% | 0.0 → 0.5 | 19 s |
+| offen | linie_tief | 4/4 → 4/4 | 17% → 23% | 38% → 46% | 0.2 → 0.5 | 39 s |
+| offen | passiv | 0/4 → 0/4 | 25% → 28% | 13% → 18% | 0.0 → 0.0 | 18 s |
+| offen | angriff | 4/4 → 4/4 | 34% → 17% | 56% → 35% | 4.0 → 0.8 | 23 s |
+| palisade | tor_halten | 1/4 → 0/4 | 22% → 27% | 23% → 18% | 6.0 → 8.0 | 83 s |
+| palisade | tor_reserve | 1/4 → 2/4 | 24% → 28% | 29% → 63% | 4.2 → 2.8 | 113 s |
+| palisade | tor_leiter | 3/4 → 4/4 | 19% → 17% | 39% → 44% | 0.0 → 0.0 | 129 s |
+| palisade | passiv | 0/4 → 4/4 | 27% → 27% | 42% → 100% | 8.0 → 0.0 | 177 s |
+| horde | vorruecken | 4/4 → 3/4 | 19% → 39% | 42% → 46% | 0.0 → 0.0 | 57 s |
+| horde | angriff | 4/4 → 4/4 | 27% → 28% | 53% → 46% | 0.0 → 0.0 | 35 s |
+| angriff_offen | phalanxstoss | 4/4 → 4/4 | 14% → 8% | 16% → 9% | 0.0 → 0.0 | 122 s |
+| angriff_offen | vorruecken | 0/4 → 2/4 | 51% → 52% | 1% → 52% | 0.0 → 0.0 | 230 s |
+| angriff_offen | angriff | 2/4 → 4/4 | 35% → 22% | 20% → 14% | 0.0 → 0.0 | 51 s |
+| angriff_wall | tor_phalanx | 0/4 → 0/4 | 48% → 44% | 15% → 14% | 0.0 → 0.0 | 135 s |
+| angriff_wall | belagerung | 0/4 → 0/4 | 14% → 14% | 0% → 0% | 0.0 → 0.0 | 300 s |
+
+Lehre: Die Ausgänge bleiben im Großen, wo sie waren; die dünne Linie
+verliert weiter, die tiefe gewinnt, der Phalanxstoß gewinnt billiger.
+Auffällig ist die Palisade: Wer nur hält (`passiv`), gewinnt jetzt
+vier von vier, weil die Räuber über den Turm einer nach dem anderen in
+die wartende Phalanx laufen, Engstellen lassen sich nicht mehr
+durchdringen. Die Räuber-KI der Belagerung müsste den Turm eigentlich
+erst dann nutzen, wenn dahinter Platz ist, ein Punkt für später. Zwei
+Nebenbefunde beim Einbau: Die Leiter zählte einen Aufstieg schon bei
+der Prüfung, bevor die Enge den Schritt verbot (so verhungerte die
+Schlange am Turm); und ein fertiger Belagerungsturm wurde nur unter
+dem Plan „Turm“ an den Wall gefahren, jetzt unter jedem Plan.
+
 ## Lauf 9 (30. September 2026): Kämpfen nach Berührungsbreite
 
 Bisher kämpfte eine Gruppe im Handgemenge mit ihrer ganzen vorderen Reihe

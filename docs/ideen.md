@@ -6,6 +6,12 @@ wandert nach unten.
 
 ## Offen
 
+0. **Turm nur mit Platz dahinter.** Seit Männer sich nicht mehr
+   durchdringen, laufen die Räuber über den Turm einer nach dem anderen
+   in eine wartende Phalanx (Palisade, `passiv`: 4/4 Siege, 100 %
+   Verluste der Räuber). Die Belagerungs-KI sollte den Turm meiden oder
+   verlegen, wenn hinter dem Wall eine Formation wartet, und lieber das
+   Tor rammen oder umgehen. Geringer Aufwand.
 1. **Sammeln nach der Flucht.** Fliehende bleiben stehen, sobald eine
    Weile kein Feind naht, ihre Moral steigt langsam, und sie nehmen wieder
    Befehle an, statt das Feld für immer zu verlassen. Geringer Aufwand.
@@ -31,6 +37,13 @@ wandert nach unten.
 
 ## Erledigt
 
+- **Niemand steht im anderen** (30. September 2026): Kein Mann teilt
+  seinen Platz mit einem anderen (zwei Halbmesser zwischen Gruppen,
+  Schulter an Schulter in der eigenen), auch nicht mit Fliehenden; wer
+  jemanden im Weg hat, geht schräg vorbei, nur stürmende Reiter drängen
+  beiseite. Eine befohlene Gruppe umgeht eine stehende eigene, statt sie
+  zu schieben; nur wer nur herumsteht, macht der befohlenen Gruppe am
+  Ziel Platz (docs/ki-simulation.md, Lauf 10).
 - **Kämpfen nach Berührungsbreite** (30. September 2026): Es kämpft
   nur, wer den Gegner erreicht (von Mann zu Mann gemessen), die Verluste
   fallen dort, wo der Gegner steht, und eine zweite Gruppe legt sich an

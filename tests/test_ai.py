@@ -95,7 +95,7 @@ def test_raiders_go_around_or_harass_a_phalanx_but_charge_an_open_settlement():
     b.command_line([pelt], (5.0, 11.6), (11.0, 11.6))
     b.command_move([cav], (14.0, 12.5))
     run(b, 8)
-    assert b.brain.plan in ("umgehen_west", "umgehen_ost", "zermuerben", "flankieren"), b.brain.plan
+    assert b.brain.plan in ("umgehen_west", "umgehen_ost", "zermuerben", "flankieren", "ruecken"), b.brain.plan
     assert any(e.startswith("Die Räuber:") for e in b.events)
 
     b2 = Battle(OFFENE_SIEDLUNG, random.Random(2))
