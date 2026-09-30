@@ -37,6 +37,7 @@ jobs:
         run: python -m pygbag --build --ume_block 0 --can_close 1 .
       - name: Browser-Diagnose (Konsole ins Log)
         continue-on-error: true
+        timeout-minutes: 6          # hängt die Diagnose (etwa beim Nachladen von Chromium), blockiert sie nicht die Veröffentlichung
         run: |
           pip install playwright
           python -m playwright install --with-deps chromium
