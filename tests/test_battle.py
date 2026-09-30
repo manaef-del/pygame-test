@@ -5,7 +5,7 @@ import random
 import pytest
 
 from game import config
-from game.army import POOL, Army, GroupSpec, Tier, default_army, scaled_army
+from game.army import OWN_DEFAULT, Army, GroupSpec, Tier, default_army, scaled_army
 from game.battle import Battle
 from game.geometry import arc, snap4
 from game.scenarios import (OFFENE_SIEDLUNG, PALISADE, RAEUBERHORDE, SIEDLUNG_OFFEN, SIEDLUNG_WALL,
@@ -84,23 +84,27 @@ def test_default_army_is_three_groups_using_whole_pool():
     a = default_army()
     assert a.valid()
     assert [g.name for g in a.groups] == ["Hopliten", "Peltasten", "Reiter"]
-    assert all(a.remaining(k) == 0 for k in POOL)
-    assert a.total_men() == sum(POOL.values()) == 75
+    assert a.remaining() == 0
+    assert a.total_men() == a.total == OWN_DEFAULT == 75
 
 
-def test_army_blocks_respect_pool():
-    a = Army(groups=[GroupSpec("G", [Tier("reiter", 5)])])
-    assert a.max_for(0, 0) == POOL["reiter"]
-    assert a.set_count(0, 0, 50) == POOL["reiter"]          # wird gekappt
-    assert a.remaining("reiter") == 0
+def test_army_blocks_share_one_pool_and_swap_freely():
+    a = Army(groups=[GroupSpec("G", [Tier("reiter", 5)])], total=30)
+    assert a.max_for(0, 0) == 30
+    assert a.set_count(0, 0, 50) == 30                       # wird auf den Vorrat gekappt
+    assert a.remaining() == 0
+    a.set_count(0, 0, 0)                                     # Reiter gestrichen: die Männer sind frei ...
     a.add_tier(0)
+    assert a.groups[0].tiers[1].kind == "reiter" and a.groups[0].tiers[1].count == 5
+    a.set_kind(0, 1, "schwer")                               # ... und gehen an die Hopliten
     assert a.groups[0].tiers[1].kind == "schwer" and a.groups[0].tiers[1].count == 5
-    a.set_kind(0, 1, "reiter")                               # kein Reiter mehr frei
-    assert a.groups[0].tiers[1].count == 0
+    assert a.set_count(0, 1, 30) == 30 and a.remaining() == 0
     a.move_tier(0, 1, -1)
-    assert [t.kind for t in a.groups[0].tiers] == ["reiter", "reiter"]
-    a.remove_tier(0, 0)
-    assert len(a.groups[0].tiers) == 1 and a.remaining("reiter") == 0
+    assert [t.kind for t in a.groups[0].tiers] == ["schwer", "reiter"]
+    a.remove_tier(0, 1)
+    assert len(a.groups[0].tiers) == 1 and a.valid()
+    b = scaled_army(a, 60)
+    assert b.total == 60 and b.total_men() == 60 and b.groups[0].tiers[0].count == 60
 
 
 def test_tiers_build_men_in_order_and_interleave_when_stretched():
@@ -213,7 +217,7 @@ def test_shield_factor_scales_phalanx_bonus():
 def test_phalanx_holds_from_the_front():
     b = static_line(raider_y=8.75)
     resolve_only(b, 40)
-    assert b.fallen(Side.STADT) <= 10, b.report()
+    assert b.fallen(Side.STADT) <= 13, b.report()             # die Räuber rücken vorn nach, das kostet etwas mehr
     assert b.men(Side.FEIND, fighting_only=True) < 32, b.report()
 
 
@@ -845,10 +849,10 @@ def test_men_in_melee_are_bound_and_the_phalanx_cannot_turn_in_place():
     b, hop, pelt, raider = melee_pair()
     assert 10 <= len(hop.bound_men()) < hop.men           # wer dem Feind gegenübersteht, ist gebunden
     assert not pelt.bound_men()                           # die Peltasten dahinter nicht
-    before = {id(m): m.pos for m in hop.bound_men()}
+    stands = {id(m): m.stand for m in hop.bound_men() if m.stand}
     b.command_line([hop], (8.0, 9.0), (8.0, 11.0))        # Front nach Osten drehen, Zentrum bleibt in der Leine
     run(b, 4)                                             # (nach etwa sechs Sekunden brechen die Räuber)
-    moved = [id(m) for m in hop.all_men() if id(m) in before and dist_of_pt(m.pos, before[id(m)]) > config.BOUND_SHUFFLE + 0.1]
+    moved = [id(m) for m in hop.all_men() if id(m) in stands and dist_of_pt(m.pos, stands[id(m)]) > config.BOUND_SHUFFLE + 0.1]
     assert not moved                                      # gebundene Männer rücken höchstens nach, sie gehen nicht weg
     assert not hop.in_phalanx                             # solange Gebundene fehlen, keine Phalanx
     b.command_line([pelt], (9.5, 10.2), (6.5, 10.2))      # die Peltasten dürfen sich umformieren
@@ -1093,7 +1097,7 @@ def test_peltasts_skirmish_keep_distance_then_charge_when_empty():
     b.command_attack([pelt])
     assert pelt.stance is Stance.PLAENKELN
     thrown = False
-    for _ in range(int(20 / DT)):
+    for _ in range(int(12 / DT)):                                         # danach wären die Speere ohnehin verschossen
         b.update(DT)
         raider.x, raider.y = raider.x, raider.y + 0.02                    # der Räuber rückt langsam nach
         raider.place_men()
@@ -1357,3 +1361,46 @@ def test_enemy_groups_wheel_and_about_turn_like_the_player():
     x0 = raider.x
     run(b, 0.15)
     assert 0.3 < raider.facing[0] < 0.95 and abs(raider.x - x0) < 0.05     # schwenkt erst, marschiert dann
+
+
+# ------------------------------------------------------------ Kreis ziehen, Nachrücken, Gerangel
+def test_ring_size_from_drag_never_tighter_than_the_men_need():
+    b, u = standing_group("mittel", 12, 6)
+    b.command_formation([u], "o")
+    tight = u.ring_minimum()
+    assert b.command_ring([u], (8.0, 12.0), 1.5) == 1
+    assert abs(u.ring_size - 1.5) < 1e-6 and u.ring_radius() == 1.5 and u.stance is Stance.PHALANX
+    run(b, 3)
+    assert all(abs(dist_of_pt(p, u.pos) - 1.5) < 1e-6 for _, p in u.slots())
+    assert u.in_phalanx
+    b.command_ring([u], (8.0, 12.0), 0.1)
+    assert u.ring_size == tight                              # enger geht es nicht
+    b.command_ring([u], (8.0, 12.0), 9.0)
+    assert u.ring_size == config.RING_MAX
+    b.command_line([u], (6.0, 12.0), (10.0, 12.0))
+    assert u.formation == "linie" and u.ring_size == 0.0
+
+
+def test_second_row_steps_into_gaps_of_the_first():
+    u = Lochos(1, Side.STADT, [men("schwer", 6), men("mittel", 6), men("leicht", 4)], 5.0, 5.0)
+    first, second = list(u.rows[0]), list(u.rows[1])
+    first[2].hp = 0.0
+    first[4].hp = 0.0
+    assert u.bury() == 2
+    assert len(u.rows[0]) == 6                                 # die Front bleibt voll
+    assert sum(1 for m in u.rows[0] if m in second) == 2       # zwei aus der zweiten Reihe rückten vor
+    assert len(u.rows[1]) == 6 and len(u.rows[2]) == 2         # hinten wurde es dünner
+    assert u.men == 14
+
+
+def test_front_row_men_close_to_shield_contact():
+    b, hop, pelt, raider = melee_pair()
+    run(b, 3)
+    front = hop.rows[0]
+    enemy_men = raider.all_men()
+    bound_front = [m for m in front if m.bound]
+    facing_someone = [m for m in bound_front if min(dist_of_pt(m.pos, n.pos) for n in enemy_men) <= config.MAN_BIND_REACH]
+    assert len(facing_someone) >= 6                           # der Räuberhaufen ist schmaler als die Linie
+    close = [m for m in facing_someone if min(dist_of_pt(m.pos, n.pos) for n in enemy_men) <= 0.3]
+    assert len(close) >= 0.7 * len(facing_someone)            # das Gerangel: Schild an Schild
+    assert all(dist_of_pt(m.pos, m.stand) <= config.BOUND_SHUFFLE + 1e-6 for m in bound_front if m.stand)

@@ -91,6 +91,9 @@ HITRUN_TIME = 5.0            # Sekunden, längstens
 
 # Handgemenge: Binden und Lösen
 MAN_BIND_REACH = 0.7         # Kacheln zum Gegner, bis zu denen ein Mann im Handgemenge steht
+CONTACT_REACH = 0.12         # Kacheln: so nah geht ein Mann der ersten Reihe an seinen Gegner heran
+CONTACT_SEEK = 0.5           # Anteil des Lauftempos, mit dem er sich im Gerangel vorschiebt
+RING_MAX = 3.0               # Kacheln: größter Halbmesser, den man dem Kreis ziehen kann
 BOUND_LEASH = 1.2            # Kacheln: so weit darf sich die Gruppe von einem gebundenen Mann entfernen, dann reißt er sich los
 ENGAGED_SPEED = 0.33         # Geschwindigkeit einer Gruppe im Nahkampf
 DISENGAGE_TIME = 4.0         # Sekunden nach dem Lösen, in denen die Gruppe verwundbar ist

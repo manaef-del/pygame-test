@@ -700,6 +700,7 @@ class Battle:
         for u in self._selection(units):
             if name in u.formation_options() and u.formation != name:
                 u.formation = name
+                u.ring_size = 0.0
                 u.in_line = False
                 changed += 1
         if changed:
@@ -819,6 +820,27 @@ class Battle:
             pos += seg + gap
         return plans
 
+    def ring_radius_for(self, u: Lochos, wanted: float) -> float:
+        return max(u.ring_minimum(), min(config.RING_MAX, wanted))
+
+    def command_ring(self, units: list[Lochos] | None, centre: Point, radius: float) -> int:
+        """Kreis ziehen: Mitte am Anfang des Zugs, Halbmesser aus seiner Länge (nie
+        enger, als die Männer Platz brauchen). Die Gruppen stehen dann im Kreis fest."""
+        self.alarm = False
+        sel = [u for u in self._selection(units) if u.formation == "o"]
+        for u in sel:
+            self._wake(u)
+            u.ring_size = self.ring_radius_for(u, radius)
+            u.mode = ""
+            u.stance = Stance.PHALANX
+            u.in_line = False
+            u.target_id = None
+            u.waypoints = []
+            u.target = self._free_spot(centre, u)
+        if sel:
+            self.events.append(f"Kreis mit Halbmesser {sel[0].ring_size:.1f}")
+        return len(sel)
+
     def command_line(self, units: list[Lochos] | None, start: Point, end: Point) -> list[LinePlan]:
         self.alarm = False
         plans = self.plan_line(units, start, end)
@@ -828,6 +850,7 @@ class Battle:
                 continue
             self._wake(u)
             u.formation = "linie"
+            u.ring_size = 0.0
             u.mode = ""
             u.reform(plan.width)
             u.stance = Stance.PHALANX
@@ -1350,10 +1373,16 @@ class Battle:
                     speed = max(u.speed, man.speed) * config.MAN_CATCHUP
                     self._man_step(u, man, goal, speed * dt, walker)
                 continue
+            seeking = self._contact_goals(u)
             for man, slot in u.slots():
                 d = dist(man.pos, slot)
-                if man.bound and dist(slot, man.stand or man.pos) > config.BOUND_SHUFFLE:
-                    continue                          # steht im Handgemenge fest, rückt höchstens etwas nach
+                if man.bound:
+                    goal = seeking.get(id(man))
+                    if goal is not None:              # erste Reihe: Schild an Schild an den Gegner heran
+                        self._man_step(u, man, goal, max(u.speed, man.speed) * config.CONTACT_SEEK * dt, walker, through=True)
+                        continue
+                    if dist(slot, man.stand or man.pos) > config.BOUND_SHUFFLE:
+                        continue                      # steht im Handgemenge fest, rückt höchstens etwas nach
                 if d <= 0.02:
                     if self._man_can_step(u, man, man.pos, slot, walker):
                         man.x, man.y = slot
@@ -1407,7 +1436,39 @@ class Battle:
         side = 1.0 if man.y > cell[1] + 0.5 else -1.0
         return (cell[0] + 0.5 + ((i % 6) - 2.5) * 0.14, cell[1] + 0.5 + side * (0.75 + (i // 6) * 0.15))
 
-    def _man_step(self, u: Lochos, man: Man, goal: Point, step: float, walker: bool, slide: bool = True) -> bool:
+    def _contact_goals(self, u: Lochos) -> dict[int, Point]:
+        """Gebundene Männer der ersten Reihe (im Kreis alle) schieben sich bis auf
+        Schildweite an den nächsten feindlichen Mann heran, aber nie weiter als
+        ihr Platz im Handgemenge erlaubt."""
+        if u.loose or not any(m.bound for m in u.all_men()):
+            return {}
+        up = self.on_wall(u)
+        foes = [e for e in self.lochoi if e.side is not u.side and e.fighting and self.on_wall(e) == up
+                and dist(e.pos, u.pos) <= e.radius + u.radius + config.MAN_BIND_REACH + 0.5]
+        enemy_men = [(m, e) for e in foes for m in e.all_men()]
+        if not enemy_men:
+            return {}
+        front = u.rows[0] if u.formation == "linie" and u.rows else u.all_men()
+        out: dict[int, Point] = {}
+        for man in front:
+            if not man.bound:
+                continue
+            best, group = min(enemy_men, key=lambda pair: (pair[0].x - man.x) ** 2 + (pair[0].y - man.y) ** 2)
+            d = dist(man.pos, best.pos)
+            if d <= config.CONTACT_REACH + 0.02 or d > config.MAN_BIND_REACH:
+                continue
+            # bis auf Schildweite heran, aber nie in die feindliche Formation hinein
+            advance = min(d - config.CONTACT_REACH, max(0.0, group.rect_distance(man.pos) - 0.03))
+            if advance <= 0.01:
+                continue
+            spot = (man.x + (best.x - man.x) / d * advance, man.y + (best.y - man.y) / d * advance)
+            if dist(spot, man.stand or man.pos) > config.BOUND_SHUFFLE:
+                continue
+            out[id(man)] = spot
+        return out
+
+    def _man_step(self, u: Lochos, man: Man, goal: Point, step: float, walker: bool, slide: bool = True,
+                  through: bool = False) -> bool:
         d = dist(man.pos, goal)
         if d < 1e-6:
             return True
@@ -1417,19 +1478,19 @@ class Battle:
         for nx, ny in options:
             if (nx, ny) == (man.x, man.y):
                 continue
-            if self._man_can_step(u, man, (man.x, man.y), (nx, ny), walker):
+            if self._man_can_step(u, man, (man.x, man.y), (nx, ny), walker, through):
                 man.x, man.y = nx, ny
                 return True
         return False
 
-    def _man_can_step(self, u: Lochos, man: Man, a: Point, b: Point, walker: bool) -> bool:
+    def _man_can_step(self, u: Lochos, man: Man, a: Point, b: Point, walker: bool, through: bool = False) -> bool:
         ca, cb = self.cell(*a), self.cell(*b)
         wa = self.is_wall_cell(ca, walker)
         if self.is_blocked(b[0], b[1], u, from_wall=wa):
             return False
         if self.inside(*a) and not self.inside(*b) and u.stance is not Stance.FLUCHT:
             return False                      # der Kartenrand ist keine Umgehung
-        if self._walled_off(u, a, b, self._barrier_cache.get(u.side, [])):
+        if not through and self._walled_off(u, a, b, self._barrier_cache.get(u.side, [])):
             return False
         wb = self.is_wall_cell(cb, walker)
         if wa == wb:

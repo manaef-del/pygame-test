@@ -17,7 +17,7 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   zugewandt ist.
 - **Truppentypen:** schwere, mittlere und leichte Hopliten (dunkel-,
   mittel-, hellblau), Peltasten (rot) und Reiter (grün). Räuber sind grau
-  mit rotem Ring. Vorrat: 40 Hopliten, 15 Peltasten, 20 Reiter.
+  mit rotem Ring. Vorgabe: 40 Hopliten, 15 Peltasten, 20 Reiter.
 - **Peltasten** haben zehn Speere je Mann und werfen in Salven. Jeder
   Speer fliegt sichtbar vom werfenden Mann zu einem bestimmten Gegner
   und trifft nur diesen. Sind die Speere verschossen, geht die Gruppe in
@@ -28,6 +28,12 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   aber weiter auf, bis nur noch ein Spalt bleibt. Wer im Handgemenge
   steht, kommt erst mit gut einer Kachel Abstand wieder los, das Lösen
   dauert also.
+- **Gerangel in der ersten Reihe.** Wer in der ersten Reihe (im Kreis:
+  überall) einen Gegner in Reichweite hat, schiebt sich bis auf
+  Schildweite an ihn heran statt auf seinem Platz stehen zu bleiben,
+  aber nie weiter, als sein Platz im Handgemenge erlaubt. Fällt ein Mann
+  der ersten Reihe, rückt sofort einer aus der Reihe dahinter in die
+  Lücke; die Front bleibt voll, die letzte Reihe schrumpft.
 - **Jeder Mann zählt einzeln.** Er hat eigene Trefferpunkte (verwundete
   Punkte sind dunkler) und eine eigene Position: Er läuft zu seinem
   Platz in der Formation, weicht aber selbst aus, durchs Tor nur durch
@@ -37,11 +43,14 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   sind sie so schnell wie Fußvolk und ohne Reiterbonus. Ohne Gerät zu
   den Pferden geschickt, sitzen sie wieder auf. Durch ein aufgebrochenes
   Tor reiten sie beritten.
-- **Aufstellung:** Vor der Schlacht werden Gruppen aus dem Vorrat
-  zusammengestellt. Eine Gruppe besteht aus Reihen-Blöcken von vorn nach
-  hinten, jeder Block mit einem Truppentyp (Farbpunkt) und einer Anzahl
-  (Schieberegler). Blöcke lassen sich verschieben, entfernen und
-  hinzufügen. Vorgabe: je eine Gruppe Hopliten, Peltasten und Reiter.
+- **Aufstellung:** Vor der Schlacht werden Gruppen aus einem gemeinsamen
+  Vorrat zusammengestellt, der Truppenstärke. Eine Gruppe besteht aus
+  Reihen-Blöcken von vorn nach hinten, jeder Block mit einem Truppentyp
+  (Farbpunkt) und einer Anzahl (Schieberegler). Die Gattungen sind frei
+  tauschbar: Wer die Reiter auf null stellt, kann die Männer bei den
+  Hopliten oder sonstwo wieder einsetzen. Der Regler für die Stärke
+  skaliert alle Blöcke mit. Blöcke lassen sich verschieben, entfernen
+  und hinzufügen. Vorgabe: je eine Gruppe Hopliten, Peltasten und Reiter.
 - **Front aufziehen:** Gruppe antippen, dann auf der Karte den Finger
   aufsetzen und eine Linie ziehen. Die Linie ist die Front, ihre Länge
   bestimmt die Breite und damit die Zahl der echten Reihen. Landen
@@ -80,7 +89,10 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   mit Fußvolk: Linie und Kreis (rundum Front ohne Flanke und Rücken,
   aber ohne den Rückhalt der Glieder: schwächer nach vorn, nur 60 % der
   Männer kämpfen) für den Fall, dass man umfasst wird oder weit in der
-  Unterzahl ist. Reine Reiter: Linie und
+  Unterzahl ist. Die Größe des Kreises zieht man wie eine Linie: Tippen
+  setzt die Mitte, die Länge des Zugs den Halbmesser (nie enger, als die
+  Männer Platz brauchen, höchstens drei Kacheln); ein weiter Kreis steht
+  lockerer. Reine Reiter: Linie und
   Keil; der Keil trifft beim Sturm halb so viele Männer, die aber fast
   doppelt so hart. Reine Peltasten: Linie und Kreis. Wer eine neue Linie
   zieht, steht wieder in Linie.
@@ -160,9 +172,10 @@ deutlich größere Übermacht.*
 ## Szenarien
 
 Zwei Regler oben im Aufstellungsmenü setzen die eigene Stärke und die
-des Gegners. Die Blöcke und Gruppen sind die Vorlage für die Mischung,
-die Gesamtzahl verteilt sich verhältnismäßig darauf. Das Spiel läuft
-mit halber Geschwindigkeit (`TIME_SCALE`).
+des Gegners. Der Stärkeregler skaliert die Blöcke aller Gruppen
+verhältnismäßig; danach kann man die Zahlen einzeln verschieben, auch
+zwischen den Gattungen. Ins Feld zieht, was eingeteilt ist. Das Spiel
+läuft mit halber Geschwindigkeit (`TIME_SCALE`).
 
 | Szenario | Lage |
 |----------|------|
@@ -303,7 +316,7 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 | Tippen auf Feind | gewählte Gruppen greifen diese an |
 | Tippen auf das Tor | gewählte Gruppen mit Rammbock brechen es auf |
 | Tippen auf den Wall | gewählte Gruppen mit Turm setzen ihn dort an |
-| Ziehen auf der Karte | Front aufziehen: Länge = Breite, Richtung = Blickrichtung |
+| Ziehen auf der Karte | Front aufziehen: Länge = Breite, Richtung = Blickrichtung; bei Gruppen im Kreis: Anfang = Mitte, Länge = Halbmesser |
 | Sturm / Plänkeln / Sturmangriff / A | gewählte Gruppen greifen frei an, je Waffengattung (siehe oben); gemischte Gruppen teilen sich dafür nach Gattung |
 | Vereinen / V | mehrere gewählte Gruppen werden eine |
 | Phalanx bilden / Halten / H | Hopliten bilden an Ort und Stelle eine Phalanx, andere bleiben stehen |

@@ -174,6 +174,7 @@ class Lochos:
     heading: tuple[float, float] = (0.0, -1.0)   # Reiter: Fahrtrichtung
     ride_in: float = 0.0              # Reiter: wie weit sie in den Feind hineingetragen wurden
     face_to: tuple[float, float] | None = None   # befohlene Front, auf die die Gruppe schwenkt
+    ring_size: float = 0.0            # Kreis: gewünschter äußerer Halbmesser (0 = so eng wie möglich)
     charge_slow_until: float = -1.0   # nach dem Aufprall: bis dahin langsam
     last_arc: str = ""
     men_start: int = 0
@@ -301,8 +302,16 @@ class Lochos:
         need = [max(0.12, len(layer) * config.MAN_SPACING / (2 * math.pi)) for layer in self.layers()]
         if not need:
             return [0.35]
-        outer = max(0.35, max(r + i * config.ROW_SPACING for i, r in enumerate(need)))
+        outer = max(0.35, self.ring_size, max(r + i * config.ROW_SPACING for i, r in enumerate(need)))
         return [outer - i * config.ROW_SPACING for i in range(len(need))]
+
+    def ring_minimum(self) -> float:
+        """Der engste Kreis, in dem alle Schichten Platz haben."""
+        size, self.ring_size = self.ring_size, 0.0
+        try:
+            return self.ring_radii()[0]
+        finally:
+            self.ring_size = size
 
     def ring_radius(self) -> float:
         return self.ring_radii()[0]
@@ -557,11 +566,30 @@ class Lochos:
         return self.bury()
 
     def bury(self) -> int:
-        """Gefallene aus den Reihen nehmen; leere Reihen schließen."""
+        """Gefallene aus den Reihen nehmen; die Reihe dahinter rückt sofort in die
+        Lücke nach, so dass die Front voll bleibt und die letzte Reihe schrumpft."""
         fallen = 0
-        for row in self.rows:
-            alive = [m for m in row if m.hp > HP_EPS]
-            fallen += len(row) - len(alive)
-            row[:] = alive
+        width = self.width
+        gaps_per_row: list[list[int]] = []
+        for row in self.rows:                                # erst alle Gefallenen heraus ...
+            gaps = [j for j, m in enumerate(row) if m.hp <= HP_EPS]
+            fallen += len(gaps)
+            row[:] = [m for m in row if m.hp > HP_EPS]
+            gaps_per_row.append(gaps)
+        for i, gaps in enumerate(gaps_per_row):              # ... dann an derselben Stelle nachrücken
+            for j in gaps:
+                self._step_up(i, j)
+        for i in range(len(self.rows) - 1):                  # dahinter schließen sich die Reihen wieder
+            while len(self.rows[i]) < width and any(self.rows[i + 1:]):
+                self._step_up(i, len(self.rows[i]) // 2)
         self.rows = [r for r in self.rows if r]
         return fallen
+
+    def _step_up(self, i: int, j: int) -> None:
+        """Ein Mann aus der nächsten besetzten Reihe hinter ``i`` tritt an Stelle ``j``."""
+        for k in range(i + 1, len(self.rows)):
+            behind = self.rows[k]
+            if behind:
+                man = behind.pop(min(j, len(behind) - 1))
+                self.rows[i].insert(min(j, len(self.rows[i])), man)
+                return

@@ -108,6 +108,16 @@ class Renderer:
         start, end = (drag[0], drag[1]), (drag[2], drag[3])
         pygame.draw.line(s, config.COLOR_RECT, px(start), px(end), 2)
         units = [u for u in battle.lochoi if u.id in selected and u.fighting] if selected else None
+        if units:
+            rings = [u for u in units if u.formation == "o"]
+            if rings:                                      # Kreis: Mitte am Anfang, Halbmesser aus der Länge
+                r = battle.ring_radius_for(rings[0], dist(start, end))
+                pygame.draw.circle(s, config.COLOR_RECT, px(start), int(r * T), 1)
+                label = self.small.render(f"Kreis, Halbmesser {r:.1f}", True, config.COLOR_RECT)
+                s.blit(label, label.get_rect(center=px((start[0], start[1] + r + 0.4))))
+                units = [u for u in units if u.formation != "o"]
+                if not units:
+                    return
         for plan in battle.plan_line(units, start, end):
             fx, fy = plan.facing
             ax, ay = -fy, fx   # entlang der Linie
@@ -525,15 +535,17 @@ class Renderer:
         gap = 6
 
         self._center_text(self.big, "Aufstellung", config.COLOR_TEXT, 24)
-        # Vorrat (Vorlage für die Mischung)
+        # Vorrat: ein gemeinsamer Topf für alle Gattungen
         y, x = 48, 8
         for key in PLAYER_TYPES:
             kind = UNIT_TYPES[key]
             pygame.draw.circle(s, kind.color, (x + 6, y + 8), 5)
-            txt = self.small.render(f"{army.remaining(key)}/{army.pool[key]}", True, config.COLOR_TEXT)
+            txt = self.small.render(f"{army.used(key)} {kind.short}", True, config.COLOR_TEXT)
             s.blit(txt, (x + 16, y))
-            x += 92
-        s.blit(self.small.render("Vorlage: noch frei / gesamt", True, config.COLOR_TEXT_DIM), (8, y + 16))
+            x += 62
+        free = army.remaining()
+        note = f"{free} Mann noch frei" if free > 0 else "alle Männer eingeteilt"
+        s.blit(self.small.render(note + "  ·  Gattungen frei tauschbar", True, config.COLOR_TEXT_DIM), (8, y + 16))
 
         # Eigene Stärke und Gegnerstärke
         y = 80

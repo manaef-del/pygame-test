@@ -12,7 +12,6 @@ from dataclasses import dataclass, field
 
 from .units import PLAYER_TYPES, UNIT_TYPES, Man
 
-POOL: dict[str, int] = {"schwer": 14, "mittel": 13, "leicht": 13, "peltast": 15, "reiter": 20}
 MAX_GROUPS = 8
 MAX_TIERS = 4
 OWN_DEFAULT = 75
@@ -47,20 +46,26 @@ class GroupSpec:
 
 @dataclass
 class Army:
+    """Die Truppe: Gruppen aus Blöcken, gespeist aus einem gemeinsamen Vorrat
+    (die Truppenstärke). Jede Gattung darf davon so viel nehmen, wie noch frei
+    ist; wer die Reiter streicht, kann die Männer bei den Hopliten einsetzen."""
+
     groups: list[GroupSpec] = field(default_factory=list)
-    pool: dict[str, int] = field(default_factory=lambda: dict(POOL))
+    total: int = OWN_DEFAULT
 
     # ------------------------------------------------------------ Vorrat
-    def used(self, key: str) -> int:
+    def used(self, key: str | None = None) -> int:
+        if key is None:
+            return sum(g.men() for g in self.groups)
         return sum(g.count(key) for g in self.groups)
 
-    def remaining(self, key: str) -> int:
-        return self.pool.get(key, 0) - self.used(key)
+    def remaining(self, key: str | None = None) -> int:
+        return self.total - self.used()
 
     def max_for(self, group: int, tier: int) -> int:
         """Höchstzahl für diesen Block: Rest im Vorrat plus eigener Bestand."""
         t = self.groups[group].tiers[tier]
-        return self.remaining(t.kind) + t.count
+        return self.remaining() + t.count
 
     # ------------------------------------------------------------ Blöcke
     def set_count(self, group: int, tier: int, n: int) -> int:
@@ -70,19 +75,15 @@ class Army:
 
     def set_kind(self, group: int, tier: int, key: str) -> None:
         t = self.groups[group].tiers[tier]
-        if key == t.kind or key not in self.pool:
-            return
-        wanted = t.count
-        t.kind = key
-        t.count = 0
-        t.count = min(wanted, self.remaining(key))
+        if key in UNIT_TYPES:
+            t.kind = key                      # die Männer bleiben, nur die Gattung wechselt
 
     def add_tier(self, group: int) -> bool:
         g = self.groups[group]
         if len(g.tiers) >= MAX_TIERS:
             return False
-        key = next((k for k in PLAYER_TYPES if self.remaining(k) > 0), PLAYER_TYPES[0])
-        g.tiers.append(Tier(key, min(5, self.remaining(key))))
+        key = g.tiers[-1].kind if g.tiers else PLAYER_TYPES[0]
+        g.tiers.append(Tier(key, max(0, min(5, self.remaining()))))
         return True
 
     def remove_tier(self, group: int, tier: int) -> None:
@@ -115,18 +116,19 @@ class Army:
         return sum(g.men() for g in self.groups)
 
     def valid(self) -> bool:
-        return self.total_men() > 0 and all(self.remaining(k) >= 0 for k in self.pool)
+        return self.total_men() > 0 and self.used() <= self.total
 
 
 def scaled_army(source: Army, total: int) -> Army:
-    """Dieselbe Mischung wie ``source``, auf ``total`` Mann skaliert."""
+    """Dieselbe Mischung wie ``source``, auf ``total`` Mann skaliert; Blöcke,
+    die dabei leer würden, bleiben mit einem Mann erhalten, wenn sie besetzt waren."""
     base = source.total_men()
     if base <= 0 or total <= 0:
-        return Army(groups=[])
+        return Army(groups=[], total=max(0, total))
     groups: list[GroupSpec] = []
     rounded_total = 0
     for g in source.groups:
-        tiers = [Tier(t.kind, round(t.count * total / base)) for t in g.tiers]
+        tiers = [Tier(t.kind, max(1, round(t.count * total / base)) if t.count > 0 else 0) for t in g.tiers]
         tiers = [t for t in tiers if t.count > 0]
         rounded_total += sum(t.count for t in tiers)
         if tiers:
@@ -135,8 +137,7 @@ def scaled_army(source: Army, total: int) -> Army:
     if groups and rounded_total != total:
         biggest = max((t for g in groups for t in g.tiers), key=lambda t: t.count)
         biggest.count = max(1, biggest.count + (total - rounded_total))
-    pool = {k: max(POOL.get(k, 0), sum(g.count(k) for g in groups)) for k in POOL}
-    return Army(groups=groups, pool=pool)
+    return Army(groups=groups, total=total)
 
 
 def default_army() -> Army:
@@ -145,7 +146,7 @@ def default_army() -> Army:
         GroupSpec("Hopliten", [Tier("schwer", 14), Tier("mittel", 13), Tier("leicht", 13)]),
         GroupSpec("Peltasten", [Tier("peltast", 15)]),
         GroupSpec("Reiter", [Tier("reiter", 20)]),
-    ])
+    ], total=OWN_DEFAULT)
 
 
 def arm_of(kind: str) -> str:

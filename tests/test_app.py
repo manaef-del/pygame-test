@@ -55,11 +55,11 @@ def test_menu_sliders_chips_and_blocks():
     assert app.army.groups[0].tiers[0].count == 7
     app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=(track.right, track.centery)))
     assert app.menu_slider is None
-    # Farbpunkt: Typ wechseln, Anzahl wird gekappt
+    # Farbpunkt: Typ wechseln, die Männer bleiben (ein gemeinsamer Vorrat)
     app.draw()
     press(app, next(b for b in app.renderer.menu_buttons if b.key == "kind:0:reiter").rect.center)
     assert app.army.groups[0].tiers[0].kind == "reiter"
-    assert app.army.groups[0].tiers[0].count == 0            # Reiter sind alle vergeben
+    assert app.army.groups[0].tiers[0].count == 7
     # Block verschieben, Reihe anlegen und entfernen
     app.draw()
     press(app, next(b for b in app.renderer.menu_buttons if b.key == "down:0").rect.center)
@@ -71,7 +71,7 @@ def test_menu_sliders_chips_and_blocks():
     assert not any(b.key == "addrow" for b in app.renderer.menu_buttons)
     press(app, next(b for b in app.renderer.menu_buttons if b.key == "delrow:1").rect.center)
     assert len(app.army.groups[0].tiers) == 3
-    assert [t.kind for t in app.army.groups[0].tiers] == ["mittel", "leicht", "schwer"]
+    assert [t.kind for t in app.army.groups[0].tiers] == ["mittel", "leicht", "leicht"]   # neue Reihe wie die letzte
     # Gruppe anlegen und Schlacht starten
     app.draw()
     press(app, next(b for b in app.renderer.menu_buttons if b.key == "add").rect.center)
@@ -79,7 +79,27 @@ def test_menu_sliders_chips_and_blocks():
     app.draw()
     press(app, next(b for b in app.renderer.menu_buttons if b.key == "start").rect.center)
     assert app.screen == "schlacht"
-    assert app.battle.men(Side.STADT) == app.own_count      # Vorlage wird auf die Stärke skaliert
+    assert app.battle.men(Side.STADT) == app.army.total_men() == 71   # ins Feld zieht, was eingeteilt ist
+
+
+def test_strength_slider_scales_the_blocks_and_freed_men_can_be_reassigned():
+    app = make_app(start_in_battle=False)
+    app.draw()
+    tier, track = next(sl for sl in app.renderer.menu_sliders if sl[0] == -2)
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(track.right, track.centery)))
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=(track.right, track.centery)))
+    assert app.own_count == 200 and app.army.total_men() == 200         # die Blöcke skalieren mit
+    assert app.army.groups[2].tiers[0].count > 40                       # die Reiter auch
+    app.menu_group = 2
+    app.army.set_count(2, 0, 0)                                         # Reiter auf null
+    app._remember()
+    free = app.army.remaining()
+    assert free > 40
+    assert app.army.max_for(0, 0) == app.army.groups[0].tiers[0].count + free   # ... die Hopliten dürfen sie nehmen
+    app.army.set_count(0, 0, app.army.max_for(0, 0))
+    assert app.army.remaining() == 0 and app.army.groups[2].tiers[0].count == 0
+    app.menu_command("start")
+    assert app.battle.men(Side.STADT) == 200 and not any(u.arm() == "reiter" for u in app.battle.units(Side.STADT))
 
 
 def test_tap_selects_moves_and_attacks():

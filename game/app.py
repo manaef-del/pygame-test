@@ -37,6 +37,7 @@ class App:
         self.seed = seed
         self.scenario_index = 0
         self.army: Army = default_army()
+        self.template: Army = copy.deepcopy(self.army)   # Mischung, aus der die Stärke skaliert wird
         self.menu_group = 0
         self.screen = "schlacht" if start_in_battle else "aufstellung"
         self.paused = False
@@ -57,7 +58,7 @@ class App:
         self.selected = set()
         self.drag_start = self.drag_now = None
         scn = SCENARIOS[self.scenario_index]
-        army = scaled_army(self.army, self.own_count) if self.army.total_men() else copy.deepcopy(self.army)
+        army = copy.deepcopy(self.army) if self.army.total_men() else scaled_army(default_army(), self.own_count)
         return Battle(scn, rng, army=army, enemy_count=self.enemy_counts[scn.key], memory=self.memory)
 
     # ---------------------------------------------------------- Eingabe
@@ -133,12 +134,18 @@ class App:
             return
         if tier == -2:
             self.own_count = OWN_MIN + round(frac * (OWN_MAX - OWN_MIN))
+            self.army = scaled_army(self.template, self.own_count)   # die Blöcke skalieren mit
             return
         if tier >= len(self.army.groups[self.menu_group].tiers):
             self.menu_slider = None
             return
         maximum = self.army.max_for(self.menu_group, tier)
         self.army.set_count(self.menu_group, tier, round(frac * maximum))
+        self._remember()
+
+    def _remember(self) -> None:
+        """Die bearbeitete Mischung wird zur Vorlage für das Skalieren."""
+        self.template = copy.deepcopy(self.army)
 
     def _release(self, pos: tuple[int, int]) -> None:
         self.menu_slider = None
@@ -151,7 +158,15 @@ class App:
         if abs(end[0] - start[0]) < DRAG_MIN and abs(end[1] - start[1]) < DRAG_MIN:
             self._tap(end)
             return
-        self.battle.command_line(self._selection(), start, end)
+        sel = self._selection()
+        rings = [u for u in sel if u.formation == "o"] if sel else []
+        if rings:
+            self.battle.command_ring(rings, start, ((end[0] - start[0]) ** 2 + (end[1] - start[1]) ** 2) ** 0.5)
+            rest = [u for u in sel if u.formation != "o"]
+            if rest:
+                self.battle.command_line(rest, start, end)
+        else:
+            self.battle.command_line(sel, start, end)
         self.paused = False
 
     def _tap(self, p: tuple[float, float]) -> None:
@@ -262,7 +277,7 @@ class App:
             a.delete_group(self.menu_group)
             self.menu_group = min(self.menu_group, len(a.groups) - 1)
         elif key == "preset":
-            self.army = default_army()
+            self.army = scaled_army(default_army(), self.own_count)
             self.menu_group = 0
         elif key == "scenario":
             self.scenario_index = (self.scenario_index + 1) % len(SCENARIOS)
@@ -281,6 +296,8 @@ class App:
         elif key.startswith("kind:"):
             _, tier, kind = key.split(":")
             a.set_kind(self.menu_group, int(tier), kind)
+        if key not in ("prev", "next", "scenario", "start"):
+            self._remember()
 
     # ------------------------------------------------------------ Takt
     def tick(self, dt: float) -> None:
