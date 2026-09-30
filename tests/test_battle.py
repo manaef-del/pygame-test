@@ -1297,3 +1297,43 @@ def test_charging_cavalry_rides_into_the_enemy_before_it_stops():
     assert x_contact is not None
     assert x_contact - cav.x > 0.3 and cav.ride_in > 0.3                     # weiter nach Westen in den Feind hinein
     assert cav.ride_in <= config.CHARGE_PENETRATION + 1e-6
+
+
+# ------------------------------------------------------------ Wenden im Stand
+def standing_group(kind: str, n: int = 12, width: int = 6):
+    scn = raid(16, (8.0, 1.0))
+    army = army_of(GroupSpec("G", [Tier(kind, n)]))
+    b = Battle(scn, random.Random(0), army=army, ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    u = b.units(Side.STADT)[0]
+    u.rows = arrange(u.all_men(), width)
+    u.x, u.y, u.facing = 8.0, 12.0, (0.0, -1.0)
+    u.place_men()
+    return b, u
+
+
+@pytest.mark.parametrize("kind", ["mittel", "reiter"])
+def test_about_turn_swaps_rows_so_nobody_crosses_the_block(kind):
+    b, u = standing_group(kind)
+    front_row = list(u.rows[0])
+    before = {id(m): m.pos for m in u.all_men()}
+    b.command_move([u], (8.0, 16.0))                                       # das Ziel liegt hinter der Gruppe
+    b.update(DT)
+    assert u.facing == (0.0, 1.0)                                          # kehrtgemacht, ohne zu schwenken
+    assert u.rows[-1] == list(reversed(front_row))                          # die alte Front ist jetzt hinten
+    run(b, 0.3)
+    moved = max(dist_of_pt(m.pos, before[id(m)]) for m in u.all_men())
+    assert moved < 0.6                                                     # niemand läuft quer durch den Block
+
+
+@pytest.mark.parametrize("kind", ["mittel", "reiter"])
+def test_standing_group_wheels_before_it_marches(kind):
+    b, u = standing_group(kind)
+    b.command_move([u], (14.0, 12.0))                                      # rechtwinklig nach Osten
+    x0 = u.x
+    run(b, 0.15)
+    assert u.facing[0] > 0.3 and u.facing[1] < -0.3                         # mitten im Schwenk
+    assert abs(u.x - x0) < 0.05                                            # noch nicht losmarschiert
+    run(b, 0.5)
+    assert abs(u.facing[0] - 1.0) < 1e-6 and u.x > x0 + 0.1                # ausgerichtet und unterwegs

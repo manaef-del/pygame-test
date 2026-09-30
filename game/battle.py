@@ -1104,8 +1104,11 @@ class Battle:
                 u.vel = 0.0
                 step = min(speed * dt, d)
                 direction = norm(sub(goal, u.pos))
-                if u.stance is not Stance.PHALANX:
-                    u.facing = direction
+                if u.stance is Stance.FLUCHT or u.loose or self.on_wall(u):
+                    u.facing = direction                            # Flucht und Klettern: ohne Zeremonie
+                elif u.stance is not Stance.PHALANX:
+                    if abs(self._turn_towards(u, direction, dt)) > config.MOVE_TURN_TOLERANCE:
+                        continue                                    # erst schwenken, dann marschieren
                 self._step(u, scale(direction, step))
             if u.stance is Stance.ANGRIFF and not u.engaged:
                 u.runup += dist(before, u.pos)          # Anlauf für den Sturmangriff
@@ -1125,6 +1128,12 @@ class Battle:
         want = norm(sub(goal, u.pos))
         ang = 0.0
         if u.vel <= 0.05 or u.heading == (0.0, 0.0):
+            if u.stance is not Stance.FLUCHT:
+                rest = self._turn_towards(u, want, dt)             # im Stand schwenken oder kehrtmachen
+                u.heading = u.facing
+                if abs(rest) > config.MOVE_TURN_TOLERANCE:
+                    u.vel = 0.0
+                    return                                          # erst wenden, dann anfahren
             head = want
         else:
             head = u.heading
@@ -1145,6 +1154,42 @@ class Battle:
         if abs(ang) < 1e-3 and dist(head, want) < 1e-3:
             step = min(step, d)
         self._step(u, scale(head, step))
+
+    @staticmethod
+    def _angle_to(facing: Point, want: Point) -> float:
+        """Vorzeichenbehafteter Winkel von der Blickrichtung zur gewünschten Richtung."""
+        return math.atan2(facing[0] * want[1] - facing[1] * want[0], facing[0] * want[0] + facing[1] * want[1])
+
+    def _turn_towards(self, u: Lochos, want: Point, dt: float) -> float:
+        """Im Stand wenden: Die Front dreht sich mit begrenzter Rate, die Männer
+        schwenken auf ihren Plätzen mit. Liegt das Ziel hinter der Gruppe, macht
+        sie kehrt: Die Reihen tauschen, jeder Mann bleibt fast auf seinem Platz
+        und wendet nur. Liefert den Winkel, der noch fehlt."""
+        if u.facing == (0.0, 0.0):
+            u.facing = want
+            return 0.0
+        ang = self._angle_to(u.facing, want)
+        if abs(ang) > config.ABOUT_TURN and not u.loose:
+            self._about_turn(u)
+            ang = self._angle_to(u.facing, want)
+        limit = config.STAND_TURN_RATE * dt
+        if abs(ang) <= limit:
+            u.facing = want
+            return 0.0
+        turn = math.copysign(limit, ang)
+        fx, fy = u.facing
+        c, s_ = math.cos(turn), math.sin(turn)
+        u.facing = (fx * c - fy * s_, fx * s_ + fy * c)
+        return ang - turn
+
+    @staticmethod
+    def _about_turn(u: Lochos) -> None:
+        """Kehrtwendung: hintere Reihe wird vordere, links wird rechts, Front
+        nach hinten; die Plätze bleiben, wo die Männer stehen."""
+        u.rows = [list(reversed(r)) for r in reversed(u.rows)]
+        u.facing = (-u.facing[0], -u.facing[1])
+        u.heading = u.facing
+        u.in_line = False
 
     def _coast(self, u: Lochos, dt: float) -> None:
         """Ohne Ziel: Reiter bremsen ab und rollen dabei noch aus."""

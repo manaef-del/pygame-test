@@ -97,6 +97,15 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   eigene Gruppen mit eigener Kachel. Alle Teile bleiben gewählt. Sind
   mehrere Gruppen gewählt, vereint „Vereinen“ (V) sie wieder zu einer
   Linie an ihrem gemeinsamen Schwerpunkt.
+- **Wenden im Stand:** Bekommt eine stehende Gruppe ein Ziel in einer
+  anderen Richtung, springt ihre Front nicht mehr um. Sie schwenkt mit
+  einer halben Umdrehung je Sekunde, die Männer drehen auf ihren
+  Plätzen mit, und erst wenn die Richtung grob stimmt (45 Grad), geht es
+  los. Liegt das Ziel hinter der Gruppe, macht sie kehrt: Die hintere
+  Reihe wird die vordere, links wird rechts, und jeder Mann bleibt fast
+  auf seinem Platz. Das gilt für Reiter und Fußvolk; nur Fliehende und
+  Kletternde wenden ohne Zeremonie, und eine Phalanx behält beim Marsch
+  ihre Front wie bisher.
 - **Schwung der Reiter:** Berittene fahren an (in gut einer Sekunde auf
   vollen Galopp), bremsen vor dem Ziel ab und wenden im Galopp in Bögen,
   deren Halbmesser mit dem Tempo wächst; im Stand drehen sie frei. Ohne
