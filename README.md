@@ -378,6 +378,11 @@ Simulator zu vergleichen.
 
 ## Steuerung
 
+Im laufenden Spiel sieht man nur die Männer; gewählte Gruppen tragen
+einen Ring um jeden Mann, eine geschlossene Phalanx den goldenen
+Schildstrich vor ihrer Front. Die Formationsrechtecke und die Ziele
+erscheinen in der Pause und beim Aufziehen einer Front.
+
 Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 
 - **Am rechten Kartenrand eine Kachel je eigene Gruppe**, untereinander,
@@ -415,7 +420,7 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 | Linie, Kreis, Keil / F | Formation der gewählten Gruppe setzen (F schaltet weiter) |
 | Rammbock, Turm / B, T | gewählte Gruppen bauen das Gerät; erneut drücken: ablegen oder Bau abbrechen (nur beim Angriff mit Wall) |
 | Alle / Keine | alle Gruppen wählen oder Auswahl aufheben |
-| Pause / Leertaste | anhalten, bei Alarm: losgehen; in der Pause zeigt jede Gruppe, die noch unterwegs ist, ihr Ziel als Rechteck mit Front und Weg, sonst nur die gewählten |
+| Pause / Leertaste | anhalten, bei Alarm: losgehen; erst in der Pause erscheinen die Formationsrechtecke, und jede Gruppe, die noch unterwegs ist, zeigt ihr Ziel als Rechteck mit Front und Weg |
 | Menü, dann Neu / R (zweimal) | Szenario neu starten |
 | Menü, dann Aufstellung / M | zurück ins Aufstellungsmenü |
 

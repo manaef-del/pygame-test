@@ -307,3 +307,24 @@ def test_attack_and_hold_need_a_selection_and_formation_cycles():
     app.command("formation")
     assert pelt.formation == "o"
     app.draw()
+
+
+def test_formation_frames_only_in_pause_and_while_dragging(monkeypatch):
+    """Im laufenden Spiel nur die Männer; Formationsrechtecke und Ziele in der Pause
+    und beim Aufziehen einer Front."""
+    app = make_app()
+    r = app.renderer
+    seen = []
+    orig = r._draw_lochos
+    monkeypatch.setattr(r, "_draw_lochos", lambda u, sel, frames=True: (seen.append(frames), orig(u, sel, frames)))
+    goals = []
+    monkeypatch.setattr(r, "_draw_destinations", lambda *a: goals.append(True))
+    r.draw(app.battle, None, False, set())
+    assert seen and not any(seen) and not goals
+    seen.clear()
+    r.draw(app.battle, None, True, set())
+    assert seen and all(seen) and goals
+    seen.clear()
+    goals.clear()
+    r.draw(app.battle, (4.0, 10.0, 9.0, 10.0), False, set())
+    assert seen and all(seen) and goals

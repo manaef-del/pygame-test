@@ -65,20 +65,22 @@ class Renderer:
         s.fill(config.COLOR_BG)
         self._draw_ground(battle)
         self._draw_houses(battle)
+        frames = paused or drag is not None               # Formationsrechtecke nur in der Pause und beim Aufziehen
         for u in sorted(battle.lochoi, key=lambda u: u.y):
             if u.alive:
-                self._draw_lochos(u, u.id in selected)
+                self._draw_lochos(u, u.id in selected, frames)
         for pr in battle.projectiles:
             self._draw_javelin(pr)
-        self._draw_destinations(battle, paused, selected)
+        if frames:
+            self._draw_destinations(battle, paused, selected)
         if drag is not None:
             self._draw_line_preview(battle, drag, selected)
         self._draw_hud(battle, paused, selected)
         self._draw_bar(battle, paused, selected, menu_open)
 
     def _draw_destinations(self, battle: Battle, paused: bool, selected: set[int]) -> None:
-        """Wohin eine eigene Gruppe unterwegs ist: in der Pause für alle, sonst für
-        die gewählten. Das Rechteck steht am Ziel, so wie die Gruppe dort stehen wird."""
+        """Wohin eine eigene Gruppe unterwegs ist: in der Pause für alle, beim Aufziehen
+        für die gewählten. Das Rechteck steht am Ziel, so wie die Gruppe dort stehen wird."""
         s = self.surface
         for u in battle.units(Side.STADT, fighting_only=True):
             if u.target is None or (not paused and u.id not in selected):
@@ -207,7 +209,9 @@ class Renderer:
                 frac = min(1.0, h.progress / config.LOOT_TIME)
                 pygame.draw.rect(s, config.COLOR_FIRE, pygame.Rect(h.cx * T + 3, h.cy * T + T - 6, int((T - 6) * frac), 3))
 
-    def _draw_lochos(self, u: Lochos, selected: bool) -> None:
+    def _draw_lochos(self, u: Lochos, selected: bool, frames: bool = True) -> None:
+        """Eine Gruppe: ihre Männer, und nur mit ``frames`` (Pause, Aufziehen) ihr
+        Formationsrechteck; sonst zeigt ein Ring um jeden Mann, dass sie gewählt ist."""
         s = self.surface
         cx, cy = px(u.pos)
         if u.side is Side.STADT:
@@ -216,8 +220,8 @@ class Renderer:
             ring = config.COLOR_ENEMY_DIM if u.stance is Stance.FLUCHT else config.COLOR_ENEMY
         corners = [px(c) for c in u.corners()]
         fx, fy = u.facing
-        if u.loose:
-            # aufgelöste Formation: kein Rechteck, nur die Männer (Auswahl als Ringe)
+        if u.loose or not frames:
+            # aufgelöst, oder Rechtecke ausgeblendet: nur die Männer (Auswahl als Ringe)
             if selected:
                 for man in u.all_men():
                     pygame.draw.circle(s, config.COLOR_SELECT, px(man.pos), 6, 1)
