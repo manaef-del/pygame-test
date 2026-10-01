@@ -327,10 +327,6 @@ def test_unopposed_raiders_loot_every_house():
     assert b.houses_intact() == 0
 
 
-@pytest.mark.xfail(strict=False, reason=(
-    "Seit Lauf 15 steigen die Räuber Mann für Mann über den Turm und verteilen sich am Leiterfuß; "
-    "die Reiter dort werden umfasst. Vorher 8 von 8 Startwerten gewonnen, jetzt 5 von 8. "
-    "Offen, siehe docs/ideen.md (Punkt 0b)."))
 def test_phalanx_behind_palisade_beats_larger_force():
     """Phalanx in zwei Gliedern hinter dem Tor, Peltasten auf dem Wehrgang, Reiter als
     Reserve: Steht ein Turm, decken die Reiter den Fuß der nächsten Leiter; die Phalanx

@@ -564,14 +564,67 @@ class Battle:
         wer schon im Handgemenge steht, kommt erst mit etwas Abstand wieder los.
         Der Wehrgang ist erhöht: von unten kommt niemand an die Männer oben
         heran, von oben schlägt man hinunter."""
-        if self._gap(a, b) > config.ENGAGE_RANGE + (config.CONTACT_HOLD if held else 0.0):
+        reach = config.ENGAGE_RANGE + (config.CONTACT_HOLD if held else 0.0)
+        if self._gap(a, b) > reach:
             return False
+        if self.blocked and (a.loose or b.loose):
+            return self._men_meet(a, b, reach + 0.2)
         up_a, up_b = self._fights_from_wall(a), self._fights_from_wall(b)
         if up_b and not up_a:
             return False
         if up_a or up_b:
             return True
         return self.path_clear(a.pos, b.pos)
+
+    def _men_meet(self, a: Lochos, b: Lochos, reach: float) -> bool:
+        """Aufgelöste Gruppen am Wall: Kontakt Mann gegen Mann. Es kämpft, wer einen
+        Gegner erreicht (``_hit_weight``)."""
+        return any(w > 0.0 for w in self._man_weights(a, b, reach).values())
+
+    def _hit_weight(self, m: Man, walker_m: bool, n: Man, walker_n: bool) -> float:
+        """Wie gut ``m`` an ``n`` herankommt: auf derselben Ebene voll; von oben vom Wall
+        hinab, oder von unten an einen, der auf der Leiter (dem Turm) steht, nur mit der
+        Wucht des Kampfes am Wall; an einen oben auf dem Wehrgang von unten gar nicht."""
+        cm, cn = self.cell(m.x, m.y), self.cell(n.x, n.y)
+        up_m, up_n = self.is_wall_cell(cm, walker_m), self.is_wall_cell(cn, walker_n)
+        if up_m == up_n:
+            if up_m:
+                return 1.0
+            lm, ln = self._wall_level(m.pos), self._wall_level(n.pos)
+            return 1.0 if lm == ln or "tor" in (lm, ln) else 0.0
+        if up_m:
+            return config.WALL_MELEE_FACTOR
+        return config.WALL_MELEE_FACTOR if cn in self.ladders or cn in self.crossings else 0.0
+
+    def _reachable_men(self, a: Lochos, b: Lochos, men: list[Man], reach: float) -> list[Man]:
+        """Die Männer aus ``men`` (von ``b``), an die ein Mann von ``a`` herankommt."""
+        walker_a, walker_b = self.is_walker(a), self.is_walker(b)
+        attackers = a.all_men()
+        return [n for n in men if any(math.hypot(m.x - n.x, m.y - n.y) <= reach
+                                      and self._hit_weight(m, walker_a, n, walker_b) > 0.0 for m in attackers)]
+
+    def _man_weights(self, a: Lochos, b: Lochos, reach: float) -> dict[int, float]:
+        """Für jeden Mann von ``a``, der einen Gegner aus ``b`` in Reichweite hat: wie gut
+        er an ihn herankommt (der beste in Reichweite)."""
+        men_b = b.all_men()
+        if not men_b:
+            return {}
+        walker_a, walker_b = self.is_walker(a), self.is_walker(b)
+        bx0, bx1 = min(n.x for n in men_b) - reach, max(n.x for n in men_b) + reach
+        by0, by1 = min(n.y for n in men_b) - reach, max(n.y for n in men_b) + reach
+        out: dict[int, float] = {}
+        for m in a.all_men():
+            if not (bx0 <= m.x <= bx1 and by0 <= m.y <= by1):
+                continue
+            best = -1.0
+            for n in men_b:
+                if math.hypot(m.x - n.x, m.y - n.y) <= reach:
+                    best = max(best, self._hit_weight(m, walker_a, n, walker_b))
+                    if best >= 1.0:
+                        break
+            if best >= 0.0:
+                out[id(m)] = best
+        return out
 
     # ----------------------------------------------------------- Befehle
     def _selection(self, units: list[Lochos] | None) -> list[Lochos]:
@@ -1473,6 +1526,8 @@ class Battle:
             return ""
         if u.target_id is not None:
             return ""                             # ein Angriff bleibt Block: hinter der eigenen kämpfenden Gruppe steht man an
+        if u.loose and u.muster is not None:
+            return ""                             # erst am Sammelplatz schließen, dann weiter
         if u.side is not Side.STADT and not config.LOOSE_AI:
             return ""                             # die Gegner gehen (vorerst) als Block um ihre Haufen herum und durchs Tor
         why = ""
@@ -1531,10 +1586,25 @@ class Battle:
         hin, für eine Phalanx wie sie steht, für alle anderen in Marschrichtung. Die
         Front bleibt, solange sich das Ziel nicht verlegt."""
         t = u.target if u.target is not None else (u.dest or u.pos)
+        if u.stance is Stance.FLUCHT:
+            u.muster = None                               # wer flieht, sammelt sich nicht
+        elif u.target is not None and (u.loose_why == "wall" or u.muster is not None):
+            m = u.muster
+            if m is None or self._wall_level(u.target) != self._wall_level(m[0]):
+                m = self._muster_for(u, u.target)
+            if m is not None and dist(u.target, m[0]) < config.MUSTER_SKIP:
+                m = None                                  # das Ziel liegt gleich hinter dem Wall: dort sammelt man sich
+            if m is None:
+                u.muster_since = -1.0
+            u.muster = m
+        if u.muster is not None:
+            t = u.muster[0]                               # erst zum Sammelplatz hinter dem Wall
         moved = u.dest is None or dist(t, u.dest) > 0.3
         if moved or u.target_id is not None or u.face_to is not None:
             c = self._men_centre(u)
-            if u.face_to is not None:
+            if u.muster is not None:
+                f = u.muster[1]
+            elif u.face_to is not None:
                 f = u.face_to
             elif u.loose_why == "wall" and self._wall_level(c) != self._wall_level(t) and dist(t, c) > 0.3:
                 f = (0.0, 1.0 if t[1] > c[1] else -1.0)   # über den Wall: die Front vom Wall weg
@@ -1548,6 +1618,65 @@ class Battle:
                 self._sort_rows(u, f)
         u.dest = t
         u.facing = u.dest_facing
+
+    def _muster_for(self, u: Lochos, target: Point) -> tuple[Point, Point] | None:
+        """Sammelplatz hinter dem Wall: am Fuß der Leiter, über die die Männer drüben
+        hinabsteigen, mit etwas Abstand zum Wall, die Front zum eigentlichen Ziel. Nur
+        solange noch Männer diesseits oder oben stehen."""
+        if not self.blocked:
+            return None
+        side_level = self._wall_level(target)
+        if side_level not in ("nord", "sued"):
+            return None
+        men = u.all_men()
+        if not men or all(self._wall_level(m.pos) == side_level for m in men):
+            return None
+        c = self._men_centre(u)
+        via = self._via(u)
+        if via is not None:
+            ascent = via
+        elif self.is_wall_cell(self.cell(*c), True):
+            ascent = c
+        else:
+            ascent = self.nearest_ladder(u, c, target)
+        down = self.nearest_ladder(u, ascent, target) if ascent is not None else None
+        x = (down or ascent or c)[0]
+        side = 1.0 if side_level == "sued" else -1.0
+        wall_y = next(iter(self.blocked))[1]
+        y0 = wall_y + 0.5 + side * (0.5 + u.half_d + config.MUSTER_GAP)
+        facing = u.face_to or (norm(sub(target, (x, y0))) if dist(target, (x, y0)) > 0.3 else (0.0, side))
+        # Ausdehnung der Aufstellung quer zum Wall und längs: so weit vom Wall weg, dass niemand auf ihm steht
+        ext_y = abs(facing[1]) * u.half_d + abs(facing[0]) * u.half_w
+        ext_x = abs(facing[0]) * u.half_d + abs(facing[1]) * u.half_w
+        y0 = wall_y + 0.5 + side * (0.5 + ext_y + config.MUSTER_GAP)
+        # nicht auf den Sammelplatz einer anderen Gruppe und nicht in eine stehende eigene: daneben, sonst weiter vom Wall weg
+        taken = []
+        for g in self.lochoi:
+            if g is u or g.side is not u.side or not g.alive:
+                continue
+            if g.muster is not None:
+                (gx, gy), _, (gex, gey) = g.muster
+                taken.append((gx, gy, gex, gey))
+            elif not g.loose and self._standing(g):
+                cs = g.corners()
+                taken.append(((min(c[0] for c in cs) + max(c[0] for c in cs)) / 2, (min(c[1] for c in cs) + max(c[1] for c in cs)) / 2,
+                              (max(c[0] for c in cs) - min(c[0] for c in cs)) / 2, (max(c[1] for c in cs) - min(c[1] for c in cs)) / 2))
+
+        def free(px: float, py: float) -> bool:
+            return all(abs(px - tx) >= ext_x + tex + 0.15 or abs(py - ty) >= ext_y + tey + 0.15 for tx, ty, tex, tey in taken)
+        spot = None
+        for ring in range(4):
+            y = y0 + side * ring * (2 * ext_y + 0.3)
+            for k in (0, 1, -1, 2, -2, 3, -3):
+                px_ = min(max(x + k * (2 * ext_x + 0.3), ext_x + 0.2), self.cols - ext_x - 0.2)
+                if 0.5 <= y <= self.rows - 0.5 and not self.is_blocked(px_, y, u) and free(px_, y):
+                    spot = (px_, y)
+                    break
+            if spot is not None:
+                break
+        if spot is None:
+            spot = (min(max(x, ext_x + 0.2), self.cols - ext_x - 0.2), y0)
+        return self._free_spot(spot, u), facing, (ext_x, ext_y)
 
     @staticmethod
     def _sort_rows(u: Lochos, facing: Point) -> None:
@@ -1577,6 +1706,11 @@ class Battle:
             return True
         if u.loose_why in ("tor", "eigene", "") and not self._way_open(u):
             return True                                   # der Weg ist zu: als Block anstehen
+        if u.muster is not None:
+            if u.muster_since < 0.0:
+                u.muster_since = self.time                # alle drüben: jetzt wird nur noch gesammelt
+            elif self.time - u.muster_since > config.MUSTER_WAIT:
+                return True                               # lange genug gewartet: als Block weiter, die Letzten rücken nach
         slots = self._dest_slots(u)
         if not slots:
             return True
@@ -1615,6 +1749,8 @@ class Battle:
         u.loose_why = ""
         u.dest = None
         u.via = None
+        u.muster = None
+        u.muster_since = -1.0
         u.idle_block = False
         for m in u.all_men():
             m.wp = None
@@ -2481,7 +2617,12 @@ class Battle:
             else:
                 cav_mod = 1.0
             attack_mod *= (1 - cav) + cav * cav_mod
-        if self._fights_from_wall(a) != self._fights_from_wall(b):
+        if self.blocked and (a.loose or b.loose):
+            # am Wall Mann für Mann: wer nur von oben hinab- oder an die Leiter hinaufreicht, trifft schwächer
+            weights = self._man_weights(a, b, config.CONTACT_REACH)
+            if weights:
+                attack_mod *= sum(weights.values()) / len(weights)
+        elif self._fights_from_wall(a) != self._fights_from_wall(b):
             attack_mod *= config.WALL_MELEE_FACTOR
         return base * attack_mod * defense_mod, arc_name
 
@@ -2498,6 +2639,8 @@ class Battle:
         b.last_arc = arc_name
         if b.loose:
             near = self._present(b, a)
+            if self.blocked:                              # am Wall: nur wen der Gegner auch erreicht
+                near = self._reachable_men(a, b, near, config.ENGAGE_RANGE + 0.4)
             if not near:
                 return
             fallen = b.take_damage_men(near, dmg, self.rng)
@@ -2736,6 +2879,11 @@ class Battle:
         u.flee_x = None
         u.morale = morale
         u.target = None
+        cs = u.corners()                                  # ragt die Aufstellung über den Kartenrand (Agora am Rand): hereinrücken
+        dx = max(0.0, 0.05 - min(c[0] for c in cs)) - max(0.0, max(c[0] for c in cs) - (self.cols - 0.05))
+        dy = max(0.0, 0.05 - min(c[1] for c in cs)) - max(0.0, max(c[1] for c in cs) - (self.rows - 0.05))
+        if dx or dy:
+            u.target = (u.x + dx, u.y + dy)
         u.target_id = None
         u.in_line = False
         u.mode = ""

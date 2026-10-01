@@ -14,24 +14,25 @@ wandert nach unten.
    Moralverlust trotz Agora), sollen Angreifer Reserven gezielt um die
    eigene Front herum an den Feind schicken können, oder brauchen die
    Räuber andere Werte?
-0b. **Räuber über den Turm (Lauf 15).** Seit jeder Mann seinen Weg selbst
-   sucht, kommen die Räuber einzeln über Turm und Leiter und verteilen
-   sich drüben, statt als Block an der ersten Formation hängen zu bleiben.
-   Reiter oder Phalanx am Leiterfuß werden dadurch umfasst: Der
-   Abnahmetest „Phalanx hinter der Palisade schlägt die Übermacht“ gewinnt
-   nur noch 5 von 8 Startwerten (vorher 8), „Leiter decken“ 7 von 12
-   (vorher 12), wer passiv stehen bleibt, verliert alle Häuser (0 von 12
-   Siegen, vorher 10). Möglich: Wer über den Wall kommt, sammelt sich drüben zum
-   Block, bevor er weitergeht; oder die Räuber-KI wählt das Ziel nach dem
-   Übersteigen anders. Dabei fiel auf, dass die Räuber-KI vor der Palisade
-   zwischen „Umgehen“ (um ein Ende, das es dort nicht gibt) und „Frontal“
-   hin und her schwankt, wenn die Schlacht lange dauert. Kleinigkeit: Wer
-   sich auf der Agora am Südrand sammelt, steht mit der letzten Reihe ein
-   Stück jenseits des Kartenrands (gab es schon vorher).
+0b. **Räuber über den Turm (Lauf 15, 16).** Seit jeder Mann seinen Weg
+   selbst sucht, kamen die Räuber einzeln über den Turm und verteilten sich.
+   Mit dem Sammelplatz hinter dem Wall (Lauf 16) gehen sie drüben wieder als
+   Block weiter; „Leiter decken“ gewinnt 10 von 12 (vor Lauf 15: 12),
+   „Tor halten“ 5 von 12 (vorher 0), der Abnahmetest „Phalanx hinter der
+   Palisade“ 6 von 8 Startwerten (vorher 8). Wer passiv stehen bleibt,
+   verliert weiterhin alle Häuser (0 von 12, vorher 10). Dabei fiel auf,
+   dass die Räuber-KI vor der Palisade zwischen „Umgehen“ (um ein Ende, das
+   es dort nicht gibt) und „Frontal“ hin und her schwankt, wenn die Schlacht
+   lange dauert.
 0c. **Gegner gehen noch als Block.** Die Räuber und die Siedlung lösen sich
    (vorerst) nicht auf, um ihre eigenen Haufen zu umgehen oder durchs Tor zu
    gehen (`LOOSE_AI`). Eingeschaltet kommen sie in der offenen Siedlung
    leichter an die Häuser (Lauf 15).
+0d. **Zappeln beim Umgehen.** Ein angreifender Block, der um zwei eigene
+   kämpfende Haufen herum will, wählt jeden Takt die andere Seite und
+   zappelt auf der Stelle (schon vor Lauf 15). Abhilfe: die gewählte Seite
+   festhalten; findet er am Gegner keinen freien Platz, geordnet dahinter
+   warten.
 1. **Schildseite.** Der Hoplitenschild sitzt links: die rechte Flanke
    ist verwundbarer, Wurfgeschosse von links treffen den Schild.
    Historischer Rechtsdrall, Ehre des rechten Flügels. Geringer Aufwand.
@@ -56,6 +57,10 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
   seine eigene Gruppe.
 
 ## Erledigt
+
+- **Sammelplatz hinter dem Wall** (1. Oktober 2026): Wer über den Wall
+  steigt, sammelt sich drüben am Fuß der Leiter zum Block und geht dann
+  geschlossen weiter (docs/ki-simulation.md, Lauf 16).
 
 - **Jeder Mann sucht seinen Weg selbst** (1. Oktober 2026): Das Rechteck
   gibt nur an, wo jeder stehen soll; über den Wall, durchs Tor und an

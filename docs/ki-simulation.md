@@ -1,5 +1,74 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 16 (1. Oktober 2026): Sammelplatz hinter dem Wall
+
+Wer über den Wall steigt und weiter will, sammelt sich drüben zuerst: am
+Fuß der Leiter, über die die Männer hinabsteigen, mit etwas Abstand zum
+Wall, die Front zum Ziel. Jede Gruppe bekommt einen eigenen Platz neben
+den schon belegten (sonst drängten sich sieben Räuberhaufen auf
+denselben Fleck und wurden nie fertig). Sind alle drüben und angekommen,
+höchstens acht Sekunden nach dem Letzten, schließt sich die Gruppe dort
+und marschiert als Block weiter. Liegt das Ziel gleich hinter dem Wall,
+ist es selbst der Sammelplatz; Fliehende sammeln sich nicht (sonst
+warteten abziehende Räuber auf Nachzügler, die nie kamen, und die
+Schlacht endete nicht).
+
+Dabei fielen zwei Lücken im Kampf am Wall auf, beide jetzt Mann gegen
+Mann gelöst: Standen zwei aufgelöste Gruppen beiderseits des Walls Mann
+an Mann, kam kein Kontakt zustande (geprüft wurde, ob zwischen den
+Gruppenmitten der Wall liegt), und sie standen sich bis zum Zeitlimit
+gegenüber. Und wer oben am Leiterkopf wartete, schlug mit voller Wucht
+auf Reiter am Leiterfuß, die nicht zurückschlagen konnten. Jetzt kämpft,
+wer einen Gegner erreicht: auf derselben Ebene voll, von oben hinab
+oder von unten an einen, der auf der Leiter steht, mit der verminderten
+Wucht des Kampfes am Wall, an einen oben auf dem Wehrgang von unten gar
+nicht. Außerdem rückt eine Gruppe, die sich auf der Agora am Kartenrand
+wieder aufstellt, herein, statt mit der letzten Reihe jenseits des
+Randes zu stehen.
+
+Vier Seeds je Zeile, verglichen mit Lauf 15:
+
+| Szenario | Taktik | Siege Lauf 15 → 16 | Verlust Stadt | Verlust Feind | Häuser verloren | Dauer |
+|---|---|---|---|---|---|---|
+| offen | linie | 0/4 → 0/4 | 75% → 80% | 45% → 50% | 8.0 → 8.0 | 74 s |
+| offen | linie_reiter | 3/4 → 3/4 | 55% → 55% | 61% → 61% | 5.2 → 5.2 | 72 s |
+| offen | linie_aktiv | 1/4 → 1/4 | 71% → 71% | 63% → 63% | 7.5 → 7.5 | 77 s |
+| offen | linie_tief | 2/4 → 2/4 | 52% → 52% | 55% → 55% | 5.0 → 5.0 | 80 s |
+| offen | passiv | 1/4 → 1/4 | 75% → 74% | 64% → 63% | 7.0 → 7.0 | 74 s |
+| offen | angriff | 2/4 → 2/4 | 18% → 18% | 41% → 41% | 7.0 → 7.0 | 35 s |
+| palisade | tor_halten | 0/4 → 2/4 | 18% → 78% | 10% → 65% | 8.0 → 6.5 | 143 s |
+| palisade | tor_reserve | 1/4 → 3/4 | 34% → 38% | 32% → 45% | 6.2 → 3.0 | 104 s |
+| palisade | tor_leiter | 2/4 → 3/4 | 33% → 54% | 54% → 56% | 4.5 → 3.2 | 114 s |
+| palisade | passiv | 0/4 → 0/4 | 11% → 19% | 3% → 7% | 8.0 → 8.0 | 73 s |
+| horde | vorruecken | 1/4 → 1/4 | 35% → 35% | 44% → 44% | 0.0 → 0.0 | 73 s |
+| horde | angriff | 3/4 → 3/4 | 31% → 31% | 64% → 64% | 0.0 → 0.0 | 62 s |
+| angriff_offen | phalanxstoss | 0/4 → 0/4 | 60% → 60% | 66% → 66% | 0.0 → 0.0 | 300 s |
+| angriff_offen | vorruecken | 0/4 → 0/4 | 56% → 56% | 2% → 2% | 0.0 → 0.0 | 74 s |
+| angriff_offen | angriff | 0/4 → 0/4 | 50% → 50% | 33% → 33% | 0.0 → 0.0 | 144 s |
+| angriff_wall | tor_phalanx | 0/4 → 0/4 | 60% → 58% | 18% → 15% | 0.0 → 0.0 | 89 s |
+| angriff_wall | belagerung | 0/4 → 0/4 | 24% → 21% | 0% → 0% | 0.0 → 0.0 | 300 s |
+
+Zwölf Seeds, Palisade, im Vergleich zu vor Lauf 15 (Lauf 14) und Lauf 15:
+
+| Taktik | Siege Lauf 14 | Lauf 15 | Lauf 16 | Häuser verloren 14 → 15 → 16 |
+|---|---|---|---|---|
+| tor_halten | 0/12 | 0/12 | 5/12 | 8,0 → 8,0 → 7,2 |
+| tor_reserve | 2/12 | 6/12 | 8/12 | 7,2 → 4,9 → 5,5 |
+| tor_leiter | 12/12 | 7/12 | 10/12 | 0,8 → 4,3 → 2,3 |
+| passiv | 10/12 | 0/12 | 0/12 | 5,5 → 8,0 → 8,0 |
+
+Die Deckung am Leiterfuß hält wieder fast so gut wie vor Lauf 15, und wer
+das Tor hält, gewinnt jetzt manchmal, weil die Räuber drüben als Blöcke an
+seiner Phalanx hängen bleiben. Wer passiv stehen bleibt, verliert weiter
+alle Häuser: Die Räuber sammeln sich abseits und ziehen als Block an ihm
+vorbei. Der Abnahmetest „Phalanx hinter der Palisade schlägt eine größere
+Übermacht“ besteht wieder (6 von 8 Seeds, vor Lauf 15: 8).
+
+Rechenzeit Palisade 12,1 bis 12,9 ms je Takt (Lauf 14: 14,2), höchstens
+45 bis 53 ms. Zufallsbefehle in 20 Schlachten: kein Absturz, Männer zu
+dicht 7-mal, eigene Männer jenseits des Kartenrands 68-mal (vor der
+Agora-Korrektur 480).
+
 ## Lauf 15 (1. Oktober 2026): Jeder Mann sucht seinen Weg selbst
 
 Beim Spielen fiel auf: Stieg eine Gruppe über den Turm, sprang ihr

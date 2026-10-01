@@ -75,8 +75,19 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   einmal. Über den Wall zeigt die Front danach vom Wall weg, sonst wie
   befohlen oder in Marschrichtung. Angriffe bleiben Block, ebenso, wer
   durch ein Tor muss, an dem gekämpft wird. Halten oder Vereinen schließt
-  eine aufgelöste Gruppe sofort dort, wo ihre Männer stehen. Wer über den
-  Wall kommt, bleibt drüben an Feinden hängen, statt um sie herumzugehen.
+  eine aufgelöste Gruppe sofort dort, wo ihre Männer stehen.
+- **Sammelplatz hinter dem Wall.** Wer über den Wall steigt und weiter will,
+  sammelt sich drüben zuerst: am Fuß der Leiter, über die die Männer
+  hinabsteigen, mit etwas Abstand zum Wall und der Front zum Ziel. Jede
+  Gruppe bekommt einen eigenen Platz neben den schon belegten. Sind alle
+  drüben und angekommen (höchstens acht Sekunden Warten auf Nachzügler),
+  schließt sich die Gruppe dort zum Block und marschiert geschlossen weiter.
+  Liegt das Ziel gleich hinter dem Wall, ist es selbst der Sammelplatz;
+  Fliehende sammeln sich nicht. Wer über den Wall kommt, bleibt drüben an
+  Feinden hängen, statt um sie herumzugehen. Am Wall wird Mann gegen Mann
+  gekämpft: Wer oben steht, schlägt mit verminderter Wucht hinab; wer auf
+  der Leiter steht, ist auch von unten zu treffen; wer oben auf dem
+  Wehrgang steht, nicht.
   Die Gegner steigen ebenso Mann für Mann über den Wall, gehen aber um ihre
   eigenen Haufen und durchs Tor (vorerst) noch als Block
   (`LOOSE_AI` in `game/config.py`).

@@ -157,28 +157,43 @@ def tower_battle() -> tuple[Battle, object]:
     return b, hop
 
 
-def test_over_the_wall_men_take_their_places_once():
-    """Über den Turm: Wer drüben seinen Platz erreicht hat, bleibt dort. Die Gruppe
-    springt nicht zu ihren Männern und schwenkt am Ende nicht; ihre Front zeigt vom
-    Wall weg."""
+def test_over_the_wall_men_gather_behind_it_then_march_as_a_block():
+    """Über den Turm: Drüben sammeln sich die Männer am Fuß der Leiter, über die sie
+    hinabsteigen, und die Gruppe schließt sich dort, ohne zu springen; dann marschiert
+    sie als Block zum Ziel, und dabei verlässt niemand seinen Platz."""
     b, hop = tower_battle()
     b.command_move([hop], (7.0, 5.5))
-    hist = {id(m): [] for m in hop.all_men()}
+    muster = None
+    closed_at = None
+    left_slots = 0
+    for _ in range(int(60 / DT)):
+        was_loose = hop.loose
+        if hop.muster is not None:
+            muster = hop.muster[0]
+        b.update(DT)
+        if was_loose and not hop.loose and closed_at is None:
+            closed_at = hop.pos
+        if closed_at is not None and not hop.loose and hop.target is not None:
+            left_slots = max(left_slots, sum(1 for m, p in hop.slots() if dist(m.pos, p) > 0.3))
+        if closed_at is not None and hop.target is None:
+            break
+    assert muster is not None and abs(muster[0] - 13.5) < 0.3 and muster[1] < 7.0   # an der Leiter (13, 7), drüben
+    assert closed_at is not None and dist(closed_at, muster) < 0.05                  # dort geschlossen, kein Sprung
+    assert not hop.loose and dist(hop.pos, (7.0, 5.5)) < 0.15                        # als Block am Ziel
+    assert left_slots <= (1 - config.SLOT_SHARE) * hop.men, left_slots            # höchstens die Nachzügler, die nachrücken
+    assert any("neu gebildet" in e for e in b.events)
+
+
+def test_near_target_behind_the_wall_is_the_gathering_place_itself():
+    """Liegt das Ziel gleich hinter dem Wall, sammelt man sich dort und nirgends sonst."""
+    b, hop = tower_battle()
+    b.command_move([hop], (12.5, 5.6))                     # nahe der Leiter (13, 7)
     for _ in range(int(40 / DT)):
         b.update(DT)
-        for m in hop.all_men():
-            hist[id(m)].append(m.pos)
-        if not hop.loose and dist(hop.pos, (7.0, 5.5)) < 0.05 and hop.on_slots(0.2, 0.95):
+        assert hop.muster is None
+        if not hop.loose and hop.target is None:
             break
-    assert not hop.loose and dist(hop.pos, (7.0, 5.5)) < 0.05
-    assert hop.facing == (0.0, -1.0)
-    w = int(1.0 / DT)
-    rewalk = 0.0
-    for h in hist.values():
-        settled = next((j for j in range(w, len(h)) if dist(h[j - w], h[j]) < 0.02 and h[j][1] < 7.0), len(h) - 1)
-        rewalk += sum(dist(h[j], h[j + 1]) for j in range(settled, len(h) - 1))
-    assert rewalk / len(hist) < 0.15, rewalk / len(hist)
-    assert any("neu gebildet" in e for e in b.events)
+    assert dist(hop.pos, (12.5, 5.6)) < 0.15 and hop.facing == (0.0, -1.0)
 
 
 def test_gate_line_streams_through_and_forms():
