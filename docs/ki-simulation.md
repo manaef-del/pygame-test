@@ -1,5 +1,103 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 15 (1. Oktober 2026): Jeder Mann sucht seinen Weg selbst
+
+Beim Spielen fiel auf: Stieg eine Gruppe über den Turm, sprang ihr
+Rechteck mitten im Sammeln zu den Männern und stellte sich neu auf, so
+dass Männer, die schon standen, ihren Platz noch einmal verließen; und
+um ruhende eigene Gruppen ging ein Block in einem großen Bogen herum.
+
+Jetzt gibt das Rechteck nur noch an, wo jeder Mann stehen soll. Auf
+freiem Feld marschiert die Gruppe weiter als Block. Muss sie über den
+Wall, durchs offene Tor oder an einer ruhenden eigenen Gruppe vorbei,
+löst sie sich auf: Die Zielaufstellung (Mitte und Front) steht fest, und
+jeder Mann sucht sich seinen Weg zu seinem Platz, über ein Wegefeld
+(`game/pathing.py`, Dijkstra auf Vierteln einer Kachel, Hindernisse sind
+Palisade, geschlossenes Tor und stehende eigene Gruppen) und über Turm
+und Leiter. Die Gruppe ist dabei, wo ihre Männer sind, und schließt
+sich dort, wo sie stehen. Angriffe bleiben Block (Anstehen hinter
+kämpfenden eigenen Gruppen bleibt), ebenso wer durch ein umkämpftes Tor
+muss; wer über den Wall kommt, gleitet drüben nicht an Feinden entlang.
+Die Gegner steigen ebenso Mann für Mann über den Wall, gehen aber um
+ihre eigenen Haufen und durchs Tor noch als Block (`LOOSE_AI`).
+
+Gemessene Fälle (`tests/test_pathing.py` prüft sie), Weg je Mann in Kacheln:
+
+| Fall | vorher | jetzt |
+|---|---|---|
+| Über den Turm, Ziel 3 Kacheln hinter dem Wall | Front am Ende nach Osten, jeder Mann läuft nach dem Ankommen im Mittel noch 1,0 Kacheln | Front vom Wall weg, 0,03 Kacheln |
+| Block (14 breit) hinter einer stehenden Linie, 5,5 Kacheln nach vorn | 11,5 s, 13,9 Kacheln Weg | 6,3 s, 5,9 Kacheln |
+| Phalanx-Linie aufziehen, Linie davor | 8,7 s, 9,3 Kacheln | 5,6 s, 5,4 Kacheln |
+| Reiter an der Linie vorbei | 3,7 s, 9,2 Kacheln | 2,5 s, 7,3 Kacheln |
+| Linie hinter dem offenen Tor aufziehen | 13,1 s, 14,6 Kacheln | 7,9 s, 11,5 Kacheln |
+
+Unterwegs gefundene und behobene Fehler: Räuber vor dem geschlossenen
+Tor lösten sich auf, um ihre eigenen wartenden Haufen zu umgehen
+(Auflösen nur noch, wenn das Ziel frei erreichbar ist); die Räuber-KI
+schickte Gruppen „auf den Turm“, und alle Männer stellten sich oben auf
+den Wehrgang (jetzt: Ziel hinter dem Wall, Weg über den Turm
+vorgeschrieben); fliehende aufgelöste Gruppen wanderten außerhalb der
+Karte immer weiter, weil ihr Ziel der Gruppenmitte folgte; Männer, die
+auf dem Weg durchs Tor nicht vorankommen, nehmen nach einer Sekunde
+Leiter oder Turm; eine aufgelöste Gruppe kämpft nur „von oben“, wenn
+alle ihre Männer oben stehen.
+
+Simulation, vier Seeds je Zeile, kluge KI, Truppe standard, verglichen
+mit Lauf 14:
+
+| Szenario | Taktik | Siege Lauf 14 → 15 | Verlust Stadt | Verlust Feind | Häuser verloren | Dauer |
+|---|---|---|---|---|---|---|
+| offen | linie | 0/4 → 0/4 | 75% → 75% | 45% → 45% | 8.0 → 8.0 | 71 s |
+| offen | linie_reiter | 3/4 → 3/4 | 55% → 55% | 61% → 61% | 5.2 → 5.2 | 72 s |
+| offen | linie_aktiv | 1/4 → 1/4 | 71% → 71% | 63% → 63% | 7.5 → 7.5 | 77 s |
+| offen | linie_tief | 2/4 → 2/4 | 52% → 52% | 55% → 55% | 5.0 → 5.0 | 80 s |
+| offen | passiv | 1/4 → 1/4 | 75% → 75% | 64% → 64% | 7.0 → 7.0 | 75 s |
+| offen | angriff | 2/4 → 2/4 | 18% → 18% | 41% → 41% | 7.0 → 7.0 | 35 s |
+| palisade | tor_halten | 0/4 → 0/4 | 22% → 18% | 14% → 10% | 8.0 → 8.0 | 69 s |
+| palisade | tor_reserve | 0/4 → 1/4 | 37% → 34% | 23% → 32% | 8.0 → 6.2 | 88 s |
+| palisade | tor_leiter | 4/4 → 2/4 | 23% → 33% | 56% → 54% | 1.8 → 4.5 | 90 s |
+| palisade | passiv | 4/4 → 0/4 | 59% → 11% | 66% → 3% | 5.2 → 8.0 | 51 s |
+| horde | vorruecken | 1/4 → 1/4 | 35% → 35% | 44% → 44% | 0.0 → 0.0 | 73 s |
+| horde | angriff | 3/4 → 3/4 | 31% → 31% | 64% → 64% | 0.0 → 0.0 | 62 s |
+| angriff_offen | phalanxstoss | 0/4 → 0/4 | 60% → 60% | 66% → 66% | 0.0 → 0.0 | 300 s |
+| angriff_offen | vorruecken | 0/4 → 0/4 | 56% → 56% | 2% → 2% | 0.0 → 0.0 | 74 s |
+| angriff_offen | angriff | 0/4 → 0/4 | 50% → 50% | 33% → 33% | 0.0 → 0.0 | 144 s |
+| angriff_wall | tor_phalanx | 0/4 → 0/4 | 57% → 60% | 14% → 18% | 0.0 → 0.0 | 88 s |
+| angriff_wall | belagerung | 0/4 → 0/4 | 14% → 24% | 0% → 0% | 0.0 → 0.0 | 300 s |
+
+Offene Siedlung, Horde und Angriff auf die offene Siedlung sind Zahl für
+Zahl gleich: Dort geht der Spieler in diesen Taktiken nicht um eigene
+Gruppen herum, und die Gegner gehen (mit LOOSE_AI aus) wie bisher als
+Block. Mit eingeschaltetem LOOSE_AI kamen die Räuber in der offenen
+Siedlung leichter an die Häuser (Verfolgungstest: im Mittel 6,8 statt 7,5
+von 8 Häusern gehalten, 8 Seeds).
+
+Anders ist alles, wo Räuber über den Turm steigen. Vorher war das
+Übersteigen langsam: Die unsichtbare Mitte der Gruppe wartete auf
+Nachzügler, lief als Block weiter und blieb an der ersten Formation
+hängen. Jetzt gehen die Männer, sobald sie unten sind, einzeln zu ihren
+Plätzen. Zwölf Seeds, Palisade:
+
+| Taktik | Siege vorher | Siege jetzt | Häuser verloren vorher → jetzt |
+|---|---|---|---|
+| tor_halten | 0/12 | 0/12 | 8,0 → 8,0 |
+| tor_reserve | 2/12 | 6/12 | 7,2 → 4,9 |
+| tor_leiter | 12/12 | 7/12 | 0,8 → 4,3 |
+| passiv | 10/12 | 0/12 | 5,5 → 8,0 |
+
+Wer passiv hinter dem Tor stehen bleibt, verliert jetzt alle Häuser
+binnen einer Minute, fast ohne Kampf; wer den Leiterfuß deckt, wird
+öfter umfasst. Der Abnahmetest „Phalanx hinter der Palisade schlägt eine
+größere Übermacht“ gewinnt nur noch 5 von 8 Seeds (vorher 8) und ist als
+erwarteter Fehlschlag markiert (ideen.md, Punkt 0b).
+
+Rechenzeit je Takt (90 s Schlacht, ohne Grafik): offene Siedlung 8,1 ms
+(vorher 8,5), Angriff mit Wall 4,0 ms (vorher 4,1), Palisade 15,2 ms
+(vorher 14,2), dort höchstens 54 ms (vorher 42), weil über hundert Räuber
+zugleich einzeln gehen. Höchstens zwei Wegefelder werden je Takt neu
+gerechnet. Zufallsbefehle in 20 Schlachten (alle Szenarien): kein Absturz,
+Männer verschiedener Gruppen zu dicht 5-mal (vorher 23).
+
 ## Lauf 14 (1. Oktober 2026): Der Anführer
 
 Der Anführer kämpft in der Gruppe, die man ihm in der Aufstellung

@@ -61,6 +61,25 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Punkte sind dunkler) und eine eigene Position: Er läuft zu seinem
   Platz in der Formation, weicht aber selbst aus, durchs Tor nur durch
   die Öffnung, auf den Wall nur über Leiter oder Turm.
+- **Das Rechteck sagt, wo jeder stehen soll; den Weg sucht jeder selbst.**
+  Auf freiem Feld marschiert eine Gruppe als Block. Muss sie über den
+  Wall, durchs offene Tor oder an einer ruhenden eigenen Gruppe vorbei,
+  löst sie sich auf (ohne Rechteck gezeichnet): Die Zielaufstellung steht
+  dann fest, Mitte und Front, und jeder Mann sucht sich seinen eigenen Weg
+  zu seinem Platz darin, über ein Wegefeld um Palisade und stehende eigene
+  Gruppen herum, über Turm und Leiter (dort stellt man sich an). Die Männer
+  gehen im Tempo der Gruppe, wer zurückliegt, holt auf. Die Gruppe ist
+  währenddessen dort, wo ihre Männer sind; sie schließt sich wieder, sobald
+  die Männer angekommen sind oder geschlossen weitergehen, und zwar dort,
+  wo sie stehen: Wer seinen Platz erreicht hat, verlässt ihn nicht noch
+  einmal. Über den Wall zeigt die Front danach vom Wall weg, sonst wie
+  befohlen oder in Marschrichtung. Angriffe bleiben Block, ebenso, wer
+  durch ein Tor muss, an dem gekämpft wird. Halten oder Vereinen schließt
+  eine aufgelöste Gruppe sofort dort, wo ihre Männer stehen. Wer über den
+  Wall kommt, bleibt drüben an Feinden hängen, statt um sie herumzugehen.
+  Die Gegner steigen ebenso Mann für Mann über den Wall, gehen aber um ihre
+  eigenen Haufen und durchs Tor (vorerst) noch als Block
+  (`LOOSE_AI` in `game/config.py`).
 - **Niemand steht im anderen.** Kein Mann teilt seinen Platz mit einem
   anderen, auch nicht mit einem Fliehenden oder einem Feind: Zwischen
   Männern verschiedener Gruppen bleiben immer zwei Halbmesser, in der
@@ -68,9 +87,11 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   im Weg hat, geht schräg an ihm vorbei; nur stürmende Reiter drängen
   Fußvolk beiseite, solange ihr Schwung sie in den Feind trägt.
 - **Gruppen umgehen einander, niemand wird geschoben.** Steht eine
-  eigene Gruppe auf dem Weg (still, als Phalanx auf ihrem Posten,
-  kämpfend oder wartend), geht die befohlene Gruppe außen um sie herum,
-  gleich wie breit sie selbst ist; die Stehende bleibt, wo sie ist. Wird
+  ruhende eigene Gruppe auf dem Weg (still oder als Phalanx auf ihrem
+  Posten), gehen die Männer der befohlenen Gruppe links und rechts eng an
+  ihr vorbei (gut eine Handbreit Abstand zu ihrem Rechteck) und stellen
+  sich dahinter wieder auf; die Stehende bleibt, wo sie ist. Ein Angriff
+  geht als Block außen um sie herum. Wird
   eine Gruppe genau dorthin befohlen, wo schon eine eigene steht, hält
   sie davor. Gruppen, die beide unterwegs sind, weichen sich Mann für
   Mann aus. Leichte Truppen (Peltasten) stehen in lockerer Ordnung:
@@ -462,6 +483,7 @@ game/army.py        Vorrat und Aufstellung (Gruppen, Reihen)
 game/geometry.py    Vektoren, Front/Flanke/Rücken
 game/scenarios.py   Karten und Aufstellungen
 game/battle.py      Simulation: Befehle, Bewegung, Kampf, Moral, Plündern, Belagerung
+game/pathing.py     Wegefeld: jeder Mann sucht seinen Weg zu seinem Platz
 game/ai.py          Gegner-KI: Lagebericht, Pläne, Gedächtnis (und alte Regelsteuerung)
 game/render.py      Zeichnen von Karte, Gruppen, Leiste und Aufstellungsmenü
 game/app.py         Asynchrone Schleife, Bildschirme, Auswahl, Touch und Tasten

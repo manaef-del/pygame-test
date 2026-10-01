@@ -292,7 +292,7 @@ class Brain:
         elif formed(foe):
             a = b.arc_of(foe, u.pos)
             v = {"front": 0.45, "flank": 1.1, "rear": 1.3}[a]
-        if b.on_wall(foe) != b.on_wall(u):
+        if b.on_wall(foe) != b.up(u):
             v *= 0.3
         elif not formed(foe) and r is not None and not any(
                 f is not foe and dist(f.pos, foe.pos) <= config.AI_ISOLATION_RANGE for f in r.foes):
@@ -700,7 +700,7 @@ class Brain:
             if u is tower and self.tower_cell is not None and self.tower_cell not in b.crossings:
                 self._drive_tower(b, u)
                 continue
-            if b.gate is not None and not b.on_wall(u) and (
+            if b.gate is not None and not b.up(u) and (
                 (b.gate.closed and self.plan in ("tor", "turm")) or (self.plan == "belagern" and not self.storm) or gathering
             ):
                 inside = self._inside_wall(b, u)
@@ -714,21 +714,25 @@ class Brain:
             self._fight_or_move(b, u, r)
 
     def _via_tower(self, b: "Battle", u: Lochos) -> bool:
-        """Steht ein Turm, sickern wartende Gruppen darüber ein statt vor dem Tor zu stehen."""
+        """Steht ein Turm, sickern wartende Gruppen darüber ein statt vor dem Tor zu stehen:
+        Ziel ist ein Fleck hinter dem Wall am Turm; den Weg über Turm und Leiter sucht
+        sich jeder Mann selbst."""
         if not b.crossings or u.engine is not None or u.building is not None:
             return False
         cell = min(b.crossings, key=lambda c: dist(u.pos, (c[0] + 0.5, c[1] + 0.5)))
         u.stance = Stance.HALTEN
         u.in_line = False
         u.target_id = None
-        u.target = (cell[0] + 0.5, cell[1] + 0.5)
+        u.target = b._free_spot((cell[0] + 0.5, cell[1] + 0.5 + b._inner_dir() * config.AI_TOWER_LANDING), u)
+        u.via = ((cell[0] + 0.5, cell[1] + 0.5), u.target)      # über den Turm, nicht durchs bewachte Tor
         return True
 
     def _inside_wall(self, b: "Battle", u: Lochos) -> bool:
-        """Jenseits des Walls oder schon oben auf dem Wehrgang."""
+        """Jenseits des Walls oder schon oben auf dem Wehrgang (oder gerade beim
+        Übersteigen: dann gilt die Gruppe als oben)."""
         if b.gate is None:
             return True
-        if b.on_wall(u):
+        if b.up(u):
             return True
         gy = b.gate.center[1]
         return (u.y > gy) == (b.wall_side() is Side.STADT)
@@ -740,10 +744,11 @@ class Brain:
         return self.pick_target(b, u, cands)
 
     def _reachable(self, b: "Battle", u: Lochos, f: Lochos) -> bool:
-        """Gleiche Ebene (Boden oder Wehrgang) und kein Wall dazwischen."""
-        if b.on_wall(f) != b.on_wall(u):
+        """Gleiche Ebene (Boden oder Wehrgang) und kein Wall dazwischen. Wer gerade
+        übersteigt, gilt als oben."""
+        if b.on_wall(f) != b.up(u):
             return False
-        return b.on_wall(u) or b.path_clear(u.pos, f.pos)
+        return b.up(u) or b.path_clear(u.pos, f.pos)
 
     def _skirmisher(self, b: "Battle", u: Lochos) -> bool:
         """Peltasten mit Speeren auf dem Boden plänkeln statt zu stürmen."""
@@ -769,7 +774,7 @@ class Brain:
 
     def _fight_or_move(self, b: "Battle", u: Lochos, r: Report) -> None:
         plan = self.plan or "frontal"
-        on_wall = b.on_wall(u)
+        on_wall = b.up(u)
         if plan in ("flankieren", "ruecken") and not on_wall and self._flank_orders(b, u, r, deep=plan == "ruecken"):
             return
         seek = config.SEEK_RANGE if not b.attacking else 99.0

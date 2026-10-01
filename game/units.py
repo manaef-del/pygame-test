@@ -83,6 +83,9 @@ class Man:
     anchor: tuple[float, float] | None = None   # Gruppenzentrum, als er gebunden wurde
     stand: tuple[float, float] | None = None    # sein eigener Platz, als er gebunden wurde
     dodge: float = 0.0   # Ausweichseite (+1/-1), solange jemand im Weg steht; 0 = frei
+    wp: tuple[float, float] | None = None       # eigener Wegpunkt auf dem Weg zum Platz
+    wp_until: float = -1.0                      # bis dahin gilt der Wegpunkt
+    stall: float = 0.0                          # Sekunden, die er auf seinem Weg nicht vorankommt
     leader: bool = False  # der Anführer: kämpft mit, hält viel mehr aus
 
     def __post_init__(self) -> None:
@@ -194,7 +197,14 @@ class Lochos:
     building: float | None = None     # bisherige Bauzeit
     tower_cell: tuple[int, int] | None = None   # Wallstück, an das der Turm gesetzt wird
     tower_progress: float = 0.0
-    loose: bool = False               # Formation aufgelöst (Überqueren der Palisade)
+    loose: bool = False               # aufgelöst: jeder Mann geht für sich an seinen Platz in der Zielaufstellung
+    loose_why: str = ""               # warum: "wall" (über den Wall), "tor" (durchs Tor), "eigene" (um eigene herum), "" (formiert sich)
+    dest: tuple[float, float] | None = None          # Mitte der Zielaufstellung, solange aufgelöst
+    dest_facing: tuple[float, float] | None = None   # ihre Front
+    idle_block: bool = False          # im letzten Schritt von einer ruhenden eigenen Gruppe aufgehalten
+    over_wall: bool = False           # aufgelöst, um über den Wall zu steigen (für die Meldungen)
+    via: tuple | None = None          # (Übergang, Ziel): zu diesem Ziel über diesen Turm oder diese Leiter, nicht durchs Tor
+    flee_x: float | None = None       # wohin (x) die Flucht führt, beim Beginn der Flucht festgelegt
     file: bool = False                # auf dem Wehrgang: eine Reihe längs der Palisade
     formation: str = "linie"          # "linie", "o" (Kreis) oder "keil" (Reiter)
     mode: str = ""                    # freier Angriff je Waffengattung: "", "sturm" (Reiter: Stoß und Lösen)

@@ -123,6 +123,20 @@ DAMAGE_QUANTUM = 0.1         # Schaden wird in Häppchen auf einzelne Männer ve
 DISMOUNTED_SPEED = 1.2       # abgesessene Reiter
 DISMOUNTED_ATTACK = 1.0
 
+# Eigene Wege der Männer (game/pathing.py)
+FIELD_CELL = 0.25            # Kacheln je Zelle des Wegefelds
+FIELD_REFRESH = 0.5          # Sekunden, nach denen das Wegefeld neu gerechnet wird (Gruppen bewegen sich)
+FIELD_MARGIN = 0.12          # Kacheln Abstand, den die Männer um stehende eigene Gruppen halten
+FIELD_BUDGET = 2             # so viele Wegefelder werden höchstens in einem Takt neu gerechnet (gegen Ruckeln)
+WAYPOINT_TIME = 0.2          # Sekunden, die ein Mann seinen Wegpunkt behält
+LOOSE_COHESION = 0.3         # Kacheln: so geschlossen müssen die Männer gehen, damit die Gruppe wieder als Block marschiert
+LOOSE_LAG = 0.3              # Kacheln: wer so viel weiter von seinem Platz ist als die Mitte der Gruppe, holt auf
+LOOSE_ENEMY_RANGE = 2.5      # Kacheln: steht ein Feind so nah am Tor, geht man im Block hindurch
+LOOSE_AI = False             # auch die Gegner lösen sich zum Umgehen und fürs Tor auf (aus: sie gehen als Block wie bisher; über den Wall steigen alle Mann für Mann)
+LOOSE_CLOSE_DISTANCE = 1.5   # Kacheln: so weit vor dem Ziel schließt sich die Gruppe noch zum Block, näher erst am Ziel
+GAP_EXACT = 3.0              # Kacheln: weiter auseinander wird die Lücke zwischen aufgelösten Gruppen nur grob gerechnet
+STALL_TIME = 1.0             # Sekunden ohne Vorankommen, bis ein Mann statt durchs Tor über Leiter oder Turm geht
+
 # Formation
 MAN_SPACING = 0.13           # Kacheln zwischen Männern einer Reihe
 ROW_SPACING = 0.19           # Kacheln zwischen Reihen
@@ -144,7 +158,6 @@ TOWER_DEPLOY_TIME = 3.0      # Sekunden am Wall, bis der Übergang steht
 TOWER_REACH = 0.7
 CLIMB_RATE = 3.0             # Männer je Sekunde, die eine Leiter oder ein Turm durchlässt (dichte Kolonne)
 BARRIER_MARGIN = 0.25        # Kacheln: so nah an einer feindlichen Formation kommt niemand vorbei
-FOLLOW_LAG = 2.5             # Kacheln: so weit darf die Gruppe ihren Männern beim Klettern vorauseilen
 ENEMY_RALLY_DISTANCE = 2.6   # Kacheln vor dem Tor, wo Räuber warten und bauen
 HORDE_TRIGGER = 4.0          # Kacheln: ab hier stürmt die Horde
 CAVALRY_TRIGGER = 5.0        # Kacheln: ab hier greifen feindliche Reiter an
@@ -158,6 +171,7 @@ AI_GATE_GUARD_RANGE = 3.5    # Kacheln hinter dem Tor: dort gilt es als bewacht
 AI_COVER_RANGE = 2.0         # Kacheln: Hopliten so nah decken Peltasten
 AI_WALL_WATCH = 4.0          # Kacheln vor dem Wall: Gegner dort gelten als Angriffspunkt
 AI_FLANK_MARGIN = 1.3        # Kacheln Abstand beim Umlaufen einer Front
+AI_TOWER_LANDING = 1.8       # Kacheln hinter dem Wall: dorthin sickern Räuber über einen Turm ein
 AI_RETREAT_LOSS = 0.35       # Anteil Verluste (Gefallene und Wunden) im Angriff, ab dem eine Gruppe zurückweicht
 AI_RETREAT_MORALE = 0.15     # Moralabstand zur Flucht, ab dem eine Gruppe lieber zurückweicht
 AI_RETREAT_DISTANCE = 3.0
