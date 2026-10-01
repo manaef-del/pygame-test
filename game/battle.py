@@ -512,8 +512,8 @@ class Battle:
             men_a, men_b = a.all_men(), b.all_men()
             if men_a and men_b:
                 return max(0.0, min(dist(m.pos, n.pos) for m in men_a for n in men_b) - 0.2)
-        return max(0.0, min(min(b.rect_distance(c) for c in a.corners()),
-                            min(a.rect_distance(c) for c in b.corners())))
+        return max(0.0, min(min(b.rect_distance(c) for c in a.outline()),
+                            min(a.rect_distance(c) for c in b.outline())))
 
     def _in_contact(self, a: Lochos, b: Lochos, held: bool = False) -> bool:
         """Ob ``a`` gegen ``b`` kämpft: Schild an Schild ab einer kleinen Lücke;
@@ -1159,33 +1159,32 @@ class Battle:
         self._move_men(dt)
 
     def _around(self, u: Lochos, goal: Point) -> Point:
-        """Steht eine eigene Gruppe still auf dem Weg, geht die befohlene Gruppe um sie
-        herum, statt sie zu schieben: Zwischenziel neben der Gruppe, auf der Seite, die
-        dem Weg näher liegt. Gruppen, die selbst unterwegs sind, gehen einander aus dem
-        Weg (Mann für Mann); Feinde sind keine Umgehung wert, an ihnen bleibt man
-        hängen und kämpft. Eine breite Linie weicht keinem kleinen Haufen aus, der
-        muss ihr Platz machen."""
+        """Steht eine eigene Gruppe still auf dem Weg (oder kämpft sie dort), geht die
+        befohlene Gruppe um sie herum, statt sie zu schieben: Zwischenziel neben der
+        Gruppe, auf der Seite, die dem Weg näher liegt. Gruppen, die selbst unterwegs
+        sind, gehen einander aus dem Weg (Mann für Mann); Feinde sind keine Umgehung
+        wert, an ihnen bleibt man hängen und kämpft. Eine breite Linie weicht keinem
+        kleinen Haufen aus, der muss ihr Platz machen."""
         d = dist(u.pos, goal)
         if d < 1e-6:
             return goal
         direction = norm(sub(goal, u.pos))
         px, py = -direction[1], direction[0]
 
-        def extent(g: Lochos) -> float:                   # halbe Ausdehnung quer zum Weg
-            fx, fy = g.facing
-            return abs(fx * px + fy * py) * g.half_d + abs(-fy * px + fx * py) * g.half_w
+        def extent(g: Lochos) -> float:
+            return self._extent(g, px, py)
 
         best: tuple[float, Point] | None = None
         for o in self.lochoi:
             if o is u or not o.alive or o.loose or o.side is not u.side or self.on_wall(o) != self.on_wall(u):
                 continue
-            if o.target is not None and o.building is None:
+            if o.target is not None and o.building is None and not o.engaged and not o.waiting:
                 continue                                  # selbst unterwegs
             if o.id == u.target_id or o.id in u.contacts:
                 continue
+            if extent(u) > extent(o) + 0.1:
+                continue                                  # breiter als das Hindernis: die Männer fließen drum herum
             clear = extent(u) + extent(o) + config.DETOUR_MARGIN
-            if clear > config.DETOUR_MAX:
-                continue                                  # zu breit zum Ausweichen: die Männer fließen drum herum
             ox, oy = o.x - u.x, o.y - u.y
             along = ox * direction[0] + oy * direction[1]
             if along <= 0.0 or along - o.radius > d:
@@ -1606,9 +1605,10 @@ class Battle:
                     pieces[-1].append(off)
                 else:
                     pieces.append([off])
-            if pieces:
-                run_near = min(pieces, key=lambda r: min(abs(o) for o in r))
-                run_near.sort(key=abs)
+            if not pieces:
+                return None                               # kein freies Stück mehr: im Block dahinter warten
+            run_near = min(pieces, key=lambda r: min(abs(o) for o in r))
+            run_near.sort(key=abs)
         out: list[tuple[Man, Point]] = []
         for k, row in enumerate(u.rows):                      # Reihe für Reihe: die vordere innen, jede behält ihre Nachbarn
             layer = sorted(row, key=offset)
@@ -1824,10 +1824,62 @@ class Battle:
                 return True
         return False
 
+    def _gap_at(self, u: Lochos, pos: Point, o: Lochos) -> float:
+        """Lücke zwischen ``u`` (gedacht an ``pos``) und ``o``, wie ``_gap``."""
+        fx, fy = u.facing
+        ax, ay = -fy, fx
+
+        def rect_distance(p: Point) -> float:
+            dx, dy = p[0] - pos[0], p[1] - pos[1]
+            if u.formation == "o":
+                return max(0.0, math.hypot(dx, dy) - u.half_w)
+            along, forward = dx * ax + dy * ay, dx * fx + dy * fy
+            return math.hypot(max(0.0, abs(along) - u.half_w), max(0.0, abs(forward) - u.half_d))
+        shifted = [(c[0] - u.x + pos[0], c[1] - u.y + pos[1]) for c in u.outline()]
+        return max(0.0, min(min(o.rect_distance(c) for c in shifted),
+                            min(rect_distance(c) for c in o.outline())))
+
+    @staticmethod
+    def _extent(g: Lochos, px: float, py: float) -> float:
+        """Halbe Ausdehnung der Formation entlang der Richtung (px, py)."""
+        fx, fy = g.facing
+        return abs(fx * px + fy * py) * g.half_d + abs(-fy * px + fx * py) * g.half_w
+
+    def _own_in_the_way(self, u: Lochos, pos: Point) -> bool:
+        """Führt der Schritt in eine eigene Gruppe hinein, die kämpft (oder selbst hinter
+        einer Kämpfenden ansteht)? Dann wartet man dahinter, statt in sie hineinzufahren;
+        eigene Gruppen unterwegs weichen sich Mann für Mann aus."""
+        if u.loose or self.on_wall(u):
+            return False
+        step = dist(u.pos, pos)
+        if step < 1e-9:
+            return False
+        px, py = -(pos[1] - u.y) / step, (pos[0] - u.x) / step   # quer zum Schritt
+        for o in self.lochoi:
+            if o is u or o.side is not u.side or not o.alive or o.loose or self.on_wall(o):
+                continue
+            if o.waiting and u.target is not None and dist(o.pos, u.target) >= dist(u.pos, u.target):
+                continue                                  # ein Wartender hinter uns hält uns nicht auf (sonst warten alle aufeinander)
+            if not (o.engaged or o.waiting):
+                continue                                  # Stehende werden umgangen oder machen Platz, nur Kämpfende sperren
+            if o.radius < 0.6 * u.radius:
+                continue                                  # ein kleiner Haufen sperrt eine große Formation nicht: die fließt drum herum
+            if dist(o.pos, pos) > o.radius + u.radius:
+                continue
+            # hinein oder tiefer hinein geht es nicht; heraus oder daran entlang schon
+            if self._gap_at(u, pos, o) <= 0.0 and dist(pos, o.pos) < dist(u.pos, o.pos) - 1e-9:
+                return True
+        return False
+
     def _step(self, u: Lochos, delta: Point, through: bool = False) -> None:
         nx, ny = u.x + delta[0], u.y + delta[1]
         if not through and self._walled_off(u, u.pos, (nx, ny), self._barriers(u)):
             return
+        if not through and self._own_in_the_way(u, (nx, ny)):
+            u.waiting = True                              # anstehen, bis vorn Platz wird
+            u.vel = 0.0
+            return
+        u.waiting = False
         if self.can_step(u, u.pos, (nx, ny)):
             u.x, u.y = nx, ny
         elif self.can_step(u, u.pos, (nx, u.y)):

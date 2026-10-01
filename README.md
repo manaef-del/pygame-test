@@ -72,6 +72,13 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   muss ihr Platz machen. Liegt das Ziel genau dort, wo eine andere nur
   herumsteht, macht die Stehende Platz; unter Stehenden weicht, wer
   zuletzt kam. An Feinden bleibt man hängen und kämpft.
+- **Anstehen statt Stapeln.** In eine eigene Gruppe, die gerade kämpft,
+  fährt keine andere hinein: Wer nicht um sie herumkommt (etwa im Tor),
+  wartet im Block dahinter, bis vorn Platz wird; wer am Umriss des
+  Feindes kein freies Stück mehr findet, bleibt ebenfalls im Block. So
+  bilden sich Schlangen vor einer Enge statt eines Haufens. Der Kreis
+  zählt für alle Abstände als Kreis, nicht als sein umschriebenes
+  Rechteck.
 - **Reiter** sitzen ab, sobald sie Rammbock oder Turm bauen oder auf den
   Wehrgang steigen. Die Pferde bleiben als braune Punkte zurück; danach
   sind sie so schnell wie Fußvolk und ohne Reiterbonus. Ohne Gerät zu

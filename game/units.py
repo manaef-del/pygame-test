@@ -172,6 +172,7 @@ class Lochos:
     contact_since: dict[int, float] = field(default_factory=dict)   # seit wann (Schlachtzeit) je Gegner-id
     assault_slots: list = field(default_factory=list)   # zuletzt zugewiesene Plätze am feindlichen Umriss (Weltkoordinaten)
     still_since: float = 0.0          # seit wann die Gruppe steht (wer später kam, weicht beim Auseinanderrücken)
+    waiting: bool = False             # steht hinter einer eigenen Gruppe an, die kämpft oder steht
     disengage_until: float = -1.0     # bis dahin gilt die Gruppe als vom Feind gelöst (verwundbar)
     runup: float = 0.0                # Reiter: Anlauf seit dem letzten Halt oder Kontakt (Kacheln)
     vel: float = 0.0                  # Reiter: augenblickliches Tempo (Kacheln/s), Schwung
@@ -377,7 +378,10 @@ class Lochos:
         return "flank"
 
     def rect_distance(self, p: tuple[float, float]) -> float:
-        """Abstand eines Punkts zum Rechteck der Formation (0 = innen)."""
+        """Abstand eines Punkts zum Rechteck der Formation (0 = innen); der Kreis
+        zählt als Kreis, nicht als sein umschriebenes Rechteck."""
+        if self.formation == "o":
+            return max(0.0, math.hypot(p[0] - self.x, p[1] - self.y) - self.half_w)
         along, forward = self.local(p)
         ox = max(0.0, abs(along) - self.half_w)
         oy = max(0.0, abs(forward) - self.half_d)
@@ -385,6 +389,13 @@ class Lochos:
 
     def corners(self) -> list[tuple[float, float]]:
         return self.corners_at(self.pos, self.facing)
+
+    def outline(self) -> list[tuple[float, float]]:
+        """Randpunkte für Abstandsprüfungen: die Ecken, beim Kreis acht Punkte auf ihm."""
+        if self.formation == "o":
+            r = self.half_w
+            return [(self.x + r * math.cos(k * math.pi / 4), self.y + r * math.sin(k * math.pi / 4)) for k in range(8)]
+        return self.corners()
 
     def corners_at(self, centre: tuple[float, float], facing: tuple[float, float]) -> list[tuple[float, float]]:
         """Die Ecken der Formation um ein beliebiges Zentrum (etwa das Ziel)."""

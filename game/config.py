@@ -20,7 +20,6 @@ SEEK_RANGE = 2.2             # Kacheln: Räuber wenden sich Verteidigern zu
 SEPARATION = 0.2             # Zusatzabstand zu den Radien zweier Gruppen
 MAN_RADIUS = 0.055           # Kacheln: Platz, den ein Mann für sich hat; näher als zwei Halbmesser kommt ihm keiner (Reihenabstand 0,13)
 DETOUR_MARGIN = 0.25         # Kacheln Abstand, mit dem eine Gruppe um eine andere herumgeht
-DETOUR_MAX = 2.5             # Kacheln: mehr Seitenversatz nimmt keine Gruppe auf sich, dann fließen die Männer um das Hindernis
 BASE_RATE = 0.09             # Schaden pro Sekunde je Angriffspunkt
 CONTACT_REACH = 0.6          # Kacheln von Mann zu Mann: so weit reicht ein Mann an den nächsten Feind (Rechteck an Rechteck stehen die Reihen 0,55 auseinander, um ein Linienende gelegt 0,32); wer weiter weg steht, kämpft nicht mit
 ARRIVE_EPS = 0.08

@@ -358,7 +358,8 @@ def test_phalanx_behind_palisade_beats_larger_force():
 def test_open_settlement_phalanx_then_pursuit_wins():
     """Kurze, tiefe Linie, Peltasten dahinter, Reiter am Flügel: Alle vier Sekunden
     schaut der Spieler hin, die Reiter fassen, wer der Phalanx in Flanke oder Rücken
-    geht, die Phalanx dreht die Front zur Bedrohung, wenn vorn niemand mehr steht.
+    geht, und setzen sich ab, wenn sie selbst umringt sind; die Phalanx dreht die
+    Front zur Bedrohung, wenn vorn niemand mehr steht.
     Ist die Hälfte der Räuber gefallen oder geflohen, greifen alle frei an: Reiter
     und Peltasten fassen die Plünderer, die den langsamen Hopliten davonlaufen würden."""
     from game.geometry import norm, sub
@@ -385,11 +386,13 @@ def test_open_settlement_phalanx_then_pursuit_wins():
         if hop.fighting:
             near = [f for f in foes if hop.rect_distance(f.pos) <= 3.0]
             side = [f for f in near if arc(hop.facing, sub(f.pos, hop.pos), config.FRONT_ARC, config.REAR_ARC) != "front"]
-            if side and cav.fighting:
+            if cav.fighting and len(cav.contacts) >= 2:
+                b.command_move([cav], (12.0, 11.5))            # umringt: absetzen und neu anreiten
+            elif side and cav.fighting:
                 b.command_attack_target([cav], min(side, key=lambda f: hop.rect_distance(f.pos)))
             elif side and len(side) == len(near) and hop.in_phalanx:
                 hop.facing = norm(sub(max(side, key=lambda f: f.men).pos, hop.pos))
-        if cav.fighting and cav.stance is not Stance.ANGRIFF:
+        if cav.fighting and cav.stance is not Stance.ANGRIFF and cav.target is None:
             weak = [f for f in foes if f.loose or f.stance is Stance.FLUCHT]
             if weak:
                 b.command_attack_target([cav], min(weak, key=lambda f: f.rect_distance(cav.pos)))
@@ -1666,3 +1669,41 @@ def test_arriving_group_makes_the_idle_one_yield():
     run(b, 20)
     assert dist_of_pt(walk.pos, (8.0, 8.0)) < 0.3, walk.pos
     assert b._gap(stand, walk) >= 0.0 and dist_of_pt(stand.pos, (8.0, 8.0)) > 0.5, stand.pos
+
+
+def test_ring_counts_as_a_circle_for_distances():
+    """Der Kreis ist für Abstände ein Kreis, nicht sein umschriebenes Rechteck:
+    an seiner Ecke ist noch Platz, am Rand nicht."""
+    ring = Lochos(1, Side.STADT, arrange(men("mittel", 24), 8), 8.0, 8.0, facing=(0.0, -1.0), stance=Stance.PHALANX)
+    ring.formation = "o"
+    ring.place_men()
+    r = ring.half_w
+    assert ring.rect_distance((8.0 + r * 0.8, 8.0 + r * 0.8)) > 0.05            # die Ecke des Rechtecks liegt außerhalb
+    assert ring.rect_distance((8.0 + r * 0.5, 8.0)) == 0.0                       # innen
+    assert len(ring.outline()) == 8 and all(abs(dist_of_pt(p, ring.pos) - r) < 1e-6 for p in ring.outline())
+
+
+def test_groups_queue_behind_their_own_fighting_group():
+    """Greifen mehrere eigene Gruppen denselben Feind durch eine Enge an, fährt keine
+    in die vordere hinein: Wer nicht mehr an den Feind kommt, wartet im Block dahinter."""
+    b = Battle(PALISADE, random.Random(1))
+    hop, pelt, cav = b.units(Side.STADT)
+    g = b.command_merge([hop, pelt, cav])
+    b.command_formation([g], "o")
+    gx, gy = b.gate.center
+    b.command_ring([g], (gx, gy + 2.2), 1.2)
+    b.gate.hp = 0.0
+    b.gate.closed = False
+    run(b, 20)                                                               # das Gedränge am Tor sortiert sich
+    raiders = [u for u in b.units(Side.FEIND, fighting_only=True) if not u.loose]
+    fighting = [u for u in raiders if u.engaged]
+    waiting = [u for u in raiders if not u.engaged and u.waiting]
+    assert fighting and waiting, (len(fighting), len(waiting))
+    for w in waiting:
+        assert w.on_slots(config.SLOT_TOLERANCE + 0.1, 0.6), w.name                  # die Wartenden stehen (weitgehend) im Block
+        assert all(b._gap(w, f) >= 0.0 for f in fighting)
+    men = [(m, u.id) for u in b.lochoi if u.alive for m in u.all_men()]
+    for j, (a, ua) in enumerate(men):
+        for c, uc in men[j + 1:]:
+            if ua != uc:
+                assert dist_of_pt(a.pos, c.pos) >= 2 * config.MAN_RADIUS - 1e-6

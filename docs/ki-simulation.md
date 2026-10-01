@@ -1,5 +1,52 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 11 (1. Oktober 2026): Anstehen statt Stapeln
+
+Ein Bildschirmfoto zeigte Räuberhaufen, die am Tor ineinander standen:
+Ihre Rechtecke lagen übereinander, und weil keiner mehr ein freies Stück
+am Umriss des Gegners fand, legten sich alle auf dasselbe. Jetzt fährt
+keine Gruppe in eine eigene hinein, die gerade kämpft: Wer nicht um sie
+herumkommt (etwa im Tor), steht im Block dahinter an, bis vorn Platz
+wird; wer am Umriss kein freies Stück findet, bleibt im Block. Der Kreis
+zählt für Abstände als Kreis. Dazu ein älterer Fehler, der beim Prüfen
+auffiel: Der Plan „Vorrücken“ der Siedlung zielte noch auf 0,9 Kacheln
+Lücke (aus der Zeit vor „Schild an Schild“) und ließ die feindliche
+Phalanx damit zurückweichen, sobald der Spieler näher stand; ihre
+gebundene erste Reihe blieb vorn hängen, und der Phalanxstoß endete im
+Patt. Sie rückt jetzt bis auf Schildweite vor und weicht nie zurück.
+
+Ein Scan über alle Szenarien zeigt keine Stapel mehr: Nirgends stehen
+mehr als fünf Männer auf drei Pixeln (0,1 Kacheln), auch nicht im Tor.
+Vier Seeds je Zeile, kluge KI, Truppe standard, verglichen mit Lauf 10:
+
+| Szenario | Taktik | Siege Lauf 10 → 11 | Verlust Stadt | Verlust Feind | Häuser verloren | Dauer |
+|---|---|---|---|---|---|---|
+| offen | linie | 0/4 → 0/4 | 21% → 23% | 1% → 3% | 8.0 → 5.0 | 25 s |
+| offen | linie_reiter | 0/4 → 0/4 | 31% → 27% | 9% → 5% | 2.0 → 2.8 | 22 s |
+| offen | linie_aktiv | 0/4 → 0/4 | 25% → 18% | 9% → 10% | 0.5 → 0.0 | 20 s |
+| offen | linie_tief | 4/4 → 3/4 | 23% → 25% | 46% → 48% | 0.5 → 0.5 | 57 s |
+| offen | passiv | 0/4 → 0/4 | 28% → 21% | 18% → 14% | 0.0 → 0.0 | 19 s |
+| offen | angriff | 4/4 → 4/4 | 17% → 13% | 35% → 44% | 0.8 → 2.5 | 36 s |
+| palisade | tor_halten | 0/4 → 0/4 | 27% → 14% | 18% → 12% | 8.0 → 8.0 | 79 s |
+| palisade | tor_reserve | 2/4 → 0/4 | 28% → 27% | 63% → 24% | 2.8 → 8.0 | 92 s |
+| palisade | tor_leiter | 4/4 → 2/4 | 17% → 18% | 44% → 41% | 0.0 → 2.0 | 208 s |
+| palisade | passiv | 4/4 → 0/4 | 27% → 26% | 100% → 27% | 0.0 → 8.0 | 84 s |
+| horde | vorruecken | 3/4 → 4/4 | 39% → 22% | 46% → 48% | 0.0 → 0.0 | 56 s |
+| horde | angriff | 4/4 → 4/4 | 28% → 23% | 46% → 62% | 0.0 → 0.0 | 33 s |
+| angriff_offen | phalanxstoss | 4/4 → 4/4 | 8% → 11% | 9% → 1% | 0.0 → 0.0 | 35 s |
+| angriff_offen | vorruecken | 2/4 → 0/4 | 52% → 49% | 52% → 1% | 0.0 → 0.0 | 63 s |
+| angriff_offen | angriff | 4/4 → 3/4 | 22% → 27% | 14% → 16% | 0.0 → 0.0 | 53 s |
+| angriff_wall | tor_phalanx | 0/4 → 0/4 | 44% → 47% | 14% → 10% | 0.0 → 0.0 | 60 s |
+| angriff_wall | belagerung | 0/4 → 0/4 | 14% → 7% | 0% → 0% | 0.0 → 0.0 | 300 s |
+
+Lehre: Der Phalanxstoß entscheidet sich wieder schnell (35 s statt
+eines Patts). Hinter der Palisade gewinnt „nur halten“ nicht mehr: Die
+Räuber laufen nicht mehr einzeln über den Turm in die wartende
+Phalanx, sondern stehen in Blöcken an und kommen geschlossen. Damit
+ist Punkt 0 der Ideenliste (Turm nur mit Platz dahinter) vorerst
+erledigt; die Palisade ist für den Verteidiger jetzt deutlich schwerer,
+am besten hält weiter die Phalanx am Fuß der Leiter (`tor_leiter`).
+
 ## Lauf 10 (30. September 2026): Niemand steht im anderen
 
 Kein Mann teilt mehr seinen Platz mit einem anderen: Zwischen Männern

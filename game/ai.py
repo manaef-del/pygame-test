@@ -948,9 +948,10 @@ class Brain:
             if b.on_wall(foe):
                 return
             direction = norm(sub(foe.pos, u.pos))
-            stop = foe.half_d + u.half_d + 0.9
+            stop = foe.half_d + u.half_d + config.CONTACT_GAP      # Schild an Schild, nicht davor stehen bleiben
             spot = (foe.x - direction[0] * stop, foe.y - direction[1] * stop)
-            if b.path_clear(u.pos, spot, u) and dist(u.pos, spot) > 0.4:
+            closer = dist(spot, foe.pos) < dist(u.pos, foe.pos) - 0.1   # vorrücken heißt nie zurückweichen
+            if closer and b.path_clear(u.pos, spot, u) and dist(u.pos, spot) > 0.15:
                 self._go(b, u, spot, Stance.PHALANX)
                 u.facing = direction
             return
