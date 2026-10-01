@@ -920,8 +920,9 @@ def test_disengaging_releases_the_men_and_costs():
     assert len(hop.bound_men()) < bound_before
     mod, arc_name = b._defense_mod(raider, hop)
     assert arc_name == "rear" and mod == pytest.approx(config.DISENGAGE_DAMAGE)
-    run(b, config.DISENGAGE_TIME + 6.0)
+    run(b, config.DISENGAGE_TIME + 10.0)                  # um die eigenen Peltasten herum, nicht durch sie
     assert hop.disengage_until <= b.time                  # danach vorbei
+    assert b._gap(hop, pelt) > 0.0
 
 
 def test_phalanx_bonus_waits_until_every_man_stands():
@@ -1661,14 +1662,60 @@ def test_group_walks_around_a_standing_friendly_group():
     assert closest > 0.0, closest                                             # nie ineinander
 
 
-def test_arriving_group_makes_the_idle_one_yield():
-    """Wird eine Gruppe genau dorthin befohlen, wo eine andere nur herumsteht,
-    macht die Stehende Platz (wer später kam, weicht sonst)."""
+def test_group_ordered_onto_a_standing_group_halts_beside_it():
+    """Wird eine Gruppe genau dorthin befohlen, wo schon eine eigene steht, schiebt
+    sie die Stehende nicht weg, sondern hält vor ihr."""
     b, stand, walk = two_own_groups((8.0, 8.0), (8.0, 12.0))
     b.command_move([walk], (8.0, 8.0))
     run(b, 20)
-    assert dist_of_pt(walk.pos, (8.0, 8.0)) < 0.3, walk.pos
-    assert b._gap(stand, walk) >= 0.0 and dist_of_pt(stand.pos, (8.0, 8.0)) > 0.5, stand.pos
+    assert dist_of_pt(stand.pos, (8.0, 8.0)) < 0.05, stand.pos              # nicht verschoben
+    assert b._gap(stand, walk) >= config.SEPARATION - 0.05                  # nicht ineinander
+    assert walk.y > stand.y and dist_of_pt(walk.pos, (8.0, 8.0)) < 2.0      # davor, von wo sie kam
+
+
+def test_wide_line_walks_around_a_small_group_instead_of_pushing_it():
+    b = Battle(raid(16, (14.0, 1.0)), random.Random(0),
+               army=army_of(GroupSpec("Klein", [Tier("mittel", 16)]), GroupSpec("Linie", [Tier("mittel", 40)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    b.alarm = False
+    small, wide = b.units(Side.STADT)
+    b.command_move([small], (8.0, 8.0))
+    run(b, 8)
+    wide.x, wide.y, wide.facing, wide.target, wide.stance = 8.0, 14.0, (0.0, -1.0), None, Stance.HALTEN
+    wide.place_men()
+    origin = small.pos
+    b.command_line([wide], (5.0, 3.0), (11.0, 3.0))
+    through = False
+    for _ in range(int(20 / DT)):
+        b.update(DT)
+        through = through or small.rect_distance(wide.pos) == 0.0            # mitten hindurch?
+    assert dist_of_pt(small.pos, origin) < 0.05, small.pos                  # nicht weggeschoben
+    assert not through and abs(wide.y - 3.0) < 0.3                          # außen herum, und angekommen
+
+
+def test_moving_group_walks_around_a_phalanx_at_its_post():
+    """Eine Phalanx behält ihr Ziel als Posten, sie steht trotzdem: Wer vorbei will,
+    geht außen herum, statt durch sie hindurch."""
+    b = Battle(raid(16, (14.0, 1.0)), random.Random(0),
+               army=army_of(GroupSpec("Phalanx", [Tier("mittel", 40)]), GroupSpec("Reiter", [Tier("reiter", 16)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    b.alarm = False
+    hop, cav = b.units(Side.STADT)
+    b.command_line([hop], (6.0, 8.0), (10.0, 8.0))
+    run(b, 8)
+    assert hop.in_phalanx and b._standing(hop)
+    cav.x, cav.y, cav.facing, cav.target, cav.stance = 8.0, 14.0, (0.0, -1.0), None, Stance.HALTEN
+    cav.place_men()
+    b.command_move([cav], (8.0, 3.0))
+    origin = hop.pos
+    through = False
+    for _ in range(int(20 / DT)):
+        b.update(DT)
+        through = through or hop.rect_distance(cav.pos) == 0.0
+    assert not through and dist_of_pt(hop.pos, origin) < 0.05
+    assert dist_of_pt(cav.pos, (8.0, 3.0)) < 0.3
 
 
 def test_ring_counts_as_a_circle_for_distances():
@@ -1707,3 +1754,28 @@ def test_groups_queue_behind_their_own_fighting_group():
         for c, uc in men[j + 1:]:
             if ua != uc:
                 assert dist_of_pt(a.pos, c.pos) >= 2 * config.MAN_RADIUS - 1e-6
+
+
+def test_hoplites_pass_through_their_own_peltasts_in_loose_order():
+    """Peltasten stehen in lockerer Ordnung: Eine Phalanx, die durch sie nach vorn
+    rückt, geht hindurch (die Männer weichen einander aus), statt außen herum, und
+    schiebt sie nicht weg."""
+    b = Battle(raid(16, (14.0, 1.0)), random.Random(0),
+               army=army_of(GroupSpec("Hopliten", [Tier("mittel", 40)]), GroupSpec("Peltasten", [Tier("peltast", 15)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    b.alarm = False
+    hop, pelt = b.units(Side.STADT)
+    b.command_line([pelt], (5.0, 10.6), (11.0, 10.6))
+    run(b, 8)
+    origin = pelt.pos
+    hop.x, hop.y, hop.facing, hop.target, hop.stance = 8.0, 14.0, (0.0, -1.0), None, Stance.HALTEN
+    hop.place_men()
+    b.command_line([hop], (4.0, 9.5), (12.0, 9.5))
+    widest = 0.0
+    for _ in range(int(15 / DT)):
+        b.update(DT)
+        widest = max(widest, abs(hop.x - 8.0))
+    assert hop.in_phalanx and abs(hop.y - 9.5) < 0.3
+    assert widest < 1.0, widest                                            # kein Umweg um die ganze Linie
+    assert dist_of_pt(pelt.pos, origin) < 0.05

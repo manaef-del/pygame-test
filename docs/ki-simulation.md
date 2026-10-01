@@ -1,5 +1,68 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 13 (1. Oktober 2026): Niemand wird mehr geschoben
+
+Beim Spielen fiel auf, dass Gruppen sich weiter gegenseitig wegschoben,
+obwohl Lauf 10 das beheben sollte. Sieben nachgestellte Fälle zeigten
+drei Ursachen, alle aus Lauf 10 selbst: (1) Eine breite Linie wich
+einem kleinen Haufen absichtlich nicht aus, der Haufen musste Platz
+machen (5,7 Kacheln weit geschoben). (2) Eine Phalanx behält ihr Ziel
+als Posten und galt deshalb als „unterwegs“; wer vorbei wollte, lief
+durch sie hindurch. (3) Wer auf den Platz einer stehenden Gruppe
+befohlen wurde, schob sie weg.
+
+Jetzt gilt: „Ruhend“ heißt ohne Ziel, als Phalanx auf dem Posten oder
+beim Bauen. Eine ruhende eigene Gruppe wird nie geschoben; wer
+unterwegs ist, geht außen herum, gleich wie breit er ist, und zwar
+erst seitlich heraus, wenn er schon an ihr anliegt. Ein Ziel auf einer
+ruhenden Gruppe rückt einmal je Befehl davor. Peltasten stehen in
+lockerer Ordnung: Durch sie geht man hindurch, und sie dürfen dicht
+hinter eine eigene Formation. Hinter einer kämpfenden oder wartenden
+eigenen Gruppe steht man weiter streng an. Angreifer schließen auf,
+bis ihre vordere Reihe wirklich Feinde erreicht (vorher blieben sie am
+Rechteck einer Phalanx mit kurzer hinterer Reihe außer Speerweite
+stehen). In allen sieben Fällen bleibt die stehende Gruppe jetzt auf
+dem Zentimeter, wo sie stand.
+
+Auf dem Weg dahin fielen zwei Artefakte auf, die die Zahlen stark
+verfälschten: Ein besetztes Ziel wurde jeden Takt neu verlegt, so dass
+Räuberhaufen langsam hinter die Linie des Spielers krochen; und eine
+Regel „Angreifer gehen um eigene kämpfende Gruppen herum“ ließ die
+Räuber die Phalanx rundum fassen. Das erste ist behoben, das zweite
+wieder entfernt (es war nicht verlangt). Vier Seeds je Zeile, kluge
+KI, Truppe standard, verglichen mit Lauf 12:
+
+| Szenario | Taktik | Siege Lauf 12 → 13 | Verlust Stadt | Verlust Feind | Häuser verloren | Dauer |
+|---|---|---|---|---|---|---|
+| offen | linie | 0/4 → 0/4 | 90% → 79% | 39% → 16% | 8.0 → 8.0 | 53 s |
+| offen | linie_reiter | 0/4 → 0/4 | 95% → 86% | 44% → 43% | 7.0 → 7.2 | 70 s |
+| offen | linie_aktiv | 1/4 → 0/4 | 70% → 99% | 40% → 17% | 7.2 → 7.2 | 58 s |
+| offen | linie_tief | 3/4 → 4/4 | 40% → 46% | 55% → 57% | 2.2 → 2.8 | 64 s |
+| offen | passiv | 0/4 → 0/4 | 66% → 70% | 44% → 50% | 7.5 → 8.0 | 63 s |
+| offen | angriff | 4/4 → 2/4 | 13% → 24% | 44% → 45% | 2.5 → 7.0 | 38 s |
+| palisade | tor_halten | 0/4 → 0/4 | 54% → 38% | 26% → 23% | 8.0 → 8.0 | 93 s |
+| palisade | tor_reserve | 2/4 → 0/4 | 44% → 41% | 67% → 38% | 4.5 → 8.0 | 93 s |
+| palisade | tor_leiter | 4/4 → 3/4 | 21% → 37% | 55% → 61% | 0.0 → 2.8 | 145 s |
+| palisade | passiv | 2/4 → 4/4 | 51% → 61% | 50% → 62% | 7.0 → 4.8 | 119 s |
+| horde | vorruecken | 4/4 → 0/4 | 22% → 29% | 51% → 34% | 0.0 → 0.0 | 69 s |
+| horde | angriff | 2/4 → 2/4 | 28% → 37% | 55% → 54% | 0.0 → 0.0 | 67 s |
+| angriff_offen | phalanxstoss | 4/4 → 0/4 | 65% → 69% | 100% → 74% | 0.0 → 0.0 | 252 s |
+| angriff_offen | vorruecken | 0/4 → 0/4 | 50% → 52% | 1% → 2% | 0.0 → 0.0 | 69 s |
+| angriff_offen | angriff | 0/4 → 0/4 | 67% → 41% | 39% → 28% | 0.0 → 0.0 | 122 s |
+| angriff_wall | tor_phalanx | 0/4 → 0/4 | 55% → 55% | 11% → 12% | 0.0 → 0.0 | 69 s |
+| angriff_wall | belagerung | 0/4 → 0/4 | 12% → 14% | 0% → 0% | 0.0 → 0.0 | 300 s |
+
+Lehre: Die frühere Balance beruhte zum Teil darauf, dass Gruppen sich
+stapeln und wegschieben durften. Die Verteidigung bleibt etwa, wo sie
+war (die tiefe Linie gewinnt vier von vier, die Phalanx am Leiterfuß
+drei von vier). Die Angriffsszenarien sind deutlich schwerer: Gegen
+die Horde verliert die dünne Acht-Kachel-Linie jetzt immer, weil der
+Räuberplan „Binden und Umfassen“ aufgeht, statt dass die Umfassenden
+hinter ihren eigenen Leuten hängen bleiben; und der Phalanxstoß gegen
+die Siedlung endet meist im Zeitlimit, weil ihre Phalanx auf der Agora
+bis zum letzten Mann hält und das Skript nur seine Hopliten hineinwirft.
+Das ist ein Balance-Thema für sich (Punkt 0 der Ideenliste).
+
 ## Lauf 12 (1. Oktober 2026): Sammeln nach der Flucht, die Agora
 
 Geschlagene verlassen das Feld nicht mehr einfach. Wer eine Siedlung

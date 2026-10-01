@@ -6,6 +6,14 @@ wandert nach unten.
 
 ## Offen
 
+0. **Balance der Angriffe.** Seit niemand mehr geschoben wird und
+   Siedlungen bis zum letzten Mann halten, sind die Angriffsszenarien
+   viel schwerer (Lauf 13): Gegen die Horde verliert eine dünne Linie
+   immer, und der letzte Kampf auf der Agora zieht sich bis zum
+   Zeitlimit. Zu klären: Soll der letzte Kampf schwächer sein (etwa
+   Moralverlust trotz Agora), sollen Angreifer Reserven gezielt um die
+   eigene Front herum an den Feind schicken können, oder brauchen die
+   Räuber andere Werte?
 2. **Ausdauer.** Ein Wert je Gruppe, der bei Laufen, Sturm und Kampf
    sinkt und im Stehen steigt; erschöpfte Gruppen sind langsamer, treffen
    schwächer und brechen früher. Belohnt Reserven, bestraft endloses
@@ -28,6 +36,10 @@ wandert nach unten.
 
 ## Erledigt
 
+- **Niemand wird mehr geschoben** (1. Oktober 2026): Eine ruhende eigene
+  Gruppe bleibt, wo sie steht; wer unterwegs ist, geht außen herum,
+  gleich wie breit er ist; durch Peltasten geht man hindurch
+  (docs/ki-simulation.md, Lauf 13).
 - **Sammeln nach der Flucht** (1. Oktober 2026): Verteidiger fliehen auf
   die Agora hinter den Häusern, sammeln sich dort und kämpfen, wenn der
   Feind sie stellt, bis zum letzten Mann. Angreifer sammeln sich an

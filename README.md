@@ -37,7 +37,9 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   niemand den Gegner, halten die zwei nächsten Männer den Kontakt.
 - **Schild an Schild.** Der Kampf beginnt auf Speerweite (gut eine halbe
   Kachel Lücke zwischen den Formationen), angreifende Gruppen schließen
-  aber weiter auf, bis nur noch ein Spalt bleibt. Wer im Handgemenge
+  aber weiter auf, bis nur noch ein Spalt bleibt und ihre vordere Reihe
+  wirklich Feinde erreicht (auch dort, wo die hintere Reihe des Gegners
+  kurz ist). Wer im Handgemenge
   steht, kommt erst mit gut einer Kachel Abstand wieder los, das Lösen
   dauert also.
 - **Haufen legen sich um den Gegner.** Räuber und Peltasten im freien
@@ -65,16 +67,20 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   eigenen Gruppe rückt man höchstens Schulter an Schulter. Wer jemanden
   im Weg hat, geht schräg an ihm vorbei; nur stürmende Reiter drängen
   Fußvolk beiseite, solange ihr Schwung sie in den Feind trägt.
-- **Gruppen umgehen einander.** Steht eine eigene Gruppe still auf dem
-  Weg, geht die befohlene Gruppe um sie herum, statt sie zu schieben;
-  Gruppen, die beide unterwegs sind, gehen einander Mann für Mann aus
-  dem Weg, und eine breite Linie weicht keinem kleinen Haufen aus, der
-  muss ihr Platz machen. Liegt das Ziel genau dort, wo eine andere nur
-  herumsteht, macht die Stehende Platz; unter Stehenden weicht, wer
-  zuletzt kam. An Feinden bleibt man hängen und kämpft.
-- **Anstehen statt Stapeln.** In eine eigene Gruppe, die gerade kämpft,
-  fährt keine andere hinein: Wer nicht um sie herumkommt (etwa im Tor),
-  wartet im Block dahinter, bis vorn Platz wird; wer am Umriss des
+- **Gruppen umgehen einander, niemand wird geschoben.** Steht eine
+  eigene Gruppe auf dem Weg (still, als Phalanx auf ihrem Posten,
+  kämpfend oder wartend), geht die befohlene Gruppe außen um sie herum,
+  gleich wie breit sie selbst ist; die Stehende bleibt, wo sie ist. Wird
+  eine Gruppe genau dorthin befohlen, wo schon eine eigene steht, hält
+  sie davor. Gruppen, die beide unterwegs sind, weichen sich Mann für
+  Mann aus. Leichte Truppen (Peltasten) stehen in lockerer Ordnung:
+  Durch sie geht man hindurch, statt außen herum, etwa wenn die Phalanx
+  durch die eigene Peltastenlinie nach vorn rückt; leichte Truppen
+  dürfen auch dicht hinter eine ruhende eigene Formation, um über sie
+  hinweg zu werfen. An Feinden bleibt man hängen und kämpft.
+- **Anstehen statt Stapeln.** In eine eigene Gruppe, die steht oder
+  gerade kämpft, fährt keine andere hinein: Wer nicht um sie herumkommt
+  (etwa im Tor), wartet im Block dahinter, bis vorn Platz wird; wer am Umriss des
   Feindes kein freies Stück mehr findet, bleibt ebenfalls im Block. So
   bilden sich Schlangen vor einer Enge statt eines Haufens. Der Kreis
   zählt für alle Abstände als Kreis, nicht als sein umschriebenes

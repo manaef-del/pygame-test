@@ -1097,6 +1097,9 @@ class Battle:
                 speed *= config.ENGAGED_SPEED           # im Handgemenge kommt man kaum vom Fleck
             if u.charge_slow_until > self.time:
                 speed *= config.CHARGE_SLOW             # der Aufprall hat die Reiter gebremst
+            if u.target_id is None and not u.loose and u.stance is not Stance.FLUCHT and u.target != u.target_checked:
+                u.target = self._clear_of_own(u, u.target)   # besetzter Platz: daneben halten (einmal je Befehl)
+                u.target_checked = u.target
             goal, final = self.route(u, u.target)
             d = dist(u.pos, goal)
             if u.mounted_men() and self.is_wall_cell(self.cell(*goal), True) and d <= 1.0:
@@ -1105,7 +1108,8 @@ class Battle:
             if u.stance is Stance.ANGRIFF and final:
                 target = self.by_id(u.target_id) if u.target_id is not None else None
                 withdrawing = u.hitrun_until > self.time                 # Reiter setzen ab: nicht am Feind kleben
-                if target is not None and not withdrawing and self._gap(u, target) <= config.CONTACT_GAP:
+                if target is not None and not withdrawing and self._gap(u, target) <= config.CONTACT_GAP \
+                        and self._front_reaches(u, target):
                     if self._rides(u) and u.vel > 0.05 and u.ride_in < config.CHARGE_PENETRATION:
                         u.vel = max(0.0, u.vel - config.CHARGE_BRAKE * dt)   # der Schwung trägt in den Feind hinein
                         step = u.vel * dt
@@ -1124,6 +1128,8 @@ class Battle:
             if d <= max(config.ARRIVE_EPS, stop_at):
                 u.vel = 0.0
                 if u.stance is Stance.PHALANX and final and d <= config.ARRIVE_EPS + 0.02:
+                    if (u.x, u.y) != u.target:
+                        u.still_since = self.time                # angekommen: wer später kommt, weicht
                     u.x, u.y = u.target
                     u.in_line = u.on_slots(config.SLOT_TOLERANCE, config.SLOT_SHARE) and all(
                         dist(m.pos, p) <= config.SLOT_TOLERANCE or self._crowding(m, m.pos, p, u.id) is not None
@@ -1158,13 +1164,62 @@ class Battle:
                 u.withdrawn = True
         self._move_men(dt)
 
+    def _standing(self, o: Lochos) -> bool:
+        """Steht die Gruppe (statt unterwegs zu sein)? Ohne Ziel, angekommen (eine
+        Phalanx behält ihr Ziel als Posten), im Handgemenge, wartend oder beim Bauen."""
+        if o.engaged or o.waiting or o.building is not None or o.target is None:
+            return True
+        return o.stance is Stance.PHALANX and dist(o.pos, o.target) <= config.ARRIVE_EPS + 0.05
+
+    def _idle(self, o: Lochos) -> bool:
+        """Ruht die Gruppe auf ihrem Platz (ohne Ziel, als Phalanx auf ihrem Posten, beim
+        Bauen)? Eine ruhende eigene Gruppe wird nie geschoben, man geht um sie herum."""
+        if o.engaged or o.waiting:
+            return False
+        if o.building is not None or o.target is None:
+            return True
+        return o.stance is Stance.PHALANX and dist(o.pos, o.target) <= config.ARRIVE_EPS + 0.05
+
+    def _passable(self, o: Lochos) -> bool:
+        """Leichte Truppen in lockerer Ordnung lassen eigene Gruppen durch (die Männer
+        weichen einander aus), solange sie nicht selbst im Handgemenge stehen."""
+        return not o.engaged and not o.waiting and o.share(lambda m: m.kind.ranged) >= 0.5
+
+    def _clear_of_own(self, u: Lochos, p: Point) -> Point:
+        """Ein Ziel, auf dem schon eine stehende eigene Gruppe steht, rückt daneben:
+        Die befohlene Gruppe hält vor ihr, statt sie wegzuschieben."""
+        blockers = [o for o in self.lochoi if o is not u and o.alive and o.side is u.side and not o.loose
+                    and self.on_wall(o) == self.on_wall(u) and self._idle(o) and not self._passable(o)]
+        if not blockers:
+            return p
+
+        final_facing = u.face_to or u.facing                # am Ziel steht man mit der befohlenen Front
+
+        def hit(q: Point) -> Lochos | None:
+            return next((o for o in blockers if dist(o.pos, q) <= o.radius + u.radius
+                         and self._gap_at(u, q, o, final_facing) < config.SEPARATION), None)
+        o = hit(p)
+        if o is None:
+            return p
+        away = sub(p, o.pos) if dist(p, o.pos) > 0.05 else sub(u.pos, o.pos)
+        if math.hypot(*away) < 1e-6:
+            away = (0.0, 1.0)
+        away = norm(away)
+        for k in range(1, 61):                            # in Zehntelschritten von ihr weg, bis frei
+            q = (p[0] + away[0] * 0.1 * k, p[1] + away[1] * 0.1 * k)
+            if not self.inside(*q) or self.is_blocked(*q, u):
+                break
+            if hit(q) is None:
+                return q
+        return p
+
     def _around(self, u: Lochos, goal: Point) -> Point:
-        """Steht eine eigene Gruppe still auf dem Weg (oder kämpft sie dort), geht die
-        befohlene Gruppe um sie herum, statt sie zu schieben: Zwischenziel neben der
-        Gruppe, auf der Seite, die dem Weg näher liegt. Gruppen, die selbst unterwegs
-        sind, gehen einander aus dem Weg (Mann für Mann); Feinde sind keine Umgehung
-        wert, an ihnen bleibt man hängen und kämpft. Eine breite Linie weicht keinem
-        kleinen Haufen aus, der muss ihr Platz machen."""
+        """Steht eine eigene Gruppe auf dem Weg (still, als Phalanx auf ihrem Posten,
+        kämpfend oder wartend), geht die befohlene Gruppe um sie herum, statt sie zu
+        schieben, gleich wie breit sie selbst ist: Zwischenziel neben der Gruppe, auf
+        der Seite, die dem Weg näher liegt. Gruppen, die beide unterwegs sind, gehen
+        einander Mann für Mann aus dem Weg; Feinde sind keine Umgehung wert, an ihnen
+        bleibt man hängen und kämpft."""
         d = dist(u.pos, goal)
         if d < 1e-6:
             return goal
@@ -1178,12 +1233,12 @@ class Battle:
         for o in self.lochoi:
             if o is u or not o.alive or o.loose or o.side is not u.side or self.on_wall(o) != self.on_wall(u):
                 continue
-            if o.target is not None and o.building is None and not o.engaged and not o.waiting:
-                continue                                  # selbst unterwegs
+            if self._passable(o):
+                continue                                  # lockere Ordnung: man geht hindurch
+            if not self._standing(o):
+                continue                                  # selbst unterwegs: man weicht sich Mann für Mann aus
             if o.id == u.target_id or o.id in u.contacts:
                 continue
-            if extent(u) > extent(o) + 0.1:
-                continue                                  # breiter als das Hindernis: die Männer fließen drum herum
             clear = extent(u) + extent(o) + config.DETOUR_MARGIN
             ox, oy = o.x - u.x, o.y - u.y
             along = ox * direction[0] + oy * direction[1]
@@ -1192,15 +1247,32 @@ class Battle:
             off = ox * px + oy * py
             if abs(off) >= clear:
                 continue                                  # geht knapp vorbei
-            if dist(goal, o.pos) < clear and along > d - o.radius:
-                continue                                  # das Ziel liegt bei ihr: Ankunft, Auseinanderrücken regelt den Rest
+            if along > d - o.radius and (u.target_id is not None
+                                         or self._gap_at(u, goal, o, u.face_to or u.facing) < config.SEPARATION):
+                continue                                  # das Ziel liegt bei ihr: Ankunft, oder dahinter kämpft man (anstehen)
             if best is None or along < best[0]:
                 side = 1.0 if off < 0 else -1.0           # auf der Seite vorbei, die dem Weg näher liegt
-                best = (along, (o.x + px * side * clear, o.y + py * side * clear))
+                wp = (o.x + px * side * clear, o.y + py * side * clear)
+                if along < self._extent(o, *direction) + self._extent(u, *direction) + config.DETOUR_MARGIN:
+                    # liegt man schon an ihr an: erst seitlich heraus, dann vorbei (nicht über ihre Ecke)
+                    lateral = off + side * clear
+                    wp = (u.x + px * lateral, u.y + py * lateral)
+                best = (along, wp)
         if best is None:
             return goal
         wp = best[1]
-        return wp if self.inside(*wp) and not self.is_blocked(*wp) else goal
+        if not self.inside(*wp) or self.is_blocked(*wp) or not self.path_clear(u.pos, wp, u):
+            return goal                                   # kein begehbarer Umweg (Palisade, Tor): dahinter anstehen
+        return wp
+
+    def _front_reaches(self, u: Lochos, foe: Lochos) -> bool:
+        """Erreicht die vordere Reihe den Gegner? Am Rand seines Rechtecks stehen die
+        Männer dort, wo seine hintere Reihe kurz ist, noch außer Speerweite; dann
+        rückt man weiter auf, bis wirklich Mann gegen Mann steht."""
+        if u.loose or not u.rows or foe.loose:
+            return True
+        distance = self._reach_to(foe)
+        return any(distance(m) <= config.CONTACT_REACH for m in u.rows[0])
 
     def _rides(self, u: Lochos) -> bool:
         """Beritten und im Gelände unterwegs: Bewegung mit Schwung."""
@@ -1824,9 +1896,9 @@ class Battle:
                 return True
         return False
 
-    def _gap_at(self, u: Lochos, pos: Point, o: Lochos) -> float:
-        """Lücke zwischen ``u`` (gedacht an ``pos``) und ``o``, wie ``_gap``."""
-        fx, fy = u.facing
+    def _gap_at(self, u: Lochos, pos: Point, o: Lochos, facing: Point | None = None) -> float:
+        """Lücke zwischen ``u`` (gedacht an ``pos``, wahlweise mit anderer Front) und ``o``, wie ``_gap``."""
+        fx, fy = facing or u.facing
         ax, ay = -fy, fx
 
         def rect_distance(p: Point) -> float:
@@ -1835,7 +1907,10 @@ class Battle:
                 return max(0.0, math.hypot(dx, dy) - u.half_w)
             along, forward = dx * ax + dy * ay, dx * fx + dy * fy
             return math.hypot(max(0.0, abs(along) - u.half_w), max(0.0, abs(forward) - u.half_d))
-        shifted = [(c[0] - u.x + pos[0], c[1] - u.y + pos[1]) for c in u.outline()]
+        if facing is None or u.formation == "o":
+            shifted = [(c[0] - u.x + pos[0], c[1] - u.y + pos[1]) for c in u.outline()]
+        else:
+            shifted = u.corners_at(pos, facing)
         return max(0.0, min(min(o.rect_distance(c) for c in shifted),
                             min(rect_distance(c) for c in o.outline())))
 
@@ -1846,28 +1921,39 @@ class Battle:
         return abs(fx * px + fy * py) * g.half_d + abs(-fy * px + fx * py) * g.half_w
 
     def _own_in_the_way(self, u: Lochos, pos: Point) -> bool:
-        """Führt der Schritt in eine eigene Gruppe hinein, die kämpft (oder selbst hinter
-        einer Kämpfenden ansteht)? Dann wartet man dahinter, statt in sie hineinzufahren;
-        eigene Gruppen unterwegs weichen sich Mann für Mann aus."""
+        """Führt der Schritt in eine eigene Gruppe hinein? In eine stehende (still, auf
+        ihrem Posten, kämpfend, wartend) fährt niemand, auch keine breite Linie: Ist
+        kein Umweg begehbar, wartet man dahinter. Gruppen, die beide unterwegs sind,
+        weichen sich Mann für Mann aus; durch leichte Truppen geht man hindurch."""
         if u.loose or self.on_wall(u):
             return False
         step = dist(u.pos, pos)
         if step < 1e-9:
             return False
-        px, py = -(pos[1] - u.y) / step, (pos[0] - u.x) / step   # quer zum Schritt
         for o in self.lochoi:
             if o is u or o.side is not u.side or not o.alive or o.loose or self.on_wall(o):
                 continue
             if o.waiting and u.target is not None and dist(o.pos, u.target) >= dist(u.pos, u.target):
                 continue                                  # ein Wartender hinter uns hält uns nicht auf (sonst warten alle aufeinander)
-            if not (o.engaged or o.waiting):
-                continue                                  # Stehende werden umgangen oder machen Platz, nur Kämpfende sperren
-            if o.radius < 0.6 * u.radius:
-                continue                                  # ein kleiner Haufen sperrt eine große Formation nicht: die fließt drum herum
-            if dist(o.pos, pos) > o.radius + u.radius:
+            if dist(o.pos, pos) > o.radius + u.radius or self._passable(o):
                 continue
-            # hinein oder tiefer hinein geht es nicht; heraus oder daran entlang schon
-            if self._gap_at(u, pos, o) <= 0.0 and dist(pos, o.pos) < dist(u.pos, o.pos) - 1e-9:
+            if not self._standing(o):
+                continue                                  # unterwegs: man weicht sich Mann für Mann aus
+            if self._gap_at(u, pos, o) > 0.0:
+                continue
+            if not self._idle(o):
+                # hinter einer kämpfenden oder wartenden: anstehen, nicht tiefer hinein (seitlich vorbei geht)
+                if dist(pos, o.pos) < dist(u.pos, o.pos) - 0.3 * step:
+                    return True
+                continue
+            if self._passable(u):
+                continue                                  # leichte Truppen dürfen dicht an eine ruhende eigene heran
+            # an einer ruhenden Gruppe: hinein nicht, daran entlang und herum schon
+            if self._gap(u, o) > 0.05:
+                return True
+            tx, ty = o.x - u.x, o.y - u.y
+            n = math.hypot(tx, ty)
+            if n > 1e-9 and (tx * (pos[0] - u.x) + ty * (pos[1] - u.y)) / (n * step) > 0.5:
                 return True
         return False
 
@@ -1891,10 +1977,13 @@ class Battle:
         alive = [u for u in self.lochoi if u.alive]
         for i, a in enumerate(alive):
             for b in alive[i + 1:]:
-                station_a = a.target is not None or a.stance is Stance.PHALANX
-                station_b = b.target is not None or b.stance is Stance.PHALANX
-                if a.side is b.side and station_a and station_b:
-                    continue          # eigene Gruppen unterwegs oder auf Posten umgehen einander
+                idle_a, idle_b = self._idle(a), self._idle(b)
+                if a.side is b.side and not (idle_a and idle_b):
+                    continue          # eigene Gruppen drückt niemand weg: wer unterwegs ist, kommt gar nicht erst hinein
+                if a.side is b.side and (self._passable(a) or self._passable(b)):
+                    continue          # durch leichte Truppen geht man hindurch
+                if a.side is b.side and (a.engaged or b.engaged):
+                    continue          # im Handgemenge drückt man den eigenen Nebenmann nicht weg
                 if a.loose or b.loose or self.on_wall(a) != self.on_wall(b):
                     continue          # aufgelöste Gruppen: die Männer weichen selbst aus
                 if b.id in a.contacts or a.id in b.contacts:
@@ -1908,14 +1997,11 @@ class Battle:
                 direction = norm(sub(b.pos, a.pos))
                 move_a = not a.in_phalanx and a.building is None
                 move_b = not b.in_phalanx and b.building is None
-                if a.side is b.side and move_a and move_b:
-                    # wer nur herumsteht, macht der befohlenen Gruppe Platz; unter Stehenden
-                    # weicht, wer zuletzt kam
-                    if station_a != station_b:
-                        move_a, move_b = not station_a, not station_b
-                    elif a.still_since > b.still_since:
+                if a.side is b.side:
+                    # zwei ruhende eigene Gruppen, die sich überlappen: es weicht, wer zuletzt kam
+                    if move_a and move_b and a.still_since > b.still_since:
                         move_b = False
-                    elif b.still_since > a.still_since:
+                    elif move_a and move_b and b.still_since > a.still_since:
                         move_a = False
                 push = overlap if move_a != move_b else overlap / 2
                 if move_a:
