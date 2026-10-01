@@ -113,7 +113,9 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
 - **Anstehen statt Stapeln.** In eine eigene Gruppe, die steht oder
   gerade kämpft, fährt keine andere hinein: Wer nicht um sie herumkommt
   (etwa im Tor), wartet im Block dahinter, bis vorn Platz wird; wer am Umriss des
-  Feindes kein freies Stück mehr findet, bleibt ebenfalls im Block. So
+  Feindes kein freies Stück mehr findet, wartet ebenfalls geordnet dahinter.
+  Wer außen herum geht, bleibt bei der einmal gewählten Seite, bis er
+  vorbei ist; ein Angriff nimmt die Seite, auf der am Feind noch Platz ist. So
   bilden sich Schlangen vor einer Enge statt eines Haufens. Der Kreis
   zählt für alle Abstände als Kreis, nicht als sein umschriebenes
   Rechteck.

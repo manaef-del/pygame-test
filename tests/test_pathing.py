@@ -264,3 +264,46 @@ def test_enemies_walk_around_their_own_as_a_block_unless_switched_on(monkeypatch
     b, walk = setup()
     b._update_loose(walk)
     assert walk.loose and walk.loose_why == "eigene"
+
+
+def test_attacker_keeps_its_detour_side_instead_of_dithering():
+    """Ein Haufen, der hinter zwei eigenen kämpfenden Gruppen an einen Kreis will,
+    wählt eine Seite und bleibt dabei: er wechselt sie nicht hin und her und kommt
+    voran oder wartet geordnet."""
+    from game.scenarios import OFFENE_SIEDLUNG
+    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    own = b.units(Side.STADT)
+    g = b.command_merge(own)
+    b.command_formation([g], "o")
+    b.command_ring([g], (7.5, 9.5), 1.0)
+    run(b, 13)
+    r6 = b.by_id(6)
+    assert r6.stance is Stance.ANGRIFF and not r6.engaged
+    start = r6.pos
+    sides = []
+    for _ in range(int(10 / DT)):
+        b.update(DT)
+        if r6.detour_side:
+            sides.append(r6.detour_side)
+    flips = sum(1 for a, c in zip(sides, sides[1:]) if a != c)
+    assert flips == 0, flips
+    assert dist(start, r6.pos) > 1.5 or r6.waiting
+
+
+def test_attacker_waits_when_the_enemy_outline_is_full(monkeypatch):
+    """Ist am ganzen Umriss des Gegners kein Platz mehr frei, wartet der Block hinter
+    den eigenen Gruppen, statt herumzulaufen."""
+    from game.scenarios import OFFENE_SIEDLUNG
+    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    own = b.units(Side.STADT)
+    g = b.command_merge(own)
+    b.command_formation([g], "o")
+    b.command_ring([g], (7.5, 9.5), 1.0)
+    run(b, 13)
+    r6 = b.by_id(6)
+    monkeypatch.setattr(b, "_free_outline", lambda u, foe: [])
+    r6.detour_side = 0.0
+    start = r6.pos
+    for _ in range(int(2 / DT)):
+        b.update(DT)
+    assert r6.waiting and dist(start, r6.pos) < 0.2

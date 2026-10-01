@@ -1239,6 +1239,10 @@ class Battle:
             before = u.pos
             if not self.on_wall(u):
                 goal = self._around(u, goal)              # eigene und fremde Gruppen im Weg werden umgangen
+                if goal is None:                          # am Gegner ist kein Platz frei: im Block dahinter warten
+                    u.waiting = True
+                    u.vel = 0.0
+                    continue
             if self._rides(u):
                 self._ride(u, dt, goal, speed, d)
             else:
@@ -1308,24 +1312,84 @@ class Battle:
                 return q
         return p
 
-    def _around(self, u: Lochos, goal: Point) -> Point:
+    def _around(self, u: Lochos, goal: Point) -> Point | None:
         """Steht eine eigene Gruppe auf dem Weg (still, als Phalanx auf ihrem Posten,
         kämpfend oder wartend), geht ein Block um sie herum, statt sie zu schieben:
         Zwischenziel neben der Gruppe, auf der Seite, die dem Weg näher liegt. Das gilt
         noch für Angriffe, Fliehende und Gruppen mit Gerät; wer nur marschiert, löst
         sich stattdessen auf und geht Mann für Mann vorbei (``_update_loose``).
         Gruppen, die beide unterwegs sind, gehen einander Mann für Mann aus dem Weg;
-        Feinde sind keine Umgehung wert, an ihnen bleibt man hängen und kämpft."""
-        wp = self._detour(u, goal)
-        if wp is None:
+        Feinde sind keine Umgehung wert, an ihnen bleibt man hängen und kämpft. Die
+        gewählte Seite bleibt, bis man vorbei ist; ein Angriff nimmt die Seite, auf der
+        am Gegner noch Platz ist, und ist nirgends mehr Platz, gibt es None: warten."""
+        free = None
+        side = u.detour_side or None
+        if u.target_id is not None:
+            foe = self.by_id(u.target_id)
+            free = self._free_outline(u, foe) if foe is not None else None
+            if free and side is None:
+                # auf der Seite herum, auf der am Gegner noch Platz ist
+                fp = min(free, key=lambda p: dist(p, u.pos))
+                dx, dy = norm(sub(goal, u.pos))
+                side = 1.0 if (fp[0] - u.x) * -dy + (fp[1] - u.y) * dx > 0 else -1.0
+        plan = self._detour_plan(u, goal, side=side)
+        if plan is None:
+            u.detour_side = 0.0                           # frei: beim nächsten Hindernis wird neu gewählt
             return goal
+        if free is not None and not free:
+            return None                                   # am Gegner ist kein Platz mehr frei: geordnet dahinter warten
+        wp, u.detour_side = plan                          # die Seite bleibt, bis man vorbei ist (kein Hin und Her)
         if not self.inside(*wp) or self.is_blocked(*wp) or not self.path_clear(u.pos, wp, u):
             return goal                                   # kein begehbarer Umweg (Palisade, Tor): dahinter anstehen
         return wp
 
+    def _free_outline(self, u: Lochos, foe: Lochos) -> list[Point] | None:
+        """Stellen rund um den Gegner, an denen noch keine andere eigene Gruppe steht und
+        wenigstens zwei nebeneinander frei sind (Platz zum Anlegen). None: nicht
+        bestimmbar (der Gegner ist aufgelöst)."""
+        if foe.loose or not foe.alive:
+            return None
+        out = 0.3
+        pts: list[Point] = []
+        if foe.formation == "o":
+            r = foe.half_w + out
+            n = max(12, int(2 * math.pi * r / 0.3))
+            pts = [(foe.x + math.cos(2 * math.pi * k / n) * r, foe.y + math.sin(2 * math.pi * k / n) * r) for k in range(n)]
+        else:
+            fx, fy = foe.facing
+            ax, ay = -fy, fx
+            hw, hd = foe.half_w + out, foe.half_d + out
+            corners = [(-hw, hd), (hw, hd), (hw, -hd), (-hw, -hd)]
+            for (a0, f0), (a1, f1) in zip(corners, corners[1:] + corners[:1]):
+                n = max(1, int(math.hypot(a1 - a0, f1 - f0) / 0.3))
+                for k in range(n):
+                    a, f = a0 + (a1 - a0) * k / n, f0 + (f1 - f0) * k / n
+                    pts.append((foe.x + ax * a + fx * f, foe.y + ay * a + fy * f))
+
+        def taken(p: Point) -> bool:
+            if not self.inside(*p) or self.is_blocked(*p, u):
+                return True
+            cx, cy = self._grid_cell(*p)
+            for gx in (cx - 1, cx, cx + 1):
+                for gy in (cy - 1, cy, cy + 1):
+                    for m, uid in self._man_grid.get((gx, gy), ()):
+                        if uid != u.id and self._man_side.get(id(m)) is u.side and math.hypot(m.x - p[0], m.y - p[1]) < 0.3:
+                            return True
+            return False
+        free = [not taken(p) for p in pts]
+        n = len(pts)
+        return [p for i, p in enumerate(pts) if free[i] and (free[i - 1] or free[(i + 1) % n])]
+
     def _detour(self, u: Lochos, goal: Point, idle_only: bool = False) -> Point | None:
         """Zwischenziel neben der nächsten stehenden (``idle_only``: ruhenden) eigenen
         Gruppe, die auf dem Weg nach ``goal`` liegt, oder None, wenn keine im Weg steht."""
+        plan = self._detour_plan(u, goal, idle_only)
+        return plan[0] if plan is not None else None
+
+    def _detour_plan(self, u: Lochos, goal: Point, idle_only: bool = False,
+                     side: float | None = None) -> tuple[Point, float] | None:
+        """Wie ``_detour``, mit der Seite (+1/-1 quer zum Weg), auf der man vorbeigeht;
+        ``side`` gibt sie vor, sonst die Seite, die dem Weg näher liegt."""
         d = dist(u.pos, goal)
         if d < 1e-6:
             return None
@@ -1357,14 +1421,14 @@ class Battle:
                                          or self._gap_at(u, goal, o, u.face_to or u.facing) < config.SEPARATION):
                 continue                                  # das Ziel liegt bei ihr: Ankunft, oder dahinter kämpft man (anstehen)
             if best is None or along < best[0]:
-                side = 1.0 if off < 0 else -1.0           # auf der Seite vorbei, die dem Weg näher liegt
-                wp = (o.x + px * side * clear, o.y + py * side * clear)
+                s_ = side if side else (1.0 if off < 0 else -1.0)   # vorgegeben, sonst die Seite, die dem Weg näher liegt
+                wp = (o.x + px * s_ * clear, o.y + py * s_ * clear)
                 if along < self._extent(o, *direction) + self._extent(u, *direction) + config.DETOUR_MARGIN:
                     # liegt man schon an ihr an: erst seitlich heraus, dann vorbei (nicht über ihre Ecke)
-                    lateral = off + side * clear
+                    lateral = off + s_ * clear
                     wp = (u.x + px * lateral, u.y + py * lateral)
-                best = (along, wp)
-        return best[1] if best is not None else None
+                best = (along, wp, s_)
+        return (best[1], best[2]) if best is not None else None
 
     def _front_reaches(self, u: Lochos, foe: Lochos) -> bool:
         """Erreicht die vordere Reihe den Gegner? Am Rand seines Rechtecks stehen die

@@ -426,8 +426,11 @@ def test_settlement_learns_a_better_doctrine_from_memory():
     assert choose_doctrine(army, mem) == "reiterlastig"
     b = Battle(SIEDLUNG_OFFEN, random.Random(1), army=army, memory=mem)
     assert b.doctrine == "reiterlastig"
-    b.command_attack()
-    run(b, 200)
+    for _ in range(10):                                     # wie ein Spieler: wer sich gesammelt hat, greift wieder an
+        b.command_attack()
+        run(b, 20)
+        if b.outcome is not None:
+            break
     assert b.outcome is not None
     assert len(mem.gains[key]["reiterlastig"]) == 4          # der Ausgang wurde gemerkt
 

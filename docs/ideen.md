@@ -28,11 +28,6 @@ wandert nach unten.
    (vorerst) nicht auf, um ihre eigenen Haufen zu umgehen oder durchs Tor zu
    gehen (`LOOSE_AI`). Eingeschaltet kommen sie in der offenen Siedlung
    leichter an die Häuser (Lauf 15).
-0d. **Zappeln beim Umgehen.** Ein angreifender Block, der um zwei eigene
-   kämpfende Haufen herum will, wählt jeden Takt die andere Seite und
-   zappelt auf der Stelle (schon vor Lauf 15). Abhilfe: die gewählte Seite
-   festhalten; findet er am Gegner keinen freien Platz, geordnet dahinter
-   warten.
 1. **Schildseite.** Der Hoplitenschild sitzt links: die rechte Flanke
    ist verwundbarer, Wurfgeschosse von links treffen den Schild.
    Historischer Rechtsdrall, Ehre des rechten Flügels. Geringer Aufwand.
@@ -58,6 +53,10 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Zappeln beim Umgehen** (1. Oktober 2026): Wer außen herum geht, hält
+  die gewählte Seite, ein Angriff nimmt die Seite mit Platz am Gegner,
+  und ist keiner mehr frei, wartet er geordnet dahinter
+  (docs/ki-simulation.md, Lauf 17).
 - **Sammelplatz hinter dem Wall** (1. Oktober 2026): Wer über den Wall
   steigt, sammelt sich drüben am Fuß der Leiter zum Block und geht dann
   geschlossen weiter (docs/ki-simulation.md, Lauf 16).

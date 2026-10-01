@@ -207,6 +207,7 @@ class Lochos:
     flee_x: float | None = None       # wohin (x) die Flucht führt, beim Beginn der Flucht festgelegt
     muster: tuple | None = None       # (Mitte, Front, halbe Ausdehnung x/y) des Sammelplatzes hinter dem Wall, bis die Gruppe sich dort geschlossen hat
     muster_since: float = -1.0        # seit wann alle Männer drüben sind und nur noch gesammelt wird
+    detour_side: float = 0.0          # Seite (+1/-1 quer zum Weg), auf der der Block um eigene Gruppen herumgeht; 0 = frei
     file: bool = False                # auf dem Wehrgang: eine Reihe längs der Palisade
     formation: str = "linie"          # "linie", "o" (Kreis) oder "keil" (Reiter)
     mode: str = ""                    # freier Angriff je Waffengattung: "", "sturm" (Reiter: Stoß und Lösen)
