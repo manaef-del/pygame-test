@@ -242,6 +242,10 @@ class Renderer:
                 if u.stance is Stance.FLUCHT:
                     color = tuple(c * 2 // 3 for c in color)
                 mx, my = px(man.pos)
+                if man.leader:                           # der Anführer: größer, goldener Ring
+                    pygame.draw.circle(s, color, (mx, my), 4)
+                    pygame.draw.circle(s, config.COLOR_LEADER, (mx, my), 5, 2)
+                    continue
                 pygame.draw.circle(s, color, (mx, my), 3)
                 if man.bound:
                     pygame.draw.circle(s, config.COLOR_BOUND, (mx, my), 4, 1)
@@ -519,6 +523,9 @@ class Renderer:
             pygame.draw.circle(s, color, (cx, cy), 7)
             pygame.draw.circle(s, config.COLOR_BAR, (cx, cy), 7, 1)
             pygame.draw.circle(s, config.COLOR_BAR, (cx, cy), 2)
+        if u.leader_man() is not None:                    # Abzeichen: der Anführer kämpft hier mit
+            pygame.draw.circle(s, config.COLOR_LEADER, (b.rect.right - 8, b.rect.y + 8), 4)
+            pygame.draw.circle(s, config.COLOR_BAR, (b.rect.right - 8, b.rect.y + 8), 4, 1)
         text = config.COLOR_TEXT_DIM if fleeing else config.COLOR_TEXT
         img = self.font.render(b.label, True, text)         # Mannzahl unten rechts
         s.blit(img, img.get_rect(bottomright=(b.rect.right - 4, b.rect.bottom - 6)))
@@ -584,7 +591,7 @@ class Renderer:
         self._menu_button("prev", "<", pygame.Rect(gap, y, 48, 34))
         self._menu_button("next", ">", pygame.Rect(W - gap - 48, y, 48, 34))
         g = army.groups[index]
-        title = f"{g.name}  ({index + 1}/{len(army.groups)})  ·  {g.men()} Mann"
+        title = f"{g.name}  ({index + 1}/{len(army.groups)})  ·  {g.men()} Mann" + ("  + Anführer" if g.leader else "")
         self._center_text(self.font, title, config.COLOR_TEXT, y + 17)
 
         # Reihen-Blöcke, vorn nach hinten
@@ -624,6 +631,12 @@ class Renderer:
         if len(g.tiers) < MAX_TIERS:
             self._menu_button("addrow", "+ Reihe", pygame.Rect(gap, y, W - 2 * gap, 36))
             y += 42
+        if g.leader:
+            self._menu_button("leader", "Anführer kämpft in dieser Gruppe", pygame.Rect(gap, y, W - 2 * gap, 36),
+                              config.COLOR_BUTTON_ACTIVE)
+            pygame.draw.circle(s, config.COLOR_LEADER, (gap + 18, y + 18), 6)
+        else:
+            self._menu_button("leader", "Anführer zu dieser Gruppe holen", pygame.Rect(gap, y, W - 2 * gap, 36))
         # Gruppen verwalten und Start
         y = config.HEIGHT - 2 * 40 - 3 * gap
         w3 = (W - 4 * gap) // 3

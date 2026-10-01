@@ -394,7 +394,7 @@ def test_settlement_uses_its_own_doctrine_not_a_copy():
     army = Army(groups=[GroupSpec("Alle", [Tier("schwer", 30), Tier("peltast", 15), Tier("reiter", 30)])])
     forced = Battle(SIEDLUNG_OFFEN, random.Random(1), army=army, enemy_count=90, doctrine="schwere_phalanx")
     assert forced.doctrine == "schwere_phalanx"
-    assert forced.men(Side.FEIND) == 90
+    assert forced.men(Side.FEIND) == 90 + 1          # dazu der Anführer
     assert not any(m.kind.cavalry for u in forced.units(Side.FEIND) for m in u.all_men())   # keine Reiter in der schweren Phalanx
     mirror = Battle(SIEDLUNG_OFFEN, random.Random(1), army=army, enemy_count=90, doctrine="spiegel")
     assert sum(1 for u in mirror.units(Side.FEIND) for m in u.all_men() if m.kind.cavalry) == 36   # 30 von 75, auf 90 skaliert

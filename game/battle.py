@@ -119,6 +119,7 @@ class Battle:
     _barrier_cache: dict = field(default_factory=dict)
     _man_grid: dict = field(default_factory=dict)      # Männer je Rasterzelle (0,5 Kacheln), je Schritt neu
     _man_group: dict = field(default_factory=dict)     # id(Mann) -> Gruppen-id, je Schritt neu
+    leaders: list = field(default_factory=list)        # (Mann, Seite, Gruppenname) der Anführer, für die Meldung bei ihrem Tod
     enemy_ram_id: int | None = None      # Räubergruppe, die den Rammbock baut
     horde_awake: bool = False
     ai: str = config.AI_DEFAULT          # "klug" oder "einfach"
@@ -149,6 +150,7 @@ class Battle:
         else:
             self._spawn_mirror()
         self.men_start = {side: self.men(side) for side in Side}
+        self.leaders = [(m, u.side, u.name) for u in self.lochoi for m in u.all_men() if m.leader]
         self.brain = make_brain(self.ai, self.memory)
 
     @property
@@ -203,6 +205,10 @@ class Battle:
         """Die Siedlung stellt dieselbe Mischung wie der Spieler, skaliert."""
         self.doctrine = self.doctrine or choose_doctrine(self.army, self.memory)
         mirror = split_by_arm(enemy_army(self.army, self.enemy_count, self.doctrine))
+        if mirror.groups and mirror.leader_index() is None:
+            # auch die Siedlung hat einen Anführer: bei ihrer ersten Hoplitengruppe
+            hoplites = [i for i, g in enumerate(mirror.groups) if g.men() and any(UNIT_TYPES[t.kind].hoplite for t in g.tiers)]
+            mirror.set_leader(hoplites[0] if hoplites else 0)
         self.events.append(f"Die Siedlung stellt: {DOCTRINE_NAMES.get(self.doctrine, self.doctrine)}")
         s = self.scenario
         y_line = s.enemy_deploy_y
@@ -2115,6 +2121,8 @@ class Battle:
             mod *= support
         if b.stance is Stance.FLUCHT:
             mod *= config.ROUTED_DAMAGE
+        if b.leader_man() is not None:
+            mod *= config.LEADER_ARMOR                   # der Anführer hält die Reihen zusammen
         return mod, arc_name
 
     def _present(self, u: Lochos, foe: Lochos) -> list[Man]:
@@ -2275,8 +2283,9 @@ class Battle:
                     continue
                 if pr.target_man.hp <= 0 or dist(pr.target_man.pos, (pr.tx, pr.ty)) > 0.35:
                     continue                                   # daneben: der Mann ist nicht mehr dort
-                fallen = b.hit_man(pr.target_man, pr.dmg)
-                self._after_hit(b, fallen, "ranged", pr.dmg)
+                dmg = pr.dmg * (config.LEADER_ARMOR if b.leader_man() is not None else 1.0)
+                fallen = b.hit_man(pr.target_man, dmg)
+                self._after_hit(b, fallen, "ranged", dmg)
 
     # -- Belagerung: Bau, Rammbock, Turm -----------------------------------
     def _engines(self, dt: float) -> None:
@@ -2446,6 +2455,12 @@ class Battle:
         return own <= config.MORALE_HOPELESS_OWN and theirs >= config.MORALE_HOPELESS_FOE
 
     def _morale(self, dt: float) -> None:
+        for entry in list(self.leaders):
+            man, side, name = entry
+            if man.hp <= 0.0:
+                self.leaders.remove(entry)
+                who = "Unser Anführer" if side is Side.STADT else "Der Anführer des Feindes"
+                self.events.append(f"{who} ist gefallen ({name})")
         hopeless = {side: self._hopeless(side) for side in Side}
         broke: list[Lochos] = []
         for u in self.lochoi:
@@ -2458,7 +2473,8 @@ class Battle:
                 u.morale = min(1.0, u.morale + config.MORALE_REGEN * dt)
             if hopeless[u.side]:
                 u.morale -= config.MORALE_HOPELESS_DRAIN * u.bravery() * dt
-            if u.morale <= u.rout_threshold and not self._at_agora(u):   # auf der Agora flieht niemand mehr
+            threshold = u.rout_threshold - (config.LEADER_COURAGE if u.leader_man() is not None else 0.0)
+            if u.morale <= threshold and not self._at_agora(u):   # auf der Agora flieht niemand mehr; mit Anführer später
                 u.stance = Stance.FLUCHT
                 u.in_line = False
                 u.target_id = None

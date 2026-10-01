@@ -205,6 +205,16 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   die Schlacht aussichtslos (eigene Seite unter 40 %, der Gegner noch
   über 60 %), sinkt die Moral aller Gruppen dieser Seite von selbst.
   Die Moral der gewählten Gruppe steht in der Statuszeile.
+- **Der Anführer** kämpft in der Gruppe mit, die man ihm in der
+  Aufstellung zuteilt („Anführer zu dieser Gruppe holen“; Vorgabe: die
+  Hopliten). Er kommt zum Vorrat hinzu, steht vorn, hat die Gattung der
+  vordersten Reihe und trifft wie jeder andere, hält aber fünfmal so viel
+  aus (goldener Ring im Feld, goldener Punkt auf der Gruppenkachel).
+  Solange er lebt, nimmt seine Gruppe 15 % weniger Schaden, und ihre
+  Fluchtschwelle liegt um 0,1 tiefer: sie flieht später. Fällt er, steht
+  es in der Meldezeile, und seine Gruppe ist wieder eine wie jede andere.
+  Greift man eine Siedlung an, hat sie ihren eigenen Anführer bei ihrer
+  ersten Hoplitengruppe; die Räuber haben keinen.
 - **Sammeln nach der Flucht.** Wer eine Siedlung verteidigt, flieht nie
   vom Feld, sondern auf die **Agora**, den gepflasterten Platz hinter den
   Häusern (beim Angriff auf eine Siedlung liegt ihre Agora zwischen

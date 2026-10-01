@@ -83,10 +83,11 @@ class Man:
     anchor: tuple[float, float] | None = None   # Gruppenzentrum, als er gebunden wurde
     stand: tuple[float, float] | None = None    # sein eigener Platz, als er gebunden wurde
     dodge: float = 0.0   # Ausweichseite (+1/-1), solange jemand im Weg steht; 0 = frei
+    leader: bool = False  # der Anführer: kämpft mit, hält viel mehr aus
 
     def __post_init__(self) -> None:
         if self.hp == 0.0:
-            self.hp = self.kind.hp
+            self.hp = self.kind.hp * (config.LEADER_HP_FACTOR if self.leader else 1.0)
         if self.kind.ranged and self.ammo == 0:
             self.ammo = config.JAVELINS
         if self.kind.cavalry:
@@ -110,7 +111,8 @@ class Man:
 
     @property
     def wounded(self) -> bool:
-        return self.hp < 0.5 * self.kind.hp
+        full = self.kind.hp * (config.LEADER_HP_FACTOR if self.leader else 1.0)
+        return self.hp < 0.5 * full
 
 
 def default_width(n: int) -> int:
@@ -427,6 +429,10 @@ class Lochos:
         if not self.rows or not self.rows[0]:
             return 0.0
         return sum(1 for m in self.rows[0] if m.kind.hoplite) / len(self.rows[0])
+
+    def leader_man(self) -> "Man | None":
+        """Der Anführer, wenn er in dieser Gruppe kämpft und lebt."""
+        return next((m for m in self.all_men() if m.leader), None)
 
     def bravery(self) -> float:
         men = self.all_men()

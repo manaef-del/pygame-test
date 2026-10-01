@@ -79,7 +79,7 @@ def test_menu_sliders_chips_and_blocks():
     app.draw()
     press(app, next(b for b in app.renderer.menu_buttons if b.key == "start").rect.center)
     assert app.screen == "schlacht"
-    assert app.battle.men(Side.STADT) == app.army.total_men() == 71   # ins Feld zieht, was eingeteilt ist
+    assert app.battle.men(Side.STADT) == app.army.total_men() + 1 == 72   # ins Feld zieht, was eingeteilt ist, und der Anführer
 
 
 def test_strength_slider_scales_the_blocks_and_freed_men_can_be_reassigned():
@@ -99,7 +99,7 @@ def test_strength_slider_scales_the_blocks_and_freed_men_can_be_reassigned():
     app.army.set_count(0, 0, app.army.max_for(0, 0))
     assert app.army.remaining() == 0 and app.army.groups[2].tiers[0].count == 0
     app.menu_command("start")
-    assert app.battle.men(Side.STADT) == 200 and not any(u.arm() == "reiter" for u in app.battle.units(Side.STADT))
+    assert app.battle.men(Side.STADT) == 200 + 1 and not any(u.arm() == "reiter" for u in app.battle.units(Side.STADT))
 
 
 def test_tap_selects_moves_and_attacks():

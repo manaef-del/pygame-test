@@ -127,7 +127,7 @@ def test_battle_deploys_army_groups():
     b = Battle(OFFENE_SIEDLUNG, random.Random(1))
     city = b.units(Side.STADT)
     assert [u.name for u in city] == ["Hopliten", "Peltasten", "Reiter"]
-    assert b.men(Side.STADT) == 75
+    assert b.men(Side.STADT) == 75 + 1                     # die Vorgabe-Truppe und ihr Anführer
     assert [u.depth for u in city] == [3, 3, 3]
     assert all(0 < u.x < config.COLS for u in city)
     hop = city[0]
@@ -461,7 +461,7 @@ def test_mirror_army_scales_composition():
     assert [g.name for g in mirror.groups] == ["Hopliten", "Peltasten", "Reiter"]
     assert mirror.groups[2].tiers[0].count == 40
     b = Battle(SIEDLUNG_OFFEN, random.Random(1), enemy_count=50, doctrine="spiegel")
-    assert b.men(Side.FEIND) == 50
+    assert b.men(Side.FEIND) == 50 + 1          # dazu der Anführer
     assert all(u.y < 8 for u in b.units(Side.FEIND))     # Gegner im Norden
     assert all(u.y > 12 for u in b.units(Side.STADT))    # Angreifer im Süden
 

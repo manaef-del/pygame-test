@@ -29,6 +29,7 @@ class Tier:
 class GroupSpec:
     name: str
     tiers: list[Tier] = field(default_factory=list)
+    leader: bool = False              # der Anführer kämpft in dieser Gruppe mit (zusätzlich zum Vorrat)
 
     def count(self, key: str) -> int:
         return sum(t.count for t in self.tiers if t.kind == key)
@@ -37,8 +38,12 @@ class GroupSpec:
         return sum(t.count for t in self.tiers)
 
     def build_men(self) -> list[Man]:
-        """Männer in Reihenfolge vorn nach hinten, mit ihrem Abschnitt."""
+        """Männer in Reihenfolge vorn nach hinten, mit ihrem Abschnitt; der Anführer
+        steht vorn und hat die Gattung der vordersten Reihe."""
         out: list[Man] = []
+        tiers = [t for t in self.tiers if t.count > 0]
+        if self.leader and tiers:
+            out.append(Man(UNIT_TYPES[tiers[0].kind], tier=0, leader=True))
         for i, t in enumerate(self.tiers):
             out.extend(Man(UNIT_TYPES[t.kind], tier=i) for _ in range(t.count))
         return out
@@ -105,9 +110,21 @@ class Army:
         self.add_tier(len(self.groups) - 1)
         return True
 
+    def set_leader(self, index: int) -> None:
+        """Den Anführer einer Gruppe zuteilen (es gibt genau einen)."""
+        if 0 <= index < len(self.groups):
+            for i, g in enumerate(self.groups):
+                g.leader = i == index
+
+    def leader_index(self) -> int | None:
+        return next((i for i, g in enumerate(self.groups) if g.leader), None)
+
     def delete_group(self, index: int) -> None:
         if 0 <= index < len(self.groups) and len(self.groups) > 1:
+            had_leader = self.groups[index].leader
             del self.groups[index]
+            if had_leader:
+                self.groups[0].leader = True          # der Anführer geht zur ersten Gruppe
             for i, g in enumerate(self.groups):
                 if g.name.startswith("Gruppe "):
                     g.name = f"Gruppe {i + 1}"
@@ -132,7 +149,7 @@ def scaled_army(source: Army, total: int) -> Army:
         tiers = [t for t in tiers if t.count > 0]
         rounded_total += sum(t.count for t in tiers)
         if tiers:
-            groups.append(GroupSpec(g.name, tiers))
+            groups.append(GroupSpec(g.name, tiers, leader=g.leader))
     # Rundungsdifferenz auf den größten Block
     if groups and rounded_total != total:
         biggest = max((t for g in groups for t in g.tiers), key=lambda t: t.count)
@@ -143,7 +160,7 @@ def scaled_army(source: Army, total: int) -> Army:
 def default_army() -> Army:
     """Vorgabe: Hopliten, Peltasten, Reiter – je eine Gruppe."""
     return Army(groups=[
-        GroupSpec("Hopliten", [Tier("schwer", 14), Tier("mittel", 13), Tier("leicht", 13)]),
+        GroupSpec("Hopliten", [Tier("schwer", 14), Tier("mittel", 13), Tier("leicht", 13)], leader=True),
         GroupSpec("Peltasten", [Tier("peltast", 15)]),
         GroupSpec("Reiter", [Tier("reiter", 20)]),
     ], total=OWN_DEFAULT)
@@ -165,7 +182,7 @@ def split_by_arm(army: Army, min_men: int = 4) -> Army:
             if t.count > 0:
                 parts.setdefault(arm_of(t.kind), []).append(Tier(t.kind, t.count))
         if len(parts) <= 1:
-            out.append(GroupSpec(g.name, [Tier(t.kind, t.count) for t in g.tiers if t.count > 0]))
+            out.append(GroupSpec(g.name, [Tier(t.kind, t.count) for t in g.tiers if t.count > 0], leader=g.leader))
             continue
         main = "hopliten" if "hopliten" in parts else next(iter(parts))
         for arm, tiers in parts.items():
@@ -176,5 +193,5 @@ def split_by_arm(army: Army, min_men: int = 4) -> Army:
             if arm != main and sum(t.count for t in tiers) < min_men:
                 continue
             name = g.name if arm == main else {"reiter": "Reiter", "peltasten": "Peltasten", "hopliten": "Hopliten"}[arm]
-            out.append(GroupSpec(name, tiers))
+            out.append(GroupSpec(name, tiers, leader=g.leader and arm == main))   # der Anführer bleibt beim Hauptteil
     return Army(groups=out)

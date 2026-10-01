@@ -14,27 +14,36 @@ wandert nach unten.
    Moralverlust trotz Agora), sollen Angreifer Reserven gezielt um die
    eigene Front herum an den Feind schicken können, oder brauchen die
    Räuber andere Werte?
-2. **Ausdauer.** Ein Wert je Gruppe, der bei Laufen, Sturm und Kampf
-   sinkt und im Stehen steigt; erschöpfte Gruppen sind langsamer, treffen
-   schwächer und brechen früher. Belohnt Reserven, bestraft endloses
-   Kreisen der Reiter. Mittlerer Aufwand.
-3. **Schildseite.** Der Hoplitenschild sitzt links: die rechte Flanke
+1. **Schildseite.** Der Hoplitenschild sitzt links: die rechte Flanke
    ist verwundbarer, Wurfgeschosse von links treffen den Schild.
    Historischer Rechtsdrall, Ehre des rechten Flügels. Geringer Aufwand.
-4. **Zustandsworte und Moralgründe.** Auf der Kachel „wankt“,
-   „gebrochen“, in der Pause je Gruppe die drei stärksten Moralgründe
-   (umzingelt, Verluste, Nachbar flieht). Geringer Aufwand.
-5. **Anführer mit Aura.** Der Oikist als eigene Figur: Moral in seiner
-   Nähe, „Sammeln“ als Befehl, sein Tod bricht. Mittlerer Aufwand.
-6. **Gruppenformationen.** Mehrere Gruppen mit einem Zug aufstellen,
+2. **Gruppenformationen.** Mehrere Gruppen mit einem Zug aufstellen,
    etwa Hopliten vorn, Peltasten dahinter. Mittlerer Aufwand.
-7. **Häuser als Hindernisse.** Gassen statt freier Fläche; später Hang
+3. **Häuser als Hindernisse.** Gassen statt freier Fläche; später Hang
    und Höhe. Großer Aufwand.
-8. **KI: Reserve und Gegenmittel.** Eine Gruppe zurückhalten, auf
+4. **KI: Reserve und Gegenmittel.** Eine Gruppe zurückhalten, auf
    Reiter mit Kreisen antworten, Peltasten auf die schildlose Seite
    schicken.
 
+## Zurückgestellt
+
+Das Spiel soll einfach bleiben und Spaß machen; die Flucht wirkt schon
+wie eine Moral, und für Ausdauer ist die Karte zu klein.
+
+- **Ausdauer.** Ein Wert je Gruppe, der bei Laufen, Sturm und Kampf
+  sinkt und im Stehen steigt; erschöpfte Gruppen wären langsamer.
+- **Zustandsworte und Moralgründe.** „wankt“, „gebrochen“ auf der
+  Kachel, in der Pause die stärksten Moralgründe je Gruppe.
+- **Aura und „Sammeln“-Befehl des Anführers.** Der Anführer stärkt nur
+  seine eigene Gruppe.
+
 ## Erledigt
+
+- **Anführer** (1. Oktober 2026): Er kämpft in der Gruppe, die man ihm
+  in der Aufstellung zuteilt, hält fünfmal so viel aus wie ein Mann
+  seiner Gattung, ohne stärker zuzuschlagen; seine Gruppe nimmt 15 %
+  weniger Schaden und flieht später, solange er lebt
+  (docs/ki-simulation.md, Lauf 14).
 
 - **Niemand wird mehr geschoben** (1. Oktober 2026): Eine ruhende eigene
   Gruppe bleibt, wo sie steht; wer unterwegs ist, geht außen herum,

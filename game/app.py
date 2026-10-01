@@ -287,6 +287,8 @@ class App:
                 self.battle = self._new_battle()
         elif key == "addrow":
             a.add_tier(self.menu_group)
+        elif key == "leader":
+            a.set_leader(self.menu_group)
         elif key.startswith("delrow:"):
             a.remove_tier(self.menu_group, int(key.split(":")[1]))
         elif key.startswith("up:"):

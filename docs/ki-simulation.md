@@ -1,5 +1,49 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 14 (1. Oktober 2026): Der Anführer
+
+Der Anführer kämpft in der Gruppe, die man ihm in der Aufstellung
+zuteilt (Vorgabe: die Hopliten), zusätzlich zum Vorrat. Er hat die
+Gattung der vordersten Reihe und schlägt nicht stärker zu, hält aber
+fünfmal so viel aus (`LEADER_HP_FACTOR`). Solange er lebt, nimmt seine
+Gruppe im Nah- und Fernkampf 15 % weniger Schaden (`LEADER_ARMOR`), und
+ihre Fluchtschwelle liegt um 0,1 tiefer (`LEADER_COURAGE`): Eine Gruppe
+mittlerer Hopliten flieht damit nicht mehr nach etwa 23, sondern erst
+nach etwa 27 Gefallenen von vorn (Regeneration nicht gerechnet). Die
+Siedlung im Angriffsszenario hat ihren eigenen Anführer bei der ersten
+Hoplitengruppe, die Räuber keinen. Vier Seeds je Zeile, kluge KI, Truppe standard, verglichen mit
+Lauf 13:
+
+| Szenario | Taktik | Siege Lauf 13 → 14 | Verlust Stadt | Verlust Feind | Häuser verloren | Dauer |
+|---|---|---|---|---|---|---|
+| offen | linie | 0/4 → 0/4 | 79% → 75% | 16% → 45% | 8.0 → 8.0 | 71 s |
+| offen | linie_reiter | 0/4 → 3/4 | 86% → 55% | 43% → 61% | 7.2 → 5.2 | 72 s |
+| offen | linie_aktiv | 0/4 → 1/4 | 99% → 71% | 17% → 63% | 7.2 → 7.5 | 77 s |
+| offen | linie_tief | 4/4 → 2/4 | 46% → 52% | 57% → 55% | 2.8 → 5.0 | 80 s |
+| offen | passiv | 0/4 → 1/4 | 70% → 75% | 50% → 64% | 8.0 → 7.0 | 75 s |
+| offen | angriff | 2/4 → 2/4 | 24% → 18% | 45% → 41% | 7.0 → 7.0 | 35 s |
+| palisade | tor_halten | 0/4 → 0/4 | 38% → 22% | 23% → 14% | 8.0 → 8.0 | 79 s |
+| palisade | tor_reserve | 0/4 → 0/4 | 41% → 37% | 38% → 23% | 8.0 → 8.0 | 86 s |
+| palisade | tor_leiter | 3/4 → 4/4 | 37% → 23% | 61% → 56% | 2.8 → 1.8 | 116 s |
+| palisade | passiv | 4/4 → 4/4 | 61% → 59% | 62% → 66% | 4.8 → 5.2 | 124 s |
+| horde | vorruecken | 0/4 → 1/4 | 29% → 35% | 34% → 44% | 0.0 → 0.0 | 73 s |
+| horde | angriff | 2/4 → 3/4 | 37% → 31% | 54% → 64% | 0.0 → 0.0 | 62 s |
+| angriff_offen | phalanxstoss | 0/4 → 0/4 | 69% → 60% | 74% → 66% | 0.0 → 0.0 | 300 s |
+| angriff_offen | vorruecken | 0/4 → 0/4 | 52% → 56% | 2% → 2% | 0.0 → 0.0 | 74 s |
+| angriff_offen | angriff | 0/4 → 0/4 | 41% → 50% | 28% → 33% | 0.0 → 0.0 | 144 s |
+| angriff_wall | tor_phalanx | 0/4 → 0/4 | 55% → 57% | 12% → 14% | 0.0 → 0.0 | 88 s |
+| angriff_wall | belagerung | 0/4 → 0/4 | 14% → 14% | 0% → 0% | 0.0 → 0.0 | 300 s |
+
+In der Verteidigung hilft er, wo die Hopliten lange im Kampf stehen:
+Die Linie mit Reitern gewinnt drei von vier statt keiner, die Phalanx am
+Leiterfuß vier von vier, und gegen die Horde gewinnt die Linie wieder
+gelegentlich. Die Feindverluste der dünnen Linien steigen deutlich
+(offen/linie 16 % → 45 %), weil die Hopliten länger halten. Die tiefe
+Linie fällt von vier auf zwei Siege; bei vier Seeds ist das im Bereich
+des Zufalls, denn ihre Verluste ändern sich kaum. Beim Angriff auf die
+Siedlung gleichen sich beide Anführer aus; diese Szenarien bleiben so
+schwer wie in Lauf 13 (ideen.md, Punkt 0).
+
 ## Lauf 13 (1. Oktober 2026): Niemand wird mehr geschoben
 
 Beim Spielen fiel auf, dass Gruppen sich weiter gegenseitig wegschoben,
