@@ -6,9 +6,6 @@ wandert nach unten.
 
 ## Offen
 
-1. **Sammeln nach der Flucht.** Fliehende bleiben stehen, sobald eine
-   Weile kein Feind naht, ihre Moral steigt langsam, und sie nehmen wieder
-   Befehle an, statt das Feld für immer zu verlassen. Geringer Aufwand.
 2. **Ausdauer.** Ein Wert je Gruppe, der bei Laufen, Sturm und Kampf
    sinkt und im Stehen steigt; erschöpfte Gruppen sind langsamer, treffen
    schwächer und brechen früher. Belohnt Reserven, bestraft endloses
@@ -31,6 +28,11 @@ wandert nach unten.
 
 ## Erledigt
 
+- **Sammeln nach der Flucht** (1. Oktober 2026): Verteidiger fliehen auf
+  die Agora hinter den Häusern, sammeln sich dort und kämpfen, wenn der
+  Feind sie stellt, bis zum letzten Mann. Angreifer sammeln sich an
+  ihrem Kartenrand, außer die Lage ist aussichtslos; dann verlassen sie
+  das Feld (docs/ki-simulation.md, Lauf 12).
 - **Anstehen statt Stapeln** (1. Oktober 2026): In eine kämpfende eigene
   Gruppe fährt keine hinein; wer nicht herumkommt, steht im Block
   dahinter an. Damit laufen die Räuber auch nicht mehr einzeln über den

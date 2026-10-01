@@ -199,8 +199,21 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   die Schlacht aussichtslos (eigene Seite unter 40 %, der Gegner noch
   über 60 %), sinkt die Moral aller Gruppen dieser Seite von selbst.
   Die Moral der gewählten Gruppe steht in der Statuszeile.
+- **Sammeln nach der Flucht.** Wer eine Siedlung verteidigt, flieht nie
+  vom Feld, sondern auf die **Agora**, den gepflasterten Platz hinter den
+  Häusern (beim Angriff auf eine Siedlung liegt ihre Agora zwischen
+  ihren Häuserreihen). Naht dort kein Feind, steigt die Moral, und die
+  Gruppe nimmt wieder Befehle an. Setzt der Feind ihr dort nach, kehrt
+  sie um und kämpft bis zum letzten Mann; auf der Agora flieht niemand
+  mehr. Steht er nur in der Nähe, wartet sie, statt sich zu sammeln. Angreifer (der Spieler beim Angriff, die Räuber bei der
+  Verteidigung) fliehen an ihren eigenen Kartenrand und sammeln sich
+  dort ebenso, außer die Schlacht ist für sie aussichtslos oder der
+  Feind setzt ihnen bis an den Rand nach: dann verlassen sie das Feld. Eine Schlacht ist erst entschieden, wenn eine
+  Seite niemanden mehr hat, der kämpft oder sich noch sammeln kann.
 - **Räuber** ziehen zu den Häusern und plündern, wenn niemand sie stört.
-  Sind sie zu geschwächt, ziehen sie ab.
+  Bleiben von ihnen weniger als drei Zehntel übrig (gezählt wird, wer
+  kämpft oder sich noch sammeln kann), geben sie auf und ziehen ab. Eine
+  angegriffene Siedlung zieht nie ab.
 - **Palisade mit Tor:** der einzige Durchgang. Wegfindung leitet durchs Tor.
 - **Gegner-KI** (siehe unten): Der Gegner liest die Aufstellung, wählt
   einen Plan, greift schwache Ziele an, umgeht Phalanxfronten und lernt

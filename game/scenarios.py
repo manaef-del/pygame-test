@@ -43,10 +43,13 @@ class Scenario:
     deploy_y: float = 10.5                     # eigene Truppe
     enemy_deploy_y: float = 5.0                # gespiegelte Truppe
     ram_available: bool = False
+    agora: tuple[float, float] | None = None   # Platz der Siedlung: hier sammeln sich ihre Verteidiger
 
 
 HOUSES_SOUTH = ((4, 13), (6, 13), (8, 13), (10, 13), (5, 15), (7, 15), (9, 15), (11, 15))
 HOUSES_NORTH = ((4, 1), (6, 1), (8, 1), (10, 1), (5, 3), (7, 3), (9, 3), (11, 3))
+AGORA_SOUTH = (8.0, 17.0)       # hinter den Häusern
+AGORA_NORTH = (8.0, 2.5)        # mitten in der Siedlung, zwischen den Häuserreihen (dahinter liegt die Kopfleiste)
 
 
 def _palisade_row(row: int, gate_cols: tuple[int, ...]) -> tuple[Cell, ...]:
@@ -79,7 +82,7 @@ OFFENE_SIEDLUNG = Scenario(
     key="offen", name="Verteidigung: Offene Siedlung",
     hint="Räuber von Norden, zwei Trupps umgehen die Linie. Tippe eine Gruppe an, dann ziehe ihre Front auf.",
     role="verteidigung", enemy_kind="raeuber", enemy_default=128, enemy_min=32, enemy_max=192,
-    houses=HOUSES_SOUTH, raider_spawns=RAIDS_OPEN,
+    houses=HOUSES_SOUTH, raider_spawns=RAIDS_OPEN, agora=AGORA_SOUTH,
 )
 
 PALISADE = Scenario(
@@ -87,7 +90,7 @@ PALISADE = Scenario(
     hint="Das Tor ist zu; die Räuber bauen Rammbock und Turm. Peltasten über die Leitern auf den Wehrgang, Hopliten hinters Tor, Reserve gegen den Turm.",
     role="verteidigung", enemy_kind="raeuber", enemy_default=128, enemy_min=32, enemy_max=224,
     houses=HOUSES_SOUTH, palisade=_palisade_row(8, gate_cols=(7, 8)), gate=(7, 8), gate_closed=True,
-    wall_side="stadt", ladders=((2, 8), (13, 8)), raider_spawns=RAIDS_GATE,
+    wall_side="stadt", ladders=((2, 8), (13, 8)), raider_spawns=RAIDS_GATE, agora=AGORA_SOUTH,
 )
 
 RAEUBERHORDE = Scenario(
@@ -101,7 +104,7 @@ SIEDLUNG_OFFEN = Scenario(
     key="angriff_offen", name="Angriff: Siedlung ohne Wall",
     hint="Die Siedlung stellt dieselben Truppen wie du. Ihre Reiter greifen an, der Rest hält.",
     role="angriff", enemy_kind="spiegel", enemy_default=75, enemy_min=20, enemy_max=150,
-    houses=HOUSES_NORTH, deploy_y=15.5, enemy_deploy_y=5.5,
+    houses=HOUSES_NORTH, deploy_y=15.5, enemy_deploy_y=5.5, agora=AGORA_NORTH,
 )
 
 SIEDLUNG_WALL = Scenario(
@@ -110,6 +113,7 @@ SIEDLUNG_WALL = Scenario(
     role="angriff", enemy_kind="spiegel", enemy_default=75, enemy_min=20, enemy_max=150,
     houses=HOUSES_NORTH, palisade=_palisade_row(7, gate_cols=(7, 8)), gate=(7, 7), gate_closed=True,
     wall_side="feind", ladders=((2, 7), (13, 7)), deploy_y=15.5, enemy_deploy_y=4.9, ram_available=True,
+    agora=AGORA_NORTH,
 )
 
 SCENARIOS: tuple[Scenario, ...] = (OFFENE_SIEDLUNG, PALISADE, RAEUBERHORDE, SIEDLUNG_OFFEN, SIEDLUNG_WALL)

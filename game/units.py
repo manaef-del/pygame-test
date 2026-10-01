@@ -173,6 +173,7 @@ class Lochos:
     assault_slots: list = field(default_factory=list)   # zuletzt zugewiesene Plätze am feindlichen Umriss (Weltkoordinaten)
     still_since: float = 0.0          # seit wann die Gruppe steht (wer später kam, weicht beim Auseinanderrücken)
     waiting: bool = False             # steht hinter einer eigenen Gruppe an, die kämpft oder steht
+    leaving: bool = False             # flieht vom Feld, statt sich zu sammeln (aussichtslos)
     disengage_until: float = -1.0     # bis dahin gilt die Gruppe als vom Feind gelöst (verwundbar)
     runup: float = 0.0                # Reiter: Anlauf seit dem letzten Halt oder Kontakt (Kacheln)
     vel: float = 0.0                  # Reiter: augenblickliches Tempo (Kacheln/s), Schwung

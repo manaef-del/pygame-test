@@ -238,7 +238,16 @@ def t_phalanxstoss(b: Battle) -> dict:
         20: lambda b: (b.command_line(hop, (4.5, foe_y + 1.4), (11.5, foe_y + 1.4)),
                        b.command_line(pelt, (5.0, foe_y + 2.5), (11.0, foe_y + 2.5))),
         60: lambda b: b.command_attack(cav),
+        **{t: _finish_off for t in range(70, 290, 10)},
     }
+
+
+def _finish_off(b: Battle) -> None:
+    """Steht keine feindliche Phalanx mehr, greifen alle an: Wer sich auf der Agora
+    zum letzten Kampf stellt, wird nicht von den Reitern allein bezwungen."""
+    foes = b.units(Side.FEIND, fighting_only=True)
+    if foes and not any(f.in_phalanx and f.men >= 20 for f in foes):
+        b.command_attack([u for u in b.units(Side.STADT, fighting_only=True) if u.stance is not Stance.ANGRIFF])
 
 
 def t_tor_phalanx(b: Battle) -> dict:

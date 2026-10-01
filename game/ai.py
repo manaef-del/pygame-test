@@ -208,7 +208,7 @@ class Brain:
         """Jeden Schritt: Verfolger folgen ihrem Ziel, Fliehende laufen vom Feld."""
         for u in b.units(Side.FEIND):
             if u.stance is Stance.FLUCHT:
-                u.target = (u.x, -3.0)
+                u.target = b.flee_target(u)
                 continue
             if u.stance is Stance.ANGRIFF and u.target_id is not None:
                 foe = b.by_id(u.target_id)
@@ -990,7 +990,7 @@ class LegacyBrain:
         ram_unit = b._raider_ram_unit()
         for u in b.units(Side.FEIND):
             if u.stance is Stance.FLUCHT:
-                u.target = (u.x, -3.0)
+                u.target = b.flee_target(u)
                 continue
             if u is ram_unit:
                 b._drive_raider_ram(u)
@@ -1026,7 +1026,7 @@ class LegacyBrain:
                 b.events.append("Die Horde stürmt")
             for u in enemies:
                 if u.stance is Stance.FLUCHT:
-                    u.target = (u.x, -3.0)
+                    u.target = b.flee_target(u)
                     continue
                 if b.horde_awake:
                     u.stance = Stance.ANGRIFF
@@ -1036,7 +1036,7 @@ class LegacyBrain:
             return
         for u in enemies:
             if u.stance is Stance.FLUCHT:
-                u.target = (u.x, -3.0)
+                u.target = b.flee_target(u)
                 continue
             if u.stance is Stance.ANGRIFF:
                 target = b.by_id(u.target_id) if u.target_id is not None else None

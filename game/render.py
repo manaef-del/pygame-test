@@ -144,6 +144,17 @@ class Renderer:
             pygame.draw.line(s, config.COLOR_GRID, (c * T, 0), (c * T, config.MAP_H))
         for r in range(config.ROWS + 1):
             pygame.draw.line(s, config.COLOR_GRID, (0, r * T), (config.MAP_W, r * T))
+        if battle.agora is not None:                     # die Agora: gepflasterter Platz, Sammelpunkt der Verteidiger
+            ax, ay = px(battle.agora)
+            rad = int(config.AGORA_RADIUS * T)
+            pygame.draw.circle(s, config.COLOR_AGORA, (ax, ay), rad)
+            for i in range(-2, 3):                       # Pflasterfugen
+                off = i * rad // 3
+                half = int((rad * rad - off * off) ** 0.5)
+                pygame.draw.line(s, config.COLOR_AGORA_EDGE, (ax - half, ay + off), (ax + half, ay + off), 1)
+            pygame.draw.circle(s, config.COLOR_AGORA_EDGE, (ax, ay), rad, 2)
+            label = self.small.render("Agora", True, config.COLOR_AGORA_EDGE)
+            s.blit(label, label.get_rect(center=(ax, ay)))
         for cx, cy in battle.blocked:
             pygame.draw.rect(s, config.COLOR_PALISADE, pygame.Rect(cx * T, cy * T + T // 3, T, T // 3))
             for i in range(3):

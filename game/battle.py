@@ -964,7 +964,7 @@ class Battle:
             u.target = target.pos if target else None
         for u in self.units(Side.STADT):
             if u.stance is Stance.FLUCHT:
-                u.target = (u.x, self.rows + 3.0)
+                u.target = self.flee_target(u)
 
     def _skirmishers(self) -> None:
         """Plänkelnde Gruppen beider Seiten (Spieler wie KI) führt die Schlacht
@@ -2272,6 +2272,81 @@ class Battle:
                 break
 
     # -- Moral -------------------------------------------------------------
+    # ------------------------------------------------------------ Sammeln
+    @property
+    def agora(self) -> Point | None:
+        return self.scenario.agora
+
+    def defends(self, u: Lochos) -> bool:
+        """Verteidigt ``u`` eine Siedlung mit Agora? Dann flieht die Gruppe nie vom
+        Feld, sondern auf die Agora, und kämpft dort bis zum letzten Mann."""
+        if self.agora is None:
+            return False
+        return u.side is (Side.FEIND if self.attacking else Side.STADT)
+
+    def rally_point(self, u: Lochos) -> Point:
+        """Wohin eine geschlagene Gruppe flieht, um sich zu sammeln: Verteidiger auf
+        die Agora, Angreifer an den eigenen Kartenrand (die Stadt kommt von Süden,
+        der Feind von Norden)."""
+        if self.defends(u):
+            return self.agora
+        x = min(max(u.x, 1.0), self.cols - 1.0)
+        if u.side is Side.STADT:
+            return (x, self.rows - config.RALLY_EDGE)
+        return (x, config.RALLY_EDGE)
+
+    def flee_target(self, u: Lochos) -> Point:
+        """Ziel einer fliehenden Gruppe: der Sammelpunkt, oder vom Feld, wenn sie geht."""
+        if u.leaving:
+            return (u.x, self.rows + 3.0) if u.side is Side.STADT else (u.x, -3.0)
+        return self.rally_point(u)
+
+    def _at_agora(self, u: Lochos) -> bool:
+        return self.defends(u) and dist(u.pos, self.agora) <= config.RALLY_RADIUS
+
+    def _rally(self, u: Lochos, dt: float, hopeless: bool) -> None:
+        """Eine fliehende Gruppe am Sammelpunkt: Ist kein Feind nah, steigt ihre Moral,
+        bis sie wieder Befehle annimmt. Verteidiger, die der Feind auf der Agora
+        stellt, kehren um und kämpfen bis zum letzten Mann. Angreifer in
+        aussichtsloser Lage sammeln sich nicht, sie verlassen das Feld."""
+        if u.leaving:
+            return
+        if not self.defends(u) and hopeless:
+            u.leaving = True
+            u.target = self.flee_target(u)
+            self.events.append(f"{u.name} ({u.side.value}) verlassen das Feld")
+            return
+        if dist(u.pos, self.rally_point(u)) > config.RALLY_RADIUS:
+            return
+        nearest = min((self._gap(u, f) for f in self.lochoi if f.side is not u.side and f.fighting
+                       and self.on_wall(f) == self.on_wall(u)), default=float("inf"))
+        if nearest <= config.LAST_STAND_RANGE:           # der Feind setzt nach
+            if self.defends(u):                          # weiter geht es nicht: umkehren und kämpfen
+                self._stand_again(u, max(u.morale, u.rout_threshold + 0.05))
+                self.events.append(f"{u.name} ({u.side.value}) stellen sich auf der Agora zum letzten Kampf")
+            else:                                        # bis an den eigenen Rand verfolgt: vom Feld
+                u.leaving = True
+                u.target = self.flee_target(u)
+                self.events.append(f"{u.name} ({u.side.value}) verlassen das Feld")
+            return
+        if nearest <= config.RALLY_SAFE:
+            return                                       # der Feind ist zu nah zum Sammeln: abwarten
+        u.morale = max(u.morale, 0.0) + config.RALLY_REGEN * dt
+        if u.morale >= config.RALLY_MORALE:
+            self._stand_again(u, u.morale)
+            where = "auf der Agora" if self.defends(u) else "am Rand des Feldes"
+            self.events.append(f"{u.name} ({u.side.value}) sammeln sich {where}")
+
+    def _stand_again(self, u: Lochos, morale: float) -> None:
+        u.stance = Stance.HALTEN
+        u.morale = morale
+        u.target = None
+        u.target_id = None
+        u.in_line = False
+        u.mode = ""
+        u.waypoints = []
+        u.still_since = self.time
+
     def _hopeless(self, side: Side) -> bool:
         """Die Schlacht ist für eine Seite aussichtslos: sie hat den Großteil
         verloren, der Gegner steht noch weitgehend."""
@@ -2288,17 +2363,21 @@ class Battle:
         hopeless = {side: self._hopeless(side) for side in Side}
         broke: list[Lochos] = []
         for u in self.lochoi:
-            if not u.alive or u.stance is Stance.FLUCHT:
+            if not u.alive:
+                continue
+            if u.stance is Stance.FLUCHT:
+                self._rally(u, dt, hopeless[u.side])
                 continue
             if not u.engaged:
                 u.morale = min(1.0, u.morale + config.MORALE_REGEN * dt)
             if hopeless[u.side]:
                 u.morale -= config.MORALE_HOPELESS_DRAIN * u.bravery() * dt
-            if u.morale <= u.rout_threshold:
+            if u.morale <= u.rout_threshold and not self._at_agora(u):   # auf der Agora flieht niemand mehr
                 u.stance = Stance.FLUCHT
                 u.in_line = False
-                u.target = None
                 u.target_id = None
+                u.leaving = not self.defends(u) and hopeless[u.side]
+                u.target = self.flee_target(u)
                 self.events.append(f"{u.name} ({u.side.value}) flieht")
                 self._lose_engine(u)
                 broke.append(u)
@@ -2309,20 +2388,36 @@ class Battle:
 
     def _check_withdraw(self) -> None:
         start = self.men_start.get(Side.FEIND, 0)
-        if start and self.men(Side.FEIND, fighting_only=True) <= start * config.ENEMY_WITHDRAW_FRACTION:
-            for u in self.units(Side.FEIND, fighting_only=True):
-                u.stance = Stance.FLUCHT
-                u.in_line = False
+        if self.agora is not None and self.attacking:
+            return                                       # die Siedlung zieht nicht ab, sie hält bis zum letzten Mann
+        remaining = sum(u.men for u in self.units(Side.FEIND) if u.alive and not u.leaving)   # wer kämpft oder sich sammeln kann
+        if start and remaining <= start * config.ENEMY_WITHDRAW_FRACTION:
+            for u in self.units(Side.FEIND):
+                if u.stance is not Stance.FLUCHT:
+                    u.stance = Stance.FLUCHT
+                    u.in_line = False
+                u.leaving = True                         # der Feind gibt auf: niemand sammelt sich mehr
+                u.target = self.flee_target(u)
             if any(u.alive for u in self.units(Side.FEIND)) and "Der Feind zieht ab" not in self.events[-3:]:
                 self.events.append("Der Feind zieht ab")
 
+    def _beaten(self, side: Side) -> bool:
+        """Eine Seite ist geschlagen, wenn niemand mehr kämpft und keine fliehende
+        Gruppe sich noch sammeln kann (wer geht, zählt erst, wenn er vom Feld ist)."""
+        for u in self.units(side):
+            if not u.alive:
+                continue
+            if u.fighting:
+                return False
+            if not u.leaving or self.inside(u.x, u.y):
+                return False
+        return True
+
     def _check_outcome(self) -> None:
-        enemy_gone = not self.units(Side.FEIND, fighting_only=True) and not any(
-            u.alive and u.stance is Stance.FLUCHT and self.inside(u.x, u.y) for u in self.units(Side.FEIND)
-        )
+        enemy_gone = self._beaten(Side.FEIND)
         city_gone = (
             self.men_start.get(Side.STADT, 0)
-            and not self.units(Side.STADT, fighting_only=True)
+            and self._beaten(Side.STADT)
             and self.units(Side.FEIND, fighting_only=True)
         )
         if not self.attacking and self.houses_intact() == 0:

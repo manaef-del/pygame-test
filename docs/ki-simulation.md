@@ -1,5 +1,64 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 12 (1. Oktober 2026): Sammeln nach der Flucht, die Agora
+
+Geschlagene verlassen das Feld nicht mehr einfach. Wer eine Siedlung
+verteidigt, flieht auf die Agora (in der Verteidigung hinter den
+Häusern, beim Angriff auf eine Siedlung zwischen ihren Häuserreihen),
+sammelt sich dort, wenn kein Feind näher als zwei Kacheln steht
+(Moral +0,04 je Sekunde bis 0,6), und nimmt dann wieder Befehle an.
+Setzt der Feind auf eine Kachel nach, kehrt die Gruppe um und kämpft
+bis zum letzten Mann; auf der Agora flieht niemand mehr. Angreifer
+sammeln sich anderthalb Kacheln vor ihrem eigenen Kartenrand; ist die
+Schlacht für sie aussichtslos oder setzt der Feind ihnen bis dorthin
+nach, verlassen sie das Feld. Die Räuber geben auf, wenn weniger als
+drei Zehntel übrig sind, und gezählt wird jetzt auch, wer sich noch
+sammeln kann; eine angegriffene Siedlung gibt nie auf. Eine Schlacht
+ist erst entschieden, wenn eine Seite niemanden mehr hat, der kämpft
+oder sich sammeln kann.
+
+Zwei Zwischenstände beim Einbau: Zuerst kehrten Verteidiger auf der
+Agora schon um, wenn der Feind nur in zweieinhalb Kacheln Abstand
+stand; das gab der Siedlungsphalanx eine sofortige zweite Chance, und
+der Phalanxstoß ging verloren. Danach blieben ihre Peltasten auf der
+Agora im letzten Kampf stehen, und das Skript des Phalanxstoßes
+schickte nur seine Reiter dagegen, bis zum Zeitlimit. Das Skript setzt
+jetzt mit allen nach, sobald keine feindliche Phalanx mehr steht, wie
+ein Spieler es täte. Vier Seeds je Zeile, kluge KI, Truppe standard,
+verglichen mit Lauf 11:
+
+| Szenario | Taktik | Siege Lauf 11 → 12 | Verlust Stadt | Verlust Feind | Häuser verloren | Dauer |
+|---|---|---|---|---|---|---|
+| offen | linie | 0/4 → 0/4 | 23% → 90% | 3% → 39% | 5.0 → 8.0 | 60 s |
+| offen | linie_reiter | 0/4 → 0/4 | 27% → 95% | 5% → 44% | 2.8 → 7.0 | 58 s |
+| offen | linie_aktiv | 0/4 → 1/4 | 18% → 70% | 10% → 40% | 0.0 → 7.2 | 55 s |
+| offen | linie_tief | 3/4 → 3/4 | 25% → 40% | 48% → 55% | 0.5 → 2.2 | 62 s |
+| offen | passiv | 0/4 → 0/4 | 21% → 66% | 14% → 44% | 0.0 → 7.5 | 117 s |
+| offen | angriff | 4/4 → 4/4 | 13% → 13% | 44% → 44% | 2.5 → 2.5 | 36 s |
+| palisade | tor_halten | 0/4 → 0/4 | 14% → 54% | 12% → 26% | 8.0 → 8.0 | 100 s |
+| palisade | tor_reserve | 0/4 → 2/4 | 27% → 44% | 24% → 67% | 8.0 → 4.5 | 156 s |
+| palisade | tor_leiter | 2/4 → 4/4 | 18% → 21% | 41% → 55% | 2.0 → 0.0 | 92 s |
+| palisade | passiv | 0/4 → 2/4 | 26% → 51% | 27% → 50% | 8.0 → 7.0 | 106 s |
+| horde | vorruecken | 4/4 → 4/4 | 22% → 22% | 48% → 51% | 0.0 → 0.0 | 57 s |
+| horde | angriff | 4/4 → 2/4 | 23% → 28% | 62% → 55% | 0.0 → 0.0 | 42 s |
+| angriff_offen | phalanxstoss | 4/4 → 4/4 | 11% → 65% | 1% → 100% | 0.0 → 0.0 | 176 s |
+| angriff_offen | vorruecken | 0/4 → 0/4 | 49% → 50% | 1% → 1% | 0.0 → 0.0 | 66 s |
+| angriff_offen | angriff | 3/4 → 0/4 | 27% → 67% | 16% → 39% | 0.0 → 0.0 | 217 s |
+| angriff_wall | tor_phalanx | 0/4 → 0/4 | 47% → 55% | 10% → 11% | 0.0 → 0.0 | 80 s |
+| angriff_wall | belagerung | 0/4 → 0/4 | 7% → 12% | 0% → 0% | 0.0 → 0.0 | 300 s |
+
+Lehre: Verteidigungen dauern jetzt bis zum letzten Mann, und das
+kostet. Eine schlechte Aufstellung verliert nicht mehr mit einem
+Viertel Verlusten, sondern mit fast allen Männern (dünne Linie: 90 %),
+während die Räuber gesammelt wiederkommen und die Häuser holen. Gute
+Aufstellungen gewinnen weiter: die tiefe Linie drei von vier, die
+Phalanx am Leiterfuß hinter der Palisade jetzt vier von vier. Beim
+Angriff auf eine Siedlung muss man die Agora stürmen: Der Phalanxstoß
+gewinnt weiter vier von vier, aber erst nach knapp drei Minuten und mit
+zwei Dritteln Verlust; der freie Angriff aller (`angriff`) verliert
+jetzt immer, weil die Siedlung nicht mehr nach dem ersten Bruch
+abzieht.
+
 ## Lauf 11 (1. Oktober 2026): Anstehen statt Stapeln
 
 Ein Bildschirmfoto zeigte Räuberhaufen, die am Tor ineinander standen:

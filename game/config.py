@@ -57,6 +57,13 @@ MORALE_HOPELESS_OWN = 0.4    # eigene Seite unter diesem Anteil ...
 MORALE_HOPELESS_FOE = 0.6    # ... und der Gegner noch über diesem: die Schlacht ist aussichtslos
 MORALE_HOPELESS_DRAIN = 0.03 # Moralverlust je Sekunde in aussichtsloser Lage
 ROUT_THRESHOLD_CITY = 0.35   # Flucht unter dieser Moral (Räuber 0.4, Siedlung 0.3)
+AGORA_RADIUS = 0.9           # Kacheln: Halbmesser der Agora
+RALLY_RADIUS = 1.3           # Kacheln um den Sammelpunkt, in denen sich Fliehende sammeln
+RALLY_SAFE = 2.0             # Kacheln Lücke: so nah darf kein kämpfender Feind sein, sonst sammelt sich niemand
+RALLY_REGEN = 0.04           # Moral je Sekunde beim Sammeln
+LAST_STAND_RANGE = 1.0       # Kacheln Lücke: so nah gesetzt, kehren Verteidiger auf der Agora um (Angreifer verlassen das Feld)
+RALLY_MORALE = 0.6           # ab dieser Moral nimmt eine gesammelte Gruppe wieder Befehle an
+RALLY_EDGE = 1.5             # Kacheln vom eigenen Kartenrand, wo sich Angreifer sammeln
 
 # Peltasten
 JAVELINS = 10                # Würfe je Peltast
@@ -185,6 +192,8 @@ COLOR_GROUND = (46, 62, 44)
 COLOR_GRID = (52, 70, 50)
 COLOR_HOUSE = (196, 150, 74)
 COLOR_HOUSE_LOOTED = (70, 40, 34)
+COLOR_AGORA = (92, 96, 78)          # Pflaster der Agora
+COLOR_AGORA_EDGE = (128, 128, 104)
 COLOR_FIRE = (240, 120, 50)
 COLOR_PALISADE = (120, 84, 46)
 COLOR_GATE = (150, 110, 60)
