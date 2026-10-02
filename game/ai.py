@@ -520,7 +520,7 @@ class Brain:
 
     def _flank_candidate(self, b: "Battle", g: Lochos, r: Report) -> bool:
         target = self._blocking_phalanx(b, r)
-        return target is not None and b.path_clear(g.pos, target.pos)
+        return target is not None and b.wall_clear(g.pos, target.pos)
 
     def _blocking_phalanx(self, b: "Battle", r: Report) -> Lochos | None:
         own = [g for g in b.units(Side.FEIND, fighting_only=True) if not b.on_wall(g)]
@@ -748,7 +748,7 @@ class Brain:
         übersteigt, gilt als oben."""
         if b.on_wall(f) != b.up(u):
             return False
-        return b.up(u) or b.path_clear(u.pos, f.pos)
+        return b.up(u) or b.wall_clear(u.pos, f.pos)
 
     def _skirmisher(self, b: "Battle", u: Lochos) -> bool:
         """Peltasten mit Speeren auf dem Boden plänkeln statt zu stürmen."""
@@ -816,11 +816,8 @@ class Brain:
         if not b.attacking:
             u.stance = Stance.RAUB
             u.target_id = None
-            houses = [h for h in b.houses if not h.looted]
-            if houses:
-                u.target = min(houses, key=lambda h: dist(u.pos, h.center)).center
-            else:
-                u.target = (u.x, -3.0)
+            house = house_for(b, u)
+            u.target = house.center if house is not None else (u.x, -3.0)
             return
         foe = self.pick_target(b, u, [f for f in r.foes if self._reachable(b, u, f)] or r.foes)
         if foe is not None:
@@ -888,7 +885,7 @@ class Brain:
                 continue
             if wall and not self._foe_inside(b, f) and not gate_open:
                 continue
-            if not b.path_clear(u.pos, f.pos, u):
+            if not b.wall_clear(u.pos, f.pos):
                 continue
             cands.append(f)
         own = b.units(Side.FEIND, fighting_only=True)
@@ -1056,6 +1053,17 @@ class LegacyBrain:
                     u.stance = Stance.ANGRIFF
                     u.target_id = foe.id
                     u.target = foe.pos
+
+
+def house_for(b: "Battle", u: Lochos):
+    """Das Haus, das ``u`` plündern geht: das nächste, das noch keine andere eigene
+    Gruppe ansteuert (sonst drängen sich alle am selben Haus), sonst das nächste."""
+    houses = [h for h in b.houses if not h.looted]
+    if not houses:
+        return None
+    taken = {o.target for o in b.units(u.side, fighting_only=True) if o is not u and o.stance is Stance.RAUB}
+    free = [h for h in houses if h.center not in taken]
+    return min(free or houses, key=lambda h: dist(u.pos, h.center))
 
 
 def make_brain(kind: str, memory: Memory | None = None):

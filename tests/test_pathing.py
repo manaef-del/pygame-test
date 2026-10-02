@@ -266,6 +266,21 @@ def test_enemies_walk_around_their_own_as_a_block_unless_switched_on(monkeypatch
     assert walk.loose and walk.loose_why == "eigene"
 
 
+def approaching_attacker(b, ring):
+    """Der erste Räuberhaufen, der den Kreis angreift, aber noch nicht dran ist, weil eigene
+    kämpfende Haufen davor stehen (frühestens nach 13 Sekunden)."""
+    run(b, 13)
+    for _ in range(int(20 / DT)):
+        busy = [u for u in b.units(Side.FEIND, fighting_only=True) if u.engaged]
+        cands = [u for u in b.units(Side.FEIND, fighting_only=True)
+                 if u.stance is Stance.ANGRIFF and u.target_id == ring.id and not u.engaged
+                 and b._detour_plan(u, u.target) is not None]        # eine eigene Gruppe steht im Weg
+        if busy and cands:
+            return cands[0]
+        b.update(DT)
+    raise AssertionError("kein Angreifer in dieser Lage")
+
+
 def test_attacker_keeps_its_detour_side_instead_of_dithering():
     """Ein Haufen, der hinter zwei eigenen kämpfenden Gruppen an einen Kreis will,
     wählt eine Seite und bleibt dabei: er wechselt sie nicht hin und her und kommt
@@ -276,9 +291,7 @@ def test_attacker_keeps_its_detour_side_instead_of_dithering():
     g = b.command_merge(own)
     b.command_formation([g], "o")
     b.command_ring([g], (7.5, 9.5), 1.0)
-    run(b, 13)
-    r6 = b.by_id(6)
-    assert r6.stance is Stance.ANGRIFF and not r6.engaged
+    r6 = approaching_attacker(b, g)
     start = r6.pos
     sides = []
     for _ in range(int(10 / DT)):
@@ -299,8 +312,7 @@ def test_attacker_waits_when_the_enemy_outline_is_full(monkeypatch):
     g = b.command_merge(own)
     b.command_formation([g], "o")
     b.command_ring([g], (7.5, 9.5), 1.0)
-    run(b, 13)
-    r6 = b.by_id(6)
+    r6 = approaching_attacker(b, g)
     monkeypatch.setattr(b, "_free_outline", lambda u, foe: [])
     r6.detour_side = 0.0
     start = r6.pos

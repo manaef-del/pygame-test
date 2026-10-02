@@ -21,7 +21,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from . import config
-from .ai import Brain, formed
+from .ai import Brain, formed, house_for
 from .geometry import dist, norm, sub
 from .units import Lochos, Side, Stance
 
@@ -381,12 +381,12 @@ class FortressBrain(Brain):
         if foe is not None:
             self._engage(b, u, foe)
             return
-        houses = [h for h in b.houses if not h.looted]
-        if houses:
+        house = house_for(b, u)
+        if house is not None:
             u.stance = Stance.RAUB
             u.target_id = None
             u.in_line = False
-            u.target = min(houses, key=lambda h: dist(u.pos, h.center)).center
+            u.target = house.center
             return
         foe = self.pick_target(b, u, foes or r.foes)
         if foe is not None:

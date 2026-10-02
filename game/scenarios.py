@@ -52,8 +52,9 @@ class Scenario:
     ring: tuple[Point, ...] = ()               # Ecken eines geschlossenen Walls (Festung), sonst gerade Palisade
 
 
-HOUSES_SOUTH = ((4, 13), (6, 13), (8, 13), (10, 13), (5, 15), (7, 15), (9, 15), (11, 15))
-HOUSES_NORTH = ((4, 1), (6, 1), (8, 1), (10, 1), (5, 3), (7, 3), (9, 3), (11, 3))
+# Zwei Häuserblöcke zu je zwei mal zwei, dazwischen eine breite Gasse zur Agora (Häuser sind Hindernisse)
+HOUSES_SOUTH = ((4, 13), (5, 13), (4, 14), (5, 14), (10, 13), (11, 13), (10, 14), (11, 14))
+HOUSES_NORTH = ((4, 1), (5, 1), (4, 2), (5, 2), (10, 1), (11, 1), (10, 2), (11, 2))
 AGORA_SOUTH = (8.0, 17.0)       # hinter den Häusern
 AGORA_NORTH = (8.0, 2.5)        # mitten in der Siedlung, zwischen den Häuserreihen (dahinter liegt die Kopfleiste)
 
@@ -186,11 +187,49 @@ def _fortress() -> dict:
                             for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
                     and all(abs(c[0] - g[0]) + abs(c[1] - g[1]) > 1 for g in gate_cells | set(towers))]
             ladders.append(nearest_wall(p, pool))
-    houses = ((13, 14), (16, 13), (19, 14), (21, 17), (19, 21), (16, 22), (13, 21), (11, 17))
+    houses = _town(inner - wall, wall | gate_cells, gates, FORT_CENTRE, tuple(set(ladders)))
     return {
         "poly": poly, "palisade": tuple(sorted(wall - gate_cells)), "gates": tuple(gates),
         "towers": towers, "ladders": tuple(sorted(set(ladders))), "houses": houses,
     }
+
+
+def _town(inner: set, wall: set, gates: list, agora: Point, ladders: tuple) -> tuple[Cell, ...]:
+    """Häuser in Blöcken zu zwei mal zwei, mit schmalen Gängen dazwischen. Frei bleiben
+    ein Streifen innen am Wall, ein Platz an jeder Leiter, ein Ring um die Agora und je
+    eine breite Gasse von jedem Tor zur Agora."""
+    ax, ay = agora
+
+    def gate_inside(cells, out) -> Point:
+        mx = sum(c[0] + 0.5 for c in cells) / len(cells)
+        my = sum(c[1] + 0.5 for c in cells) / len(cells)
+        return (mx - out[0] * 1.5, my - out[1] * 1.5)
+
+    def to_segment(p: Point, a: Point, b: Point) -> float:
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        t = max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy)))
+        return math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy)
+
+    streets = [gate_inside(cells, out) for cells, out in gates]
+
+    def free_ground(c: Cell) -> bool:
+        p = (c[0] + 0.5, c[1] + 0.5)
+        if any(abs(c[0] - w[0]) <= 1 and abs(c[1] - w[1]) <= 1 for w in wall):
+            return False                                      # Streifen innen am Wall
+        if any(math.hypot(p[0] - lx - 0.5, p[1] - ly - 0.5) < 2.3 for lx, ly in ladders):
+            return False                                      # Platz am Fuß jeder Leiter: dort kommt man an und sammelt sich
+        if math.hypot(p[0] - ax, p[1] - ay) < 2.9:
+            return False                                      # Ring um die Agora
+        return all(to_segment(p, g, agora) >= 1.6 for g in streets)   # Gassen zu den Toren
+    cand = {c for c in inner if free_ground(c)}
+    best: set = set()
+    for ox in range(3):
+        for oy in range(3):
+            hs = {c for c in cand if (c[0] + ox) % 3 != 2 and (c[1] + oy) % 3 != 2}
+            hs = {c for c in hs if any((c[0] + dx, c[1] + dy) in hs for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))}
+            if len(hs) > len(best):
+                best = hs
+    return tuple(sorted(best))
 
 
 FORT = _fortress()

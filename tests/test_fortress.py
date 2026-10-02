@@ -119,7 +119,9 @@ def test_a_group_goes_through_the_open_gate_that_is_nearest():
     sw.hp = 0.0
     u = lone_group(b, Side.FEIND, "raeuber", 8, (3.0, 25.0))
     clear(b, [u])
-    goal = (12.5, 18.5)                                       # innen, neben der Agora (dort steht eine Gruppe)
+    inner = b.gate_approach(sw, -1.0)
+    goal = ((inner[0] + b.agora[0]) / 2, (inner[1] + b.agora[1]) / 2)   # in der Gasse vom Tor zur Agora
+    assert not b.is_blocked(*goal)
     u.target = goal
     passed = False
     for _ in range(int(40 / DT)):
@@ -289,3 +291,69 @@ def test_old_maps_have_a_fixed_view():
     cam = app.renderer.camera
     assert not cam.big and cam.zoom == 1.0 and (cam.ox, cam.oy) == (0.0, 0.0)
     assert "ansicht" not in {b.key for b in app.renderer.layout_bar(app.battle, False, set())}
+
+
+# ------------------------------------------------------------- Hindernisse
+def test_houses_are_obstacles_and_a_phalanx_takes_the_street_to_the_agora():
+    """Niemand läuft durch ein Haus; eine Phalanx vom Nordtor zur Agora nimmt die breite
+    Gasse und kommt an."""
+    b = quiet(Battle(FESTUNG, random.Random(1)))
+    hop = next(u for u in b.units(Side.STADT) if u.name == "Hopliten")
+    clear(b, [hop])
+    north = b.gates[0]
+    start = b.gate_approach(north, -1.0, 0.8)
+    hop.x, hop.y = start
+    hop.facing = (0.0, 1.0)
+    hop.place_men()
+    b.command_line([hop], (b.agora[0] + 1.0, b.agora[1] + 2.2), (b.agora[0] - 1.0, b.agora[1] + 2.2))  # Front nach Süden, hinter der Agora
+    for _ in range(int(40 / DT)):
+        b.update(DT)
+        assert not any(b.cell(m.x, m.y) in b.house_cells for m in hop.all_men())
+        if hop.in_line:
+            break
+    assert hop.in_line and math.dist(hop.pos, (b.agora[0], b.agora[1] + 2.2)) < 0.3
+
+
+def test_a_wide_block_goes_round_houses_it_does_not_fit_between():
+    """Zwischen zwei Häusern mit einer Kachel Lücke passt keine breite Front: der Block
+    geht außen herum, statt sich hindurchzuquetschen; eine Gruppe mit zwei Mann Front geht
+    hindurch (gemessen wird auf Halbkacheln: so schmale Gänge sind für Einzelne gedacht)."""
+    from game.scenarios import OFFENE_SIEDLUNG
+    from dataclasses import replace
+    scn = replace(OFFENE_SIEDLUNG, houses=((7, 10), (9, 10)))      # eine Kachel Lücke bei x = 8
+    for width, through in ((14, False), (2, True)):
+        b = quiet(Battle(scn, random.Random(1)))
+        hop = b.units(Side.STADT)[0]
+        clear(b, [hop])
+        hop.x, hop.y = 8.5, 13.0
+        hop.reform(width)
+        hop.facing = (0.0, -1.0)
+        hop.place_men()
+        hop.stance = Stance.HALTEN
+        hop.target = (8.5, 7.0)
+        xs = []
+        for _ in range(int(25 / DT)):
+            b.update(DT)
+            if 9.8 <= hop.y <= 11.2:
+                xs.append(hop.x)
+            if math.dist(hop.pos, (8.5, 7.0)) < 0.3:
+                break
+        assert math.dist(hop.pos, (8.5, 7.0)) < 0.5
+        assert all(b.cell(m.x, m.y) not in b.house_cells for m in hop.all_men())
+        went_between = bool(xs) and all(8.0 <= x <= 9.0 for x in xs)
+        assert went_between == through, (width, xs[:3])
+
+
+def test_standing_siege_tower_and_dropped_ram_are_obstacles():
+    b = Battle(FESTUNG_ANGRIFF, random.Random(1))
+    b.alarm = False
+    b.towers.append((20.0, 30.0))
+    b.debris.append((24.0, 30.0, 1.0, 0.0))
+    b.update(DT)
+    defender = next(u for u in b.units(Side.FEIND))
+    attacker = next(u for u in b.units(Side.STADT))
+    assert b.is_blocked(20.0, 30.0, defender)                   # wer nicht hinauf will, kommt nicht hinein
+    assert b.is_blocked(24.0, 30.0) and b.is_blocked(24.2, 30.0)
+    assert not b.is_blocked(24.0, 30.5)
+    b.crossings.add((15, 26))                                   # steht ein Übergang, steigen die Angreifer in den Turm
+    assert not b.is_blocked(20.0, 30.0, attacker)
