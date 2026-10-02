@@ -1,5 +1,33 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 19 (2. Oktober 2026): Die Palisade deckt den Wehrgang
+
+Wer auf dem Wehrgang steht, nimmt von Speeren, die von außen kommen, nur
+noch 30 % des Schadens (`WALL_COVER_FACTOR`); von innen (der Seite der
+Häuser) oder vom Wall selbst geworfen trifft es voll.
+
+Zwölf Seeds, verglichen mit Lauf 18:
+
+| Szenario | Taktik | Siege 18 → 19 | Häuser verloren 18 → 19 |
+|---|---|---|---|
+| palisade | tor_halten | 6/12 → 1/12 | 6,9 → 7,7 |
+| palisade | tor_reserve | 11/12 → 3/12 | 2,1 → 7,6 |
+| palisade | tor_leiter | 12/12 → 12/12 | 0,6 → 0,8 |
+| palisade | passiv | 2/12 → 2/12 | 7,5 → 7,5 |
+| angriff_wall | tor_phalanx | 0/12 → 0/12 | – |
+| angriff_wall | belagerung | 0/12 → 0/12 | – |
+
+Gegen die Erwartung verliert, wer nur das Tor hält, jetzt öfter. Der
+Grund, Seed für Seed nachgeprüft (tor_halten, Seeds 1 bis 6, mit und ohne
+Deckung): Die gedeckten Peltasten halten den Wehrgang 13 bis 19 Sekunden
+länger (sie fliehen bei 48 bis 50 s statt bei 30 bis 36 s). Die Räuber, die
+über den Turm kommen, sind deshalb erst bei 49 bis 51 s drinnen statt bei
+40 bis 42 s. Den Sturm aufs Tor beginnen sie aber in allen Seeds bei 63 s.
+Ohne Deckung kamen die Übersteiger gut 20 s vor dem Torsturm und wurden
+für sich geschlagen; jetzt treffen beide fast gleichzeitig ein. Wer, wie
+bei tor_leiter, mit der Phalanx an den Fuß der Leiter rückt, gewinnt
+weiter alle zwölf.
+
 ## Lauf 18 (2. Oktober 2026): Handgemenge an feindlichen Männern, Gerangel im Bild
 
 Gebunden war bisher, wer dem Formationsrechteck eines Gegners näher als
