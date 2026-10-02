@@ -52,6 +52,11 @@ wandert nach unten.
    streuen die Geschosse breiter, sodass einige danebengehen. Wer
    gerade läuft, wird dann nicht mehr hinter sich getroffen, wer stehen
    bleibt oder abrupt wendet, entgeht manchem Wurf.
+8. **Auf dem Wehrgang verlegen.** Wer auf Mauer oder Palisade steht, lässt
+   sich an eine andere Stelle des Wehrgangs schicken und läuft oben
+   entlang, auch durch Ecktürme und über Tore. Nur wenn es schneller geht,
+   steigt er eine Leiter hinab und anderswo wieder hinauf; dabei rechnet
+   er ein, dass Hinab- und Hinaufsteigen viel Zeit kostet.
 
 ## Zurückgestellt
 
