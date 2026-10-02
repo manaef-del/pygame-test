@@ -75,6 +75,9 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Marsch im Bogen** (3. Oktober 2026): Fußvolk schwenkt auf längeren Wegen
+  im Marsch, die Front in Marschrichtung, und marschiert erst am Ziel in
+  Breite und Front auf (docs/ki-simulation.md, Lauf 26).
 - **Gegner lösen sich auf** (3. Oktober 2026): Räuber, Siedlung und Heer
   gehen wie die Spielergruppen Mann für Mann durchs offene Tor und an
   eigenen ruhenden Haufen vorbei; nahe am Feind bleiben sie Block

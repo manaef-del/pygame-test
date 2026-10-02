@@ -1,5 +1,51 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 26 (3. Oktober 2026): Marsch im Bogen
+
+Auf längeren Wegen über freies Feld läuft Fußvolk in seiner Blickrichtung
+an und schwenkt unterwegs zum Ziel, statt erst auf der Stelle zu drehen und
+dann geradeaus zu gehen. Eine Linie behält unterwegs ihre Breite und
+marschiert erst 1,5 Kacheln vor dem Ziel in Breite und Front auf (README,
+„Marsch im Bogen“). Das gilt für beide Seiten. Wer durchs offene Tor die
+Wallseite wechselt, löst sich jetzt auch auf, wenn die gerade Linie genau
+durch die Öffnung führt (vorher ging ein Block dann geschlossen hindurch).
+Die Ankunftszeiten einer Linie bleiben fast gleich (gemessen 7,2 statt 7,2 s,
+8,4 statt 8,9 s, 7,4 statt 7,2 s).
+
+Zwölf Seeds (Festung im Angriff acht), verglichen mit Lauf 25:
+
+| Szenario | Taktik | Siege vorher → jetzt | Häuser verloren vorher → jetzt |
+|---|---|---|---|
+| offen | linie | 5/12 → 4/12 | 7,5 → 7,7 |
+| offen | schlachtordnung | 11/12 → 9/12 | 2,6 → 5,9 |
+| offen | linie_reiter | 5/12 → 9/12 | 6,8 → 5,5 |
+| offen | linie_aktiv | 11/12 → 12/12 | 2,1 → 1,8 |
+| offen | linie_tief | 10/12 → 8/12 | 4,2 → 6,7 |
+| offen | passiv | 1/12 → 5/12 | 7,9 → 7,6 |
+| offen | angriff | 9/12 → 10/12 | 6,8 → 6,0 |
+| palisade | tor_halten | 1/12 → 0/12 | 7,9 → 8,0 |
+| palisade | tor_reserve | 6/12 → 8/12 | 5,8 → 4,5 |
+| palisade | tor_leiter | 11/12 → 12/12 | 1,3 → 0,3 |
+| palisade | passiv | 8/12 → 7/12 | 5,4 → 5,4 |
+| horde | vorruecken, angriff | 12/12, 10/12 → 12/12, 10/12 | – |
+| angriff_offen | phalanxstoss | 1/12 → 0/12 | – |
+| angriff_offen | vorruecken, angriff | 0/12 → 0/12 | – |
+| angriff_wall | beide | 0/12 → 0/12 | – |
+| festung | tore | 0/12 → 1/12 | 4,0 → 3,4 |
+| festung | passiv | 0/12 → 0/12 | 4,7 → 4,1 |
+| festung_angriff | rammbock | 8/8 → 7/8 | – |
+| festung_angriff | turm | 0/8 → 0/8 | – |
+
+Im Ganzen eher etwas zugunsten des Spielers, aber gemischt: „Reiter aktiv“
+und „passiv“ in der offenen Siedlung gewinnen 4 dazu, „tief“ und die
+Schlachtordnung verlieren 2 und mehr Häuser. Die Taktiken des Simulators
+setzen ihre Linien zu Beginn über weite Wege, daher kommen sie jetzt in
+anderer Ordnung an.
+
+Der Pfadtest „kein Hin und Her beim Umweg“ läuft ohne Bögen (wie schon ohne
+Reserve): Mit Bögen rückt ein anderer Haufen zuerst an und trifft auf das
+bekannte Umweg-Flackern (Ideenliste).
+
 ## Lauf 25 (3. Oktober 2026): Die Gegner lösen sich auf
 
 `LOOSE_AI` ist an: Räuber, Siedlung und Heer gehen wie die Gruppen des
