@@ -2860,8 +2860,19 @@ class Battle:
                 if pr.target_man.hp <= 0 or dist(pr.target_man.pos, (pr.tx, pr.ty)) > 0.35:
                     continue                                   # daneben: der Mann ist nicht mehr dort
                 dmg = pr.dmg * (config.LEADER_ARMOR if b.leader_man() is not None else 1.0)
+                if self._behind_palisade(pr.target_man, (pr.x, pr.y)):
+                    dmg *= config.WALL_COVER_FACTOR
                 fallen = b.hit_man(pr.target_man, dmg)
                 self._after_hit(b, fallen, "ranged", dmg)
+
+    def _behind_palisade(self, man: Man, origin: Point) -> bool:
+        """Steht der Mann auf dem Wehrgang und kam der Speer von außen? Dann deckt ihn
+        die Palisade. Von innen (der Seite der Häuser) oder vom Wall selbst nicht."""
+        if not self.blocked or not self.is_wall_cell(self.cell(man.x, man.y), True):
+            return False
+        inside = {self._wall_level((h.cx + 0.5, h.cy + 0.5)) for h in self.houses}
+        thrown_from = self._wall_level(origin)
+        return thrown_from in ("nord", "sued") and thrown_from not in inside
 
     # -- Belagerung: Bau, Rammbock, Turm -----------------------------------
     def _engines(self, dt: float) -> None:

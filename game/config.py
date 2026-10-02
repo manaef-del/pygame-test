@@ -161,6 +161,7 @@ TIME_SCALE = 0.5             # Spielzeit je Echtzeit (halbe Geschwindigkeit)
 # Wall und Tor
 WALL_RANGE_BONUS = 1.0       # Peltasten auf dem Wehrgang werfen weiter
 WALL_MELEE_FACTOR = 0.3      # Nahkampf von unten gegen den Wehrgang und zurück
+WALL_COVER_FACTOR = 0.3      # Speere von außen gegen Männer auf dem Wehrgang: die Palisade deckt sie
 GATE_HP = 100.0
 RAM_BUILD_TIME = 8.0         # Sekunden Spielzeit
 RAM_DPS = 12.0               # Schaden am Tor je Sekunde

@@ -139,8 +139,13 @@ def test_raiders_build_a_tower_when_the_gate_is_guarded():
     assert crossed is not None and 12 < crossed < 50
     cell = next(iter(b.crossings))
     assert cell in b.blocked and cell[0] in (0, 1, 14, 15)          # am Rand, fern vom Tor
-    run(b, 8)
-    assert any(m.y > 8.9 for u in b.units(Side.FEIND, fighting_only=True) for m in u.all_men())   # Männer drüben
+    over = False
+    for _ in range(int(20 / DT)):                        # die gedeckten Peltasten auf dem Wehrgang halten eine Weile
+        b.update(DT)
+        over = any(m.y > 8.9 for u in b.units(Side.FEIND, fighting_only=True) for m in u.all_men())
+        if over:
+            break
+    assert over                                                                                   # Männer drüben
 
 
 def test_raiders_besiege_a_guarded_breach_then_storm():

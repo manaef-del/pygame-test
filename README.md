@@ -305,7 +305,10 @@ die Palisade wirft nur, wer oben steht, dafür eine Kachel weiter.
 Der Wehrgang ist erhöht: Wer unten steht, kommt an die Männer oben nicht
 heran und ist mit ihnen auch nicht im Handgemenge; von oben schlägt man
 hinunter, mit einem Drittel der Wirkung. Nach oben helfen nur Speere,
-Leitern oder ein Turm.
+Leitern oder ein Turm. Gegen Speere von außen deckt die Palisade die
+Männer auf dem Wehrgang: Sie nehmen davon nur knapp ein Drittel des
+Schadens. Wer von innen (der Seite der Häuser) oder vom Wall selbst
+wirft, trifft sie voll.
 
 **Belagerungsgerät:** Beim Angriff auf die Siedlung mit Wall ist das Tor
 verschlossen. Jede gewählte Gruppe kann ein Gerät bauen:

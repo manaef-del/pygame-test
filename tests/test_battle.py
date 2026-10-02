@@ -952,6 +952,31 @@ def test_a_felt_hit_flashes_and_the_fallen_leave_a_mark():
     assert victim.flash == 0.0 or victim not in raider.all_men()
 
 
+def test_the_palisade_covers_the_walkway_against_spears_from_outside():
+    """Wer auf dem Wehrgang steht, ist gegen Speere von außen gedeckt; von innen
+    (der Seite der Häuser) oder unten auf dem Boden nicht."""
+    from game.battle import Projectile
+    b = Battle(PALISADE, random.Random(1))
+    target = b.units(Side.STADT)[0]
+    man = target.all_men()[0]
+
+    def hit(at, origin):
+        man.x, man.y = at
+        man.hp = man.kind.hp
+        b.projectiles = [Projectile(origin[0], origin[1], man.x, man.y, target.id, 1.0, 0.0, 0.1, man)]
+        for u in b.lochoi:                                # nur der eine Speer zählt
+            u.volley_timer = 99.0
+        b._volleys(0.2)
+        return man.kind.hp - man.hp
+
+    walkway = (3.5, 8.5)
+    outside, inside = (3.5, 6.0), (3.5, 11.0)
+    full = hit(walkway, inside)
+    assert full > 0.0
+    assert hit(walkway, outside) == pytest.approx(config.WALL_COVER_FACTOR * full)
+    assert hit((3.5, 9.5), outside) == pytest.approx(hit((3.5, 9.5), inside))       # unten am Boden: keine Deckung
+
+
 def test_engaged_groups_move_slowly():
     b, hop, pelt, raider = melee_pair()
     y0 = hop.y
