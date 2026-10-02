@@ -2557,6 +2557,10 @@ class Battle:
                 return ""                         # am Tor wird gekämpft: dort hält man die Ordnung und steht an
             why = "tor"                           # durchs offene Tor (oder um ein Wallstück herum)
         elif self.wall_clear(u.pos, u.target) and (u.idle_block or self._detour(u, u.target, idle_only=True) is not None):
+            if u.side is not Side.STADT and any(e.side is not u.side and e.fighting
+                                                and e.rect_distance(u.pos) <= config.LOOSE_ENEMY_RANGE
+                                                for e in self.lochoi):
+                return ""                         # die Gegner halten nahe am Feind die Ordnung und gehen als Block herum
             why = "eigene"                        # eine ruhende eigene Gruppe steht im Weg (hinter kämpfenden steht man an)
         if why and not self._way_open(u):
             return ""                             # kein Durchkommen (die eigenen kämpfen im Durchgang): als Block anstehen

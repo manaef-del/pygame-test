@@ -238,9 +238,9 @@ def test_hold_and_merge_close_a_dissolved_group_where_its_men_are():
     assert b2.command_merge([line2, block2]) is not None
 
 
-def test_enemies_walk_around_their_own_as_a_block_unless_switched_on(monkeypatch):
-    """Die Gegner gehen (vorerst) als Block um ihre eigenen Haufen herum; mit LOOSE_AI
-    lösen auch sie sich dafür auf."""
+def test_enemies_dissolve_around_their_own_unless_switched_off(monkeypatch):
+    """Die Gegner lösen sich wie die Spielergruppen auf, um an einem ruhenden eigenen
+    Haufen vorbeizukommen; mit abgeschaltetem LOOSE_AI gehen sie als Block herum."""
     def setup():
         b = Battle(Scenario("t", "t", "", role="verteidigung", enemy_kind="raeuber", enemy_default=32, enemy_min=32,
                             enemy_max=32, houses=((2, 17),), raider_spawns=(RaiderSpawn(8.0, 5.0), RaiderSpawn(8.0, 8.0))),
@@ -256,14 +256,40 @@ def test_enemies_walk_around_their_own_as_a_block_unless_switched_on(monkeypatch
             u.stance = Stance.HALTEN
             u.place_men()
         walk.target = (8.0, 3.0)
+        h = b.units(Side.STADT)[0]
+        h.x, h.y = 2.0, 16.0                      # der Feind weit weg
+        h.place_men()
         return b, walk
     b, walk = setup()
     b._update_loose(walk)
-    assert not walk.loose
-    monkeypatch.setattr(config, "LOOSE_AI", True)
+    assert walk.loose and walk.loose_why == "eigene"
+    monkeypatch.setattr(config, "LOOSE_AI", False)
     b, walk = setup()
     b._update_loose(walk)
-    assert walk.loose and walk.loose_why == "eigene"
+    assert not walk.loose
+
+
+def test_enemies_keep_their_order_next_to_a_foe():
+    """Steht ein Feind dicht dabei, löst sich ein Gegnerhaufen nicht auf, um an den
+    eigenen vorbeizukommen: er geht als Block herum."""
+    b = Battle(Scenario("t", "t", "", role="verteidigung", enemy_kind="raeuber", enemy_default=32, enemy_min=32,
+                        enemy_max=32, houses=((2, 17),), raider_spawns=(RaiderSpawn(8.0, 5.0), RaiderSpawn(8.0, 8.0))),
+               random.Random(0), army=Army(groups=[GroupSpec("H", [Tier("mittel", 10)])]), ai="einfach")
+    b._ai_raiders = lambda: None
+    b.alarm = False
+    stand, walk = b.units(Side.FEIND)[:2]
+    for u, pos in ((stand, (8.0, 6.0)), (walk, (8.0, 9.0))):
+        u.x, u.y = pos
+        u.target = None
+        u.target_id = None
+        u.stance = Stance.HALTEN
+        u.place_men()
+    walk.target = (8.0, 3.0)
+    h = b.units(Side.STADT)[0]
+    h.x, h.y = 10.5, 9.0
+    h.place_men()
+    b._update_loose(walk)
+    assert not walk.loose
 
 
 def approaching_attacker(b, ring):
@@ -321,3 +347,38 @@ def test_attacker_waits_when_the_enemy_outline_is_full(monkeypatch):
     for _ in range(int(2 / DT)):
         b.update(DT)
     assert r6.waiting and dist(start, r6.pos) < 0.2
+
+
+def test_enemies_pass_an_open_gate_man_by_man():
+    """Ist das Tor offen und kein Feind davor, löst sich ein Räuberhaufen auf und geht
+    Mann für Mann hindurch; mit abgeschaltetem LOOSE_AI geht er als Block."""
+    from game.scenarios import PALISADE
+
+    def setup():
+        b = Battle(PALISADE, random.Random(1))
+        b._ai_raiders = lambda: None
+        b.alarm = False
+        b.gate.hp = 0.0
+        b.gate.closed = False
+        for u in b.units(Side.STADT):
+            u.x, u.y = 14.5, 16.0                 # die Verteidiger weit weg vom Tor
+            u.place_men()
+        r = b.units(Side.FEIND)[0]
+        gx, gy = b.gate.center
+        r.x, r.y = gx + 2.0, gy - 2.5
+        r.place_men()
+        r.stance = Stance.RAUB
+        r.target_id = None
+        r.target = (gx, gy + 4.0)
+        return b, r
+    b, r = setup()
+    b._update_loose(r)
+    assert r.loose and r.loose_why == "tor"
+    config_off = config.LOOSE_AI
+    try:
+        config.LOOSE_AI = False
+        b, r = setup()
+        b._update_loose(r)
+        assert not r.loose
+    finally:
+        config.LOOSE_AI = config_off
