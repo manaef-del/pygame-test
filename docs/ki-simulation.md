@@ -1,5 +1,61 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 21 (2. Oktober 2026): Häuser als Hindernisse
+
+Häuser, aufgestellte Belagerungstürme (außer für die, die über sie auf den
+Wall steigen) und liegende Rammböcke sperren den Weg. Blöcke suchen sich
+einen Weg mit so viel Abstand, wie ihre Front breit ist (A* auf
+Halbkacheln, Abstandsfeld zu Häusern und Gerät); den Wall regelt weiter
+die Wegwahl über Tore und Leitern. Die alten Karten haben zwei
+Häuserblöcke zu je zwei mal zwei mit einer Gasse zur Agora (vorher ein
+Schachbrett mit einer Kachel Abstand: dort verfingen sich die Reiter, die
+Peltasten wurden abgeschnitten, der Verfolgungstest gewann zwar, verlor
+aber fast alle Häuser). Die Festung hat 30 Häuser in Blöcken, breite
+Gassen von den Toren zur Agora, einen Ring um die Agora und einen Platz
+vor jeder Leiter. Plünderer verteilen sich auf die Häuser, statt alle
+dasselbe anzulaufen; ein aufgebrochener Rammbock bleibt hinter der Gruppe
+liegen, nicht im Tordurchgang.
+
+Zwölf Seeds (Festung acht), verglichen mit dem letzten Lauf je Szenario:
+
+| Szenario | Taktik | Siege vorher → jetzt | Häuser verloren vorher → jetzt |
+|---|---|---|---|
+| offen | linie | 4/12 → 3/12 | 7,5 → 7,7 |
+| offen | linie_reiter | 7/12 → 6/12 | 4,5 → 4,9 |
+| offen | linie_aktiv | 8/12 → 10/12 | 5,6 → 4,1 |
+| offen | linie_tief | 11/12 → 12/12 | 2,4 → 3,6 |
+| offen | passiv | 4/12 → 3/12 | 6,8 → 7,5 |
+| offen | angriff | 12/12 → 12/12 | 4,5 → 6,2 |
+| palisade | tor_halten | 1/12 → 3/12 | 7,7 → 7,3 |
+| palisade | tor_reserve | 3/12 → 4/12 | 7,6 → 7,1 |
+| palisade | tor_leiter | 12/12 → 11/12 | 0,8 → 1,1 |
+| palisade | passiv | 2/12 → 1/12 | 7,5 → 7,6 |
+| horde | vorruecken | 1/4 → 12/12 | – |
+| horde | angriff | 3/4 → 12/12 | – |
+| angriff_offen | phalanxstoss | 1/12 → 0/12 | – |
+| angriff_offen | vorruecken | 0/12 → 0/12 | – |
+| angriff_offen | angriff | 0/12 → 0/12 | – |
+| angriff_wall | tor_phalanx | 0/12 → 0/12 | – |
+| angriff_wall | belagerung | 0/12 → 0/12 | – |
+| festung | tore | 2/8 → 1/8 | 2,2 → 2,0 |
+| festung | passiv | 0/8 → 0/8 | 2,2 → 4,0 |
+| festung_angriff | rammbock | 8/8 → 8/8 | – |
+| festung_angriff | turm | 0/8 → 0/8 | – |
+
+Die Balance bleibt im Ganzen, wo sie war. Die Horde war zuletzt in Lauf 16
+gemessen, mit nur vier Seeds; seither kamen mehrere Änderungen dazu (Umgehen
+ohne Zappeln, Handgemenge an Männern), welche davon den Sieg gebracht hat,
+ist nicht einzeln nachgeprüft.
+
+Beim Bauen fielen Fehler auf: Fliehende fanden um ein Haus keinen Weg zu
+einem Ziel jenseits des Kartenrands; die Wegwahl hielt ein Haus zwischen
+Gruppe und Ziel für den Wall (Prüfung „Weg frei“ hieß an mehreren Stellen
+„kein Wall dazwischen“, jetzt eigene Prüfung `wall_clear`); ein Mann am
+Ende eines Blocks trat beim Schwenken auf eine Leiter, worauf sich die
+Gruppe zum Übersteigen auflöste (jetzt steigt ein Block am Boden nicht
+aus Versehen hinauf); und wer einen Platz im Haus hatte, kam nie an
+(jetzt gilt er dicht davor als angekommen).
+
 ## Lauf 20 (2. Oktober 2026): Die Festung
 
 Neue Karte, viermal so groß (32 × 36 Kacheln): ein sechseckiger Wall um
