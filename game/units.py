@@ -209,6 +209,7 @@ class Lochos:
     building: float | None = None     # bisherige Bauzeit
     tower_cell: tuple[int, int] | None = None   # Wallstück, an das der Turm gesetzt wird
     ram_gate: int | None = None                  # Festung: Nummer des Tores, das der Rammbock angeht
+    wall_layout: object = field(default=None, repr=False, compare=False)   # Festung: Plätze auf dem Wehrgang
     tower_progress: float = 0.0
     loose: bool = False               # aufgelöst: jeder Mann geht für sich an seinen Platz in der Zielaufstellung
     loose_why: str = ""               # warum: "wall" (über den Wall), "tor" (durchs Tor), "eigene" (um eigene herum), "" (formiert sich)
@@ -487,6 +488,8 @@ class Lochos:
         einzelne Reihe längs der Palisade (für den Wehrgang)."""
         cx, cy = centre
         out = []
+        if file and self.wall_layout is not None:
+            return self.wall_layout(self, centre)     # Festung: entlang des Wehrgangs, wie er verläuft
         if file:
             men = self.all_men()
             n = len(men)

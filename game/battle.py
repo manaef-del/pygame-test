@@ -197,6 +197,7 @@ class Battle:
         self._foot: dict[tuple[int, int], tuple[int, int]] = {}      # Leiter/Turm -> Richtung zur Kachel am Fuß
         self._walkway: tuple | None = None
         self._ring_cache: dict = {}
+        self._slot_cache: dict = {}
         if self.ring:
             for c in self.ladders:
                 self._foot[c] = self._ground_step(c, "innen")
@@ -414,6 +415,8 @@ class Battle:
 
     def _spawn(self, side: Side, rows: list[list[Man]], x: float, y: float, name: str) -> Lochos:
         unit = Lochos(id=self._next_id, side=side, rows=rows, x=x, y=y, name=name)
+        if self.ring:
+            unit.wall_layout = self._wall_slots
         self._next_id += 1
         if side is Side.FEIND:
             unit.stance = Stance.RAUB
@@ -490,6 +493,8 @@ class Battle:
         die Leitern, Angreifer über einen aufgestellten Turm."""
         if u.side is self.wall_side():
             return u.wall_capable()
+        if self.ring and 2 * len(u.mounted_men()) >= u.men:
+            return False                  # Festung: wer im Sattel sitzt, klettert nicht
         return bool(self.crossings)
 
     def ladders_for(self, u: Lochos, pos: Point | None = None, target: Point | None = None) -> set[tuple[int, int]]:
@@ -549,6 +554,8 @@ class Battle:
         if not (u.loose and u.loose_why == "wall"):
             return False
         levels = {self._wall_level(m.pos) for m in u.all_men()}
+        if self.ring:
+            levels.discard("tor")
         return len(levels) > 1 or "wall" in levels
 
     def up(self, u: Lochos) -> bool:
@@ -772,7 +779,9 @@ class Battle:
             if on and want and not self.wall_connected(here, there):
                 want = False              # Lücke im Wehrgang: erst hinunter, unten weiter, drüben wieder hinauf
             if on and want:
-                return self._walk_along(pos, there), True
+                if self._on_walkway(pos, target):
+                    return target, True
+                return self._walk_along(pos, there), False
             if on != want or (not on and self._wall_level(pos) != self._wall_level(target)
                               and not any(not g.closed for g in self.gates)):
                 ladder = self.nearest_ladder(u, pos, target)
@@ -783,7 +792,10 @@ class Battle:
                             return self.foot_of(lc), False     # auf der Leiter: hinunter
                         return self._walk_along(pos, lc), False
                     foot = self.foot_of(lc)
-                    if dist(pos, foot) > 0.35 and self.cell(*pos) != lc:
+                    ax, ay = foot[0] - ladder[0], foot[1] - ladder[1]          # von der Leiter zum Fuß (Länge 1)
+                    rx, ry = pos[0] - ladder[0], pos[1] - ladder[1]
+                    under = rx * ax + ry * ay > 0 and abs(rx * ay - ry * ax) <= 0.3   # in einer Linie darunter
+                    if not under and self.cell(*pos) != lc:
                         wp, _ = self._ground_way(u, pos, foot)
                         return wp, False
                     return ladder, False
@@ -792,6 +804,43 @@ class Battle:
         if on:
             return target, True               # wer (ohne Erlaubnis) oben steht, geht geradeaus
         return self._ground_way(u, pos, target)
+
+    def _wall_slots(self, u: Lochos, centre: Point) -> list[tuple[Man, Point]]:
+        """Festung: Plätze auf dem Wehrgang um ``centre``, Kachel für Kachel den Wehrgang
+        entlang (bis zu neun Mann je Kachel); Leitern und Turmübergänge bleiben frei."""
+        men = u.all_men()
+        if not men:
+            return []
+        parts = self._walkway_parts()
+        start = self.cell(*centre)
+        if start not in parts:
+            near = [c for c in parts if abs(c[0] - start[0]) <= 2 and abs(c[1] - start[1]) <= 2]
+            if not near:
+                return [(m, centre) for m in men]
+            start = min(near, key=lambda c: dist((c[0] + 0.5, c[1] + 0.5), centre))
+        key = (start, round(centre[0], 1), round(centre[1], 1), len(men), len(self.crossings),
+               tuple(g.closed for g in self.gates))
+        points = self._slot_cache.get(key)
+        if points is None:
+            free = [start]
+            seen = {start}
+            pts: list[Point] = []
+            for c in free:
+                if c not in self.ladders and c not in self.crossings:
+                    pts += [(c[0] + 0.5 + dx, c[1] + 0.5 + dy) for dx in (-0.3, 0.0, 0.3) for dy in (-0.3, 0.0, 0.3)]
+                if len(pts) >= len(men) + 9:
+                    break
+                for n in ((c[0] + 1, c[1]), (c[0] - 1, c[1]), (c[0], c[1] + 1), (c[0], c[1] - 1)):
+                    if n in parts and n not in seen:
+                        seen.add(n)
+                        free.append(n)
+            points = sorted(pts, key=lambda p: dist(p, centre))[:len(men)]
+            if len(self._slot_cache) > 2000:
+                self._slot_cache.clear()
+            self._slot_cache[key] = points
+        if len(points) < len(men):
+            points = points + [centre] * (len(men) - len(points))
+        return list(zip(men, points))
 
     def _walk_along(self, pos: Point, goal: tuple[int, int]) -> Point:
         """Auf dem Wehrgang zum Wallstück ``goal``: über die Wallstücke dazwischen, nie
@@ -2159,7 +2208,12 @@ class Battle:
                 target_up = self.is_wall_cell(self.cell(*dest), True)
                 on_route = (goal_up and not target_up) or (centre_up and not target_up)
             centre_level = self._wall_level(u.pos)
-            if on_route or any(self._wall_level(m.pos) != centre_level for m in u.all_men()):
+            if self.ring:
+                levels = {self._wall_level(m.pos) for m in u.all_men()} | {centre_level}
+                levels.discard("tor")             # der Tordurchgang ist keine Wallseite
+                if on_route or len(levels) > 1 or "wall" in levels:
+                    return "wall"
+            elif on_route or any(self._wall_level(m.pos) != centre_level for m in u.all_men()):
                 return "wall"                     # der Weg führt über den Wall, oder Männer stehen noch drüben oder oben
         if (u.target is None or u.engine is not None or u.building is not None or u.stance is Stance.FLUCHT
                 or u.engaged or self.on_wall(u) or (self._rides(u) and u.target_id is not None)):

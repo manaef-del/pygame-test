@@ -25,6 +25,7 @@ from game.ai import Memory                                    # noqa: E402
 from game.army import Army, GroupSpec, Tier, default_army     # noqa: E402
 from game.battle import Battle                                # noqa: E402
 from game.scenarios import SCENARIOS                          # noqa: E402
+from game.geometry import dist                                # noqa: E402
 from game.units import Side, Stance                           # noqa: E402
 
 DT = 1 / 30
@@ -272,12 +273,120 @@ def t_tor_phalanx(b: Battle) -> dict:
     return plan
 
 
+# ---------------------------------------------------------------- Festung
+def _behind(b: Battle, g, depth: float = 2.2) -> tuple[tuple[float, float], tuple[float, float]]:
+    """Linie hinter (innen) oder vor (außen, depth < 0) einem Tor, quer zum Durchgang."""
+    cx, cy = g.center
+    (nx, ny), (tx, ty) = g.normal, g.tangent
+    side = -1.0 if depth > 0 else 1.0
+    d = abs(depth) + g.half_thick
+    mx, my = cx + nx * side * d, cy + ny * side * d
+    a, c = (mx - tx * 2.4, my - ty * 2.4), (mx + tx * 2.4, my + ty * 2.4)
+    # die Front soll vom Inneren zum Tor schauen: command_line nimmt die Front links der Linie
+    fx, fy = c[1] - a[1], -(c[0] - a[0])
+    if fx * nx + fy * ny < 0:
+        a, c = c, a
+    return a, c
+
+
+def _threatened_gate(b: Battle):
+    foes = b.units(Side.FEIND, fighting_only=True)
+    rams = [f for f in foes if f.engine == "ram" or f.build_kind == "ram"]
+    open_ = [g for g in b.gates if not g.closed]
+    if open_:
+        return min(open_, key=lambda g: min((dist(f.pos, g.center) for f in foes), default=99.0))
+    if rams:
+        return min(b.gates, key=lambda g: min(dist(f.pos, g.center) for f in rams))
+    return min(b.gates, key=lambda g: min((dist(f.pos, g.center) for f in foes), default=99.0))
+
+
+def t_festung_tore(b: Battle) -> dict:
+    """Festung: die Phalanx hinter das bedrohte Tor, Peltasten auf den Wehrgang darüber,
+    Reiter auf der Agora, die Eingedrungene jagen. Alle fünf Sekunden schaut der Spieler hin."""
+    hop, pelt, cav = groups(b)
+    state = {"gate": None}
+
+    def react(b: Battle):
+        g = _threatened_gate(b)
+        if g is not state["gate"]:
+            state["gate"] = g
+            a, c = _behind(b, g)
+            if hop and hop[0].fighting:
+                b.command_line(hop, a, c)
+            wall = [x for x in b.blocked if x not in b.crossings]
+            spot = min(wall, key=lambda x: dist((x[0] + 0.5, x[1] + 0.5), g.center) + (0.0 if dist((x[0] + 0.5, x[1] + 0.5), g.center) >= 2.0 else 9.0))
+            if pelt and pelt[0].fighting and pelt[0].ammo() > 0:
+                b.command_move(pelt, (spot[0] + 0.5, spot[1] + 0.5))
+        inside = [f for f in b.units(Side.FEIND, fighting_only=True) if b._wall_level(f.pos) == "innen" and not f.in_phalanx]
+        if cav and cav[0].fighting and cav[0].stance is not Stance.ANGRIFF:
+            if inside:
+                b.command_attack_target(cav, min(inside, key=lambda f: f.men))
+            elif dist(cav[0].pos, b.agora) > 2.0 and cav[0].target is None:
+                b.command_move(cav, b.agora)
+    plan = {0: lambda b: b.command_move(cav, b.agora)}
+    for t in range(0, 290, 5):
+        plan[t + 0.5] = react
+    return plan
+
+
+def t_festung_angriff_ram(b: Battle) -> dict:
+    """Festung angreifen: die Hopliten bauen den Rammbock und rammen das nächste Tor, die
+    Peltasten werfen auf den Wehrgang daneben, die Reiter warten; offen: alle hinein."""
+    hop, pelt, cav = groups(b)
+    me = (b.cols / 2, b.scenario.deploy_y)
+    gate = min(b.gates, key=lambda g: dist(g.center, me))
+    gx, gy = gate.center
+    nx, ny = gate.normal
+    stand = (gx + nx * 3.2, gy + ny * 3.2)
+    wait = (gx + nx * 8.0, gy + ny * 8.0)
+    plan = {
+        0: lambda b: (b.command_build(hop, "ram"), b.command_move(pelt, stand), b.command_move(cav, wait)),
+        config.RAM_BUILD_TIME + 1: lambda b: b.command_ram_gate(hop, gate),
+    }
+
+    def storm(b: Battle):
+        if any(not g.closed for g in b.gates):
+            b.command_attack([u for u in b.units(Side.STADT, fighting_only=True) if u.stance is not Stance.ANGRIFF])
+    for t in range(15, 290, 5):
+        plan[t] = storm
+    return plan
+
+
+def t_festung_angriff_turm(b: Battle) -> dict:
+    """Festung angreifen: Rammbock (Hopliten) und Turm (Reiter, abgesessen) zugleich, an
+    verschiedenen Stellen; wer drüben ist, greift an."""
+    hop, pelt, cav = groups(b)
+    me = (b.cols / 2, b.scenario.deploy_y)
+    gate = min(b.gates, key=lambda g: dist(g.center, me))
+    gx, gy = gate.center
+    nx, ny = gate.normal
+    stand = (gx + nx * 3.2, gy + ny * 3.2)
+    cells = [c for c in b.blocked if b.tower_step(c) is not None and c[1] == max(x[1] for x in b.blocked)
+             and all(dist((c[0] + 0.5, c[1] + 0.5), t.center) > 2.0 for t in b.corner_towers) and c not in b.ladders]
+    wall = min(cells, key=lambda c: abs(c[0] + 0.5 - b.cols / 2)) if cells else None
+    plan = {
+        0: lambda b: (b.command_build(hop, "ram"), b.command_build(cav, "tower"), b.command_move(pelt, stand)),
+        config.RAM_BUILD_TIME + 1: lambda b: b.command_ram_gate(hop, gate),
+        config.TOWER_BUILD_TIME + 1: lambda b: b.command_tower_wall(cav, wall) if wall else None,
+    }
+
+    def storm(b: Battle):
+        if any(not g.closed for g in b.gates) or b.crossings:
+            b.command_attack([u for u in b.units(Side.STADT, fighting_only=True)
+                              if u.stance is not Stance.ANGRIFF and u.engine is None and u.building is None])
+    for t in range(16, 290, 5):
+        plan[t] = storm
+    return plan
+
+
 TACTICS = {
     "offen": {"linie": t_linie, "linie_reiter": t_linie_reiter_aktiv, "linie_aktiv": t_linie_aktiv, "linie_tief": t_linie_tief, "passiv": t_passiv, "angriff": t_angriff},
     "palisade": {"tor_halten": t_tor_halten, "tor_reserve": t_tor_halten_reserve, "tor_leiter": t_tor_leiter, "passiv": t_passiv},
     "horde": {"vorruecken": t_vorruecken, "angriff": t_angriff},
     "angriff_offen": {"phalanxstoss": t_phalanxstoss, "vorruecken": t_vorruecken, "angriff": t_angriff},
     "angriff_wall": {"tor_phalanx": t_tor_phalanx, "belagerung": t_belagerung},
+    "festung": {"tore": t_festung_tore, "passiv": t_passiv},
+    "festung_angriff": {"rammbock": t_festung_angriff_ram, "turm": t_festung_angriff_turm},
 }
 
 
