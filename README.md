@@ -61,6 +61,16 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Punkte sind dunkler) und eine eigene Position: Er läuft zu seinem
   Platz in der Formation, weicht aber selbst aus, durchs Tor nur durch
   die Öffnung, auf den Wall nur über Leiter oder Turm.
+- **Marsch im Bogen.** Auf längeren Wegen (über drei Kacheln) über freies
+  Feld läuft eine Gruppe zu Fuß in ihrer Blickrichtung an und schwenkt
+  unterwegs zum Ziel, die Front immer in Marschrichtung. Eine breite Linie
+  schwenkt langsamer und zieht einen weiteren Bogen als ein kleiner Block.
+  Liegt das Ziel weit seitlich, marschiert sie langsamer und schwenkt
+  enger; liegt es hinter ihr, macht sie kehrt. Eine aufgezogene Linie
+  behält unterwegs ihre bisherige Breite und marschiert erst anderthalb
+  Kacheln vor dem Ziel in die neue Breite und Front auf. Kurze Wege, Reiter,
+  Angriffe, Flucht und Umwege um Wall, Tor und Häuser gehen wie zuvor:
+  erst schwenken, dann geradeaus.
 - **Das Rechteck sagt, wo jeder stehen soll; den Weg sucht jeder selbst.**
   Auf freiem Feld marschiert eine Gruppe als Block. Muss sie über den
   Wall, durchs offene Tor oder an einer ruhenden eigenen Gruppe vorbei,
