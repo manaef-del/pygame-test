@@ -97,6 +97,15 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   eigenen Gruppe rückt man höchstens Schulter an Schulter. Wer jemanden
   im Weg hat, geht schräg an ihm vorbei; nur stürmende Reiter drängen
   Fußvolk beiseite, solange ihr Schwung sie in den Feind trägt.
+- **Häuser und Gerät sind Hindernisse.** Niemand läuft durch ein Haus,
+  durch einen aufgestellten Belagerungsturm (außer wer über ihn auf den
+  Wall will) oder durch einen liegenden Rammbock. Eine Gruppe sucht sich
+  ihren Weg mit so viel Abstand, wie ihre Front breit ist: durch Gassen,
+  in die sie passt, sonst außen herum; durch die schmalen Gänge zwischen
+  Häusern gehen nur Einzelne und ganz schmale Gruppen. Geplündert wird
+  von außen, wer am Haus steht. Die Häuser stehen in Blöcken mit einer
+  breiten Gasse zur Agora; ein aufgebrochener Rammbock bleibt hinter der
+  Gruppe liegen, nicht im Tordurchgang.
 - **Gruppen umgehen einander, niemand wird geschoben.** Steht eine
   ruhende eigene Gruppe auf dem Weg (still oder als Phalanx auf ihrem
   Posten), gehen die Männer der befohlenen Gruppe links und rechts eng an
@@ -300,9 +309,11 @@ läuft mit halber Geschwindigkeit (`TIME_SCALE`).
 | Verteidigung: Festung | Große Karte (viermal so groß). Ein Heer aus Hopliten, Peltasten und Reitern, doppelt so stark wie die eigene Truppe, belagert die sechseckige Festung |
 | Angriff: Festung | Dieselbe Festung, man selbst belagert sie; die Besatzung ist etwa halb so stark wie die eigene Truppe |
 
-**Festung:** In der Mitte der großen Karte liegt die Agora mit acht
-Häusern, darum ein sechseckiger Wall, außen genug Platz, um ihn zu
-umlaufen. In der Nordkante und in den beiden südlichen Schrägen sitzt je
+**Festung:** In der Mitte der großen Karte liegt die Agora, um sie
+dreißig Häuser in Blöcken; von jedem Tor führt eine breite Gasse zur
+Agora, um die Agora läuft ein freier Ring, innen am Wall ein schmaler
+Streifen, und vor jeder Leiter bleibt Platz zum Ankommen und Sammeln.
+Darum ein sechseckiger Wall, außen genug Platz, um ihn zu umlaufen. In der Nordkante und in den beiden südlichen Schrägen sitzt je
 ein verschlossenes Tor, an jeder Ecke ein Wehrturm, innen an jeder Kante
 zwei Leitern. Die **Wehrtürme** werfen zwei Speere in der Sekunde, ohne
 Vorrat, auf den nächsten Feind in 6,5 Kacheln (sie reichen bis vor die

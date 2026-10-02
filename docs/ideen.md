@@ -33,11 +33,17 @@ wandert nach unten.
    Historischer Rechtsdrall, Ehre des rechten Flügels. Geringer Aufwand.
 2. **Gruppenformationen.** Mehrere Gruppen mit einem Zug aufstellen,
    etwa Hopliten vorn, Peltasten dahinter. Mittlerer Aufwand.
-3. **Häuser als Hindernisse.** Gassen statt freier Fläche; später Hang
-   und Höhe. Großer Aufwand.
+3. **Hang und Höhe.** Gelände, das Tempo und Kampf beeinflusst. Großer
+   Aufwand.
 4. **KI: Reserve und Gegenmittel.** Eine Gruppe zurückhalten, auf
    Reiter mit Kreisen antworten, Peltasten auf die schildlose Seite
    schicken.
+5. **Festung: Turm allein reicht nicht.** Über einen Belagerungsturm allein
+   kommt kein Angriff hinein (0 von 8): Die Männer steigen einzeln, im Feuer
+   der Ecktürme. Vielleicht deckt ein angesetzter Turm gegen die Ecktürme,
+   oder er lässt mehr Männer zugleich durch.
+6. **Festung im Angriff zu leicht?** Mit dem Rammbock gewinnt man immer
+   (8 von 8) gegen eine Besatzung von 40.
 
 ## Zurückgestellt
 
@@ -53,6 +59,13 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Häuser als Hindernisse** (2. Oktober 2026): Häuser, aufgestellte
+  Belagerungstürme und liegende Rammböcke sperren den Weg; Blöcke suchen
+  Gassen, in die ihre Front passt. Häuser in Blöcken mit Gassen zur Agora
+  (docs/ki-simulation.md, Lauf 21).
+- **Festung** (2. Oktober 2026): große Karte mit sechseckigem Wall, drei
+  Toren, eroberbaren Ecktürmen, Kamera mit Übersicht und Nahansicht
+  (docs/ki-simulation.md, Lauf 20).
 - **Zappeln beim Umgehen** (1. Oktober 2026): Wer außen herum geht, hält
   die gewählte Seite, ein Angriff nimmt die Seite mit Platz am Gegner,
   und ist keiner mehr frei, wartet er geordnet dahinter
