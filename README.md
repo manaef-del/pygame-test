@@ -146,8 +146,17 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   bestimmt die Breite und damit die Zahl der echten Reihen. Landen
   mehrere Blöcke in einer Reihe, wechseln sich ihre Männer ab. Die Gruppe
   schaut senkrecht zur Linie: von links nach rechts gezogen nach oben, so
-  wie man hinter ihr steht. Ohne Auswahl teilen sich alle Gruppen die
-  Linie.
+  wie man hinter ihr steht. Ohne Auswahl (oder mit „Alle“) gilt die Linie
+  für alle Gruppen.
+- **Schlachtordnung:** Bekommen Gruppen verschiedener Gattungen dieselbe
+  Linie, stehen die Hopliten vorn auf der Linie, die Peltasten dicht
+  dahinter (etwas kürzer, damit die Enden der Phalanx frei bleiben; sie
+  werfen über die Köpfe) und die Reiter an den Flügeln, zuerst rechts an
+  der schildlosen Seite, mit der Front auf gleicher Höhe. Wäre rechts kein
+  Platz mehr auf der Karte, gehen sie nach links. Ohne Hopliten stehen die
+  Peltasten vorn. Gruppen einer Gattung teilen sich die Linie
+  nebeneinander. Die Vorschau beim Ziehen zeigt jeden Block dort, wo er
+  stehen wird.
 - **Phalanx:** eine aufgezogene Gruppe hält die Stellung. Stark von vorn,
   verwundbar in Flanke und Rücken. Der Bonus hängt vom Hoplitenanteil der
   vorderen Reihe ab. Nachbarn stützen sich (Schildwall). Front, Flanke und

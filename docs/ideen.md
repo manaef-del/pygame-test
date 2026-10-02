@@ -32,8 +32,9 @@ wandert nach unten.
    jeder Mann seine offene rechte Seite in den Schild des Nebenmanns
    schiebt; der rechte Flügel ist der Ehrenplatz. Seit der Schildseite
    (Lauf 22) wäre das die naheliegende Fortsetzung. Geringer Aufwand.
-2. **Gruppenformationen.** Mehrere Gruppen mit einem Zug aufstellen,
-   etwa Hopliten vorn, Peltasten dahinter. Mittlerer Aufwand.
+2. **Mehrere Gruppen wählen.** Bisher wählt man eine Gruppe oder alle.
+   Mit einer Auswahl von zwei oder drei Gruppen ließe sich die
+   Schlachtordnung auch für einen Teil des Heers ziehen. Geringer Aufwand.
 3. **Hang und Höhe.** Gelände, das Tempo und Kampf beeinflusst. Großer
    Aufwand.
 4. **KI: Reserve und Gegenmittel.** Eine Gruppe zurückhalten, auf
@@ -60,6 +61,9 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Schlachtordnung** (2. Oktober 2026): Gemischte Gruppen mit einem Zug
+  aufstellen: Hopliten vorn, Peltasten dahinter, Reiter an den Flügeln
+  (docs/ki-simulation.md, Lauf 23).
 - **Schildseite** (2. Oktober 2026): Hopliten sind an der linken Flanke
   durch den Schild gedeckt, an der rechten offen, im Nahkampf wie gegen
   Speere; Reiter und KI ziehen die rechte Seite vor. Ohne Rechtsdrall

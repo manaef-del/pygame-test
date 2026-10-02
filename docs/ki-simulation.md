@@ -1,5 +1,32 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 23 (2. Oktober 2026): Schlachtordnung
+
+Bekommen Gruppen verschiedener Gattungen mit einem Zug dieselbe Linie,
+stehen die Hopliten vorn auf der Linie, die Peltasten 0,35 Kacheln
+dahinter auf drei Vierteln der Länge, die Reiter drei Reihen tief am
+rechten Flügel (die zweite Reitergruppe links), mit der Front auf gleicher
+Höhe. Gruppen einer Gattung teilen sich die Linie wie bisher nebeneinander;
+alle bisherigen Taktiken befehlen ihre Gruppen einzeln und sind mit zwei
+Seeds auf offener Siedlung und Palisade bitgleich geblieben.
+
+Neue Taktik `schlachtordnung` (offene Siedlung): ein Zug für alle Gruppen
+von (4; 10,5) nach (12; 10,5), danach nichts mehr. Zum Vergleich derselbe
+Zug mit dem alten Code, der alle drei Gruppen nebeneinander stellte:
+
+| Aufstellung | Siege | Verlust Stadt | Verlust Feind | Häuser verloren | Dauer |
+|---|---|---|---|---|---|
+| nebeneinander (vorher) | 11/12 | 31 % | 51 % | 2,2 | 62 s |
+| Schlachtordnung (jetzt) | 12/12 | 50 % | 62 % | 3,9 | 73 s |
+
+Mehr Siege, aber teurer: Auf acht Kacheln stehen die 41 Hopliten in der
+Schlachtordnung eine Reihe tief (die Linie ist länger, als sie Männer
+haben), nebeneinander waren es zwei Reihen auf gut vier Kacheln. Die Front
+ist zusammen mit den Reitern kürzer als die gezogene Linie, und die Räuber
+flankieren öfter (in 10 von 12 Läufen). Wer kürzer zieht, bekommt eine
+tiefere Phalanx. Verglichen mit der Taktik `linie` (gleiche Linie, Reiter
+in Reserve: 2 von 12 in Lauf 22) bringt der Reiterflügel viel.
+
 ## Lauf 22 (2. Oktober 2026): Die Schildseite
 
 Der Hoplitenschild sitzt am linken Arm. Eine Gruppe, die mindestens zur
