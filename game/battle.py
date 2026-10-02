@@ -2562,6 +2562,8 @@ class Battle:
                                                 for e in self.lochoi):
                 return ""                         # die Gegner halten nahe am Feind die Ordnung und gehen als Block herum
             why = "eigene"                        # eine ruhende eigene Gruppe steht im Weg (hinter kämpfenden steht man an)
+        if why and self._field_builds.get(self.time, 0) >= self._field_budget():
+            return ""                             # in diesem Takt schon genug Wegefelder gerechnet: einen Takt später auflösen
         if why and not self._way_open(u):
             return ""                             # kein Durchkommen (die eigenen kämpfen im Durchgang): als Block anstehen
         return why
@@ -2866,8 +2868,7 @@ class Battle:
         refresh = config.FIELD_REFRESH * (0.8 + 0.4 * ((u.id * 0.618) % 1.0))   # nicht alle Gruppen im selben Takt
         if cached is not None and cached[0] == key and self.time - cached[1] < refresh:
             return cached[2]
-        budget = 1 if self.ring else config.FIELD_BUDGET       # große Karte: jedes Feld kostet mehr
-        if cached is not None and self._field_builds.get(self.time, 0) >= budget:
+        if cached is not None and self._field_builds.get(self.time, 0) >= self._field_budget():
             return cached[2]                              # genug gerechnet in diesem Takt: das bisherige Feld tut es noch
         self._field_builds = {self.time: self._field_builds.get(self.time, 0) + 1}
         cell = config.FIELD_CELL
@@ -2888,6 +2889,9 @@ class Battle:
         field_ = pathing.Field(self.cols, self.rows, cell, blocked, goals, needed=[m.pos for m in u.all_men()])
         self._fields[u.id] = (key, self.time, field_)
         return field_
+
+    def _field_budget(self) -> int:
+        return 1 if self.ring else config.FIELD_BUDGET     # große Karte: jedes Feld kostet mehr
 
     def _try_remount(self, u: Lochos) -> None:
         """Abgesessene Reiter ohne Gerät steigen bei ihren Pferden wieder auf."""

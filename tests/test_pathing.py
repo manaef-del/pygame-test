@@ -382,3 +382,30 @@ def test_enemies_pass_an_open_gate_man_by_man():
         assert not r.loose
     finally:
         config.LOOSE_AI = config_off
+
+
+def test_dissolving_waits_a_step_when_the_field_budget_is_spent():
+    """Sind in diesem Takt schon genug Wegefelder gerechnet, löst sich eine Gruppe erst
+    im nächsten auf (gegen Ruckeln, wenn viele zugleich ans Tor kommen)."""
+    from game.scenarios import PALISADE
+    b = Battle(PALISADE, random.Random(1))
+    b._ai_raiders = lambda: None
+    b.alarm = False
+    b.gate.hp = 0.0
+    b.gate.closed = False
+    for u in b.units(Side.STADT):
+        u.x, u.y = 14.5, 16.0
+        u.place_men()
+    r = b.units(Side.FEIND)[0]
+    gx, gy = b.gate.center
+    r.x, r.y = gx + 2.0, gy - 2.5
+    r.place_men()
+    r.stance = Stance.RAUB
+    r.target_id = None
+    r.target = (gx, gy + 4.0)
+    b._field_builds = {b.time: b._field_budget()}
+    b._update_loose(r)
+    assert not r.loose
+    b.time += DT
+    b._update_loose(r)
+    assert r.loose and r.loose_why == "tor"
