@@ -1,5 +1,46 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 17 (2. Oktober 2026): Umgehen ohne Zappeln
+
+Ein Block, der außen um etwas herum muss, wählte bisher jeden Takt neu,
+ob links oder rechts herum, und zappelte so auf der Stelle, vor allem
+Angreifer vor zwei eigenen kämpfenden Haufen. Jetzt bleibt er bei der
+einmal gewählten Seite, bis er vorbei ist. Ein Angriff nimmt die Seite,
+auf der am Umriss des Gegners noch Platz ist (kein eigener Mann einer
+anderen Gruppe steht dort); ist nirgends mehr Platz, wartet er geordnet
+dahinter.
+
+Das Zappeln hatte vor allem die Räuber gelähmt. Jetzt kommen sie an die
+Flanken einer kurzen Linie und um sie herum an die Häuser. Zwölf Seeds,
+verglichen mit dem Stand davor (Palisade: Lauf 16):
+
+| Szenario | Taktik | Siege vorher → jetzt | Häuser verloren vorher → jetzt |
+|---|---|---|---|
+| offen | linie | 0/12 → 2/12 | 7,8 → 7,8 |
+| offen | linie_reiter | 9/12 → 8/12 | 5,8 → 4,8 |
+| offen | linie_aktiv | 7/12 → 9/12 | 6,5 → 4,0 |
+| offen | linie_tief | 9/12 → 11/12 | 4,3 → 1,9 |
+| offen | passiv | 2/12 → 9/12 | 7,3 → 6,4 |
+| offen | angriff | 9/12 → 11/12 | 6,6 → 4,6 |
+| palisade | tor_halten | 5/12 → 2/12 | 7,2 → 7,3 |
+| palisade | tor_reserve | 8/12 → 6/12 | 5,5 → 4,8 |
+| palisade | tor_leiter | 10/12 → 11/12 | 2,3 → 1,7 |
+| palisade | passiv | 0/12 → 0/12 | 8,0 → 8,0 |
+| angriff_offen | phalanxstoss | 1/12 → 1/12 | – |
+
+In der offenen Siedlung gewinnt der Spieler meist öfter: Die Räuber
+laufen nicht mehr zappelnd vor der Phalanx hin und her, sondern gehen an
+eine freie Stelle und werden dort geschlagen. An der Palisade gewinnt,
+wer nur das Tor hält, seltener, weil die Räuber drüben seine Phalanx
+umfassen, statt an ihr hängen zu bleiben.
+
+Zwei Abnahmetests haben sich verschoben: Im Test „Phalanx, dann
+Verfolgung“ kommen die Räuber um die kurze Linie herum; der Spieler
+gewinnt weiter, behält aber 5 statt 6 Häuser (8 Seeds im Schnitt 6,1
+statt 7,5), die Grenze steht jetzt bei 5. Im Lerntest stand der
+gesammelte Rest des Spielers ohne Befehl, und die Schlacht endete nicht;
+der Test greift jetzt wie ein Spieler alle 20 Sekunden erneut an.
+
 ## Lauf 16 (1. Oktober 2026): Sammelplatz hinter dem Wall
 
 Wer über den Wall steigt und weiter will, sammelt sich drüben zuerst: am
