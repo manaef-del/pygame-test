@@ -895,6 +895,63 @@ def test_men_in_melee_are_bound_and_the_phalanx_cannot_turn_in_place():
     assert pelt.in_phalanx
 
 
+def test_men_are_bound_by_enemy_men_not_by_the_enemy_rectangle():
+    """Gebunden ist, wer einen feindlichen Mann in Reichweite hat; ein Rechteck, in
+    dem niemand steht, bindet nicht."""
+    b, hop, pelt, raider = melee_pair()
+    for m in hop.bound_men():
+        assert min(dist_of_pt(m.stand, o.pos) for o in raider.all_men()) <= config.MAN_RELEASE_REACH
+    for o in raider.all_men():                            # die Räuber weichen Mann für Mann zurück, das Rechteck bleibt
+        o.y -= 1.5
+    b._move_men(DT)
+    assert not hop.bound_men()
+
+
+def test_jostling_is_only_a_picture():
+    """Im Handgemenge drängen die Männer im Bild an ihren Gegner, die Phalanx hält
+    ihre Reihen; die Schlacht rechnet dasselbe wie ohne das Bild."""
+    def fight(show: bool):
+        b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+        b.command_hold()
+        if not show:
+            b._show = lambda dt: None
+        moved = 0
+        before: dict[int, float] = {}
+        for _ in range(int(25 / DT)):
+            b.update(DT)
+            for u in b.lochoi:
+                for m in u.all_men():
+                    off = (m.show_dx ** 2 + m.show_dy ** 2) ** 0.5
+                    assert off <= config.JOSTLE_MAX + 1e-6
+                    if u.in_phalanx:
+                        assert off <= before.get(id(m), 0.0) + 1e-9     # in der Phalanx drängt keiner vor
+                    moved += off > 0.05
+                    before[id(m)] = off
+        return b, moved
+    shown, moved = fight(True)
+    plain, _ = fight(False)
+    assert moved > 0
+    assert [(m.x, m.y, m.hp) for u in shown.lochoi for m in u.all_men()] == \
+        [(m.x, m.y, m.hp) for u in plain.lochoi for m in u.all_men()]
+
+
+def test_a_felt_hit_flashes_and_the_fallen_leave_a_mark():
+    b, hop, pelt, raider = melee_pair()
+    victim = raider.all_men()[0]
+    victim.flash = 0.0
+    raider.hit_man(victim, 0.1 * victim.kind.hp)          # ein Kratzer blitzt nicht
+    assert victim.flash == 0.0
+    raider.hit_man(victim, 0.3 * victim.kind.hp)          # zusammen ein spürbarer Treffer
+    assert victim.flash > 0.0
+    pos = victim.pos
+    raider.hit_man(victim, victim.hp + 1.0)
+    b.update(DT)
+    assert any(p == pos for p, _ in b.fallen_marks)
+    run(b, config.FALLEN_MARK_TIME + 0.5)
+    assert not any(p == pos for p, _ in b.fallen_marks)
+    assert victim.flash == 0.0 or victim not in raider.all_men()
+
+
 def test_engaged_groups_move_slowly():
     b, hop, pelt, raider = melee_pair()
     y0 = hop.y

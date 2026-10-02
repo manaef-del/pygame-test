@@ -103,7 +103,8 @@ HITRUN_DISTANCE = 3.0        # Kacheln, auf die sich Reiter nach dem Stoß abset
 HITRUN_TIME = 5.0            # Sekunden, längstens
 
 # Handgemenge: Binden und Lösen
-MAN_BIND_REACH = 0.7         # Kacheln zum Gegner, bis zu denen ein Mann im Handgemenge steht
+MAN_BIND_REACH = 0.7         # Kacheln zum nächsten feindlichen Mann, bis zu denen ein Mann im Handgemenge steht
+MAN_RELEASE_REACH = 1.0      # Kacheln: steht kein feindlicher Mann mehr so nah, ist er wieder frei
 ASSAULT_GAP = 0.12           # Kacheln: so dicht legen sich Angreifer um den Umriss des Gegners
 ASSAULT_MANNED = 0.3         # Kacheln: ein Stück Umriss zählt nur, wenn ein feindlicher Mann so nah daran steht
 WING_SAFE = 3.0              # Kacheln: steht ein weiterer Feind so nah, klappen die Flügel der Hopliten nicht ein
@@ -116,6 +117,16 @@ DISENGAGE_DAMAGE = 1.5       # Schaden in dieser Zeit (wie von hinten, ohne Form
 SLOT_TOLERANCE = 0.25        # Kacheln: so nah müssen die Männer an ihren Plätzen stehen, damit die Phalanx steht
 SLOT_SHARE = 0.85            # Anteil der Männer, der dafür auf seinem Platz stehen muss
 BOUND_SHUFFLE = 0.6          # Kacheln: so weit rückt ein gebundener Mann noch auf seinen Platz nach
+
+# Gerangel: nur fürs Bild, die Rechnung bleibt bei den Plätzen der Männer
+JOSTLE_REACH = 1.5           # Kacheln: so weit sucht ein Mann ohne Gegner nach einem freien feindlichen Mann
+JOSTLE_MAX = 1.0             # Kacheln: so weit drängt er höchstens von seiner Stelle weg
+JOSTLE_GAP = 0.35            # Kacheln: auf diese Armlänge tritt er an den Gegner heran
+JOSTLE_PER_FOE = 2           # höchstens so viele drängen auf denselben Gegner
+JOSTLE_SPEED = 1.5           # Kacheln/s: so schnell drängt er vor und zurück
+HIT_FLASH = 0.25             # Sekunden: so lange blitzt ein Getroffener auf
+HIT_FLASH_SHARE = 0.34       # Anteil seiner Lebenskraft, ab dem ein Treffer aufblitzt (der Schaden kommt in kleinen Häppchen)
+FALLEN_MARK_TIME = 2.5       # Sekunden: so lange bleibt ein dunkler Fleck, wo einer fiel
 
 # Männer
 MAN_CATCHUP = 1.6            # Männer holen ihren Platz schneller ein, als die Gruppe läuft
@@ -236,6 +247,8 @@ COLOR_SHIELD = (255, 230, 120)
 COLOR_LEADER = (255, 205, 60)        # Ring um den Anführer
 COLOR_JAVELIN = (245, 220, 170)
 COLOR_BOUND = (255, 120, 60)      # Ring um Männer im Handgemenge
+COLOR_HIT = (255, 250, 235)       # Aufblitzen eines Getroffenen
+COLOR_FALLEN = (70, 30, 25)       # Fleck, wo einer fiel
 COLOR_RAM = (150, 100, 50)
 COLOR_TOWER = (180, 130, 70)
 COLOR_HORSE = (140, 95, 55)

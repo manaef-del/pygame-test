@@ -220,8 +220,8 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   bis drei Sekunden lang langsam. Gegen die Front einer stehenden
   Hoplitenphalanx gibt es keinen Aufprall: Die vordersten Reiter rennen
   in die Speere und fallen, je Speer der vorderen Reihe ein Stück.
-- **Handgemenge bindet:** Jeder Mann, der einen Gegner in Reichweite hat
-  (orangener Ring), steht fest, auch wenn seine Gruppe einen neuen Befehl
+- **Handgemenge bindet:** Jeder Mann, der einen feindlichen Mann in
+  Armreichweite hat (orangener Ring), steht fest, auch wenn seine Gruppe einen neuen Befehl
   bekommt; die anderen formieren sich um ihn herum. Eine vorn gebundene
   Phalanx lässt sich also nicht zur Flanke drehen, und ihr Bonus kehrt
   erst zurück, wenn alle Männer wieder auf ihren Plätzen stehen. Eine
@@ -230,7 +230,16 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   die Gebundenen los, und die Gruppe gilt vier Sekunden lang als von
   hinten angegriffen (anderthalbfacher Schaden, kein Formationsbonus).
   Lösen ist eine Entscheidung mit Preis, auch für die Räuber, die nach
-  einem gescheiterten Angriff zurückweichen.
+  einem gescheiterten Angriff zurückweichen. Weicht sein Gegner weiter
+  als eine Kachel von der Stelle, an der er gebunden wurde, ist er frei.
+- **Gerangel (nur im Bild):** Im Handgemenge treten die Männer sichtbar
+  an ihren Gegner heran; wer in einer kämpfenden Gruppe keinen hat,
+  drängt auf einen freien feindlichen Mann in der Nähe (höchstens zwei
+  auf einen, höchstens eine Kachel von seiner Stelle). Die Phalanx hält
+  ihre Reihen. Ein spürbarer Treffer blitzt kurz hell auf, und wo einer
+  fällt, bleibt für einen Moment ein dunkler Fleck. Gerechnet wird
+  weiter von den Stellen der Männer: Das Gerangel ändert nichts am
+  Ausgang.
 - **Moral, je Gruppe, für beide Seiten:** Verluste drücken die Moral, aus
   Flanke und Rücken stärker, von vorn in der Phalanx schwächer; unter der
   Schwelle flieht die Gruppe. Eine Gruppe aus mittleren Hopliten bricht

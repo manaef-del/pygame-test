@@ -115,6 +115,7 @@ class Battle:
     debris: list[tuple[float, float, float, float]] = field(default_factory=list)  # liegen gelassene Rammböcke
     towers: list[tuple[float, float]] = field(default_factory=list)                # am Wall stehende Türme
     horses: list[tuple[float, float, int]] = field(default_factory=list)           # zurückgelassene Pferde
+    fallen_marks: list[tuple[Point, float]] = field(default_factory=list)          # nur fürs Bild: wo und wann einer fiel
     climb_budget: dict[tuple[int, int], float] = field(default_factory=dict)       # Durchsatz je Leiter/Turm
     _barrier_cache: dict = field(default_factory=dict)
     _man_grid: dict = field(default_factory=dict)      # Männer je Rasterzelle (0,5 Kacheln), je Schritt neu
@@ -1004,6 +1005,67 @@ class Battle:
         self._morale(dt)
         self._check_withdraw()
         self._check_outcome()
+        self._show(dt)
+
+    # -- Bild --------------------------------------------------------------
+    def _show(self, dt: float) -> None:
+        """Nur fürs Bild, die Schlacht rechnet nichts davon: Getroffene blitzen auf,
+        wo einer fiel, bleibt kurz ein Fleck, und im Handgemenge drängen die Männer
+        sichtbar an ihren Gegner (Gerangel). Wer gebunden ist, tritt an seinen
+        Gegner heran; wer in einer kämpfenden Gruppe keinen hat, drängt auf einen
+        freien feindlichen Mann in der Nähe, höchstens zwei auf denselben. Die
+        Phalanx hält ihre Reihen. Wer zuschlägt und wer getroffen wird, rechnet die
+        Schlacht weiter von den Stellen der Männer, nicht von diesem Bild."""
+        for u in self.lochoi:
+            if u.fell_at:
+                self.fallen_marks.extend((p, self.time) for p in u.fell_at)
+                u.fell_at.clear()
+        self.fallen_marks = [(p, t) for p, t in self.fallen_marks if self.time - t < config.FALLEN_MARK_TIME]
+        grid: dict[tuple[int, int], list[tuple[Man, Lochos]]] = {}
+        for u in self.lochoi:
+            if u.alive:
+                for m in u.all_men():
+                    if m.flash > 0.0:
+                        m.flash = max(0.0, m.flash - dt)
+                    grid.setdefault(self._grid_cell(m.x, m.y), []).append((m, u))
+        claims: dict[int, int] = {}
+        step = config.JOSTLE_SPEED * dt
+        reach = config.JOSTLE_REACH
+        r = int(math.ceil(reach * 2))
+        for u in self.lochoi:
+            if not u.alive:
+                continue
+            men = u.all_men()
+            engaged = (u.fighting and not u.in_phalanx
+                       and (u.contacts or any(m.bound for m in men)))
+            for m in sorted(men, key=lambda m: not m.bound) if engaged else men:
+                tx = ty = 0.0
+                if engaged:
+                    cx, cy = self._grid_cell(m.x, m.y)
+                    best, foe = reach, None
+                    for gx in range(cx - r, cx + r + 1):
+                        for gy in range(cy - r, cy + r + 1):
+                            for o, e in grid.get((gx, gy), ()):
+                                if e.side is u.side or claims.get(id(o), 0) >= config.JOSTLE_PER_FOE:
+                                    continue
+                                d = math.hypot(o.x - m.x, o.y - m.y)
+                                if d < best:
+                                    best, foe = d, o
+                    if foe is not None and (not self.blocked or self._wall_level(m.pos) == self._wall_level(foe.pos)):
+                        claims[id(foe)] = claims.get(id(foe), 0) + 1
+                        fx, fy = foe.x + foe.show_dx, foe.y + foe.show_dy
+                        d = math.hypot(fx - m.x, fy - m.y)
+                        if d > config.JOSTLE_GAP:
+                            k = min(d - config.JOSTLE_GAP, config.JOSTLE_MAX) / d
+                            if not self.is_blocked(m.x + (fx - m.x) * k, m.y + (fy - m.y) * k):
+                                tx, ty = (fx - m.x) * k, (fy - m.y) * k
+                ddx, ddy = tx - m.show_dx, ty - m.show_dy
+                d = math.hypot(ddx, ddy)
+                if d <= step:
+                    m.show_dx, m.show_dy = tx, ty
+                else:
+                    m.show_dx += ddx * step / d
+                    m.show_dy += ddy * step / d
 
     # -- KI ----------------------------------------------------------------
     def _ai_raiders(self) -> None:
@@ -2009,22 +2071,26 @@ class Battle:
         u.x, u.y = self._loose_centre(u)
 
     def _bind_men(self, u: Lochos) -> None:
-        """Wer einen Gegner in Reichweite hat, steht im Handgemenge fest. Zieht die
-        Gruppe weiter als die Leine, reißt er sich los, und die Gruppe ist eine
-        Weile verwundbar (Lösen kostet)."""
+        """Wer einen feindlichen Mann in Reichweite hat, steht im Handgemenge fest
+        (nicht schon, wer nur dem Rechteck des Gegners nahe ist: dort steht vielleicht
+        niemand). Zieht die Gruppe weiter als die Leine, reißt er sich los, und die
+        Gruppe ist eine Weile verwundbar (Lösen kostet)."""
         up = self.on_wall(u)
         foes = [e for e in self.lochoi if e.side is not u.side and e.fighting and self.on_wall(e) == up
-                and dist(e.pos, u.pos) <= e.radius + u.radius + config.MAN_BIND_REACH + 1.0]
+                and dist(e.pos, u.pos) <= e.radius + u.radius + config.MAN_RELEASE_REACH + 1.0]
         if not foes or u.stance is Stance.FLUCHT:
             for m in u.all_men():
                 m.bound = False
             return
         released = False
+        foe_ids = {e.id for e in foes}
         slot_of = {id(m): p for m, p in (self._dest_slots(u) if u.loose else u.slots())}
         for m in u.all_men():
-            nearest = min(e.surface_distance(m.pos) for e in foes)
+            # gemessen von der Stelle, an der er gebunden wurde: wer nur nachrückt, läuft nicht davon
+            nearest, _ = self._nearest_foe_man(m.stand if m.bound and m.stand else m.pos, foe_ids,
+                                               config.MAN_RELEASE_REACH)
             if m.bound:
-                if nearest > 2 * config.MAN_BIND_REACH:
+                if nearest > config.MAN_RELEASE_REACH:
                     m.bound = False               # der Gegner ist weg
                     m.anchor = None
                 elif m.anchor is not None and dist(u.pos, m.anchor) > config.BOUND_LEASH:
@@ -2040,6 +2106,20 @@ class Battle:
             mounted = u.mounted_men()
             span = config.DISENGAGE_TIME_MOUNTED if len(mounted) >= u.men / 2 else config.DISENGAGE_TIME
             u.disengage_until = max(u.disengage_until, self.time + span)
+
+    def _nearest_foe_man(self, p: Point, foe_ids: set[int], reach: float) -> tuple[float, Man | None]:
+        """Der nächste Mann der Gruppen ``foe_ids`` bis ``reach`` um ``p`` (sonst unendlich, None)."""
+        cx, cy = self._grid_cell(*p)
+        r = int(math.ceil(reach * 2))
+        best, best_m = math.inf, None
+        for gx in range(cx - r, cx + r + 1):
+            for gy in range(cy - r, cy + r + 1):
+                for o, uid in self._man_grid.get((gx, gy), ()):
+                    if uid in foe_ids:
+                        d = math.hypot(o.x - p[0], o.y - p[1])
+                        if d < best:
+                            best, best_m = d, o
+        return (best, best_m) if best <= reach else (math.inf, None)
 
     def _queue_spot(self, goal: Point, man: Man, i: int) -> Point:
         """Führt der Weg an eine besetzte Leiter, stellt sich der Mann davor an,

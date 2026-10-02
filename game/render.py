@@ -21,6 +21,11 @@ def px(p: tuple[float, float]) -> tuple[int, int]:
     return (int(round(p[0] * T)), int(round(p[1] * T)))
 
 
+def shown(man) -> tuple[int, int]:
+    """Wo ein Mann gezeichnet wird: an seiner Stelle, im Gerangel zum Gegner hin verschoben."""
+    return px((man.x + man.show_dx, man.y + man.show_dy))
+
+
 def desaturate(color: tuple[int, int, int], amount: float) -> tuple[int, int, int]:
     """Farbe Richtung Grau mischen (0 = unverändert, 1 = grau)."""
     grey = int(0.299 * color[0] + 0.587 * color[1] + 0.114 * color[2])
@@ -65,6 +70,8 @@ class Renderer:
         s.fill(config.COLOR_BG)
         self._draw_ground(battle)
         self._draw_houses(battle)
+        for p, _ in battle.fallen_marks:                   # wo eben einer fiel
+            pygame.draw.circle(s, config.COLOR_FALLEN, px(p), 3)
         frames = paused or drag is not None               # Formationsrechtecke nur in der Pause und beim Aufziehen
         for u in sorted(battle.lochoi, key=lambda u: u.y):
             if u.alive:
@@ -224,7 +231,7 @@ class Renderer:
             # aufgelöst, oder Rechtecke ausgeblendet: nur die Männer (Auswahl als Ringe)
             if selected:
                 for man in u.all_men():
-                    pygame.draw.circle(s, config.COLOR_SELECT, px(man.pos), 6, 1)
+                    pygame.draw.circle(s, config.COLOR_SELECT, shown(man), 6, 1)
         elif u.formation == "o":
             pygame.draw.circle(s, config.COLOR_SELECT if selected else ring, (cx, cy), int(u.half_w * T), 3 if selected else 1)
         elif u.formation == "keil":
@@ -245,7 +252,9 @@ class Renderer:
                     color = tuple(c // 2 for c in color)
                 if u.stance is Stance.FLUCHT:
                     color = tuple(c * 2 // 3 for c in color)
-                mx, my = px(man.pos)
+                if man.flash > 0.0:                      # eben getroffen: blitzt hell auf
+                    color = config.COLOR_HIT
+                mx, my = shown(man)
                 if man.leader:                           # der Anführer: größer, goldener Ring
                     pygame.draw.circle(s, color, (mx, my), 4)
                     pygame.draw.circle(s, config.COLOR_LEADER, (mx, my), 5, 2)

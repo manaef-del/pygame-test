@@ -87,6 +87,10 @@ class Man:
     wp_until: float = -1.0                      # bis dahin gilt der Wegpunkt
     stall: float = 0.0                          # Sekunden, die er auf seinem Weg nicht vorankommt
     leader: bool = False  # der Anführer: kämpft mit, hält viel mehr aus
+    show_dx: float = 0.0  # nur fürs Bild: so weit drängt er gerade von seiner Stelle zum Gegner (Gerangel)
+    show_dy: float = 0.0
+    flash: float = 0.0    # nur fürs Bild: so lange (Sekunden) blitzt er nach einem Treffer noch auf
+    hurt: float = 0.0     # nur fürs Bild: Schaden seit dem letzten Aufblitzen
 
     def __post_init__(self) -> None:
         if self.hp == 0.0:
@@ -111,6 +115,13 @@ class Man:
         if self.kind.cavalry and not self.mounted:
             return config.DISMOUNTED_ATTACK
         return self.kind.attack
+
+    def felt(self, dmg: float) -> None:
+        """Nur fürs Bild: hat sich ein spürbarer Treffer angesammelt, blitzt er auf."""
+        self.hurt += dmg
+        if self.hurt >= config.HIT_FLASH_SHARE * self.kind.hp:
+            self.hurt = 0.0
+            self.flash = config.HIT_FLASH
 
     @property
     def wounded(self) -> bool:
@@ -175,6 +186,7 @@ class Lochos:
     engaged: bool = False             # in diesem Schritt im Nahkampf
     contacts: list[int] = field(default_factory=list)   # Gegner, mit denen gekämpft wird (ids)
     contact_since: dict[int, float] = field(default_factory=dict)   # seit wann (Schlachtzeit) je Gegner-id
+    fell_at: list = field(default_factory=list)   # nur fürs Bild: wo seit dem letzten Takt Männer gefallen sind
     assault_slots: list = field(default_factory=list)   # zuletzt zugewiesene Plätze am feindlichen Umriss (Weltkoordinaten)
     still_since: float = 0.0          # seit wann die Gruppe steht (wer später kam, weicht beim Auseinanderrücken)
     waiting: bool = False             # steht hinter einer eigenen Gruppe an, die kämpft oder steht
@@ -614,13 +626,16 @@ class Lochos:
             q = min(config.DAMAGE_QUANTUM, dmg)
             a = living[pick(len(living))]
             c = living[pick(len(living))]
-            (a if a.hp <= c.hp else c).hp -= q
+            hit = a if a.hp <= c.hp else c
+            hit.hp -= q
+            hit.felt(q)
             dmg -= q
         return self.bury()
 
     def hit_man(self, man: Man, dmg: float) -> int:
         """Ein bestimmter Mann wird getroffen (Speer); liefert 1, wenn er fällt."""
         man.hp -= dmg
+        man.felt(dmg)
         return self.bury()
 
     def bury(self) -> int:
@@ -632,6 +647,7 @@ class Lochos:
         for row in self.rows:                                # erst alle Gefallenen heraus ...
             gaps = [j for j, m in enumerate(row) if m.hp <= HP_EPS]
             fallen += len(gaps)
+            self.fell_at.extend(row[j].pos for j in gaps)
             row[:] = [m for m in row if m.hp > HP_EPS]
             gaps_per_row.append(gaps)
         for i, gaps in enumerate(gaps_per_row):              # ... dann an derselben Stelle nachrücken
