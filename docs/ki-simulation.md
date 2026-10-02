@@ -1,5 +1,46 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 18 (2. Oktober 2026): Handgemenge an feindlichen Männern, Gerangel im Bild
+
+Gebunden war bisher, wer dem Formationsrechteck eines Gegners näher als
+0,7 Kacheln stand, auch wenn dort gerade niemand stand (beim Schwenken,
+bei Nachzüglern, am Wall). Jetzt bindet nur ein feindlicher Mann in
+Armreichweite; frei wird man, wenn kein Gegner mehr innerhalb einer Kachel
+von der Stelle steht, an der man gebunden wurde (von dort gemessen, damit
+Nachrücken nicht umsonst löst). Gebundene ohne sichtbaren Feind in der
+Nähe (0,8 Kacheln): offene Siedlung 8 % → 3 %, Palisade 13 % → 2 %.
+
+Dazu, nur im Bild: Im Handgemenge treten die Männer an ihren Gegner
+heran, Männer ohne Gegner drängen auf einen freien Feind in der Nähe
+(die Phalanx nicht), spürbare Treffer blitzen auf, Gefallene hinterlassen
+kurz einen Fleck. Mit und ohne dieses Bild rechnet die Schlacht genau
+dasselbe (geprüft, auch als Test). Kosten 0,3 bis 0,6 ms je Takt.
+
+Zwölf Seeds, verglichen mit Lauf 17 (die Änderung am Binden wirkt sich aus):
+
+| Szenario | Taktik | Siege 17 → 18 | Häuser verloren 17 → 18 |
+|---|---|---|---|
+| offen | linie | 2/12 → 4/12 | 7,8 → 7,5 |
+| offen | linie_reiter | 8/12 → 7/12 | 4,8 → 4,5 |
+| offen | linie_aktiv | 9/12 → 8/12 | 4,0 → 5,6 |
+| offen | linie_tief | 11/12 → 11/12 | 1,9 → 2,4 |
+| offen | passiv | 9/12 → 4/12 | 6,4 → 6,8 |
+| offen | angriff | 11/12 → 12/12 | 4,6 → 4,5 |
+| palisade | tor_halten | 2/12 → 6/12 | 7,3 → 6,9 |
+| palisade | tor_reserve | 6/12 → 11/12 | 4,8 → 2,1 |
+| palisade | tor_leiter | 11/12 → 12/12 | 1,7 → 0,6 |
+| palisade | passiv | 0/12 → 2/12 | 8,0 → 7,5 |
+| angriff_offen | phalanxstoss | 1/12 → 1/12 | – |
+| angriff_offen | vorruecken | – → 0/12 | – |
+| angriff_offen | angriff | – → 0/12 | – |
+
+An der Palisade halten die Verteidiger deutlich besser: Wer über den Wall
+kommt und auf die Phalanx trifft, bleibt nicht mehr an deren Rechteck
+gebunden stehen, wenn dort niemand ist, sondern nur an Männern; die
+Räuber verzetteln sich weniger, die Phalanx aber hält. Wer in der offenen
+Siedlung passiv stehen bleibt, gewinnt wieder seltener (Lauf 17 hatte ihn
+stark verbessert, jetzt liegt er zwischen Lauf 16 und 17).
+
 ## Lauf 17 (2. Oktober 2026): Umgehen ohne Zappeln
 
 Ein Block, der außen um etwas herum muss, wählte bisher jeden Takt neu,
