@@ -463,51 +463,71 @@ class Brain:
 
     # -- Kreis gegen Reiter --------------------------------------------------
     def _brace(self, b: "Battle") -> None:
-        """Gegenmittel gegen Reiter, die auf eine Hoplitengruppe zukommen, nicht auf ihre Front:
-        Eine Phalanx ohne Fußvolk vor sich dreht die Front zu ihnen (schnell, die Ordnung
-        bleibt). Geht das nicht (Fußvolk vorn, Reiter von zwei Seiten, keine Phalanx),
-        bildet sie einen Kreis: rundum Speere. Sind die Reiter eine Weile fort, geht der
-        Kreis zurück in die Linie mit der alten Front."""
+        """Gegenmittel der Hopliten. Gegen Reiter, die auf sie zukommen, nicht auf ihre
+        Front: Eine Phalanx ohne Fußvolk vor sich dreht die Front zu ihnen (schnell, die
+        Ordnung bleibt), und die Reiter rennen in die Speere. Den Kreis bildet eine Gruppe
+        nur als Verzweiflungstat: klar in Unterzahl und von Feinden umzingelt, gleich
+        welcher Gattung. Ist sie das eine Weile nicht mehr, geht der Kreis zurück in die
+        Linie mit der alten Front."""
         if not config.AI_BRACE and not self.braced:
             return
-        foes = b.units(Side.STADT, fighting_only=True)
-        riders = [f for f in foes if config.AI_BRACE and f.stance is not Stance.FLUCHT and not b.on_wall(f)
+        foes = [f for f in b.units(Side.STADT, fighting_only=True) if not b.on_wall(f)]
+        riders = [f for f in foes if config.AI_BRACE and f.stance is not Stance.FLUCHT
                   and len(f.mounted_men()) * 2 >= f.men > 0]
-        foot = [f for f in foes if f not in riders and not b.on_wall(f)]
-        for u in b.units(Side.FEIND, fighting_only=True):
+        foot = [f for f in foes if f not in riders]
+        own = b.units(Side.FEIND, fighting_only=True)
+        for u in own:
             held = self.braced.get(u.id)
             if not self._can_brace(b, u):
                 if held is not None:
                     self._unbrace(b, u)
                 continue
+            desperate = config.AI_BRACE and self._desperate(b, u, foes, own)
             if held is not None:
-                if any(self._rides_at(f, u) for f in riders):
-                    held[0] = b.time                      # wer nur in der Nähe parkt, hält den Kreis nicht fest
+                if desperate:
+                    held[0] = b.time
                 elif b.time - held[0] >= config.AI_BRACE_HOLD:
                     self._unbrace(b, u)
                     continue
                 self._hold_ring(b, u, held)
                 continue
-            if u.engaged:
-                continue                                  # mitten im Handgemenge stellt sich niemand um
-            danger = [f for f in riders if self._rides_at(f, u)
-                      and (not formed(u) or b.arc_of(u, f.pos) != "front")]
+            if desperate:
+                held = self.braced[u.id] = [b.time, u.facing, b._free_spot(u.pos, u)]
+                self._hold_ring(b, u, held)
+                b.events.append(f"{u.name} ({u.side.value}) sind umzingelt und bilden einen Kreis")
+                continue
+            if u.engaged or not formed(u):
+                continue                                  # mitten im Handgemenge oder ungeordnet: kein Schwenk
+            danger = [f for f in riders if self._rides_at(f, u) and b.arc_of(u, f.pos) != "front"]
             if not danger:
                 continue
             first = min(danger, key=lambda f: f.rect_distance(u.pos))
             to_rider = norm(sub(first.pos, u.pos))
             pinned = any(f.rect_distance(u.pos) <= config.AI_BRACE_PINNED and b.arc_of(u, f.pos) == "front"
                          for f in foot)
-            apart = any(to_rider[0] * d[0] + to_rider[1] * d[1] < 0.0
-                        for d in (norm(sub(f.pos, u.pos)) for f in riders if self._rides_at(f, u)))
-            if formed(u) and not pinned and not apart:
-                if u.face_to is None or u.face_to[0] * to_rider[0] + u.face_to[1] * to_rider[1] < 0.95:
-                    u.face_to = to_rider                  # die Front zu den Reitern: sie rennen in die Speere
-                    b.events.append(f"{u.name} ({u.side.value}) drehen die Front gegen die Reiter")
-                continue
-            held = self.braced[u.id] = [b.time, u.facing, b._free_spot(u.pos, u)]
-            self._hold_ring(b, u, held)
-            b.events.append(f"{u.name} ({u.side.value}) bilden einen Kreis gegen die Reiter")
+            if pinned:
+                continue                                  # wer vorn Fußvolk hat, dreht ihm nicht den Rücken zu
+            if u.face_to is None or u.face_to[0] * to_rider[0] + u.face_to[1] * to_rider[1] < 0.95:
+                u.face_to = to_rider                      # die Front zu den Reitern: sie rennen in die Speere
+                b.events.append(f"{u.name} ({u.side.value}) drehen die Front gegen die Reiter")
+
+    @staticmethod
+    def _desperate(b: "Battle", u: Lochos, foes: list[Lochos], own: list[Lochos]) -> bool:
+        """Klar in Unterzahl (nahe Feinde gegen die eigenen in der Nähe) und umzingelt:
+        Feinde auf mindestens drei Seiten, oder vorn und hinten zugleich."""
+        reach = config.AI_RING_RANGE
+        near = [f for f in foes if u.rect_distance(f.pos) <= reach]
+        if not near:
+            return False
+        friends = sum(o.men for o in own if o is u or u.rect_distance(o.pos) <= reach)
+        if sum(f.men for f in near) < config.AI_RING_ODDS * friends:
+            return False
+        sides = set()
+        for f in near:
+            along, forward = u.local(f.pos)
+            sides.add(("vorn" if forward > 0 else "hinten") if abs(forward) >= abs(along)
+                      else ("rechts" if along > 0 else "links"))
+        return len(sides) >= 3 or {"vorn", "hinten"} <= sides
 
     @staticmethod
     def _rides_at(f: Lochos, u: Lochos) -> bool:

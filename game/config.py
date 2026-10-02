@@ -230,11 +230,13 @@ AI_MEMORY_MAX = 1.5
 AI_MEMORY_FILE = "~/.apoikia_ki.json"
 # Gegenmittel der KI
 AI_FLANK_THROW = True        # Peltasten der KI plänkeln von der schildlosen rechten Seite einer Phalanx
-AI_BRACE = True              # Hopliten der KI drehen die Front zu Reitern oder bilden einen Kreis
+AI_BRACE = True              # Hopliten der KI drehen die Front zu Reitern; umzingelt in Unterzahl: Kreis
 AI_BRACE_RANGE = 8.0         # Kacheln: Reiter, die so nah auf Hopliten zukommen (nicht auf die Front), lösen Gegenmittel aus
 AI_BRACE_CLOSE = 3.0         # Kacheln: so nahe Reiter gelten immer als Gefahr
-AI_BRACE_PINNED = 3.0        # Kacheln: feindliches Fußvolk so nah vor der Front: nicht drehen, sondern Kreis
-AI_BRACE_HOLD = 2.0          # Sekunden ohne Reiter, die nah sind oder heranreiten: der Kreis geht zurück in die Linie
+AI_BRACE_PINNED = 3.0        # Kacheln: feindliches Fußvolk so nah vor der Front: nicht zu Reitern drehen
+AI_RING_RANGE = 3.0          # Kacheln: Feinde so nah zählen für die Verzweiflung (Unterzahl, umzingelt)
+AI_RING_ODDS = 1.5           # so vielfach in Unterzahl (Nachbarn zählen mit), dazu umzingelt: Kreis
+AI_BRACE_HOLD = 2.0          # Sekunden nicht mehr umzingelt in Unterzahl: der Kreis geht zurück in die Linie
 AI_BRACE_MIN_MEN = 8         # kleinere Gruppen bilden keinen Kreis
 AI_RESERVE = True            # die KI hält eine Gruppe als Reserve zurück
 AI_RESERVE_MIN_GROUPS = 3    # ab so vielen Gruppen hält die KI eine zurück

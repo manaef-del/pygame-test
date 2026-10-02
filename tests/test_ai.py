@@ -539,21 +539,53 @@ def test_ai_phalanx_turns_its_front_to_cavalry_from_behind():
     assert eh.men == 41 and cav.men < 20
 
 
-def test_pinned_ai_phalanx_forms_a_ring_against_cavalry_and_reforms_after():
+def test_pinned_ai_phalanx_neither_turns_nor_forms_a_ring():
+    """Fußvolk vorn, Reiter hinten, aber nicht klar in Unterzahl: die Front bleibt, kein Kreis."""
     b, hop, cav, eh = cavalry_behind_settlement(pin=True)
-    facing = eh.facing
     b.command_attack_target([cav], eh)
-    formed_before_contact = None
-    for _ in range(int(12 / DT)):
-        b.update(DT)
-        if formed_before_contact is None and cav.rect_distance(eh.pos) < 0.8:
-            formed_before_contact = eh.formation == "o" and eh.in_phalanx
-    assert formed_before_contact                                  # der Kreis steht, bevor die Reiter ankommen
-    assert any("rennen in die Speere" in e for e in b.events)
-    assert eh.men == 41
-    b.command_move([cav], (15.0, 17.0))
-    run(b, 8)
-    assert eh.formation == "linie"                                # Reiter fort: zurück in die Linie
+    run(b, 6)
+    assert eh.formation == "linie"
+    assert not any("drehen die Front gegen" in e or "Kreis" in e for e in b.events)
+
+
+def surround(b, eh, placements):
+    """Spielergruppen an feste Plätze um die Siedlungsphalanx (ruhend), die Peltasten der Siedlung weit weg."""
+    ep = {u.name: u for u in b.units(Side.FEIND)}["Peltasten"]
+    ep.x, ep.y = 1.5, 0.8
+    ep.place_men()
+    for u, (x, y) in placements:
+        u.x, u.y = x, y
+        u.place_men()
+        b.command_move([u], (x, y))
+    b.alarm = False
+
+
+def test_ring_only_when_outnumbered_and_surrounded():
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    hop, pelt, cav = b.units(Side.STADT)
+    eh = {u.name: u for u in b.units(Side.FEIND)}["Hopliten"]   # 41 Mann bei (8; 5,5), Front nach Süden
+    own = b.units(Side.FEIND, fighting_only=True)
+    foes = b.units(Side.STADT, fighting_only=True)
+    surround(b, eh, [(hop, (8.0, 8.0)), (cav, (8.0, 3.2)), (pelt, (11.5, 5.5))])
+    assert b.brain._desperate(b, eh, foes, own)                  # vorn, hinten, rechts; 76 gegen 41
+    surround(b, eh, [(hop, (8.0, 8.0)), (cav, (14.0, 15.0)), (pelt, (11.5, 5.5))])
+    assert not b.brain._desperate(b, eh, foes, own)              # nur zwei Seiten, 56 gegen 41
+    surround(b, eh, [(hop, (6.0, 8.0)), (cav, (10.5, 8.5)), (pelt, (8.0, 8.8))])
+    assert not b.brain._desperate(b, eh, foes, own)              # Übermacht, aber alle vorn
+
+
+def test_surrounded_ai_phalanx_forms_a_ring_and_reforms_after():
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    hop, pelt, cav = b.units(Side.STADT)
+    eh = {u.name: u for u in b.units(Side.FEIND)}["Hopliten"]
+    facing = eh.facing
+    surround(b, eh, [(hop, (8.0, 8.0)), (cav, (8.0, 3.2)), (pelt, (11.5, 5.5))])
+    run(b, 1)
+    assert eh.formation == "o"
+    assert any("umzingelt und bilden einen Kreis" in e for e in b.events)
+    b.command_move([hop, pelt, cav], (8.0, 16.0))
+    run(b, 10)
+    assert eh.formation == "linie"                                # nicht mehr umzingelt: zurück in die Linie
     assert eh.facing[0] * facing[0] + eh.facing[1] * facing[1] > 0.9
 
 
@@ -564,25 +596,13 @@ def test_cavalry_at_the_front_needs_no_counter():
     b.command_attack_target([cav], eh)
     run(b, 4)
     assert eh.formation == "linie"
-    assert not any("Kreis gegen die Reiter" in e or "drehen die Front gegen" in e for e in b.events)
+    assert not any("Kreis" in e or "drehen die Front gegen" in e for e in b.events)
 
 
 def test_raiders_do_not_form_rings():
     """Räuber haben keine Schilde und Speere: ein Kreis hält Reiter nicht auf."""
     b = Battle(raid(16, (8.0, 3.0)), random.Random(0), army=line_army())
     assert not any(b.brain._can_brace(b, u) for u in b.units(Side.FEIND))
-
-
-def test_parked_cavalry_does_not_hold_the_ring_forever():
-    b, hop, cav, eh = cavalry_behind_settlement(pin=True)
-    b.command_attack_target([cav], eh)
-    while eh.formation != "o" and b.time < 20:
-        b.update(DT)
-    assert eh.formation == "o"
-    b.command_move([cav], (13.0, 0.8))                            # zurück, und dort stehen bleiben
-    run(b, 10)
-    assert cav.rect_distance(eh.pos) > config.AI_BRACE_CLOSE
-    assert eh.formation == "linie"
 
 
 # ------------------------------------------------------------------- Reserve
