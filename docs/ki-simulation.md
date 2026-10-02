@@ -1,5 +1,31 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 24b (2. Oktober 2026): Kreis nur als Verzweiflungstat
+
+Auf Wunsch bildet die KI den Kreis nicht mehr gegen Reiter, sondern nur noch,
+wenn eine Hoplitengruppe klar in Unterzahl ist (im Umkreis von drei Kacheln
+anderthalbmal so viele Feinde wie eigene Leute, Nachbarn zählen mit) und
+umzingelt (Feinde auf drei Seiten, oder vorn und hinten). Gegen Reiter dreht
+sie weiterhin die Front, wenn vorn kein Fußvolk steht. Räuber sind davon
+nicht betroffen; neu gemessen wurden die Szenarien mit Hopliten auf der
+Gegnerseite (zwölf Seeds, Festung im Angriff acht):
+
+| Szenario | Taktik | Siege Lauf 22 → 24 → jetzt | Häuser verloren 22 → 24 → jetzt |
+|---|---|---|---|
+| festung | tore | 4/12 → 2/12 → 4/12 | 2,3 → 4,0 → 2,3 |
+| festung | passiv | 0/12 → 0/12 → 1/12 | 3,4 → 4,1 → 3,1 |
+| festung_angriff | rammbock | 8/8 → 0/8 → 8/8 | – |
+| festung_angriff | turm | 0/8 → 0/8 → 0/8 | – |
+| angriff_offen | phalanxstoss | 0/12 → 0/12 → 1/12 | – |
+| angriff_offen | vorruecken, angriff | 0/12 → 0/12 → 0/12 | – |
+| angriff_wall | beide | 0/12 → 0/12 → 0/12 | – |
+
+Die Festung im Angriff ist damit wieder so leicht wie vorher. In je drei
+Läufen dieser Taktiken (Festung tore, Festung im Angriff rammbock, Siedlung
+phalanxstoss) kam weder ein Kreis noch ein Drehen gegen Reiter vor: Beides
+ist in den gespielten Lagen selten, die Taktiken des Simulators umzingeln
+nicht und reiten selten in eine freie Flanke.
+
 ## Lauf 24 (2. Oktober 2026): Klügere Gegner-KI
 
 Drei Gegenmittel (README, „Gegenmittel der KI“): Reserve (Räuber, Horde,

@@ -442,13 +442,16 @@ still oder folgen der Linie, die Räuber-Peltasten gehen in den Nahkampf.
   eine eigene Reserve: Phalanxen an ruhigen Toren gehen an bedrohte
   Stellen.
 - **Gegen Reiter:** Reiten Reiter auf eine Hoplitengruppe der KI zu, und
-  nicht auf ihre Front, dreht eine Phalanx ohne Fußvolk vor sich die Front
-  zu ihnen, und die Reiter rennen in die Speere. Geht das nicht, bildet sie
-  früh einen Kreis. Das ist der Fall, wenn vorn feindliches Fußvolk steht,
-  Reiter von zwei Seiten kommen oder die Gruppe nicht in Phalanx steht.
-  Reitet niemand mehr heran, kehrt sie in die Linie mit der alten Front
-  zurück. Räuber haben weder Schild noch Speer, ein Kreis hilft ihnen
-  nicht.
+  nicht auf ihre Front, dreht eine Phalanx die Front zu ihnen, und die
+  Reiter rennen in die Speere. Steht vorn feindliches Fußvolk, bleibt die
+  Front, wo sie ist.
+- **Kreis als Verzweiflungstat:** Den Kreis bildet eine Hoplitengruppe der
+  KI nur, wenn sie klar in Unterzahl und umzingelt ist, gleich gegen welche
+  Gattung. Unterzahl heißt: Im Umkreis von drei Kacheln stehen
+  anderthalbmal so viele Feinde wie eigene Leute, Nachbarn zählen mit.
+  Umzingelt heißt: Feinde auf drei Seiten, oder vorn und hinten zugleich.
+  Ist das zwei Sekunden lang vorbei, kehrt sie in die Linie zurück. Räuber
+  haben weder Schild noch Speer, ein Kreis hilft ihnen nicht.
 - **Peltasten an die schildlose Seite:** Plänkelnde Peltasten der KI
   gehen gegen eine Hoplitenphalanx erst im Wurfabstand an ihr entlang
   an die rechte Flanke und werfen von dort (Speere 1,15-fach statt
