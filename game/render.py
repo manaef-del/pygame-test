@@ -217,24 +217,48 @@ class Renderer:
                 units = [u for u in units if u.formation != "o"]
                 if not units:
                     return
-        for plan in battle.plan_line(units, start, end):
+        plans = battle.plan_line(units, start, end)
+        boxes = []                                         # Blöcke als Bildschirmrechtecke: dort keine Schrift
+        for plan in plans:
             fx, fy = plan.facing
             ax, ay = -fy, fx   # entlang der Linie
             half_w = plan.width * MAN_SPACING / 2
-            depth = plan.depth * ROW_SPACING
-            cx, cy = plan.center
+            half_d = plan.depth * ROW_SPACING / 2
+            cx, cy = plan.center                           # die Mitte des Blocks, wie er stehen wird
             corners = [
-                (cx + ax * half_w, cy + ay * half_w),
-                (cx - ax * half_w, cy - ay * half_w),
-                (cx - ax * half_w - fx * depth, cy - ay * half_w - fy * depth),
-                (cx + ax * half_w - fx * depth, cy + ay * half_w - fy * depth),
+                (cx + ax * half_w + fx * half_d, cy + ay * half_w + fy * half_d),
+                (cx - ax * half_w + fx * half_d, cy - ay * half_w + fy * half_d),
+                (cx - ax * half_w - fx * half_d, cy - ay * half_w - fy * half_d),
+                (cx + ax * half_w - fx * half_d, cy + ay * half_w - fy * half_d),
             ]
-            pygame.draw.polygon(s, config.COLOR_RECT, [px(c) for c in corners], 1)
-            tip = px((cx + fx * 0.45, cy + fy * 0.45))
-            pygame.draw.line(s, config.COLOR_SHIELD, px((cx, cy)), tip, 2)
+            pts = [px(c) for c in corners]
+            pygame.draw.polygon(s, config.COLOR_RECT, pts, 1)
+            xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+            boxes.append(pygame.Rect(min(xs), min(ys), max(xs) - min(xs) + 1, max(ys) - min(ys) + 1))
+            fx0, fy0 = cx + fx * half_d, cy + fy * half_d
+            tip = px((fx0 + fx * 0.45, fy0 + fy * 0.45))
+            pygame.draw.line(s, config.COLOR_SHIELD, px((fx0, fy0)), tip, 2)
+        taken = list(boxes)
+        for plan in plans:
+            # Beschriftung hinter den Block, sonst daneben oder davor; wo alles belegt ist, keine
+            fx, fy = plan.facing
+            half_w = plan.width * MAN_SPACING / 2
+            half_d = plan.depth * ROW_SPACING / 2
+            cx, cy = plan.center
             label = self.small.render(f"{plan.width} breit, {plan.depth} tief", True, config.COLOR_RECT)
-            lx, ly = px((cx - fx * (depth + 0.35), cy - fy * (depth + 0.35)))
-            s.blit(label, label.get_rect(center=(lx, ly)))
+            spots = [(-fx * (half_d + 0.35), -fy * (half_d + 0.35)),          # hinten
+                     (fy * (half_w + 0.3), -fx * (half_w + 0.3)),             # links
+                     (-fy * (half_w + 0.3), fx * (half_w + 0.3)),             # rechts
+                     (fx * (half_d + 0.75), fy * (half_d + 0.75))]            # vorn
+            for dx, dy in spots:
+                rect = label.get_rect(center=px((cx + dx, cy + dy)))
+                if abs(dx * fy - dy * fx) > 1e-6:          # daneben: Schrift beginnt am Block statt mittig
+                    rect = label.get_rect(midleft=rect.center) if rect.centerx > px((cx, cy))[0] else \
+                        label.get_rect(midright=rect.center)
+                if rect.collidelist(taken) < 0:
+                    s.blit(label, rect)
+                    taken.append(rect)
+                    break
 
     def _draw_ground(self, battle: Battle) -> None:
         s = self.surface

@@ -1662,13 +1662,26 @@ class Battle:
         u.face_to = (float(-dx), float(-dy))
 
     def plan_line(self, units: list[Lochos] | None, start: Point, end: Point) -> list[LinePlan]:
+        """Aufstellung entlang einer gezogenen Linie. Gruppen einer Gattung stehen
+        nebeneinander; gemischt gilt die Schlachtordnung (``_battle_order``)."""
         sel = self._selection(units)
-        if not sel:
+        if not sel or dist(start, end) < 0.3:
             return []
+        if self.in_battle_order(sel):
+            return self._battle_order(sel, start, end)
+        return self._plan_row(sel, start, end)
+
+    @staticmethod
+    def in_battle_order(sel: list[Lochos]) -> bool:
+        """Gemischte Gattungen (mit Fußvolk) stellen sich in Schlachtordnung auf."""
+        arms = {u.arm() for u in sel}
+        return len(arms) > 1 and arms != {"reiter"}
+
+    def _plan_row(self, sel: list[Lochos], start: Point, end: Point) -> list[LinePlan]:
+        """Die Gruppen teilen sich die Linie nach ihrer Mannzahl, von links nach rechts
+        so, wie sie gerade stehen; die Länge bestimmt die Breite."""
         d = sub(end, start)
         length = dist(start, end)
-        if length < 0.3:
-            return []
         axis = norm(d)
         facing = (axis[1], -axis[0])
         total_men = sum(u.men for u in sel)
@@ -1684,6 +1697,52 @@ class Battle:
             center = add(start, scale(axis, pos + seg / 2))
             plans.append(LinePlan(u.id, self._free_spot(center, u), facing, width, depth, seg))
             pos += seg + gap
+        return plans
+
+    def _battle_order(self, sel: list[Lochos], start: Point, end: Point) -> list[LinePlan]:
+        """Schlachtordnung für gemischte Gruppen: Hopliten vorn auf der Linie, die
+        Peltasten als zweites Treffen dicht dahinter (sie werfen über die Köpfe), die
+        Reiter an den Flügeln, zuerst rechts, an der schildlosen Seite der Phalanx.
+        Ohne Hopliten stehen die Peltasten vorn."""
+        axis = norm(sub(end, start))
+        facing = (axis[1], -axis[0])
+        back = (-facing[0], -facing[1])
+        by_arm: dict[str, list[Lochos]] = {"hopliten": [], "peltasten": [], "reiter": []}
+        for u in sel:
+            by_arm[u.arm()].append(u)
+        front = by_arm["hopliten"] or by_arm["peltasten"]
+        second = by_arm["peltasten"] if by_arm["hopliten"] else []
+        plans = self._plan_row(front, start, end)
+        front_half = max(p.depth for p in plans) * config.ROW_SPACING / 2
+        if second:
+            # etwas kürzer als die Front, damit die Enden der Phalanx frei bleiben
+            length = dist(start, end)
+            trim = length * (1 - config.ORDER_SECOND_SHARE) / 2
+            a, b = add(start, scale(axis, trim)), add(end, scale(axis, -trim))
+            row = self._plan_row(second, a, b)
+            half = max(p.depth for p in row) * config.ROW_SPACING / 2
+            shift = scale(back, front_half + config.ORDER_SECOND_GAP + half)
+            plans += [LinePlan(p.unit_id, self._free_spot(add(p.center, shift), self.by_id(p.unit_id)),
+                               p.facing, p.width, p.depth, p.length) for p in row]
+        # Reiter: abwechselnd rechts und links neben die Front, die Fronten bündig
+        mid = scale(add(start, end), 0.5)
+        along_of = [(p.center[0] - mid[0]) * axis[0] + (p.center[1] - mid[1]) * axis[1] for p in plans[:len(front)]]
+        halves = [p.width * config.MAN_SPACING / 2 for p in plans[:len(front)]]
+        edges = {1: max(a + h for a, h in zip(along_of, halves)) + config.ORDER_WING_GAP,
+                 -1: -min(a - h for a, h in zip(along_of, halves)) + config.ORDER_WING_GAP}
+        for k, u in enumerate(sorted(by_arm["reiter"], key=lambda u: -u.men)):
+            width = max(1, math.ceil(u.men / config.ORDER_WING_DEPTH))
+            depth = math.ceil(u.men / width)
+            half_w = width * config.MAN_SPACING / 2
+            half_d = depth * config.ROW_SPACING / 2
+            for side in ((1, -1) if k % 2 == 0 else (-1, 1)):
+                along = edges[side] + half_w
+                c = add(add(mid, scale(axis, side * along)), scale(back, half_d - front_half))
+                outer = add(c, scale(axis, side * half_w))
+                if self.inside(*outer):
+                    break
+            edges[side] = along + half_w + config.ORDER_WING_GAP
+            plans.append(LinePlan(u.id, self._free_spot(c, u), facing, width, depth, 2 * half_w))
         return plans
 
     def ring_radius_for(self, u: Lochos, wanted: float) -> float:
@@ -1727,7 +1786,8 @@ class Battle:
             u.waypoints = []
         self.line = plans
         if plans:
-            self.events.append(f"Aufstellung: {len(plans)} Gruppe(n), Front {self._dir_name(snap4(plans[0].facing))}")
+            what = "Schlachtordnung" if self.in_battle_order(self._selection(units)) else "Aufstellung"
+            self.events.append(f"{what}: {len(plans)} Gruppe(n), Front {self._dir_name(snap4(plans[0].facing))}")
         return plans
 
     def _free_spot(self, p: Point, unit: Lochos | None = None) -> Point:

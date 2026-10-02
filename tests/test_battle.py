@@ -1904,3 +1904,81 @@ def test_spears_from_the_shield_side_do_less_harm():
     left = hit((hop.x - hop.half_w - 2.0, hop.y))
     right = hit((hop.x + hop.half_w + 2.0, hop.y))
     assert left == pytest.approx(right * config.SHIELD_SPEAR_COVER / config.SHIELD_SPEAR_OPEN)
+
+
+# ---------------------------------------------------------- Schlachtordnung
+
+def order_army(cavalry_groups: int = 1) -> Army:
+    groups = [GroupSpec("H", [Tier("schwer", 12), Tier("mittel", 12)]),
+              GroupSpec("P", [Tier("peltast", 12)])]
+    groups += [GroupSpec(f"R{i}", [Tier("reiter", 9)]) for i in range(cavalry_groups)]
+    return army_of(*groups)
+
+
+def by_arm(b: Battle, plans) -> dict:
+    out: dict = {}
+    for p in plans:
+        out.setdefault(b.by_id(p.unit_id).arm(), []).append(p)
+    return out
+
+
+def test_mixed_groups_form_a_battle_order():
+    """Hopliten auf der Linie, Peltasten dahinter, Reiter am rechten Flügel."""
+    b = Battle(raid(8, (8.0, 1.0)), random.Random(0), army=order_army())
+    plans = by_arm(b, b.plan_line(None, (5.0, 12.0), (11.0, 12.0)))   # Front nach Norden
+    hop, pelt, cav = plans["hopliten"][0], plans["peltasten"][0], plans["reiter"][0]
+    assert hop.center[1] == pytest.approx(12.0)
+    hop_back = hop.center[1] + hop.depth * config.ROW_SPACING / 2
+    assert pelt.center[1] - pelt.depth * config.ROW_SPACING / 2 > hop_back      # ganz dahinter
+    assert abs(pelt.center[0] - hop.center[0]) < 0.1
+    assert pelt.width * config.MAN_SPACING < hop.width * config.MAN_SPACING     # Enden der Phalanx frei
+    hop_right = hop.center[0] + hop.width * config.MAN_SPACING / 2
+    cav_left = cav.center[0] - cav.width * config.MAN_SPACING / 2
+    assert 0 < cav_left - hop_right < 1.0                  # rechts daneben, an der schildlosen Seite
+    front = lambda p: p.center[1] - p.depth * config.ROW_SPACING / 2
+    assert front(cav) == pytest.approx(front(hop))         # Fronten bündig
+    assert all(p.facing == (0.0, -1.0) for p in (hop, pelt, cav))
+
+
+def test_battle_order_right_follows_the_facing():
+    """Von Nord nach Süd gezogen schaut die Front nach Osten: rechts ist dann Süden."""
+    b = Battle(raid(8, (8.0, 1.0)), random.Random(0), army=order_army())
+    plans = by_arm(b, b.plan_line(None, (8.0, 5.0), (8.0, 12.0)))
+    hop, pelt, cav = plans["hopliten"][0], plans["peltasten"][0], plans["reiter"][0]
+    assert hop.facing == pytest.approx((1.0, 0.0))
+    assert pelt.center[0] < hop.center[0]                  # hinten ist Westen
+    assert cav.center[1] > hop.center[1] + hop.width * config.MAN_SPACING / 2
+
+
+def test_second_cavalry_group_takes_the_left_wing():
+    b = Battle(raid(8, (8.0, 1.0)), random.Random(0), army=order_army(cavalry_groups=2))
+    plans = by_arm(b, b.plan_line(None, (5.0, 12.0), (11.0, 12.0)))
+    hop = plans["hopliten"][0]
+    xs = sorted(p.center[0] for p in plans["reiter"])
+    assert xs[0] < hop.center[0] - hop.width * config.MAN_SPACING / 2
+    assert xs[1] > hop.center[0] + hop.width * config.MAN_SPACING / 2
+
+
+def test_cavalry_wing_moves_left_at_the_map_edge():
+    b = Battle(raid(8, (8.0, 1.0)), random.Random(0), army=order_army())
+    plans = by_arm(b, b.plan_line(None, (b.cols - 4.0, 12.0), (b.cols - 0.2, 12.0)))
+    hop, cav = plans["hopliten"][0], plans["reiter"][0]
+    assert cav.center[0] < hop.center[0]
+
+
+def test_groups_of_one_arm_still_share_the_line():
+    """Nur Hopliten: nebeneinander wie bisher, keine zweite Linie."""
+    b = static_line(raider_y=2.0)
+    plans = b.plan_line(None, (4.0, 10.0), (12.0, 10.0))
+    assert len(plans) == 3
+    assert all(p.center[1] == pytest.approx(10.0) for p in plans)
+
+
+def test_battle_order_is_where_the_groups_end_up():
+    b = Battle(raid(8, (8.0, 1.0)), random.Random(0), army=order_army())
+    b.command_line(None, (5.0, 12.0), (11.0, 12.0))
+    run(b, 12.0)
+    units = {u.arm(): u for u in b.units(Side.STADT, fighting_only=True)}
+    hop, pelt, cav = units["hopliten"], units["peltasten"], units["reiter"]
+    assert pelt.y > hop.y + 0.3
+    assert cav.x > hop.x + hop.half_w

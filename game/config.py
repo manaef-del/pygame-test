@@ -158,6 +158,10 @@ STALL_TIME = 1.0             # Sekunden ohne Vorankommen, bis ein Mann statt dur
 # Formation
 MAN_SPACING = 0.13           # Kacheln zwischen Männern einer Reihe
 ROW_SPACING = 0.19           # Kacheln zwischen Reihen
+ORDER_SECOND_SHARE = 0.75    # Schlachtordnung: so viel der Frontlänge nimmt das zweite Treffen (Peltasten)
+ORDER_SECOND_GAP = 0.35      # Kacheln Luft zwischen Phalanx und Peltasten dahinter
+ORDER_WING_GAP = 0.4         # Kacheln Luft zwischen Phalanx und Reitern am Flügel
+ORDER_WING_DEPTH = 3         # Reiter am Flügel: so viele Reihen tief
 
 # Zeit
 TIME_SCALE = 0.5             # Spielzeit je Echtzeit (halbe Geschwindigkeit)

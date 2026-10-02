@@ -83,6 +83,11 @@ def t_linie(b: Battle) -> dict:
     }
 
 
+def t_schlachtordnung(b: Battle) -> dict:
+    """Wie Linie, aber mit einem Zug für alle: Peltasten dahinter, Reiter am rechten Flügel."""
+    return {0: lambda b: b.command_line(None, (4.0, 10.5), (12.0, 10.5))}
+
+
 def t_linie_reiter_aktiv(b: Battle) -> dict:
     """Wie Linie, aber die Reiter greifen alle 15 s das nächste ungedeckte Ziel an."""
     hop, pelt, cav = groups(b)
@@ -391,7 +396,7 @@ def t_festung_angriff_turm(b: Battle) -> dict:
 
 
 TACTICS = {
-    "offen": {"linie": t_linie, "linie_reiter": t_linie_reiter_aktiv, "linie_aktiv": t_linie_aktiv, "linie_tief": t_linie_tief, "passiv": t_passiv, "angriff": t_angriff},
+    "offen": {"linie": t_linie, "schlachtordnung": t_schlachtordnung, "linie_reiter": t_linie_reiter_aktiv, "linie_aktiv": t_linie_aktiv, "linie_tief": t_linie_tief, "passiv": t_passiv, "angriff": t_angriff},
     "palisade": {"tor_halten": t_tor_halten, "tor_reserve": t_tor_halten_reserve, "tor_leiter": t_tor_leiter, "passiv": t_passiv},
     "horde": {"vorruecken": t_vorruecken, "angriff": t_angriff},
     "angriff_offen": {"phalanxstoss": t_phalanxstoss, "vorruecken": t_vorruecken, "angriff": t_angriff},
