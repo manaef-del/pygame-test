@@ -297,6 +297,30 @@ läuft mit halber Geschwindigkeit (`TIME_SCALE`).
 | Angriff: Räuberhorde | Die Horde lagert im Norden und stürmt, sobald man ihr nahe kommt |
 | Angriff: Siedlung ohne Wall | Die Siedlung stellt eine eigene Truppe, passend zur Mischung des Spielers (siehe Gegner-KI). Hopliten und Peltasten halten, Reiter greifen an |
 | Angriff: Siedlung mit Wall | Wie oben, hinter einer Palisade mit verschlossenem Tor. Peltasten des Gegners stehen auf dem Wehrgang |
+| Verteidigung: Festung | Große Karte (viermal so groß). Ein Heer aus Hopliten, Peltasten und Reitern, doppelt so stark wie die eigene Truppe, belagert die sechseckige Festung |
+| Angriff: Festung | Dieselbe Festung, man selbst belagert sie; die Besatzung ist etwa halb so stark wie die eigene Truppe |
+
+**Festung:** In der Mitte der großen Karte liegt die Agora mit acht
+Häusern, darum ein sechseckiger Wall, außen genug Platz, um ihn zu
+umlaufen. In der Nordkante und in den beiden südlichen Schrägen sitzt je
+ein verschlossenes Tor, an jeder Ecke ein Wehrturm, innen an jeder Kante
+zwei Leitern. Die **Wehrtürme** werfen zwei Speere in der Sekunde, ohne
+Vorrat, auf den nächsten Feind in 6,5 Kacheln (sie reichen bis vor die
+Tore). Wer oben steht, dem gehört der Turm: Steht nur der Feind oben,
+wirft er für den Feind; stehen beide oben, schweigt er. Die Wege führen
+um die Ecken des Sechsecks herum und durch das Tor, das am wenigsten
+Umweg macht; auf dem Wehrgang geht es den Wall entlang, auch an den
+Schrägen und über die Türme. Beritten klettert niemand, Reiter kommen
+nur durch ein offenes Tor hinein. Das **Heer** rammt zwei Tore zugleich
+und setzt einen Turm an eine dritte Stelle, damit sich der Verteidiger
+teilen muss; die Peltasten werfen auf den Wehrgang über dem Tor. Steht
+hinter einem aufgebrochenen Tor eine Phalanx, läuft es nicht einzeln
+hinein, sondern sammelt sich davor, bis eine zweite Bresche offen ist
+oder 20 Sekunden um sind; dann stürmen alle zugleich. Die **Besatzung**
+stellt hinter jedes Tor eine Phalanx (die dem Angreifer nächsten
+zuerst), schickt eine Phalanx, vor deren Tor niemand steht, an die
+bedrohte Stelle, schickt die Peltasten auf den Wehrgang dorthin, wo der
+Angriff ansetzt, und hält die Reiter auf der Agora für Eingedrungene.
 
 **Wehrgang:** Eine reine Peltastengruppe der Wallseite darf auf die
 Palisade, aber nur über die Leitern hinauf und hinunter (helle Sprossen
@@ -430,13 +454,20 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
   Pause „Weiter“). Das Menü klappt „Neu“ und „Aufstellung“ darunter auf
   und deckt sie sonst ab, damit auf dem Handy kein Fehlgriff die
   Schlacht neu startet; ein Tipp daneben schließt es wieder.
+- **Große Karte (Festung):** Sie beginnt in der Übersicht, die ganze
+  Karte halb so groß. Ein Tipp auf die Karte zoomt in die Nahansicht
+  (Maßstab wie auf den kleinen Karten), mit der Stelle in der Mitte; dort
+  verschieben **zwei Finger** die Ansicht. Der Knopf unter „Menü“
+  schaltet zwischen „Karte“ (Übersicht) und „Nah“ um. In der Übersicht
+  wählt man Gruppen über die Kacheln rechts; Fronten aufziehen geht in
+  beiden Ansichten.
 
 | Eingabe | Aktion |
 |---------|--------|
 | Tippen auf Gruppenkachel oder eigene Gruppe | auswählen (erneut tippen: abwählen) |
 | Tippen auf die Karte | gewählte Gruppen laufen dorthin |
 | Tippen auf Feind | gewählte Gruppen greifen diese an |
-| Tippen auf das Tor | gewählte Gruppen mit Rammbock brechen es auf |
+| Tippen auf das Tor | gewählte Gruppen mit Rammbock brechen es auf (in der Festung das angetippte Tor) |
 | Tippen auf den Wall | gewählte Gruppen mit Turm setzen ihn dort an |
 | Ziehen auf der Karte | Front aufziehen: Länge = Breite, Richtung = Blickrichtung; bei Gruppen im Kreis: Anfang = Mitte, Länge = Halbmesser |
 | Sturm / Plänkeln / Sturmangriff / A | gewählte Gruppen greifen frei an, je Waffengattung (siehe oben); gemischte Gruppen teilen sich dafür nach Gattung |
@@ -448,6 +479,9 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 | Pause / Leertaste | anhalten, bei Alarm: losgehen; erst in der Pause erscheinen die Formationsrechtecke, und jede Gruppe, die noch unterwegs ist, zeigt ihr Ziel als Rechteck mit Front und Weg |
 | Menü, dann Neu / R (zweimal) | Szenario neu starten |
 | Menü, dann Aufstellung / M | zurück ins Aufstellungsmenü |
+| Karte / Nah, Z | große Karte: zwischen Übersicht und Nahansicht umschalten |
+| Tippen in der Übersicht | große Karte: dorthin zoomen |
+| Zwei Finger ziehen (am Rechner: rechte Maustaste, Pfeiltasten) | große Karte: Nahansicht verschieben |
 
 Das Spiel beginnt im **Alarm** und wartet auf den ersten Befehl.
 
@@ -515,7 +549,8 @@ game/scenarios.py   Karten und Aufstellungen
 game/battle.py      Simulation: Befehle, Bewegung, Kampf, Moral, Plündern, Belagerung
 game/pathing.py     Wegefeld: jeder Mann sucht seinen Weg zu seinem Platz
 game/ai.py          Gegner-KI: Lagebericht, Pläne, Gedächtnis (und alte Regelsteuerung)
-game/render.py      Zeichnen von Karte, Gruppen, Leiste und Aufstellungsmenü
+game/fortress_ai.py KI der Festung: Belagerung durch das Heer, Verteidigung durch die Besatzung
+game/render.py      Zeichnen von Karte, Gruppen, Leiste und Aufstellungsmenü; Kamera (Übersicht, Nahansicht)
 game/app.py         Asynchrone Schleife, Bildschirme, Auswahl, Touch und Tasten
 tests/              pytest (headless)
 tools/              Browser-Diagnose für CI, Simulator für Taktiken gegen die KI

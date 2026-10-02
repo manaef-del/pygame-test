@@ -1,5 +1,53 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 20 (2. Oktober 2026): Die Festung
+
+Neue Karte, viermal so groß (32 × 36 Kacheln): ein sechseckiger Wall um
+die Agora, Tore in der Nordkante und den beiden südlichen Schrägen,
+Wehrtürme an den Ecken (zwei Speere je Sekunde, 6,5 Kacheln weit,
+eroberbar), zwei Leitern innen an jeder Kante. Die Engine kennt dafür
+mehrere Tore und einen geschlossenen Wall (innen/außen statt Nord/Süd);
+für die alten Karten rechnet sie unverändert. Geprüft: alle 17 Taktiken
+der alten Szenarien, je ein Seed, 70 Sekunden, Zustand aller Männer alle
+fünf Sekunden – Bit für Bit gleich.
+
+Acht Seeds je Zeile. Verteidigung gegen ein Heer, doppelt so stark wie die
+eigene Truppe (150 gegen 75); Angriff gegen eine Besatzung von 40:
+
+| Szenario | Taktik | Siege | Verlust Stadt | Verlust Feind | Häuser verloren | Dauer |
+|---|---|---|---|---|---|---|
+| festung | tore | 2/8 | 84% | 60% | 2,2 | 117 s |
+| festung | passiv | 0/8 | 100% | 59% | 2,2 | 143 s |
+| festung_angriff | rammbock | 8/8 | 50% | 100% | – | 106 s |
+| festung_angriff | turm | 0/8 | 59% | 37% | – | 247 s |
+
+`tore`: Die Phalanx stellt sich hinter das bedrohte Tor, die Peltasten auf
+den Wehrgang darüber, die Reiter jagen Eingedrungene. Das Heer rammt zwei
+Tore und setzt einen Turm an eine dritte Stelle; die eine Phalanx kann
+nicht alles halten. In der ersten Fassung lief das Heer nach dem ersten
+Durchbruch Gruppe für Gruppe durchs Tor in die Front der wartenden
+Phalanx, die Reiter in die Speere, und der Verteidiger gewann 4 von 4 mit
+9 % Verlust. Jetzt sammelt es sich vor einem gesperrten Tor, bis eine
+zweite Bresche offen ist oder 20 Sekunden um sind.
+
+`rammbock`: Die eigenen Hopliten rammen das nächste Tor; die Besatzung
+holt die Phalanx vom ruhigen Tor dazu (in der ersten Fassung blieb sie
+dort stehen). `turm`: Über einen Turm allein kommt man nicht hinein: Die
+Männer steigen einzeln hinüber, im Feuer der Ecktürme, und drinnen
+wartet die Besatzung auf die Gesammelten.
+
+Rechenzeit Festung 10 ms je Takt im Mittel (Palisade 12 ms), höchstens
+57 ms (Palisade 44 ms); auf der großen Karte wird je Takt höchstens ein
+Wegefeld neu gerechnet (vorher zwei: Spitzen bis 86 ms).
+
+Beim Bauen fielen Fehler auf, die nur die Festung betrafen: Wer auf dem
+Wehrgang stand, ging nur bis zur Mitte seiner Kachel und sperrte die
+Leiter; wer zwischen Fuß und Leiter stand, wurde zum Fuß zurückgeschickt
+(Stau am Turm, ein Mann je zwei Sekunden statt drei je Sekunde); ein Mann
+im Tordurchgang galt als jenseits des Walls (ständiges Auflösen); und
+Fliehende entschieden die Seite ihres Ziels nach der Richtung des Tores
+statt nach der Wallseite (sie pendelten im Tor, die Schlacht endete nie).
+
 ## Lauf 19 (2. Oktober 2026): Die Palisade deckt den Wehrgang
 
 Wer auf dem Wehrgang steht, nimmt von Speeren, die von außen kommen, nur

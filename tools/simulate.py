@@ -353,29 +353,40 @@ def t_festung_angriff_ram(b: Battle) -> dict:
 
 
 def t_festung_angriff_turm(b: Battle) -> dict:
-    """Festung angreifen: Rammbock (Hopliten) und Turm (Reiter, abgesessen) zugleich, an
-    verschiedenen Stellen; wer drüben ist, greift an."""
+    """Festung angreifen über den Turm: Die Hopliten bauen ihn und setzen ihn an die
+    Südkante, die Peltasten werfen dort auf den Wehrgang; steht der Turm, steigen
+    Hopliten und Peltasten hinüber, sammeln sich drinnen und greifen an. Die Reiter
+    warten draußen, bis ein Tor offen ist."""
     hop, pelt, cav = groups(b)
-    me = (b.cols / 2, b.scenario.deploy_y)
-    gate = min(b.gates, key=lambda g: dist(g.center, me))
-    gx, gy = gate.center
-    nx, ny = gate.normal
-    stand = (gx + nx * 3.2, gy + ny * 3.2)
-    cells = [c for c in b.blocked if b.tower_step(c) is not None and c[1] == max(x[1] for x in b.blocked)
-             and all(dist((c[0] + 0.5, c[1] + 0.5), t.center) > 2.0 for t in b.corner_towers) and c not in b.ladders]
+    south = max(x[1] for x in b.blocked)
+    cells = [c for c in b.blocked if c[1] == south and b.tower_step(c) is not None and c not in b.ladders]
     wall = min(cells, key=lambda c: abs(c[0] + 0.5 - b.cols / 2)) if cells else None
+    stand = (b.cols / 2, south + 3.2)
+    state = {"over": False}
     plan = {
-        0: lambda b: (b.command_build(hop, "ram"), b.command_build(cav, "tower"), b.command_move(pelt, stand)),
-        config.RAM_BUILD_TIME + 1: lambda b: b.command_ram_gate(hop, gate),
-        config.TOWER_BUILD_TIME + 1: lambda b: b.command_tower_wall(cav, wall) if wall else None,
+        0: lambda b: (b.command_build(hop, "tower"), b.command_move(pelt, stand), b.command_move(cav, (b.cols / 2, south + 8.0))),
+        config.TOWER_BUILD_TIME + 1: lambda b: b.command_tower_wall(hop, wall) if wall else None,
     }
 
-    def storm(b: Battle):
-        if any(not g.closed for g in b.gates) or b.crossings:
-            b.command_attack([u for u in b.units(Side.STADT, fighting_only=True)
-                              if u.stance is not Stance.ANGRIFF and u.engine is None and u.building is None])
-    for t in range(16, 290, 5):
-        plan[t] = storm
+    def climb(b: Battle):
+        foot = [u for u in hop + pelt if u.fighting]
+        if b.crossings and not state["over"]:
+            state["over"] = True
+            b.command_move(foot, (b.cols / 2, b.rows / 2 + 3.0))
+        elif state["over"] and all(b._wall_level(u.pos) == "innen" and not u.loose for u in foot):
+            b.command_attack(foot)
+        riders = [u for u in cav if u.fighting]
+        if any(not g.closed for g in b.gates):
+            b.command_attack([u for u in riders if u.stance is not Stance.ANGRIFF and u.engine is None])
+        elif riders and not any(u.fighting for u in hop + pelt):
+            # die Fußtruppen sind geschlagen: die Reiter sitzen ab und rammen selbst ein Tor
+            r = riders[0]
+            if r.engine is None and r.building is None:
+                b.command_build(riders, "ram")
+            elif r.engine == "ram" and r.target is None:
+                b.command_ram_gate(riders, min(b.gates, key=lambda g: dist(g.center, r.pos)))
+    for t in range(20, 290, 5):
+        plan[t] = climb
     return plan
 
 

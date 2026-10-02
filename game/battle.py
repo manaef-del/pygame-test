@@ -493,9 +493,11 @@ class Battle:
         die Leitern, Angreifer über einen aufgestellten Turm."""
         if u.side is self.wall_side():
             return u.wall_capable()
+        if not self.crossings:
+            return False
         if self.ring and 2 * len(u.mounted_men()) >= u.men:
             return False                  # Festung: wer im Sattel sitzt, klettert nicht
-        return bool(self.crossings)
+        return True
 
     def ladders_for(self, u: Lochos, pos: Point | None = None, target: Point | None = None) -> set[tuple[int, int]]:
         """Auf- und Abstiege: Leitern für alle Läufer; der Turm nur für Angreifer
@@ -882,7 +884,13 @@ class Battle:
         return True
 
     def _gate_side(self, g: Gate, p: Point) -> float:
-        """+1, wenn ``p`` außerhalb des Tores liegt, sonst -1."""
+        """+1, wenn ``p`` außerhalb der Festung liegt, sonst -1 (im Tor oder auf dem Wall
+        entscheidet die Richtung des Durchgangs)."""
+        level = self._wall_level(p)
+        if level == "aussen":
+            return 1.0
+        if level == "innen":
+            return -1.0
         cx, cy = g.center
         return 1.0 if (p[0] - cx) * g.normal[0] + (p[1] - cy) * g.normal[1] > 0 else -1.0
 
@@ -1417,8 +1425,15 @@ class Battle:
         return len(sel)
 
     def _tower_wall_ring(self, units: list[Lochos] | None, cell: tuple[int, int]) -> int:
-        if cell not in self.blocked or cell in self.crossings or self.tower_step(cell) is None:
+        if cell not in self.blocked or cell in self.crossings:
             return 0
+        if self.tower_step(cell) is None:
+            # dicke Stelle an einer Schräge: das nächste Wallstück, an das der Turm von außen kommt
+            near = [c for c in self.blocked if c not in self.crossings and self.tower_step(c) is not None
+                    and abs(c[0] - cell[0]) <= 1 and abs(c[1] - cell[1]) <= 1]
+            if not near:
+                return 0
+            cell = min(near, key=lambda c: abs(c[0] - cell[0]) + abs(c[1] - cell[1]))
         sel = [u for u in self._selection(units) if u.engine == "tower"]
         if not sel:
             self.events.append("Ohne Belagerungsturm ist der Wall zu hoch")
@@ -2535,7 +2550,8 @@ class Battle:
         refresh = config.FIELD_REFRESH * (0.8 + 0.4 * ((u.id * 0.618) % 1.0))   # nicht alle Gruppen im selben Takt
         if cached is not None and cached[0] == key and self.time - cached[1] < refresh:
             return cached[2]
-        if cached is not None and self._field_builds.get(self.time, 0) >= config.FIELD_BUDGET:
+        budget = 1 if self.ring else config.FIELD_BUDGET       # große Karte: jedes Feld kostet mehr
+        if cached is not None and self._field_builds.get(self.time, 0) >= budget:
             return cached[2]                              # genug gerechnet in diesem Takt: das bisherige Feld tut es noch
         self._field_builds = {self.time: self._field_builds.get(self.time, 0) + 1}
         cell = config.FIELD_CELL
