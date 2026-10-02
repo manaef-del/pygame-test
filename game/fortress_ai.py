@@ -71,6 +71,7 @@ class FortressBrain(Brain):
             self._garrison(b)
         else:
             self._siege(b)
+        self._brace(b)
 
     def finish(self, b: "Battle") -> None:
         if self.finished or self.plan is None:

@@ -228,6 +228,20 @@ AI_MEMORY_WEIGHT = 2.5         # Gewinn oder Verlust eines Plans wirkt kräftig 
 AI_MEMORY_MIN = 0.5
 AI_MEMORY_MAX = 1.5
 AI_MEMORY_FILE = "~/.apoikia_ki.json"
+# Gegenmittel der KI
+AI_FLANK_THROW = True        # Peltasten der KI plänkeln von der schildlosen rechten Seite einer Phalanx
+AI_BRACE = True              # Hopliten der KI drehen die Front zu Reitern oder bilden einen Kreis
+AI_BRACE_RANGE = 8.0         # Kacheln: Reiter, die so nah auf Hopliten zukommen (nicht auf die Front), lösen Gegenmittel aus
+AI_BRACE_CLOSE = 3.0         # Kacheln: so nahe Reiter gelten immer als Gefahr
+AI_BRACE_PINNED = 3.0        # Kacheln: feindliches Fußvolk so nah vor der Front: nicht drehen, sondern Kreis
+AI_BRACE_HOLD = 2.0          # Sekunden ohne Reiter, die nah sind oder heranreiten: der Kreis geht zurück in die Linie
+AI_BRACE_MIN_MEN = 8         # kleinere Gruppen bilden keinen Kreis
+AI_RESERVE = True            # die KI hält eine Gruppe als Reserve zurück
+AI_RESERVE_MIN_GROUPS = 3    # ab so vielen Gruppen hält die KI eine zurück
+AI_RESERVE_DISTANCE = 3.5    # Kacheln hinter der eigenen Hauptmacht wartet die Reserve
+AI_RESERVE_REACH = 7.0       # Kacheln: ein ungedeckter oder fliehender Gegner so nah ruft die Reserve
+AI_RESERVE_LOSS = 0.3        # Anteil der Kämpfenden gefallen: die Reserve kommt zu Hilfe
+AI_RESERVE_MAX = 35.0        # Sekunden: spätestens so lange nach Beginn geht auch die Reserve
 
 # Plünderung
 LOOT_TIME = 4.0              # Sekunden je Haus

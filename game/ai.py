@@ -170,6 +170,11 @@ class Brain:
         self.roles: dict[int, str] = {}          # flankieren: "binden" oder "flanke" je Gruppe
         self.flank_target: int | None = None
         self.flank_ready = False
+        self.braced: dict[int, list] = {}         # Kreis gegen Reiter: Gruppe -> [zuletzt Reiter gesehen, Front davor, Platz]
+        self.reserve_id: int | None = None        # zurückgehaltene Gruppe
+        self.reserve_held = False
+        self.reserve_home: Point | None = None    # wo die Reserve der Horde im Lager wartet
+        self.reserve_since = 0.0
 
     # -- Takt ---------------------------------------------------------------
     def think(self, b: "Battle") -> None:
@@ -183,6 +188,7 @@ class Brain:
             self._orders_raiders(b)
         else:
             self._orders_settlement(b)
+        self._brace(b)
 
     def finish(self, b: "Battle") -> None:
         """Schlacht zu Ende: den laufenden Plan bewerten und merken, bei der
@@ -377,6 +383,175 @@ class Brain:
         b.events.append(f"{u.name} ({u.side.value}) weichen vor der Phalanx zurück")
         return True
 
+    # -- Reserve ------------------------------------------------------------
+    def _is_reserve(self, u: Lochos) -> bool:
+        return self.reserve_held and u.id == self.reserve_id
+
+    def _pick_reserve(self, b: "Battle", own: list[Lochos]) -> None:
+        """Einmal zu Beginn: Bei genug Gruppen bleibt die hinterste (fern vom Feind) zurück."""
+        if self.reserve_id is not None or not config.AI_RESERVE:
+            return
+        self.reserve_id = -1                              # entschieden, auch wenn es keine Reserve gibt
+        r = self.report
+        if r is None or not r.foes or len(own) < config.AI_RESERVE_MIN_GROUPS:
+            return
+        fx = sum(f.x for f in r.foes) / len(r.foes)
+        fy = sum(f.y for f in r.foes) / len(r.foes)
+        pool = [u for u in own if u.engine is None and u.building is None and not b.on_wall(u)]
+        if b.scenario.enemy_kind != "raeuber":
+            pool = [u for u in pool if u.arm() == "hopliten"]   # die Siedlung hält Fußvolk zurück
+        if len(pool) < 2:
+            return
+        u = max(pool, key=lambda g: dist(g.pos, (fx, fy)))
+        self.reserve_id = u.id
+        self.reserve_held = True
+        self.reserve_home = u.pos
+        self.reserve_since = b.time
+
+    def _holds_reserve(self, b: "Battle", u: Lochos, r: Report, busy: bool = False) -> bool:
+        """Die Reserve wartet hinter der Hauptmacht (die Horde und die Siedlung: wo sie steht),
+        bis eine Gelegenheit oder eine Not sie ruft; dann kämpft sie wie alle."""
+        if not self._is_reserve(u):
+            return False
+        others = [o for o in b.units(Side.FEIND, fighting_only=True) if o is not u]
+        why = self._reserve_call(b, u, r, others, busy)
+        if why:
+            self.reserve_held = False
+            who = "Die Räuber" if b.scenario.enemy_kind == "raeuber" else "Die Siedlung"
+            b.events.append(f"{who} werfen ihre Reserve in den Kampf ({why})")
+            return False
+        if b.attacking or b.scenario.enemy_kind != "raeuber" or not others:
+            spot = self.reserve_home or u.pos
+        else:
+            # hinter der Hauptmacht, dorthin, woher sie gekommen ist
+            cx = sum(o.x for o in others) / len(others)
+            cy = sum(o.y for o in others) / len(others)
+            home = self.reserve_home or u.pos
+            back = norm(sub(home, (cx, cy))) if dist(home, (cx, cy)) > 0.5 else (0.0, -1.0)
+            spot = (cx + back[0] * config.AI_RESERVE_DISTANCE, cy + back[1] * config.AI_RESERVE_DISTANCE)
+        spot = b._free_spot(spot, u)
+        u.waypoints = []
+        if u.target is None or dist(u.target, spot) > 0.5 or u.stance is not Stance.HALTEN:
+            if dist(u.pos, spot) > 0.5:
+                self._go(b, u, spot)
+            else:
+                u.stance = Stance.HALTEN
+                u.target_id = None
+        return True
+
+    def _reserve_call(self, b: "Battle", u: Lochos, r: Report, others: list[Lochos], busy: bool) -> str:
+        """Warum die Reserve jetzt kommt (leer: sie wartet weiter)."""
+        if busy:
+            return "Gerät"
+        if not r.foes:
+            return "kein Feind"
+        if len([o for o in others if o.stance is not Stance.FLUCHT]) < 2:
+            return "kaum noch Kämpfer"
+        if b.time >= self.reserve_since + config.AI_RESERVE_MAX:
+            return "Zeit"
+        if any(f.rect_distance(u.pos) <= config.ENGAGE_RANGE + 1.5 for f in r.foes):
+            return "Feind nah"
+        if any((f.id in r.exposed or f.stance is Stance.FLUCHT) and f.rect_distance(u.pos) <= config.AI_RESERVE_REACH
+               and self._reachable(b, u, f) for f in r.foes):
+            return "Gelegenheit"
+        if self.plan in ("flankieren", "ruecken") and self.flank_ready:
+            return "Umfassung"
+        start = max(1, b.men_start.get(Side.FEIND, 1))
+        if b.fallen(Side.FEIND) / start >= config.AI_RESERVE_LOSS:
+            return "Verluste"
+        return ""
+
+    # -- Kreis gegen Reiter --------------------------------------------------
+    def _brace(self, b: "Battle") -> None:
+        """Gegenmittel gegen Reiter, die auf eine Hoplitengruppe zukommen, nicht auf ihre Front:
+        Eine Phalanx ohne Fußvolk vor sich dreht die Front zu ihnen (schnell, die Ordnung
+        bleibt). Geht das nicht (Fußvolk vorn, Reiter von zwei Seiten, keine Phalanx),
+        bildet sie einen Kreis: rundum Speere. Sind die Reiter eine Weile fort, geht der
+        Kreis zurück in die Linie mit der alten Front."""
+        if not config.AI_BRACE and not self.braced:
+            return
+        foes = b.units(Side.STADT, fighting_only=True)
+        riders = [f for f in foes if config.AI_BRACE and f.stance is not Stance.FLUCHT and not b.on_wall(f)
+                  and len(f.mounted_men()) * 2 >= f.men > 0]
+        foot = [f for f in foes if f not in riders and not b.on_wall(f)]
+        for u in b.units(Side.FEIND, fighting_only=True):
+            held = self.braced.get(u.id)
+            if not self._can_brace(b, u):
+                if held is not None:
+                    self._unbrace(b, u)
+                continue
+            if held is not None:
+                if any(self._rides_at(f, u) for f in riders):
+                    held[0] = b.time                      # wer nur in der Nähe parkt, hält den Kreis nicht fest
+                elif b.time - held[0] >= config.AI_BRACE_HOLD:
+                    self._unbrace(b, u)
+                    continue
+                self._hold_ring(b, u, held)
+                continue
+            if u.engaged:
+                continue                                  # mitten im Handgemenge stellt sich niemand um
+            danger = [f for f in riders if self._rides_at(f, u)
+                      and (not formed(u) or b.arc_of(u, f.pos) != "front")]
+            if not danger:
+                continue
+            first = min(danger, key=lambda f: f.rect_distance(u.pos))
+            to_rider = norm(sub(first.pos, u.pos))
+            pinned = any(f.rect_distance(u.pos) <= config.AI_BRACE_PINNED and b.arc_of(u, f.pos) == "front"
+                         for f in foot)
+            apart = any(to_rider[0] * d[0] + to_rider[1] * d[1] < 0.0
+                        for d in (norm(sub(f.pos, u.pos)) for f in riders if self._rides_at(f, u)))
+            if formed(u) and not pinned and not apart:
+                if u.face_to is None or u.face_to[0] * to_rider[0] + u.face_to[1] * to_rider[1] < 0.95:
+                    u.face_to = to_rider                  # die Front zu den Reitern: sie rennen in die Speere
+                    b.events.append(f"{u.name} ({u.side.value}) drehen die Front gegen die Reiter")
+                continue
+            held = self.braced[u.id] = [b.time, u.facing, b._free_spot(u.pos, u)]
+            self._hold_ring(b, u, held)
+            b.events.append(f"{u.name} ({u.side.value}) bilden einen Kreis gegen die Reiter")
+
+    @staticmethod
+    def _rides_at(f: Lochos, u: Lochos) -> bool:
+        """Reiter ``f`` ist nah oder kommt auf ``u`` zu."""
+        d = u.rect_distance(f.pos)                     # beides vom Rand der Hopliten aus gemessen
+        if d <= config.AI_BRACE_CLOSE:
+            return True
+        if d > config.AI_BRACE_RANGE:
+            return False
+        if f.target_id == u.id:
+            return True
+        return f.target is not None and u.rect_distance(f.target) < d - 0.5
+
+    @staticmethod
+    def _can_brace(b: "Battle", u: Lochos) -> bool:
+        return (u.share(lambda m: m.kind.hoplite) >= 0.5 and u.men >= config.AI_BRACE_MIN_MEN
+                and "o" in u.formation_options() and not u.loose and not b.up(u) and not b.on_wall(u)
+                and u.engine is None and u.building is None and u.stance is not Stance.FLUCHT)
+
+    @staticmethod
+    def _hold_ring(b: "Battle", u: Lochos, held: list) -> None:
+        if u.formation != "o":
+            u.formation = "o"
+            u.in_line = False
+        u.ring_size = b.ring_radius_for(u, 0.0)
+        u.stance = Stance.PHALANX
+        u.target_id = None
+        u.waypoints = []
+        u.via = None
+        u.face_to = None
+        if u.target is None or dist(u.target, held[2]) > 0.05:
+            u.target = held[2]
+
+    def _unbrace(self, b: "Battle", u: Lochos) -> None:
+        held = self.braced.pop(u.id)
+        if u.formation == "o":
+            u.formation = "linie"
+            u.ring_size = 0.0
+            u.in_line = False
+            u.face_to = held[1]
+            if u.stance is not Stance.FLUCHT:
+                u.stance = Stance.PHALANX
+                u.target = u.pos
+
     # -- Pläne (Stufe 2) ------------------------------------------------------
     def _choose_plan(self, b: "Battle") -> None:
         r = self.report
@@ -480,7 +655,7 @@ class Brain:
             side_x = 0.8 if plan == "umgehen_west" else b.cols - 0.8
             forward = 1.0 if not b.attacking else -1.0      # Räuber kommen von Norden, die Horde liegt im Norden
             for u in b.units(Side.FEIND, fighting_only=True):
-                if self._st(u).retreat_until > b.time or u is self._ram_unit_if(b):
+                if self._st(u).retreat_until > b.time or u is self._ram_unit_if(b) or self._is_reserve(u):
                     continue
                 before = r.line_y - forward * 2.0
                 behind = r.line_y + forward * 2.0
@@ -543,7 +718,8 @@ class Brain:
         self.flank_target = target.id if target is not None else None
         if target is None:
             return
-        groups = [g for g in b.units(Side.FEIND, fighting_only=True) if not b.on_wall(g) and g is not self._ram_unit_if(b)]
+        groups = [g for g in b.units(Side.FEIND, fighting_only=True)
+                  if not b.on_wall(g) and g is not self._ram_unit_if(b) and not self._is_reserve(g)]
         if len(groups) < 2:
             return
         need = config.AI_PIN_SHARE * strength([target])
@@ -616,7 +792,8 @@ class Brain:
         if cell in b.ladders or cell not in b.blocked:
             cell = (0, wall_y) if west else (b.cols - 1, wall_y)
         ram = self._ram_unit_if(b)
-        cands = [u for u in b.units(Side.FEIND, fighting_only=True) if u is not ram and not b.on_wall(u)]
+        cands = [u for u in b.units(Side.FEIND, fighting_only=True)
+                 if u is not ram and not b.on_wall(u) and not self._is_reserve(u)]
         if not cands:
             return
         u = min(cands, key=lambda g: dist(g.pos, (cell[0] + 0.5, cell[1] + 0.5)))
@@ -693,7 +870,10 @@ class Brain:
             self.plan == "tor" and gate_open and self.breach_time is not None
             and b.time < self.breach_time + config.AI_GATHER_TIME
         )
+        self._pick_reserve(b, own)
         for u in own:
+            if self._holds_reserve(b, u, r, busy=u is ram or u is tower):
+                continue
             if self._retreating(b, u) or self._busy(b, u):
                 continue
             if u is ram:
@@ -766,6 +946,7 @@ class Brain:
         reach = config.AI_SKIRMISH_KEEP if u.stance is Stance.PLAENKELN else config.AI_SKIRMISH_SEEK
         if not any(f.rect_distance(u.pos) <= reach and self._reachable(b, u, f) for f in foes):
             return False
+        u.flank_throw = config.AI_FLANK_THROW            # gegen Hopliten von der schildlosen Seite werfen
         if u.stance is not Stance.PLAENKELN:
             u.stance = Stance.PLAENKELN
             u.in_line = False
@@ -852,7 +1033,10 @@ class Brain:
         if wall and r.threat_x is not None and lines:
             cover = min(lines, key=lambda u: abs(u.x - r.threat_x))
             cover_id = cover.id
+        self._pick_reserve(b, own)
         for u in own:
+            if self._holds_reserve(b, u, r):
+                continue
             if self._retreating(b, u) or self._busy(b, u):
                 continue
             cav = u.share(lambda m: m.kind.cavalry) >= 0.5

@@ -281,11 +281,13 @@ def approaching_attacker(b, ring):
     raise AssertionError("kein Angreifer in dieser Lage")
 
 
-def test_attacker_keeps_its_detour_side_instead_of_dithering():
+def test_attacker_keeps_its_detour_side_instead_of_dithering(monkeypatch):
     """Ein Haufen, der hinter zwei eigenen kämpfenden Gruppen an einen Kreis will,
     wählt eine Seite und bleibt dabei: er wechselt sie nicht hin und her und kommt
-    voran oder wartet geordnet."""
+    voran oder wartet geordnet. (Ohne Reserve der KI: Sie ändert, welcher Haufen
+    wann anrückt, und damit die Lage, um die es hier geht.)"""
     from game.scenarios import OFFENE_SIEDLUNG
+    monkeypatch.setattr(config, "AI_RESERVE", False)
     b = Battle(OFFENE_SIEDLUNG, random.Random(1))
     own = b.units(Side.STADT)
     g = b.command_merge(own)

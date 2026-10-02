@@ -398,7 +398,8 @@ def test_open_settlement_phalanx_then_pursuit_wins():
                 b.command_attack_target([cav], min(weak, key=lambda f: f.rect_distance(cav.pos)))
     assert b.outcome == "sieg", b.report()
     assert b.houses_intact() >= 5         # wer nicht mehr zappelt, kommt um die kurze Linie herum (Lauf 17)
-    assert b.fallen(Side.STADT) <= 0.3 * 75, b.report()
+    # die Reserve der Räuber (Lauf 24) kostet hier im Mittel drei Mann mehr (8 Startwerte: 21 statt 18)
+    assert b.fallen(Side.STADT) <= 0.35 * 75, b.report()
 
 
 def test_weak_army_loses_houses():

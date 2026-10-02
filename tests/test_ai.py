@@ -478,3 +478,173 @@ def test_ai_skirmishers_back_off_from_charging_hoplites():
         assert ep.stance is Stance.PLAENKELN
         assert not ep.engaged                                     # sie weichen aus, bevor die Hopliten sie fassen
     assert ep.men == 15
+
+
+# ------------------------------------------------------- Gegenmittel der KI
+def test_ai_peltasts_skirmish_from_the_open_right_flank():
+    """Peltasten der Siedlung gehen an die schildlose rechte Seite der Phalanx und werfen von dort."""
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    hop, pelt, cav = b.units(Side.STADT)
+    ep = {u.name: u for u in b.units(Side.FEIND)}["Peltasten"]
+    b.command_line([hop], (6.0, 8.5), (10.0, 8.5))               # Front nach Norden: rechts ist Osten
+    b.command_move([pelt, cav], (8.0, 15.0))
+    run(b, 16)
+    assert ep.stance is Stance.PLAENKELN and ep.flank_throw
+    along, _ = hop.local(ep.pos)
+    assert along > hop.half_w and b.arc_of(hop, ep.pos) == "flank"
+    ammo = ep.ammo()
+    run(b, 3)
+    assert ep.ammo() < ammo                                       # sie werfen von dort
+
+
+def test_open_side_spot_only_against_hoplite_phalanxes():
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    hop, pelt, cav = b.units(Side.STADT)
+    ep = {u.name: u for u in b.units(Side.FEIND)}["Peltasten"]
+    ep.flank_throw = True
+    assert b._open_side_spot(ep, pelt) is None                    # Peltasten haben keinen Schild links
+    assert b._open_side_spot(ep, hop) is None                     # noch nicht in Formation
+
+
+def test_player_peltasts_do_not_seek_the_flank():
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    assert not any(u.flank_throw for u in b.units(Side.STADT))
+
+
+def cavalry_behind_settlement(pin: bool):
+    """Siedlung (Spiegel) mit ihrer Phalanx; die Reiter des Spielers stehen hinter ihr,
+    auf Wunsch steht die Phalanx des Spielers dicht vor ihrer Front."""
+    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    hop, pelt, cav = b.units(Side.STADT)
+    eh = {u.name: u for u in b.units(Side.FEIND)}["Hopliten"]
+    if pin:
+        b.command_line([hop], (6.0, 8.0), (10.0, 8.0))
+    else:
+        b.command_move([hop], (8.0, 15.0))
+    b.command_move([pelt], (8.0, 15.0))
+    cav.x, cav.y = 13.0, 1.2
+    cav.place_men()
+    b.command_move([cav], (13.0, 1.2))
+    run(b, 8)
+    return b, hop, cav, eh
+
+
+def test_ai_phalanx_turns_its_front_to_cavalry_from_behind():
+    b, hop, cav, eh = cavalry_behind_settlement(pin=False)
+    b.command_attack_target([cav], eh)
+    run(b, 10)
+    assert eh.formation == "linie"                                # frei vor sich: drehen statt Kreis
+    assert any("drehen die Front gegen die Reiter" in e for e in b.events)
+    assert any("rennen in die Speere" in e for e in b.events)
+    assert eh.men == 41 and cav.men < 20
+
+
+def test_pinned_ai_phalanx_forms_a_ring_against_cavalry_and_reforms_after():
+    b, hop, cav, eh = cavalry_behind_settlement(pin=True)
+    facing = eh.facing
+    b.command_attack_target([cav], eh)
+    formed_before_contact = None
+    for _ in range(int(12 / DT)):
+        b.update(DT)
+        if formed_before_contact is None and cav.rect_distance(eh.pos) < 0.8:
+            formed_before_contact = eh.formation == "o" and eh.in_phalanx
+    assert formed_before_contact                                  # der Kreis steht, bevor die Reiter ankommen
+    assert any("rennen in die Speere" in e for e in b.events)
+    assert eh.men == 41
+    b.command_move([cav], (15.0, 17.0))
+    run(b, 8)
+    assert eh.formation == "linie"                                # Reiter fort: zurück in die Linie
+    assert eh.facing[0] * facing[0] + eh.facing[1] * facing[1] > 0.9
+
+
+def test_cavalry_at_the_front_needs_no_counter():
+    b, hop, cav, eh = cavalry_behind_settlement(pin=False)
+    cav.x, cav.y = 8.0, 12.0                                      # vor der Front (sie schaut nach Süden)
+    cav.place_men()
+    b.command_attack_target([cav], eh)
+    run(b, 4)
+    assert eh.formation == "linie"
+    assert not any("Kreis gegen die Reiter" in e or "drehen die Front gegen" in e for e in b.events)
+
+
+def test_raiders_do_not_form_rings():
+    """Räuber haben keine Schilde und Speere: ein Kreis hält Reiter nicht auf."""
+    b = Battle(raid(16, (8.0, 3.0)), random.Random(0), army=line_army())
+    assert not any(b.brain._can_brace(b, u) for u in b.units(Side.FEIND))
+
+
+def test_parked_cavalry_does_not_hold_the_ring_forever():
+    b, hop, cav, eh = cavalry_behind_settlement(pin=True)
+    b.command_attack_target([cav], eh)
+    while eh.formation != "o" and b.time < 20:
+        b.update(DT)
+    assert eh.formation == "o"
+    b.command_move([cav], (13.0, 0.8))                            # zurück, und dort stehen bleiben
+    run(b, 10)
+    assert cav.rect_distance(eh.pos) > config.AI_BRACE_CLOSE
+    assert eh.formation == "linie"
+
+
+# ------------------------------------------------------------------- Reserve
+def reserve_battle():
+    """Vier Räubergruppen, die hinterste (y = -2) ist die Reserve; der Spieler steht als Linie."""
+    b = Battle(raid(64, (5.0, 1.0), (8.0, 1.0), (11.0, 1.0), (8.0, -2.0)), random.Random(0), army=line_army())
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_line([hop], (5.0, 11.0), (11.0, 11.0))
+    b.command_line([pelt], (6.0, 12.0), (10.0, 12.0))
+    b.command_move([cav], (8.0, 14.0))
+    return b, hop, pelt, cav
+
+
+def test_raiders_hold_back_their_rearmost_group():
+    b, hop, pelt, cav = reserve_battle()
+    run(b, 1)
+    reserve = b.by_id(b.brain.reserve_id)
+    assert reserve is not None and b.brain.reserve_held
+    assert b.brain.reserve_home[1] < -1.0                         # die hinterste Gruppe
+    behind = []
+    for _ in range(int(12 / DT)):
+        b.update(DT)
+        if not b.brain.reserve_held:
+            break
+        others = [o for o in b.units(Side.FEIND, True) if o is not reserve]
+        assert reserve.stance is not Stance.ANGRIFF
+        assert b.brain.roles.get(reserve.id) is None             # bekommt keine Rolle beim Umfassen
+        if b.time > 5.0:
+            behind.append(sum(o.y for o in others) / len(others) - reserve.y)
+    assert behind and min(behind) > 2.0                           # hinter der Hauptmacht
+    assert not b.brain.reserve_held                               # die Umfassung ruft sie
+    assert any("Reserve in den Kampf (Umfassung)" in e for e in b.events)
+
+
+def test_reserve_joins_when_a_foe_comes_close():
+    b, hop, pelt, cav = reserve_battle()
+    run(b, 6)
+    reserve = b.by_id(b.brain.reserve_id)
+    b.command_attack_target([cav], reserve)
+    for _ in range(int(10 / DT)):
+        b.update(DT)
+        if not b.brain.reserve_held:
+            break
+    assert not b.brain.reserve_held
+    assert any("Reserve in den Kampf" in e for e in b.events)
+
+
+def test_reserve_joins_after_its_time():
+    b, hop, pelt, cav = reserve_battle()
+    run(b, 1)
+    b.brain.reserve_since = b.time - config.AI_RESERVE_MAX
+    run(b, 1)
+    assert not b.brain.reserve_held
+    assert any("Reserve in den Kampf (Zeit)" in e for e in b.events)
+
+
+def test_no_reserve_with_few_groups_or_when_switched_off(monkeypatch):
+    b = Battle(raid(32, (6.0, 2.0), (10.0, 2.0)), random.Random(0), army=line_army())
+    b.command_move(None, (8.0, 12.0))
+    run(b, 1)
+    assert not b.brain.reserve_held
+    monkeypatch.setattr(config, "AI_RESERVE", False)
+    b, *_ = reserve_battle()
+    run(b, 1)
+    assert not b.brain.reserve_held

@@ -2001,6 +2001,8 @@ class Battle:
         away = norm(sub(u.pos, foe.pos))
         if self._gap(u, foe) < config.SKIRMISH_NEAR:       # Lücke zwischen den Formationen, wie beim Handgemenge
             u.target = self._free_spot((u.x + away[0] * 1.5, u.y + away[1] * 1.5), u)
+        elif u.flank_throw and (spot := self._open_side_spot(u, foe)) is not None:
+            u.target = spot                                # erst an die schildlose Seite, dabei wird schon geworfen
         elif d > config.JAVELIN_RANGE - config.SKIRMISH_FAR:
             own = [o for o in self.units(u.side, fighting_only=True)
                    if o is not u and self._formed(o) and self.on_wall(o) == self.on_wall(u)]
@@ -2022,6 +2024,33 @@ class Battle:
                 u.target = self._free_spot(spot, u)
         else:
             u.target = None                                # stehen und werfen
+
+    def _open_side_spot(self, u: Lochos, foe: Lochos) -> Point | None:
+        """Ein Platz auf Wurfweite neben der rechten, schildlosen Flanke einer Hoplitenphalanx,
+        solange ``u`` dort noch nicht steht; ``None``: kein solches Ziel, wie gewohnt plänkeln.
+        Von links träfen die Speere den Schild."""
+        if (not self._formed(foe) or foe.formation == "o" or foe.share(lambda m: m.kind.hoplite) < 0.5
+                or self.on_wall(u) or self.on_wall(foe)):
+            return None
+        along, forward = foe.local(u.pos)
+        if along > 0 and self.arc_of(foe, u.pos) == "flank":
+            return None                                    # schon an der offenen Seite
+        out = foe.half_w + u.half_d + config.JAVELIN_RANGE - config.SKIRMISH_FAR - 0.3
+        fx, fy = foe.facing
+
+        def at(a: float, f: float) -> Point:
+            return (foe.x - fy * a + fx * f, foe.y + fx * a + fy * f)   # rechts (+a), so wie die Phalanx schaut
+
+        spot = at(out, 0.0)
+        if (not self.inside(*spot) or self.is_blocked(*spot, u) or not self.wall_clear(u.pos, spot)
+                or self.arc_of(foe, spot) != "flank"):
+            return None                                    # am Rand, im Haus, hinter dem Wall, oder ein Nachbar deckt
+        if abs(forward) > foe.half_d + 0.3 and along < out - 0.4:
+            # vor (oder hinter) der Phalanx: im selben Abstand an ihr entlang nach rechts, dann auf Höhe der Flanke
+            slide = at(out, forward)
+            if self.inside(*slide) and not self.is_blocked(*slide, u):
+                return self._free_spot(slide, u)
+        return self._free_spot(spot, u)
 
     def _reachable_level(self, u: Lochos, f: Lochos) -> bool:
         return self.on_wall(u) == self.on_wall(f) or self.on_wall(u)
