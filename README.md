@@ -158,6 +158,11 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   von hinten wehren sich nur die Männer am Rand (drei je Reihe, hinten
   die letzte Reihe), und nur sie werden getroffen; eine umfasste Phalanx
   verliert dort schnell Männer und Moral.
+- **Schildseite:** Der Hoplitenschild sitzt am linken Arm. Eine Gruppe
+  aus Hopliten ist an der linken Flanke gedeckt (im Nahkampf 0,8-facher
+  Schaden, Speere 0,6-fach) und an der rechten, der Speerseite, offen
+  (1,25-fach, Speere 1,15-fach). Links und rechts gelten so, wie die
+  Gruppe schaut. Reiter und die KI suchen lieber die rechte Seite.
 - **Angriff** (nur für gewählte Gruppen) heißt je Waffengattung etwas
   anderes: Hopliten verlassen die Phalanx und stürmen den nächsten
   Gegner, mit Anlauf werfen sie ungeordnete Gegner um (mit weniger Wucht

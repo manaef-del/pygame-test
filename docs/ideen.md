@@ -28,9 +28,10 @@ wandert nach unten.
    (vorerst) nicht auf, um ihre eigenen Haufen zu umgehen oder durchs Tor zu
    gehen (`LOOSE_AI`). Eingeschaltet kommen sie in der offenen Siedlung
    leichter an die Häuser (Lauf 15).
-1. **Schildseite.** Der Hoplitenschild sitzt links: die rechte Flanke
-   ist verwundbarer, Wurfgeschosse von links treffen den Schild.
-   Historischer Rechtsdrall, Ehre des rechten Flügels. Geringer Aufwand.
+1. **Rechtsdrall.** Eine Phalanx drängt im Vorrücken nach rechts, weil
+   jeder Mann seine offene rechte Seite in den Schild des Nebenmanns
+   schiebt; der rechte Flügel ist der Ehrenplatz. Seit der Schildseite
+   (Lauf 22) wäre das die naheliegende Fortsetzung. Geringer Aufwand.
 2. **Gruppenformationen.** Mehrere Gruppen mit einem Zug aufstellen,
    etwa Hopliten vorn, Peltasten dahinter. Mittlerer Aufwand.
 3. **Hang und Höhe.** Gelände, das Tempo und Kampf beeinflusst. Großer
@@ -59,6 +60,10 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Schildseite** (2. Oktober 2026): Hopliten sind an der linken Flanke
+  durch den Schild gedeckt, an der rechten offen, im Nahkampf wie gegen
+  Speere; Reiter und KI ziehen die rechte Seite vor. Ohne Rechtsdrall
+  (docs/ki-simulation.md, Lauf 22).
 - **Häuser als Hindernisse** (2. Oktober 2026): Häuser, aufgestellte
   Belagerungstürme und liegende Rammböcke sperren den Weg; Blöcke suchen
   Gassen, in die ihre Front passt. Häuser in Blöcken mit Gassen zur Agora

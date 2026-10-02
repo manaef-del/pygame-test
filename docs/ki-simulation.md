@@ -1,5 +1,56 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 22 (2. Oktober 2026): Die Schildseite
+
+Der Hoplitenschild sitzt am linken Arm. Eine Gruppe, die mindestens zur
+Hälfte aus Hopliten besteht, nimmt an der linken Flanke weniger Schaden
+(Nahkampf 0,8-fach, Speere 0,6-fach) und an der rechten mehr (1,25-fach,
+Speere 1,15-fach). Links und rechts gelten so, wie die Gruppe schaut. Front
+und Rücken bleiben, wie sie waren, ebenso lose Gruppen und Peltasten. Reiter
+beim Anreiten und die KI bei der Zielwahl ziehen die rechte Seite leicht vor
+(1,1 gegen 0,9); beim Umgehen nimmt die KI rechts herum, wenn sie etwa mittig
+vor einer Phalanx steht. Einen Rechtsdrall der Phalanx gibt es nicht.
+
+Zwölf Seeds (Festung jetzt auch zwölf, Festung im Angriff acht),
+verglichen mit Lauf 21:
+
+| Szenario | Taktik | Siege vorher → jetzt | Häuser verloren vorher → jetzt |
+|---|---|---|---|
+| offen | linie | 3/12 → 2/12 | 7,7 → 7,7 |
+| offen | linie_reiter | 6/12 → 7/12 | 4,9 → 6,2 |
+| offen | linie_aktiv | 10/12 → 9/12 | 4,1 → 3,0 |
+| offen | linie_tief | 12/12 → 11/12 | 3,6 → 3,2 |
+| offen | passiv | 3/12 → 2/12 | 7,5 → 7,6 |
+| offen | angriff | 12/12 → 11/12 | 6,2 → 6,4 |
+| palisade | tor_halten | 3/12 → 2/12 | 7,3 → 7,3 |
+| palisade | tor_reserve | 4/12 → 4/12 | 7,1 → 7,0 |
+| palisade | tor_leiter | 11/12 → 11/12 | 1,1 → 1,0 |
+| palisade | passiv | 1/12 → 6/12 | 7,6 → 6,2 |
+| horde | vorruecken | 12/12 → 12/12 | – |
+| horde | angriff | 12/12 → 12/12 | – |
+| angriff_offen | phalanxstoss | 0/12 → 0/12 | – |
+| angriff_offen | vorruecken | 0/12 → 0/12 | – |
+| angriff_offen | angriff | 0/12 → 0/12 | – |
+| angriff_wall | tor_phalanx | 0/12 → 0/12 | – |
+| angriff_wall | belagerung | 0/12 → 0/12 | – |
+| festung | tore | 1/8 → 4/12 | 2,0 → 2,3 |
+| festung | passiv | 0/8 → 0/12 | 4,0 → 3,4 |
+| festung_angriff | rammbock | 8/8 → 8/8 | – |
+| festung_angriff | turm | 0/8 → 0/8 | – |
+
+Die Schildseite verschiebt die Balance kaum: Auf den alten Karten liegen
+die Unterschiede bei einem Sieg von zwölf, also im Rauschen, mit einer
+leichten Neigung zugunsten der Räuber (sechs Taktiken einen Sieg weniger,
+eine einen mehr). Deutlich mehr als Rauschen ist nur „passiv“ hinter der
+Palisade: 6 statt 1 von 12 Siegen. Dort steigen die Räuber über den Turm
+und stoßen auf eine stehende Phalanx; warum die Schildseite das so stark
+ändert, ist nicht einzeln nachgeprüft (dieselbe Taktik schwankte schon
+früher stark, Lauf 16: 0 von 12, davor 10). In der Festung
+gewinnt „Tore halten“ öfter (4 von 12 statt 1 von 8); ob das an der
+Schildseite liegt oder an den zusätzlichen Seeds, ist bei so kleinen
+Zahlen nicht sicher zu sagen. Die Angriffsszenarien bleiben unverändert
+schwer.
+
 ## Lauf 21 (2. Oktober 2026): Häuser als Hindernisse
 
 Häuser, aufgestellte Belagerungstürme (außer für die, die über sie auf den
