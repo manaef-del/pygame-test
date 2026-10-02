@@ -1777,13 +1777,18 @@ class Battle:
             u.formation = "linie"
             u.ring_size = 0.0
             u.mode = ""
-            u.reform(plan.width)
             u.stance = Stance.PHALANX
             u.in_line = False
-            u.face_to = plan.facing                  # die Front schwenkt mit begrenzter Rate dorthin
             u.target = plan.center
             u.target_id = None
             u.waypoints = []
+            if config.MARCH_ARC and not u.loose and dist(u.pos, plan.center) > config.MARCH_MIN:
+                u.march = (plan.center, plan.width, plan.facing)   # erst hin, kurz vor dem Ziel aufmarschieren
+                u.face_to = None
+            else:
+                u.march = None
+                u.reform(plan.width)
+                u.face_to = plan.facing              # die Front schwenkt mit begrenzter Rate dorthin
         self.line = plans
         if plans:
             what = "Schlachtordnung" if self.in_battle_order(self._selection(units)) else "Aufstellung"
@@ -2151,6 +2156,11 @@ class Battle:
                 if way != goal:
                     goal, final = way, False
             d = dist(u.pos, goal)
+            if u.march is not None and u.march[0] != u.target:
+                u.march = None                           # ein neuer Befehl gilt
+            arc = self._marching(u, final, d)
+            if u.march is not None and dist(u.pos, u.target) <= config.MARCH_DEPLOY:
+                self._deploy(u)                          # kurz vor dem Ziel: Breite und Front wie befohlen
             if u.mounted_men() and self.is_wall_cell(self.cell(*goal), True) and d <= 1.0:
                 self._dismount(u)   # vor Leiter oder Turm wird abgesessen
             stop_at = 0.0
@@ -2192,6 +2202,8 @@ class Battle:
                     continue
             if self._rides(u):
                 self._ride(u, dt, goal, speed, d)
+            elif arc and goal == u.target:
+                self._wheel(u, dt, goal, speed, d)       # auf freiem Feld: in Marschrichtung, im Bogen
             else:
                 u.vel = 0.0
                 step = min(speed * dt, d)
@@ -2209,6 +2221,46 @@ class Battle:
             if u.stance is Stance.FLUCHT and not self.inside(u.x, u.y):
                 u.withdrawn = True
         self._move_men(dt)
+
+    def _marching(self, u: Lochos, final: bool, d: float) -> bool:
+        """Marschiert die Gruppe im Bogen? Fußvolk als Block auf freiem Feld, unterwegs zu
+        einem Ziel ohne Umweg über Wall, Tor oder um Häuser, noch weit genug weg; ein
+        Linienbefehl gilt bis kurz vor dem Ziel, ein Marschbefehl auf längeren Wegen."""
+        if not config.MARCH_ARC or not final or self.on_wall(u) or u.mounted_men() or u.engine is not None:
+            return False
+        if u.stance not in (Stance.HALTEN, Stance.RAUB, Stance.PHALANX) or u.engaged:
+            return False
+        if u.march is not None and u.march[0] == u.target:
+            return dist(u.pos, u.target) > config.MARCH_DEPLOY
+        return u.stance is not Stance.PHALANX and u.face_to is None and d > config.MARCH_MIN
+
+    def _deploy(self, u: Lochos) -> None:
+        """Aufmarschieren: die befohlene Breite und Front einnehmen."""
+        _, width, facing = u.march
+        u.march = None
+        if width != u.width:
+            u.reform(width)
+        u.face_to = facing
+
+    def _wheel(self, u: Lochos, dt: float, goal: Point, speed: float, d: float) -> None:
+        """Marsch im Bogen: Die Front zeigt in Marschrichtung und schwenkt mit begrenzter
+        Rate zum Ziel (eine breite Linie langsamer, ihr äußerer Mann muss mithalten); liegt
+        das Ziel weit seitlich, wird langsamer marschiert und enger geschwenkt. Liegt es
+        hinter der Gruppe, macht sie kehrt."""
+        u.vel = 0.0
+        want = norm(sub(goal, u.pos))
+        if abs(self._angle_to(u.facing, want)) > config.ABOUT_TURN:
+            self._about_turn(u)
+        ang = self._angle_to(u.facing, want)
+        rate = min(config.MARCH_WHEEL_MAX, config.MARCH_WHEEL / max(0.3, u.half_w))
+        turn = max(-rate * dt, min(rate * dt, ang))
+        fx, fy = u.facing
+        c, s_ = math.cos(turn), math.sin(turn)
+        u.facing = (fx * c - fy * s_, fx * s_ + fy * c)
+        u.heading = u.facing
+        rest = abs(ang - turn)
+        pace = max(0.15, math.cos(min(rest, math.pi / 2)))   # weit seitlich: fast auf der Stelle schwenken
+        self._step(u, scale(u.facing, min(speed * pace * dt, d)))
 
     def _standing(self, o: Lochos) -> bool:
         """Steht die Gruppe (statt unterwegs zu sein)? Ohne Ziel, angekommen (eine
@@ -2550,8 +2602,10 @@ class Battle:
             return ""                             # die Gegner gehen (vorerst) als Block um ihre Haufen herum und durchs Tor
         why = ""
         open_gates = [g.center for g in self.gates if not g.closed]
-        if (self.blocked and open_gates
-                and not self.is_wall_cell(self.cell(*u.target), True) and not self.wall_clear(u.pos, u.target)):
+        here, there = self._wall_level(u.pos), self._wall_level(u.target)
+        through = here != there and "tor" not in (here, there) and "wall" not in (here, there)
+        if (self.blocked and open_gates and not self.is_wall_cell(self.cell(*u.target), True)
+                and (through or not self.wall_clear(u.pos, u.target))):
             if any(e.side is not u.side and e.fighting and dist(e.pos, gate) <= config.LOOSE_ENEMY_RANGE
                    for e in self.lochoi for gate in open_gates):
                 return ""                         # am Tor wird gekämpft: dort hält man die Ordnung und steht an
@@ -2589,6 +2643,8 @@ class Battle:
         return None
 
     def _dissolve(self, u: Lochos, why: str) -> None:
+        if u.march is not None and u.march[0] == u.target:
+            self._deploy(u)                       # jeder geht einzeln an seinen Platz: gleich in der befohlenen Aufstellung
         u.loose = True
         u.loose_why = why
         u.in_line = False

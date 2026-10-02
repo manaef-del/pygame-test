@@ -227,6 +227,7 @@ class Lochos:
     mode: str = ""                    # freier Angriff je Waffengattung: "", "sturm" (Reiter: Stoß und Lösen)
     hitrun_until: float = -1.0        # Reiter: bis dahin wird vom Feind abgesetzt
     flank_throw: bool = False         # KI-Peltasten: beim Plänkeln an die schildlose rechte Flanke einer Phalanx
+    march: tuple | None = None        # (Ziel, Breite, Front): erst im Bogen hin, kurz vor dem Ziel aufmarschieren
 
     def __post_init__(self) -> None:
         self.rows = [list(r) for r in self.rows if r]

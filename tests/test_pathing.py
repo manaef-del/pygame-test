@@ -310,10 +310,13 @@ def approaching_attacker(b, ring):
 def test_attacker_keeps_its_detour_side_instead_of_dithering(monkeypatch):
     """Ein Haufen, der hinter zwei eigenen kämpfenden Gruppen an einen Kreis will,
     wählt eine Seite und bleibt dabei: er wechselt sie nicht hin und her und kommt
-    voran oder wartet geordnet. (Ohne Reserve der KI: Sie ändert, welcher Haufen
-    wann anrückt, und damit die Lage, um die es hier geht.)"""
+    voran oder wartet geordnet. (Ohne Reserve der KI und ohne Marsch im Bogen: Beide
+    ändern, welcher Haufen wann anrückt, und damit die Lage, um die es hier geht; in
+    anderen Lagen wechselt ein Haufen nach einem Umweg noch die Seite, siehe
+    docs/ideen.md, Umweg-Flackern.)"""
     from game.scenarios import OFFENE_SIEDLUNG
     monkeypatch.setattr(config, "AI_RESERVE", False)
+    monkeypatch.setattr(config, "MARCH_ARC", False)
     b = Battle(OFFENE_SIEDLUNG, random.Random(1))
     own = b.units(Side.STADT)
     g = b.command_merge(own)

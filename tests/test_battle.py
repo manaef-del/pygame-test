@@ -1440,7 +1440,53 @@ def test_about_turn_swaps_rows_so_nobody_crosses_the_block(kind):
     assert moved < 0.6                                                     # niemand läuft quer durch den Block
 
 
-@pytest.mark.parametrize("kind", ["mittel", "reiter"])
+def test_short_move_wheels_before_it_marches(monkeypatch):
+    """Auf kurzen Wegen (und für Reiter immer) erst schwenken, dann marschieren."""
+    monkeypatch.setattr(config, "MARCH_MIN", 10.0)
+    b, u = standing_group("mittel")
+    b.command_move([u], (14.0, 12.0))                                      # rechtwinklig nach Osten
+    x0 = u.x
+    run(b, 0.15)
+    assert u.facing[0] > 0.3 and u.facing[1] < -0.3                         # mitten im Schwenk
+    assert abs(u.x - x0) < 0.05                                            # noch nicht losmarschiert
+    run(b, 0.5)
+    assert abs(u.facing[0] - 1.0) < 1e-6 and u.x > x0 + 0.1                # ausgerichtet und unterwegs
+
+
+def test_foot_marches_in_an_arc_with_its_front_ahead():
+    """Fußvolk auf längerem Weg: Es läuft in seiner Blickrichtung an und schwenkt im Marsch
+    zum Ziel (ein Bogen), statt erst auf der Stelle zu drehen; die Front zeigt dabei in
+    Marschrichtung."""
+    b, u = standing_group("mittel")
+    b.command_move([u], (14.0, 12.0))                                      # rechtwinklig nach Osten
+    y0 = u.y
+    path = []
+    for _ in range(int(4 / DT)):
+        b.update(DT)
+        path.append((u.pos, u.facing))
+    assert min(p[1] for p, _ in path) < y0 - 0.05                          # erst ein Stück nach Norden: ein Bogen
+    moving = [(path[i][0], path[i + 1][0], path[i + 1][1]) for i in range(len(path) - 1)
+              if dist_of_pt(path[i][0], path[i + 1][0]) > 1e-3]
+    assert all((q[0] - p[0]) * f[0] + (q[1] - p[1]) * f[1] > 0 for p, q, f in moving)   # immer vorwärts
+    assert u.facing[0] > 0.95 and u.x > 10.0
+
+
+def test_line_order_keeps_its_width_and_deploys_at_the_target():
+    """Ein Linienbefehl auf längerem Weg: Die Gruppe marschiert in ihrer Breite und nimmt
+    die befohlene Breite und Front erst kurz vor dem Ziel ein."""
+    b, u = standing_group("mittel", 24, 6)
+    b.command_line([u], (2.0, 4.0), (2.0, 8.0))                            # weit links oben, Front nach Osten
+    assert u.width == 6 and u.march is not None
+    while u.march is not None and b.time < 20:
+        b.update(DT)
+        if u.march is not None:
+            assert u.width == 6
+    assert dist_of_pt(u.pos, (2.0, 6.0)) <= config.MARCH_DEPLOY + 0.1
+    run(b, 6)
+    assert u.in_phalanx and u.facing == (1.0, 0.0) and u.width == len(u.rows[0]) and u.width > 6
+
+
+@pytest.mark.parametrize("kind", ["reiter"])
 def test_standing_group_wheels_before_it_marches(kind):
     b, u = standing_group(kind)
     b.command_move([u], (14.0, 12.0))                                      # rechtwinklig nach Osten
@@ -1476,7 +1522,7 @@ def test_enemy_groups_wheel_and_about_turn_like_the_player():
     raider.stance, raider.target = Stance.HALTEN, (8.0, 2.0)              # zurück nach Norden
     b.update(DT)
     assert raider.facing == (0.0, -1.0) and raider.rows[-1] == list(reversed(front))
-    raider.target = (13.0, raider.y)                                        # und nun nach Osten
+    raider.target = (10.5, raider.y)                                        # und nun ein kurzes Stück nach Osten
     x0 = raider.x
     run(b, 0.15)
     assert 0.3 < raider.facing[0] < 0.95 and abs(raider.x - x0) < 0.05     # schwenkt erst, marschiert dann

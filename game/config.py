@@ -92,6 +92,11 @@ CHARGE_WEDGE = 1.8           # Keil: halb so viele Getroffene, dafür so viel h�
 STAND_TURN_RATE = 3.14       # rad/s: Schwenken im Stand (halbe Umdrehung je Sekunde), alle Gattungen
 ABOUT_TURN = 2.1             # rad (120°): ab hier wird kehrtgemacht (Reihen tauschen statt Plätze wechseln)
 MOVE_TURN_TOLERANCE = 0.8    # rad (45°): erst wenn die Richtung so grob stimmt, geht es los
+MARCH_ARC = True             # Fußvolk marschiert auf freiem Feld im Bogen statt erst zu drehen und dann geradeaus
+MARCH_MIN = 3.0              # Kacheln: kürzere Wege geht man wie bisher (drehen, dann gerade; sofort aufmarschieren)
+MARCH_DEPLOY = 1.5           # Kacheln vor dem Ziel: dort marschiert die Gruppe in Breite und Front auf
+MARCH_WHEEL = 1.2            # Kacheln/s, die der äußere Mann beim Schwenken zusätzlich läuft (Drehrate = dies / halbe Breite)
+MARCH_WHEEL_MAX = 1.6        # rad/s: schneller schwenkt auch ein kleiner Block nicht
 CAVALRY_ACCEL = 2.5          # Kacheln/s²: Reiter fahren an
 CAVALRY_BRAKE = 4.0          # Kacheln/s²: Reiter bremsen vor dem Ziel
 CAVALRY_TURN_RATE = 6.0      # rad/s im Schritt; geteilt durch das Tempo darüber (Bogen wächst mit dem Tempo)
