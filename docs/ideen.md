@@ -24,10 +24,6 @@ wandert nach unten.
    dass die Räuber-KI vor der Palisade zwischen „Umgehen“ (um ein Ende, das
    es dort nicht gibt) und „Frontal“ hin und her schwankt, wenn die Schlacht
    lange dauert.
-0c. **Gegner gehen noch als Block.** Die Räuber und die Siedlung lösen sich
-   (vorerst) nicht auf, um ihre eigenen Haufen zu umgehen oder durchs Tor zu
-   gehen (`LOOSE_AI`). Eingeschaltet kommen sie in der offenen Siedlung
-   leichter an die Häuser (Lauf 15).
 1. **Rechtsdrall.** Eine Phalanx drängt im Vorrücken nach rechts, weil
    jeder Mann seine offene rechte Seite in den Schild des Nebenmanns
    schiebt; der rechte Flügel ist der Ehrenplatz. Seit der Schildseite
@@ -79,6 +75,10 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Gegner lösen sich auf** (3. Oktober 2026): Räuber, Siedlung und Heer
+  gehen wie die Spielergruppen Mann für Mann durchs offene Tor und an
+  eigenen ruhenden Haufen vorbei; nahe am Feind bleiben sie Block
+  (docs/ki-simulation.md, Lauf 25).
 - **Klügere Gegner-KI** (2. Oktober 2026): Reserve, Front drehen gegen
   Reiter, Kreis nur als Verzweiflungstat, Peltasten an die schildlose Seite
   (docs/ki-simulation.md, Lauf 24).

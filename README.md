@@ -88,9 +88,10 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   gekämpft: Wer oben steht, schlägt mit verminderter Wucht hinab; wer auf
   der Leiter steht, ist auch von unten zu treffen; wer oben auf dem
   Wehrgang steht, nicht.
-  Die Gegner steigen ebenso Mann für Mann über den Wall, gehen aber um ihre
-  eigenen Haufen und durchs Tor (vorerst) noch als Block
-  (`LOOSE_AI` in `game/config.py`).
+  Die Gegner gehen genauso: Mann für Mann über den Wall, durchs offene Tor
+  und an ihren eigenen ruhenden Haufen vorbei. Steht dabei ein Feind näher
+  als zweieinhalb Kacheln, halten sie die Ordnung und gehen als Block herum
+  (abschaltbar mit `LOOSE_AI` in `game/config.py`).
 - **Niemand steht im anderen.** Kein Mann teilt seinen Platz mit einem
   anderen, auch nicht mit einem Fliehenden oder einem Feind: Zwischen
   Männern verschiedener Gruppen bleiben immer zwei Halbmesser, in der
