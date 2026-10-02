@@ -957,7 +957,7 @@ def test_the_palisade_covers_the_walkway_against_spears_from_outside():
     (der Seite der Häuser) oder unten auf dem Boden nicht."""
     from game.battle import Projectile
     b = Battle(PALISADE, random.Random(1))
-    target = b.units(Side.STADT)[0]
+    target = next(u for u in b.units(Side.STADT) if u.name == "Peltasten")   # wer auf den Wehrgang darf (ohne Hoplitenschild)
     man = target.all_men()[0]
 
     def hit(at, origin):
@@ -1864,3 +1864,43 @@ def test_hoplites_pass_through_their_own_peltasts_in_loose_order():
     assert hop.in_phalanx and abs(hop.y - 9.5) < 0.3
     assert widest < 1.0, widest                                            # kein Umweg um die ganze Linie
     assert dist_of_pt(pelt.pos, origin) < 0.05
+
+
+# ------------------------------------------------------------- Schildseite
+def test_hoplite_shield_covers_the_left_flank():
+    """Der Schild sitzt links: von rechts trifft ein Angriff die Hopliten härter als von
+    links, Speere von links fangen sich im Schild; bei Räubern ist es gleich."""
+    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    hop = b.units(Side.STADT)[0]
+    hop.x, hop.y, hop.facing = 8.0, 10.0, (0.0, -1.0)            # Front nach Norden: rechts ist Osten
+    hop.place_men()
+    raider = b.units(Side.FEIND)[0]
+    raider.x, raider.y = hop.x + hop.half_w + 1.0, hop.y          # rechts (Osten)
+    right, arc_r = b._defense_mod(raider, hop)
+    raider.x = hop.x - hop.half_w - 1.0                           # links (Westen)
+    left, arc_l = b._defense_mod(raider, hop)
+    assert arc_r == arc_l == "flank"
+    assert right == pytest.approx(left * config.SHIELD_MELEE_OPEN / config.SHIELD_MELEE_COVER)
+    assert b.shield_side(hop, (hop.x - 2.0, hop.y), config.SHIELD_SPEAR_COVER, config.SHIELD_SPEAR_OPEN) == config.SHIELD_SPEAR_COVER
+    assert b.shield_side(raider, (raider.x + 2.0, raider.y), 0.5, 2.0) == 1.0    # Räuber tragen keinen Hoplitenschild
+
+
+def test_spears_from_the_shield_side_do_less_harm():
+    from game.battle import Projectile
+    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    b.alarm = False
+    hop = b.units(Side.STADT)[0]
+    hop.x, hop.y, hop.facing = 8.0, 10.0, (0.0, -1.0)
+    hop.place_men()
+    man = hop.all_men()[-1]
+
+    def hit(origin):
+        man.hp = man.kind.hp
+        b.projectiles = [Projectile(origin[0], origin[1], man.x, man.y, hop.id, 0.2, 0.0, 0.05, man)]
+        for u in b.lochoi:
+            u.volley_timer = 99.0
+        b._volleys(0.1)
+        return man.kind.hp - man.hp
+    left = hit((hop.x - hop.half_w - 2.0, hop.y))
+    right = hit((hop.x + hop.half_w + 2.0, hop.y))
+    assert left == pytest.approx(right * config.SHIELD_SPEAR_COVER / config.SHIELD_SPEAR_OPEN)

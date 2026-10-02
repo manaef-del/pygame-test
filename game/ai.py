@@ -292,6 +292,8 @@ class Brain:
         elif formed(foe):
             a = b.arc_of(foe, u.pos)
             v = {"front": 0.45, "flank": 1.1, "rear": 1.3}[a]
+            if a == "flank":
+                v *= b.shield_side(foe, u.pos, 0.9, 1.1)      # die schildlose rechte Seite lohnt mehr
         if b.on_wall(foe) != b.up(u):
             v *= 0.3
         elif not formed(foe) and r is not None and not any(
@@ -1083,7 +1085,9 @@ def flank_route(b: "Battle", u: Lochos, foe: Lochos) -> Point | None:
     def clamp(p: Point) -> Point:
         return (min(max(p[0], 0.5), b.cols - 0.5), min(max(p[1], 0.5), b.rows - 0.5))
 
-    for sgn in ((1.0, -1.0) if along >= 0 else (-1.0, 1.0)):
+    # die nähere Seite; steht man etwa mittig vor Hopliten, die schildlose rechte
+    right_first = along >= 0 or (abs(along) < 0.5 * foe.half_w and foe.share(lambda m: m.kind.hoplite) >= 0.5)
+    for sgn in ((1.0, -1.0) if right_first else (-1.0, 1.0)):
         flank = clamp(local_to_world(foe, sgn * outer, 0.0))       # neben der Flanke, außer Reichweite der Front
         if b.is_blocked(flank[0], flank[1], u):
             continue

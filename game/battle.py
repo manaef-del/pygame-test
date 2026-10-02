@@ -1980,7 +1980,10 @@ class Battle:
             elif not self._formed(f):
                 v = 1.5
             else:
-                v = {"front": 0.3, "flank": 1.2, "rear": 1.4}[self.arc_of(f, u.pos)]
+                a = self.arc_of(f, u.pos)
+                v = {"front": 0.3, "flank": 1.2, "rear": 1.4}[a]
+                if a == "flank":
+                    v *= self.shield_side(f, u.pos, 0.9, 1.1)    # lieber die schildlose rechte Seite
             s = v / (1.0 + f.rect_distance(u.pos) / 3.0)
             if s > best_s:
                 best, best_s = f, s
@@ -3543,11 +3546,22 @@ class Battle:
                 mod = config.PHALANX_REAR
             support = max(config.PHALANX_SUPPORT_MIN, 1.0 - config.PHALANX_SUPPORT * self._line_neighbours(b))
             mod *= support
+        if arc_name == "flank":
+            mod *= self.shield_side(b, a.pos, config.SHIELD_MELEE_COVER, config.SHIELD_MELEE_OPEN)
         if b.stance is Stance.FLUCHT:
             mod *= config.ROUTED_DAMAGE
         if b.leader_man() is not None:
             mod *= config.LEADER_ARMOR                   # der Anführer hält die Reihen zusammen
         return mod, arc_name
+
+    @staticmethod
+    def shield_side(b: Lochos, p: Point, cover: float, open_: float) -> float:
+        """Der Hoplitenschild sitzt am linken Arm: Wer Hopliten von ihrer linken Seite
+        trifft, trifft den Schild (``cover``), von rechts die ungedeckte Seite (``open_``)."""
+        if b.share(lambda m: m.kind.hoplite) < 0.5:
+            return 1.0
+        along, _ = b.local(p)
+        return open_ if along > 0 else cover
 
     def _present(self, u: Lochos, foe: Lochos) -> list[Man]:
         """Aufgelöste Formation: nur die Männer nahe am Gegner kämpfen."""
@@ -3715,6 +3729,8 @@ class Battle:
                 if pr.target_man.hp <= 0 or dist(pr.target_man.pos, (pr.tx, pr.ty)) > 0.35:
                     continue                                   # daneben: der Mann ist nicht mehr dort
                 dmg = pr.dmg * (config.LEADER_ARMOR if b.leader_man() is not None else 1.0)
+                if not b.loose and b.arc_to((pr.x, pr.y)) == "flank":
+                    dmg *= self.shield_side(b, (pr.x, pr.y), config.SHIELD_SPEAR_COVER, config.SHIELD_SPEAR_OPEN)
                 if self._behind_palisade(pr.target_man, (pr.x, pr.y)):
                     dmg *= config.WALL_COVER_FACTOR
                 fallen = b.hit_man(pr.target_man, dmg)
