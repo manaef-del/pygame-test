@@ -37,15 +37,21 @@ wandert nach unten.
    Schlachtordnung auch für einen Teil des Heers ziehen. Geringer Aufwand.
 3. **Hang und Höhe.** Gelände, das Tempo und Kampf beeinflusst. Großer
    Aufwand.
-4. **KI: Reserve und Gegenmittel.** Eine Gruppe zurückhalten, auf
-   Reiter mit Kreisen antworten, Peltasten auf die schildlose Seite
-   schicken.
+4. **Umweg-Flackern der Räuber.** Steht neben dem Ziel eines Haufens eine
+   eigene kämpfende Gruppe genau auf der Schwelle „dort anstellen“, schaltet
+   er jeden Schritt zwischen Umweg und geradem Weg und kommt kaum voran; nach
+   einem Umweg wählt er für die nächste Gruppe manchmal die andere Seite und
+   läuft zurück. Behoben (Spiel an der Schwelle, zuletzt gewählte Seite
+   merken) werden die Räuber deutlich stärker: offen „angriff“ 9 statt 3,
+   mit Merk-Seite „linie_aktiv“ 0 statt 9 Siege von 12 (Lauf 24). Erst
+   zusammen mit einer Balance-Runde angehen.
 5. **Festung: Turm allein reicht nicht.** Über einen Belagerungsturm allein
    kommt kein Angriff hinein (0 von 8): Die Männer steigen einzeln, im Feuer
    der Ecktürme. Vielleicht deckt ein angesetzter Turm gegen die Ecktürme,
    oder er lässt mehr Männer zugleich durch.
-6. **Festung im Angriff zu leicht?** Mit dem Rammbock gewinnt man immer
-   (8 von 8) gegen eine Besatzung von 40.
+6. **Festung im Angriff jetzt zu schwer?** Bis Lauf 23 gewann der Rammbock
+   immer (8 von 8); seit die Besatzung gegen Reiter Kreise bildet, nie
+   (0 von 8, Lauf 24): Die Reiter des Spielers finden keine Flanke mehr.
 7. **Vorhalten und Streuung beim Fernkampf.** Werfer und Ecktürme zielen
    dorthin, wo die beschossene Gruppe sein wird, wenn das Geschoss
    ankommt: aus ihrer Bewegungsrichtung und Geschwindigkeit. Dafür
@@ -72,6 +78,9 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Klügere Gegner-KI** (2. Oktober 2026): Reserve, Front drehen oder
+  Kreis gegen Reiter, Peltasten an die schildlose Seite
+  (docs/ki-simulation.md, Lauf 24).
 - **Schlachtordnung** (2. Oktober 2026): Gemischte Gruppen mit einem Zug
   aufstellen: Hopliten vorn, Peltasten dahinter, Reiter an den Flügeln
   (docs/ki-simulation.md, Lauf 23).

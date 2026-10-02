@@ -1,5 +1,60 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 24 (2. Oktober 2026): Klügere Gegner-KI
+
+Drei Gegenmittel (README, „Gegenmittel der KI“): Reserve (Räuber, Horde,
+Siedlung ab drei Gruppen), gegen Reiter Front drehen oder Kreis
+(Hopliten der Siedlung und beider Festungsseiten), Peltasten der KI
+plänkeln von der schildlosen rechten Seite. Jedes lässt sich in
+`game/config.py` abschalten (`AI_RESERVE`, `AI_BRACE`, `AI_FLANK_THROW`).
+
+Zwölf Seeds (Festung im Angriff acht), verglichen mit Lauf 22 und 23:
+
+| Szenario | Taktik | Siege vorher → jetzt | Häuser verloren vorher → jetzt |
+|---|---|---|---|
+| offen | linie | 2/12 → 5/12 | 7,7 → 7,5 |
+| offen | schlachtordnung | 12/12 → 8/12 | 3,9 → 6,8 |
+| offen | linie_reiter | 7/12 → 5/12 | 6,2 → 6,7 |
+| offen | linie_aktiv | 9/12 → 11/12 | 3,0 → 2,1 |
+| offen | linie_tief | 11/12 → 10/12 | 3,2 → 3,9 |
+| offen | passiv | 2/12 → 1/12 | 7,6 → 7,9 |
+| offen | angriff | 11/12 → 9/12 | 6,4 → 6,8 |
+| palisade | tor_halten | 2/12 → 1/12 | 7,3 → 7,9 |
+| palisade | tor_reserve | 4/12 → 8/12 | 7,0 → 4,8 |
+| palisade | tor_leiter | 11/12 → 12/12 | 1,0 → 0,2 |
+| palisade | passiv | 6/12 → 0/12 | 6,2 → 8,0 |
+| horde | vorruecken | 12/12 → 12/12 | – |
+| horde | angriff | 12/12 → 10/12 | – |
+| angriff_offen | alle drei | 0/12 → 0/12 | – |
+| angriff_wall | beide | 0/12 → 0/12 | – |
+| festung | tore | 4/12 → 2/12 | 2,3 → 4,0 |
+| festung | passiv | 0/12 → 0/12 | 3,4 → 4,1 |
+| festung_angriff | rammbock | 8/8 → 0/8 | – |
+| festung_angriff | turm | 0/8 → 0/8 | – |
+
+Auf den alten Karten verschiebt sich vieles um ein, zwei Siege in beide
+Richtungen. Deutlich sind: „passiv“ hinter der Palisade fällt auf 0 (die
+6 aus Lauf 22 waren schon auffällig, davor 1), die Schlachtordnung mit
+einem Zug verliert 4 Siege, „Tor mit Reserve“ gewinnt 4 dazu. Ausgeschaltet
+einzeln gemessen (offen „angriff“): ohne Reserve 0 statt 9 von 12, die
+Reserve der Räuber hilft dem angreifenden Spieler dort also eher (sie
+fehlt der Hauptmacht vorn). Der Abnahmetest „Phalanx, dann Verfolgung“
+gewinnt mit acht Startwerten weiter 8 von 8, verliert durch die Reserve aber
+im Mittel 21 statt 18 Mann; seine Verlustgrenze steht jetzt bei 35 %.
+
+Die Festung im Angriff kippt: Mit dem Rammbock gewinnt man nie mehr
+(abgeschaltet `AI_BRACE`: wieder 8 von 8, `AI_FLANK_THROW` ohne
+Einfluss). Die Besatzungsphalanxen hinter dem Tor haben Fußvolk vor sich
+und bilden gegen die heranreitenden Reiter Kreise; die Reiter stoßen nicht
+mehr in Flanke oder Rücken, und im Kreis ist jede Seite Front.
+
+Beim Bauen fiel ein Flackern in der Wegsuche auf (Ideenliste, Punkt 4).
+Zwei Korrekturen wurden gemessen und wieder verworfen, weil sie die
+Räuber stark machen: Mit Spiel an der Schwelle gewinnt offen „angriff“
+3 statt 9; mit zusätzlich gemerkter Umgehungsseite fallen „linie_aktiv“
+und „linie_reiter“ auf 0. Der Pfadtest dazu läuft ohne Reserve der KI, weil
+die Reserve nur ändert, welcher Haufen anrückt.
+
 ## Lauf 23 (2. Oktober 2026): Schlachtordnung
 
 Bekommen Gruppen verschiedener Gattungen mit einem Zug dieselbe Linie,

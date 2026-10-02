@@ -426,6 +426,34 @@ bleiben daher Haufen und zermürben als Ganzes; reine Peltastengruppen
 stellt die Siedlung. Ohne Speere stehen die Peltasten der Siedlung
 still oder folgen der Linie, die Räuber-Peltasten gehen in den Nahkampf.
 
+**Gegenmittel der KI.**
+- **Reserve:** Hat die Gegnerseite mindestens drei Gruppen, hält sie die
+  hinterste zurück. Bei den Räubern folgt sie der Hauptmacht dreieinhalb
+  Kacheln dahinter, die Horde und die Siedlung lassen sie stehen, wo sie
+  ist. Sie kommt, wenn:
+  - ein Feind ihr nahe kommt,
+  - ein ungedeckter oder fliehender Gegner in Reichweite ist,
+  - beim Umfassen jemand an der Flanke steht,
+  - 30 % der eigenen Leute gefallen sind,
+  - kaum noch andere kämpfen,
+  - oder spätestens nach 35 Sekunden.
+
+  Das Protokoll meldet, warum sie kommt. Die Festungsbesatzung hat schon
+  eine eigene Reserve: Phalanxen an ruhigen Toren gehen an bedrohte
+  Stellen.
+- **Gegen Reiter:** Reiten Reiter auf eine Hoplitengruppe der KI zu, und
+  nicht auf ihre Front, dreht eine Phalanx ohne Fußvolk vor sich die Front
+  zu ihnen, und die Reiter rennen in die Speere. Geht das nicht, bildet sie
+  früh einen Kreis. Das ist der Fall, wenn vorn feindliches Fußvolk steht,
+  Reiter von zwei Seiten kommen oder die Gruppe nicht in Phalanx steht.
+  Reitet niemand mehr heran, kehrt sie in die Linie mit der alten Front
+  zurück. Räuber haben weder Schild noch Speer, ein Kreis hilft ihnen
+  nicht.
+- **Peltasten an die schildlose Seite:** Plänkelnde Peltasten der KI
+  gehen gegen eine Hoplitenphalanx erst im Wurfabstand an ihr entlang
+  an die rechte Flanke und werfen von dort (Speere 1,15-fach statt
+  0,6-fach von links).
+
 **Aufstellung der Siedlung.** Beim Angriff kopiert die Siedlung die
 Mischung des Spielers nicht mehr. Sie ordnet seine Truppe ein
 (ausgewogen, ohne Reiter, reiterlastig, peltastenlastig, ein Block) und
