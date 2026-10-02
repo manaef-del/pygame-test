@@ -46,6 +46,12 @@ wandert nach unten.
    oder er lässt mehr Männer zugleich durch.
 6. **Festung im Angriff zu leicht?** Mit dem Rammbock gewinnt man immer
    (8 von 8) gegen eine Besatzung von 40.
+7. **Vorhalten und Streuung beim Fernkampf.** Werfer und Ecktürme zielen
+   dorthin, wo die beschossene Gruppe sein wird, wenn das Geschoss
+   ankommt: aus ihrer Bewegungsrichtung und Geschwindigkeit. Dafür
+   streuen die Geschosse breiter, sodass einige danebengehen. Wer
+   gerade läuft, wird dann nicht mehr hinter sich getroffen, wer stehen
+   bleibt oder abrupt wendet, entgeht manchem Wurf.
 
 ## Zurückgestellt
 
