@@ -34,10 +34,10 @@ Zwölf Seeds, verglichen mit Lauf 17 (die Änderung am Binden wirkt sich aus):
 | angriff_offen | vorruecken | – → 0/12 | – |
 | angriff_offen | angriff | – → 0/12 | – |
 
-An der Palisade halten die Verteidiger deutlich besser: Wer über den Wall
-kommt und auf die Phalanx trifft, bleibt nicht mehr an deren Rechteck
-gebunden stehen, wenn dort niemand ist, sondern nur an Männern; die
-Räuber verzetteln sich weniger, die Phalanx aber hält. Wer in der offenen
+An der Palisade halten die Verteidiger deutlich besser. Vermutlich, weil
+dort am meisten Männer neben leeren Rechtecken gebunden waren (13 %):
+Wer jetzt nicht wirklich gebunden ist, rückt auf seinen Platz nach, und
+die Phalanx steht schneller wieder geschlossen. Nachgeprüft ist das nicht. Wer in der offenen
 Siedlung passiv stehen bleibt, gewinnt wieder seltener (Lauf 17 hatte ihn
 stark verbessert, jetzt liegt er zwischen Lauf 16 und 17).
 
