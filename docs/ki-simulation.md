@@ -1,5 +1,62 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 25 (3. Oktober 2026): Die Gegner lösen sich auf
+
+`LOOSE_AI` ist an: Räuber, Siedlung und Heer gehen wie die Gruppen des
+Spielers Mann für Mann durchs offene Tor und an ruhenden eigenen Haufen
+vorbei. Steht dabei ein Feind näher als 2,5 Kacheln, bleiben sie Block (am
+umkämpften Tor galt das schon). Ohne diese Ausnahme plünderten die Räuber im
+Abnahmetest „Phalanx, dann Verfolgung“ deutlich mehr: Über acht Startwerte
+standen am Ende im Mittel 3,3 statt 6,0 Häuser, mit ihr 5,9.
+
+Zwei Dinge fielen beim Messen auf und sind behoben:
+
+- **Ruckler am Tor:** Bevor sich eine Gruppe auflöst, prüft sie mit einem
+  Wegefeld, ob ihre Männer durchkommen. Diese Prüfung lief am Budget je Takt
+  vorbei. Auf der Festungskarte dauerte ein Takt bis zu 300 ms, wenn sich zwei
+  Gruppen zugleich auflösten. Jetzt löst sich eine Gruppe einen Takt später
+  auf, wenn das Budget verbraucht ist. Gemessen: höchstens 56 ms je Takt, im
+  Mittel 13–14 ms (vorher 12 ms).
+- **Stillstand:** Gezählt wurde, wie lange Gegnergruppen ein Ziel haben,
+  nicht kämpfen und sich trotzdem kaum bewegen. Das betrifft fast nur das
+  Übersteigen am Turm: Auf der Palisade geht die Hälfte der aktiven
+  Räuberzeit dafür drauf, weil alle über einen Turm und eine Leiter müssen
+  (rund 2,5 Mann je Sekunde). Das war schon ohne den Schalter so. Für ein
+  Tor oder eigene Haufen hängt keine Gegnergruppe fest. Gassen zwischen
+  Häusern sind für Gegnerblöcke keine Falle: Für einen breiten Block gab es
+  nie keinen Weg, wo einzelne Männer noch durchkämen.
+
+Zwölf Seeds (Festung im Angriff acht), verglichen mit Lauf 24 und 24b:
+
+| Szenario | Taktik | Siege vorher → jetzt | Häuser verloren vorher → jetzt |
+|---|---|---|---|
+| offen | linie | 5/12 → 5/12 | 7,5 → 7,5 |
+| offen | schlachtordnung | 8/12 → 11/12 | 6,8 → 2,6 |
+| offen | linie_reiter | 5/12 → 5/12 | 6,7 → 6,8 |
+| offen | linie_aktiv | 11/12 → 11/12 | 2,1 → 2,1 |
+| offen | linie_tief | 10/12 → 10/12 | 3,9 → 4,2 |
+| offen | passiv | 1/12 → 1/12 | 7,9 → 7,9 |
+| offen | angriff | 9/12 → 9/12 | 6,8 → 6,8 |
+| palisade | tor_halten | 1/12 → 1/12 | 7,9 → 7,9 |
+| palisade | tor_reserve | 8/12 → 6/12 | 4,8 → 5,8 |
+| palisade | tor_leiter | 12/12 → 11/12 | 0,2 → 1,3 |
+| palisade | passiv | 0/12 → 8/12 | 8,0 → 5,4 |
+| horde | vorruecken, angriff | 12/12, 10/12 → 12/12, 10/12 | – |
+| angriff_offen | phalanxstoss | 1/12 → 1/12 | – |
+| angriff_offen | vorruecken, angriff | 0/12 → 0/12 | – |
+| angriff_wall | beide | 0/12 → 0/12 | – |
+| festung | tore | 4/12 → 0/12 | 2,3 → 4,0 |
+| festung | passiv | 1/12 → 0/12 | 3,1 → 4,7 |
+| festung_angriff | rammbock | 8/8 → 8/8 | – |
+| festung_angriff | turm | 0/8 → 0/8 | – |
+
+Die offene Siedlung bleibt fast gleich. Dort greift die Ausnahme nahe am
+Feind, die Schlachtordnung profitiert sogar. Am deutlichsten verliert der
+Spieler in der Festung: Das Heer kommt aufgelöst schneller durch die
+geöffneten Tore und an den Rammbockgruppen vorbei; „Tore halten“ gewinnt
+nie mehr (vorher 4 von 12). Palisade „passiv“ springt wie schon in früheren
+Läufen (1, 6, 0, jetzt 8); die Taktik schwankt mit jeder Änderung stark.
+
 ## Lauf 24b (2. Oktober 2026): Kreis nur als Verzweiflungstat
 
 Auf Wunsch bildet die KI den Kreis nicht mehr gegen Reiter, sondern nur noch,
