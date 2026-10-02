@@ -12,13 +12,89 @@ from .army import MAX_TIERS, OWN_MAX, OWN_MIN, Army
 from .battle import Battle
 from .units import FORMATION_NAMES, PLAYER_TYPES, UNIT_TYPES, Lochos, Side, Stance
 
-T = config.TILE
+T = config.TILE                 # Kachelgröße in Pixeln in der aktuellen Ansicht (Übersicht: kleiner)
 MAN_SPACING = config.MAN_SPACING
 ROW_SPACING = config.ROW_SPACING
+_OX = 0.0                       # linke obere Ecke der Ansicht in Kacheln
+_OY = 0.0
 
 
 def px(p: tuple[float, float]) -> tuple[int, int]:
-    return (int(round(p[0] * T)), int(round(p[1] * T)))
+    return (int(round((p[0] - _OX) * T)), int(round((p[1] - _OY) * T)))
+
+
+class Camera:
+    """Was von der Karte zu sehen ist: Maßstab (1 = Nahansicht, kleiner = Übersicht)
+    und die linke obere Ecke in Kacheln. Passt die Karte auf den Bildschirm, steht
+    sie fest; sonst wechselt man zwischen Übersicht (alles) und Nahansicht."""
+
+    def __init__(self) -> None:
+        self.zoom = 1.0
+        self.ox = 0.0
+        self.oy = 0.0
+        self.cols = config.COLS
+        self.rows = config.ROWS
+
+    def fit(self, cols: int, rows: int) -> None:
+        """Neue Karte: große Karten beginnen in der Übersicht."""
+        self.cols, self.rows = cols, rows
+        self.zoom = self.overview_zoom()
+        self.ox = self.oy = 0.0
+        self.clamp()
+
+    def overview_zoom(self) -> float:
+        return min(1.0, config.MAP_W / (self.cols * config.TILE), config.MAP_H / (self.rows * config.TILE))
+
+    @property
+    def big(self) -> bool:
+        return self.overview_zoom() < 1.0
+
+    @property
+    def overview(self) -> bool:
+        return self.big and self.zoom < 1.0
+
+    def span(self) -> tuple[float, float]:
+        t = config.TILE * self.zoom
+        return config.MAP_W / t, config.MAP_H / t
+
+    def clamp(self) -> None:
+        w, h = self.span()
+        self.ox = min(max(self.ox, 0.0), max(0.0, self.cols - w))
+        self.oy = min(max(self.oy, 0.0), max(0.0, self.rows - h))
+
+    def to_tiles(self, pos: tuple[int, int]) -> tuple[float, float]:
+        t = config.TILE * self.zoom
+        return (pos[0] / t + self.ox, pos[1] / t + self.oy)
+
+    def zoom_to(self, p: tuple[float, float]) -> None:
+        """Nahansicht, die Stelle ``p`` in der Mitte."""
+        self.zoom = 1.0
+        w, h = self.span()
+        self.ox, self.oy = p[0] - w / 2, p[1] - h / 2
+        self.clamp()
+
+    def toggle(self, around: tuple[float, float] | None = None) -> None:
+        if not self.big:
+            return
+        if self.overview:
+            w, h = self.span()
+            self.zoom_to(around or (self.ox + w / 2, self.oy + h / 2))
+        else:
+            self.zoom = self.overview_zoom()
+            self.ox = self.oy = 0.0
+            self.clamp()
+
+    def pan(self, dx_px: float, dy_px: float) -> None:
+        """Um so viele Bildschirmpunkte verschieben (die Karte folgt dem Finger)."""
+        t = config.TILE * self.zoom
+        self.ox -= dx_px / t
+        self.oy -= dy_px / t
+        self.clamp()
+
+    def apply(self) -> None:
+        global T, _OX, _OY
+        T = config.TILE * self.zoom
+        _OX, _OY = self.ox, self.oy
 
 
 def shown(man) -> tuple[int, int]:
@@ -63,11 +139,27 @@ class Renderer:
         self.buttons: list[Button] = []           # die zuletzt gezeichnete Leiste
         self.menu_buttons: list[Button] = []
         self.menu_sliders: list[tuple[int, pygame.Rect]] = []
+        self.camera = Camera()
 
     # ================================================== Schlacht
     def draw(self, battle: Battle, drag, paused: bool, selected: set[int], menu_open: bool = False) -> None:
         s = self.surface
         s.fill(config.COLOR_BG)
+        cam = self.camera
+        if (cam.cols, cam.rows) != (battle.cols, battle.rows):
+            cam.fit(battle.cols, battle.rows)
+        cam.apply()
+        s.set_clip(pygame.Rect(0, 0, config.MAP_W, config.MAP_H))
+        try:
+            self._draw_field(battle, drag, paused, selected)
+        finally:
+            s.set_clip(None)
+            Camera().apply()                          # Leiste und Anzeigen im Bildschirmmaß
+        self._draw_hud(battle, paused, selected)
+        self._draw_bar(battle, paused, selected, menu_open)
+
+    def _draw_field(self, battle: Battle, drag, paused: bool, selected: set[int]) -> None:
+        s = self.surface
         self._draw_ground(battle)
         self._draw_houses(battle)
         for p, _ in battle.fallen_marks:                   # wo eben einer fiel
@@ -82,8 +174,6 @@ class Renderer:
             self._draw_destinations(battle, paused, selected)
         if drag is not None:
             self._draw_line_preview(battle, drag, selected)
-        self._draw_hud(battle, paused, selected)
-        self._draw_bar(battle, paused, selected, menu_open)
 
     def _draw_destinations(self, battle: Battle, paused: bool, selected: set[int]) -> None:
         """Wohin eine eigene Gruppe unterwegs ist: in der Pause für alle, beim Aufziehen
@@ -148,11 +238,17 @@ class Renderer:
 
     def _draw_ground(self, battle: Battle) -> None:
         s = self.surface
-        pygame.draw.rect(s, config.COLOR_GROUND, pygame.Rect(0, 0, config.MAP_W, config.MAP_H))
-        for c in range(config.COLS + 1):
-            pygame.draw.line(s, config.COLOR_GRID, (c * T, 0), (c * T, config.MAP_H))
-        for r in range(config.ROWS + 1):
-            pygame.draw.line(s, config.COLOR_GRID, (0, r * T), (config.MAP_W, r * T))
+        x0, y0 = px((0, 0))
+        x1, y1 = px((battle.cols, battle.rows))
+        pygame.draw.rect(s, config.COLOR_GROUND, pygame.Rect(x0, y0, x1 - x0, y1 - y0))
+        for c in range(battle.cols + 1):
+            x = px((c, 0))[0]
+            if 0 <= x <= config.MAP_W:
+                pygame.draw.line(s, config.COLOR_GRID, (x, max(0, y0)), (x, min(config.MAP_H, y1)))
+        for r in range(battle.rows + 1):
+            y = px((0, r))[1]
+            if 0 <= y <= config.MAP_H:
+                pygame.draw.line(s, config.COLOR_GRID, (max(0, x0), y), (min(config.MAP_W, x1), y))
         if battle.agora is not None:                     # die Agora: gepflasterter Platz, Sammelpunkt der Verteidiger
             ax, ay = px(battle.agora)
             rad = int(config.AGORA_RADIUS * T)
@@ -164,16 +260,29 @@ class Renderer:
             pygame.draw.circle(s, config.COLOR_AGORA_EDGE, (ax, ay), rad, 2)
             label = self.small.render("Agora", True, config.COLOR_AGORA_EDGE)
             s.blit(label, label.get_rect(center=(ax, ay)))
+        t = int(round(T))
+        post = 3 if t >= 24 else 2
         for cx, cy in battle.blocked:
-            pygame.draw.rect(s, config.COLOR_PALISADE, pygame.Rect(cx * T, cy * T + T // 3, T, T // 3))
+            x, y = px((cx, cy))
+            if battle.ring:
+                # geschlossener Wall: jede Kachel voll, Pfähle als dunkle Striche, so wirkt er durchgehend
+                pygame.draw.rect(s, config.COLOR_PALISADE, pygame.Rect(x, y, t + 1, t + 1))
+                for i in range(2):
+                    xi = x + t // 4 + i * t // 2
+                    pygame.draw.line(s, (90, 60, 30), (xi, y + t // 6), (xi, y + t - t // 6), max(1, post - 1))
+                continue
+            pygame.draw.rect(s, config.COLOR_PALISADE, pygame.Rect(x, y + t // 3, t, t // 3))
             for i in range(3):
-                pygame.draw.line(s, (90, 60, 30), (cx * T + 5 + i * 10, cy * T + 4), (cx * T + 5 + i * 10, cy * T + T - 4), 3)
+                xi = x + t // 6 + i * t // 3
+                pygame.draw.line(s, (90, 60, 30), (xi, y + t // 7), (xi, y + t - t // 7), post)
         for cx, cy in set(battle.ladders) | set(battle.crossings):
-            rails = (cx * T + 9, cx * T + T - 9)
+            x, y = px((cx, cy))
+            rails = (x + 3 * t // 10, x + t - 3 * t // 10)
             for rx in rails:
-                pygame.draw.line(s, config.COLOR_CROSSING, (rx, cy * T + 2), (rx, cy * T + T - 2), 2)
+                pygame.draw.line(s, config.COLOR_CROSSING, (rx, y + t // 15), (rx, y + t - t // 15), 2)
             for i in range(4):
-                pygame.draw.line(s, config.COLOR_CROSSING, (rails[0], cy * T + 5 + i * 7), (rails[1], cy * T + 5 + i * 7), 2)
+                yi = y + t // 6 + i * 7 * t // 30
+                pygame.draw.line(s, config.COLOR_CROSSING, (rails[0], yi), (rails[1], yi), 2)
         for x, y, n in battle.horses:
             for i in range(min(n, 12)):
                 ox = ((i * 5) % 7 - 3) * 0.09
@@ -191,10 +300,30 @@ class Renderer:
             pygame.draw.rect(s, (90, 60, 30), body, 2)
             for i in range(3):
                 pygame.draw.line(s, (90, 60, 30), (body.x + 4, body.y + 7 + i * 7), (body.right - 4, body.y + 7 + i * 7), 2)
-        if battle.gate is not None:
+        if battle.ring:
+            for g in battle.gates:
+                xs = [c[0] for c in g.cells]
+                ys = [c[1] for c in g.cells]
+                a, b = px((min(xs), min(ys))), px((max(xs) + 1, max(ys) + 1))
+                rect = pygame.Rect(a[0] + 2, a[1] + 2, b[0] - a[0] - 4, b[1] - a[1] - 4)
+                if g.closed:
+                    pygame.draw.rect(s, config.COLOR_GATE_CLOSED, rect, border_radius=3)
+                    frac = g.hp / g.hp_max
+                    pygame.draw.rect(s, config.COLOR_FIRE, pygame.Rect(rect.x, rect.bottom + 2, int(rect.w * frac), 3))
+                else:
+                    pygame.draw.rect(s, config.COLOR_GATE, rect, 2)
+            for tw in battle.corner_towers:
+                x, y = px(tw.center)
+                r = max(5, int(T * 0.55))
+                color = {Side.STADT: config.COLOR_CITY, Side.FEIND: config.COLOR_ENEMY}.get(tw.owner, config.COLOR_TEXT_DIM)
+                pygame.draw.circle(s, config.COLOR_TOWER, (x, y), r)
+                pygame.draw.circle(s, (90, 60, 30), (x, y), r, 2)
+                pygame.draw.circle(s, color, (x, y), max(2, r // 3))
+        elif battle.gate is not None:
             gx, gy = battle.gate.center
             half = len(battle.gate.cells) / 2
-            rect = pygame.Rect(int((gx - half) * T), int(gy * T) - 6, int(2 * half * T), 12)
+            a, b = px((gx - half, gy)), px((gx + half, gy))
+            rect = pygame.Rect(a[0], a[1] - 6, b[0] - a[0], 12)
             if battle.gate.closed:
                 pygame.draw.rect(s, config.COLOR_GATE_CLOSED, rect, border_radius=3)
                 frac = battle.gate.hp / battle.gate.hp_max
@@ -204,17 +333,20 @@ class Renderer:
 
     def _draw_houses(self, battle: Battle) -> None:
         s = self.surface
+        t = int(round(T))
         for h in battle.houses:
-            rect = pygame.Rect(h.cx * T + 3, h.cy * T + 3, T - 6, T - 6)
+            x, y = px((h.cx, h.cy))
+            rect = pygame.Rect(x + t // 10, y + t // 10, t - t // 5, t - t // 5)
             pygame.draw.rect(s, config.COLOR_HOUSE_LOOTED if h.looted else config.COLOR_HOUSE, rect, border_radius=3)
-            roof = [(h.cx * T + 2, h.cy * T + 10), (h.cx * T + T // 2, h.cy * T), (h.cx * T + T - 2, h.cy * T + 10)]
+            roof = [(x + t // 15, y + t // 3), (x + t // 2, y), (x + t - t // 15, y + t // 3)]
             pygame.draw.polygon(s, (60, 30, 30) if h.looted else (150, 90, 50), roof)
             if h.looted:
-                cx, cy = h.cx * T + T // 2, h.cy * T + T // 2
-                pygame.draw.polygon(s, config.COLOR_FIRE, [(cx - 6, cy + 8), (cx, cy - 8), (cx + 6, cy + 8)])
+                cx, cy = x + t // 2, y + t // 2
+                k = max(3, t // 5)
+                pygame.draw.polygon(s, config.COLOR_FIRE, [(cx - k, cy + k + 2), (cx, cy - k - 2), (cx + k, cy + k + 2)])
             elif h.progress > 0:
                 frac = min(1.0, h.progress / config.LOOT_TIME)
-                pygame.draw.rect(s, config.COLOR_FIRE, pygame.Rect(h.cx * T + 3, h.cy * T + T - 6, int((T - 6) * frac), 3))
+                pygame.draw.rect(s, config.COLOR_FIRE, pygame.Rect(x + t // 10, y + t - t // 5, int((t - t // 5) * frac), 3))
 
     def _draw_lochos(self, u: Lochos, selected: bool, frames: bool = True) -> None:
         """Eine Gruppe: ihre Männer, und nur mit ``frames`` (Pause, Aufziehen) ihr
@@ -243,6 +375,7 @@ class Renderer:
             pygame.draw.polygon(s, ring, corners, 1 if u.side is Side.STADT else 2)
 
         fx, fy = u.facing
+        r_man = 3 if T >= 24 else 2                      # in der Übersicht kleiner
         for row in u.rows:
             for man in row:
                 color = man.kind.color
@@ -256,12 +389,12 @@ class Renderer:
                     color = config.COLOR_HIT
                 mx, my = shown(man)
                 if man.leader:                           # der Anführer: größer, goldener Ring
-                    pygame.draw.circle(s, color, (mx, my), 4)
-                    pygame.draw.circle(s, config.COLOR_LEADER, (mx, my), 5, 2)
+                    pygame.draw.circle(s, color, (mx, my), r_man + 1)
+                    pygame.draw.circle(s, config.COLOR_LEADER, (mx, my), r_man + 2, 2)
                     continue
-                pygame.draw.circle(s, color, (mx, my), 3)
+                pygame.draw.circle(s, color, (mx, my), r_man)
                 if man.bound:
-                    pygame.draw.circle(s, config.COLOR_BOUND, (mx, my), 4, 1)
+                    pygame.draw.circle(s, config.COLOR_BOUND, (mx, my), r_man + 1, 1)
                 if man.kind.cavalry and not man.mounted:
                     pygame.draw.circle(s, (20, 40, 20), (mx, my), 1)
         if u.in_phalanx and not u.loose and u.formation != "o":
@@ -295,13 +428,21 @@ class Renderer:
         text = f"Stadt {r['stadt_start'] - r['stadt_gefallen']}   Feind {r['feind_start'] - r['feind_gefallen']}   "
         if not battle.attacking:
             text += f"Häuser {r['haeuser_intakt']}/{r['haeuser']}   "
-        if battle.gate is not None:
+        if battle.ring:
+            shut = sum(1 for g in battle.gates if g.closed)
+            text += f"Tore {shut}/{len(battle.gates)} zu   "
+        elif battle.gate is not None:
             text += f"Tor {int(100 * battle.gate.hp / battle.gate.hp_max)}%   " if battle.gate.closed else "Tor offen   "
         text += f"{mins}:{secs:02d}"
         strip = pygame.Surface((config.MAP_W, 26), pygame.SRCALPHA)
         strip.fill((0, 0, 0, 120))
         s.blit(strip, (0, 0))
-        s.blit(self.font.render(text, True, config.COLOR_TEXT), (78, 9))
+        room = config.MAP_W - 78 - 84                      # zwischen Menü und Pause
+        font = self.font
+        if font.size(text)[0] > room:
+            text = text.replace("   ", "  ")
+            font = self.font if font.size(text)[0] <= room else self.small
+        s.blit(font.render(text, True, config.COLOR_TEXT), (78, 9 if font is self.font else 11))
         plan = battle.enemy_plan
         if plan and not battle.alarm:
             img = self.small.render(f"Gegner: {plan}", True, config.COLOR_ENEMY)
@@ -389,6 +530,10 @@ class Renderer:
         out.append(Button("menue", "Zurück" if menu_open else "Menü", pygame.Rect(gap, TOP_BTN_Y, 64, TOP_BTN_H), active=menu_open))
         pause = "Los" if battle.alarm else ("Weiter" if paused else "Pause")
         out.append(Button("pause", pause, pygame.Rect(W - gap - 72, TOP_BTN_Y, 72, TOP_BTN_H), active=paused or battle.alarm))
+        if self.camera.big and not menu_open:
+            label = "Nah" if self.camera.overview else "Karte"
+            out.append(Button("ansicht", label, pygame.Rect(gap, TOP_BTN_Y + TOP_BTN_H + gap, 64, TOP_BTN_H),
+                              active=not self.camera.overview))
         if menu_open:
             y = TOP_BTN_Y + TOP_BTN_H + gap
             out.append(Button("neu", "Neu", pygame.Rect(gap, y, 160, 40), sub="Szenario noch einmal"))

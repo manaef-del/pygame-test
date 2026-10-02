@@ -208,6 +208,7 @@ class Lochos:
     build_kind: str | None = None     # was gerade gebaut wird
     building: float | None = None     # bisherige Bauzeit
     tower_cell: tuple[int, int] | None = None   # Wallstück, an das der Turm gesetzt wird
+    ram_gate: int | None = None                  # Festung: Nummer des Tores, das der Rammbock angeht
     tower_progress: float = 0.0
     loose: bool = False               # aufgelöst: jeder Mann geht für sich an seinen Platz in der Zielaufstellung
     loose_why: str = ""               # warum: "wall" (über den Wall), "tor" (durchs Tor), "eigene" (um eigene herum), "" (formiert sich)

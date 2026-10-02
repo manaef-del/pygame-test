@@ -8,6 +8,7 @@ Gegnerstärke wird vor der Schlacht eingestellt.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from . import config
@@ -44,6 +45,11 @@ class Scenario:
     enemy_deploy_y: float = 5.0                # gespiegelte Truppe
     ram_available: bool = False
     agora: tuple[float, float] | None = None   # Platz der Siedlung: hier sammeln sich ihre Verteidiger
+    cols: int = config.COLS                    # Kartengröße in Kacheln
+    rows: int = config.ROWS
+    gates: tuple[tuple[tuple[Cell, ...], Cell], ...] = ()   # weitere Tore: (Kacheln, Richtung nach außen)
+    corner_towers: tuple[Cell, ...] = ()       # Wehrtürme auf dem Wall, die Speere werfen
+    ring: tuple[Point, ...] = ()               # Ecken eines geschlossenen Walls (Festung), sonst gerade Palisade
 
 
 HOUSES_SOUTH = ((4, 13), (6, 13), (8, 13), (10, 13), (5, 15), (7, 15), (9, 15), (11, 15))
@@ -116,4 +122,101 @@ SIEDLUNG_WALL = Scenario(
     agora=AGORA_NORTH,
 )
 
-SCENARIOS: tuple[Scenario, ...] = (OFFENE_SIEDLUNG, PALISADE, RAEUBERHORDE, SIEDLUNG_OFFEN, SIEDLUNG_WALL)
+# ------------------------------------------------------------------ Festung
+FORT_COLS, FORT_ROWS = 2 * config.COLS, 2 * config.ROWS      # viermal so groß
+FORT_CENTRE = (FORT_COLS / 2, FORT_ROWS / 2)
+FORT_RADIUS = 10.5
+
+
+def _hexagon(centre: Point, radius: float) -> tuple[Point, ...]:
+    """Ecken eines Sechsecks mit waagrechter Ober- und Unterkante, im Uhrzeigersinn
+    (auf dem Bildschirm, y nach unten), beginnend im Osten."""
+    cx, cy = centre
+    h = radius * math.sqrt(3) / 2
+    return ((cx + radius, cy), (cx + radius / 2, cy + h), (cx - radius / 2, cy + h),
+            (cx - radius, cy), (cx - radius / 2, cy - h), (cx + radius / 2, cy - h))
+
+
+def inside_polygon(poly: tuple[Point, ...], x: float, y: float) -> bool:
+    n = len(poly)
+    for i in range(n):
+        ax, ay = poly[i]
+        bx, by = poly[(i + 1) % n]
+        if (bx - ax) * (y - ay) - (by - ay) * (x - ax) < 0:
+            return False
+    return True
+
+
+def _fortress() -> dict:
+    """Ein sechseckiger Wall um die Agora: Wallkacheln sind die inneren Kacheln mit
+    einem äußeren Nachbarn (auch über Eck), so hängt der Wall an den Schrägen ohne
+    Lücke zusammen. Tore in der Nordkante und in den beiden südlichen Schrägen,
+    Wehrtürme an den sechs Ecken, Leitern innen an jeder Kante."""
+    poly = _hexagon(FORT_CENTRE, FORT_RADIUS)
+    inner = {(x, y) for x in range(FORT_COLS) for y in range(FORT_ROWS) if inside_polygon(poly, x + 0.5, y + 0.5)}
+    wall = {c for c in inner if any((c[0] + dx, c[1] + dy) not in inner for dx in (-1, 0, 1) for dy in (-1, 0, 1))}
+    cx, cy = FORT_CENTRE
+
+    def nearest_wall(p: Point, pool=None) -> Cell:
+        return min(pool or wall, key=lambda c: (c[0] + 0.5 - p[0]) ** 2 + (c[1] + 0.5 - p[1]) ** 2)
+
+    def mid(i: int, t: float = 0.5) -> Point:
+        (ax, ay), (bx, by) = poly[i], poly[(i + 1) % 6]
+        return (ax + (bx - ax) * t, ay + (by - ay) * t)
+
+    # Nordtor: zwei Kacheln mitten in der Oberkante (Kante 4: Nordwest-Ecke -> Nordost-Ecke)
+    top_row = min(c[1] for c in wall)
+    north = tuple(sorted((x, top_row) for x in (int(cx) - 1, int(cx))))
+    gates = [(north, (0, -1))]
+    # Südwest- und Südosttor: in den unteren Schrägen (Kanten 2 und 0) zwei Reihen, alle Wallkacheln dort
+    for edge, out in ((2, (-1, 0)), (0, (1, 0))):
+        mx, my = mid(edge)
+        row = int(my)
+        cells = tuple(sorted(c for c in wall if c[1] in (row - 1, row) and (c[0] < cx) == (out[0] < 0)))
+        gates.append((cells, out))
+    gate_cells = {c for cells, _ in gates for c in cells}
+    towers = tuple(nearest_wall(v, [c for c in wall if c not in gate_cells]) for v in poly)
+    # Leitern: an jeder Kante zwei, innen anliegend, nicht an Tor oder Turm
+    ladders = []
+    for i in range(6):
+        for t in (0.3, 0.7):
+            p = mid(i, t)
+            pool = [c for c in wall if c not in gate_cells and c not in towers
+                    and any((c[0] + dx, c[1] + dy) in inner and (c[0] + dx, c[1] + dy) not in wall
+                            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+                    and all(abs(c[0] - g[0]) + abs(c[1] - g[1]) > 1 for g in gate_cells | set(towers))]
+            ladders.append(nearest_wall(p, pool))
+    houses = ((13, 14), (16, 13), (19, 14), (21, 17), (19, 21), (16, 22), (13, 21), (11, 17))
+    return {
+        "poly": poly, "palisade": tuple(sorted(wall - gate_cells)), "gates": tuple(gates),
+        "towers": towers, "ladders": tuple(sorted(set(ladders))), "houses": houses,
+    }
+
+
+FORT = _fortress()
+FORT_ARMY = tuple(
+    RaiderSpawn(x, y) for x, y in ((10.0, 3.5), (16.0, 3.0), (22.0, 3.5), (13.0, 5.5), (19.0, 5.5), (7.0, 5.0), (25.0, 5.0))
+)
+
+FESTUNG = Scenario(
+    key="festung", name="Verteidigung: Festung",
+    hint="Ein Heer aus Hopliten, Peltasten und Reitern rückt an. Drei Tore, Türme an den Ecken; "
+         "Peltasten über die Leitern auf den Wehrgang. Zwei Finger verschieben die Karte.",
+    role="verteidigung", enemy_kind="armee", enemy_default=150, enemy_min=40, enemy_max=300,
+    houses=FORT["houses"], palisade=FORT["palisade"], gate_closed=True, wall_side="stadt",
+    ladders=FORT["ladders"], raider_spawns=FORT_ARMY, deploy_y=FORT_CENTRE[1] + 1.5, agora=FORT_CENTRE,
+    cols=FORT_COLS, rows=FORT_ROWS, gates=FORT["gates"], corner_towers=FORT["towers"], ring=FORT["poly"],
+)
+
+FESTUNG_ANGRIFF = Scenario(
+    key="festung_angriff", name="Angriff: Festung",
+    hint="Die Festung hält drei Tore und sechs Türme. Baue Rammbock oder Turm und tippe dann Tor oder Wall an. "
+         "Zwei Finger verschieben die Karte.",
+    role="angriff", enemy_kind="spiegel", enemy_default=40, enemy_min=20, enemy_max=150,
+    houses=FORT["houses"], palisade=FORT["palisade"], gate_closed=True, wall_side="feind",
+    ladders=FORT["ladders"], deploy_y=FORT_ROWS - 3.0, ram_available=True, agora=FORT_CENTRE,
+    cols=FORT_COLS, rows=FORT_ROWS, gates=FORT["gates"], corner_towers=FORT["towers"], ring=FORT["poly"],
+)
+
+SCENARIOS: tuple[Scenario, ...] = (OFFENE_SIEDLUNG, PALISADE, RAEUBERHORDE, SIEDLUNG_OFFEN, SIEDLUNG_WALL,
+                                   FESTUNG, FESTUNG_ANGRIFF)

@@ -24,7 +24,7 @@ from .ai import Memory, make_brain
 from .army import Army, arm_of, default_army, scaled_army, split_by_arm
 from .doctrine import DOCTRINE_NAMES, choose_doctrine, enemy_army
 from .geometry import add, arc, dist, norm, scale, snap4, sub
-from .scenarios import Scenario
+from .scenarios import Scenario, inside_polygon
 from .units import UNIT_TYPES, Lochos, Man, Side, Stance, arrange, default_width
 
 Point = tuple[float, float]
@@ -49,14 +49,49 @@ class Gate:
     closed: bool
     hp: float = config.GATE_HP
     hp_max: float = config.GATE_HP
+    normal: Point = (0.0, -1.0)          # Richtung nach außen (waagrecht oder senkrecht)
 
     @property
     def center(self) -> Point:
-        return (sum(c[0] for c in self.cells) / len(self.cells) + 0.5, self.cells[0][1] + 0.5)
+        n = len(self.cells)
+        return (sum(c[0] for c in self.cells) / n + 0.5, sum(c[1] for c in self.cells) / n + 0.5)
+
+    @property
+    def tangent(self) -> Point:
+        """Entlang des Walls: nach Osten, bei senkrechtem Durchgang nach Süden."""
+        nx, ny = self.normal
+        return (abs(ny), abs(nx))
+
+    @property
+    def half_len(self) -> float:
+        """Halbe Breite des Durchgangs, entlang des Walls."""
+        cx, cy = self.center
+        tx, ty = self.tangent
+        return max(abs((c[0] + 0.5 - cx) * tx + (c[1] + 0.5 - cy) * ty) for c in self.cells) + 0.5
+
+    @property
+    def half_thick(self) -> float:
+        """Halbe Tiefe des Torhauses, quer zum Wall."""
+        cx, cy = self.center
+        nx, ny = self.normal
+        return max(abs((c[0] + 0.5 - cx) * nx + (c[1] + 0.5 - cy) * ny) for c in self.cells) + 0.5
 
     @property
     def broken(self) -> bool:
         return self.hp <= 0
+
+
+@dataclass
+class CornerTower:
+    """Ein Wehrturm auf dem Wall: wirft Speere für seinen Besitzer, solange kein Feind
+    oben steht; steht nur der Feind oben, gehört er ihm."""
+    cell: tuple[int, int]
+    owner: Side | None
+    timer: float = 0.0
+
+    @property
+    def center(self) -> Point:
+        return (self.cell[0] + 0.5, self.cell[1] + 0.5)
 
 
 @dataclass
@@ -101,7 +136,9 @@ class Battle:
     rows: int = config.ROWS
     houses: list[House] = field(default_factory=list)
     blocked: set[tuple[int, int]] = field(default_factory=set)
-    gate: Gate | None = None
+    gate: Gate | None = None                          # das (erste) Tor
+    gates: list[Gate] = field(default_factory=list)   # alle Tore
+    corner_towers: list[CornerTower] = field(default_factory=list)
     lochoi: list[Lochos] = field(default_factory=list)
     time: float = 0.0
     alarm: bool = True
@@ -137,6 +174,7 @@ class Battle:
         s = self.scenario
         if self.enemy_count is None:
             self.enemy_count = s.enemy_default
+        self.cols, self.rows = s.cols, s.rows
         self.houses = [House(cx, cy) for cx, cy in s.houses]
         self.blocked = set(s.palisade)
         self.ladders = set(s.ladders)
@@ -148,15 +186,38 @@ class Battle:
                 while 0 <= c < self.cols and (c, gy) not in self.blocked:
                     cells.append((c, gy))
                     c += step
-            self.gate = Gate(sorted(cells), closed=s.gate_closed)
+            outward = -1.0 if s.wall_side == "stadt" else 1.0      # außen liegt, wo der Angreifer steht
+            self.gates.append(Gate(sorted(cells), closed=s.gate_closed, normal=(0.0, outward)))
+        for cells, out in s.gates:
+            self.gates.append(Gate(list(cells), closed=s.gate_closed, normal=(float(out[0]), float(out[1]))))
+        self.gate = self.gates[0] if self.gates else None
+        self._gate_of = {c: g for g in self.gates for c in g.cells}
+        self.ring = bool(s.ring)
+        self._level_of: dict[tuple[int, int], str] = {}
+        self._foot: dict[tuple[int, int], tuple[int, int]] = {}      # Leiter/Turm -> Richtung zur Kachel am Fuß
+        self._walkway: tuple | None = None
+        self._ring_cache: dict = {}
+        if self.ring:
+            for c in self.ladders:
+                self._foot[c] = self._ground_step(c, "innen")
+        team = {"stadt": Side.STADT, "feind": Side.FEIND}.get(s.wall_side)
+        self.corner_towers = [CornerTower(c, team) for c in s.corner_towers]
         self._deploy_army()
         if s.enemy_kind == "raeuber":
             self._spawn_raiders()
+        elif s.enemy_kind == "armee":
+            self._spawn_army()
+        elif self.ring:
+            self._spawn_garrison()
         else:
             self._spawn_mirror()
         self.men_start = {side: self.men(side) for side in Side}
         self.leaders = [(m, u.side, u.name) for u in self.lochoi for m in u.all_men() if m.leader]
-        self.brain = make_brain(self.ai, self.memory)
+        if self.ring:
+            from .fortress_ai import FortressBrain
+            self.brain = FortressBrain(self.memory)
+        else:
+            self.brain = make_brain(self.ai, self.memory)
 
     @property
     def enemy_plan(self) -> str:
@@ -256,6 +317,101 @@ class Battle:
             u.facing = (0.0, 1.0)
             u.stance = Stance.HALTEN
 
+    @staticmethod
+    def _companies(army: Army) -> dict[str, list[tuple[str, list[Man]]]]:
+        """Ein Heer in handliche Gruppen je Gattung teilen (Hopliten zu etwa 24, Peltasten
+        zu 16, Reiter zu 20 Mann), damit es mehrere Tore zugleich angehen oder halten kann."""
+        size = {"hopliten": 24, "peltasten": 16, "reiter": 20}
+        names = {"hopliten": "Hopliten", "peltasten": "Peltasten", "reiter": "Reiter"}
+        out: dict[str, list[tuple[str, list[Man]]]] = {"hopliten": [], "peltasten": [], "reiter": []}
+        for g in split_by_arm(army).groups:
+            men = g.build_men()
+            if not men:
+                continue
+            arm = arm_of(men[-1].kind.key)
+            k = max(1, round(len(men) / size[arm]))
+            for i in range(k):
+                part = men[i * len(men) // k:(i + 1) * len(men) // k]
+                if part:
+                    out[arm].append((names[arm], part))
+        return out
+
+    def _spawn_army(self) -> None:
+        """Festung: ein Heer aus Hopliten, Peltasten und Reitern rückt von Norden an,
+        in der Mischung der eigenen Truppe auf seine Stärke gebracht."""
+        army = scaled_army(default_army(), max(1, self.enemy_count))
+        if army.leader_index() is None and army.groups:
+            army.set_leader(0)
+        parts = self._companies(army)
+        self.events.append("Ein Heer rückt an: " + ", ".join(
+            f"{sum(len(m) for _, m in parts[a])} {n}" for a, n in (("hopliten", "Hopliten"), ("peltasten", "Peltasten"),
+                                                                    ("reiter", "Reiter")) if parts[a]))
+
+        def row_of(groups, y, x0, x1, width_men, stance):
+            if not groups:
+                return
+            rows_units = [arrange(men, max(1, min(len(men), width_men))) for _, men in groups]
+            widths = [2 * Lochos(0, Side.FEIND, r, 0, 0).half_w + 0.6 for r in rows_units]
+            x = (x0 + x1) / 2 - sum(widths) / 2
+            for (name, _), rows, w in zip(groups, rows_units, widths):
+                u = self._spawn(Side.FEIND, rows, x + w / 2, y, name)
+                u.facing = (0.0, 1.0)
+                u.stance = stance
+                x += w
+
+        cx = self.cols / 2
+        row_of(parts["peltasten"], 5.2, cx - 8.0, cx + 8.0, 8, Stance.HALTEN)
+        row_of(parts["hopliten"], 3.6, cx - 9.0, cx + 9.0, 8, Stance.HALTEN)
+        cav = parts["reiter"]
+        for k, (name, men) in enumerate(cav):
+            u = self._spawn(Side.FEIND, arrange(men, max(1, min(len(men), 7))),
+                            3.0 + 1.5 * (k // 2) if k % 2 == 0 else self.cols - 3.0 - 1.5 * (k // 2), 3.0, name)
+            u.facing = (0.0, 1.0)
+            u.stance = Stance.HALTEN
+
+    def _spawn_garrison(self) -> None:
+        """Festung im Angriff: die Besatzung in der Aufstellung ihrer Doktrin. Hinter jedem
+        Tor eine Phalanx (die dem Feind nächsten zuerst), Peltasten auf dem Wehrgang,
+        die Reiter als Reserve auf der Agora."""
+        self.doctrine = self.doctrine or choose_doctrine(self.army, self.memory)
+        mirror = enemy_army(self.army, self.enemy_count, self.doctrine)
+        if mirror.groups and mirror.leader_index() is None:
+            hoplites = [i for i, g in enumerate(mirror.groups) if g.men() and any(UNIT_TYPES[t.kind].hoplite for t in g.tiers)]
+            mirror.set_leader(hoplites[0] if hoplites else 0)
+        self.events.append(f"Die Festung stellt: {DOCTRINE_NAMES.get(self.doctrine, self.doctrine)}")
+        parts = self._companies(mirror)
+        enemy_at = (self.cols / 2, self.scenario.deploy_y)
+        gates = sorted(self.gates, key=lambda g: dist(g.center, enemy_at))
+        lines = list(parts["hopliten"])
+        if 0 < len(lines) < len(gates) and len(lines[0][1]) >= 24:
+            name, men = lines.pop(0)                    # ein großer Block teilt sich für zwei Tore
+            lines[:0] = [(name, men[: len(men) // 2]), (name, men[len(men) // 2:])]
+        for k, (name, men) in enumerate(lines):
+            g = gates[k % len(gates)]
+            rows = arrange(men, max(1, min(len(men), 8)))
+            probe = Lochos(0, Side.FEIND, rows, 0, 0)
+            behind = self.gate_approach(g, -1.0, probe.half_d + 0.4 + 1.6 * (k // len(gates)))
+            u = self._spawn(Side.FEIND, rows, behind[0], behind[1], name)
+            u.facing = g.normal
+            u.stance = Stance.PHALANX
+            u.in_line = True
+        near_ladders = sorted(self.ladders, key=lambda c: dist((c[0] + 0.5, c[1] + 0.5), enemy_at))
+        for k, (name, men) in enumerate(parts["peltasten"]):
+            c = near_ladders[k % len(near_ladders)] if near_ladders else None
+            rows = arrange(men, max(1, min(len(men), 14)))
+            if c is None:
+                x, y = self.agora
+            else:
+                x, y = c[0] + 0.5, c[1] + 0.5
+            u = self._spawn(Side.FEIND, rows, x, y, name)
+            u.stance = Stance.HALTEN
+            u.facing = norm(sub(enemy_at, (x, y)))
+        ax, ay = self.agora
+        for k, (name, men) in enumerate(parts["reiter"]):
+            u = self._spawn(Side.FEIND, arrange(men, max(1, min(len(men), 7))), ax + (k - (len(parts["reiter"]) - 1) / 2) * 2.5, ay, name)
+            u.facing = (0.0, 1.0)
+            u.stance = Stance.HALTEN
+
     def _spawn(self, side: Side, rows: list[list[Man]], x: float, y: float, name: str) -> Lochos:
         unit = Lochos(id=self._next_id, side=side, rows=rows, x=x, y=y, name=name)
         self._next_id += 1
@@ -292,9 +448,25 @@ class Battle:
     def gate_at(self, p: Point, tolerance: float = 0.4) -> bool:
         if self.gate is None:
             return False
+        if self.ring:
+            return self.gate_near(p, tolerance) is not None
         gx, gy = self.gate.center
         half = len(self.gate.cells) / 2
         return abs(p[0] - gx) <= half + tolerance and abs(p[1] - gy) <= 0.5 + tolerance
+
+    def gate_near(self, p: Point, tolerance: float = 0.4) -> Gate | None:
+        """Das Tor, auf das ``p`` zeigt (oder None)."""
+        for g in self.gates:
+            cx, cy = g.center
+            (tx, ty), (nx, ny) = g.tangent, g.normal
+            along = abs((p[0] - cx) * tx + (p[1] - cy) * ty)
+            across = abs((p[0] - cx) * nx + (p[1] - cy) * ny)
+            if along <= g.half_len + tolerance and across <= g.half_thick + tolerance:
+                return g
+        return None
+
+    def gate_of(self, c: tuple[int, int]) -> Gate | None:
+        return self._gate_of.get(c)
 
     def houses_intact(self) -> int:
         return sum(1 for h in self.houses if not h.looted)
@@ -308,7 +480,10 @@ class Battle:
         Ein aufgebrochenes Tor ist eine Lücke: unten Durchgang, oben Ende des Wehrgangs."""
         if c in self.blocked:
             return True
-        return walker and self.gate is not None and self.gate.closed and c in self.gate.cells
+        if not walker:
+            return False
+        g = self._gate_of.get(c)
+        return g is not None and g.closed
 
     def is_walker(self, u: Lochos) -> bool:
         """Wer den Wehrgang betreten darf: reine Peltasten der Wallseite über
@@ -325,6 +500,13 @@ class Battle:
         if ground is not None and self.is_wall_cell(self.cell(*ground), True):
             ground = None                          # Ziel oben: jeder Auf- oder Abstieg kommt in Frage
         out: set[tuple[int, int]] = set()
+        if self.ring:
+            level = self._wall_level(ground) if ground is not None else None
+            if level is None or level == "innen":
+                out |= self.ladders                # Leitern stehen innen
+            if u.side is not self.wall_side() and (level is None or level == "aussen"):
+                out |= self.crossings              # der Turm steht außen
+            return out
         for c in self.ladders:                     # Leitern stehen innen
             if ground is None or (ground[1] > c[1] + 0.5) != outside_south:
                 out.add(c)
@@ -337,8 +519,17 @@ class Battle:
 
     def ladder_ok(self, wall_cell: tuple[int, int], ground_cell: tuple[int, int]) -> bool:
         """Leitern führen nur zur Innenseite des Walls."""
+        if self.ring:
+            return self._cell_level(ground_cell) == "innen"
         outside_south = self.wall_side() is Side.FEIND
         return (ground_cell[1] > wall_cell[1]) != outside_south
+
+    def tower_ok(self, wall_cell: tuple[int, int], ground_cell: tuple[int, int]) -> bool:
+        """Ein Belagerungsturm steht an der Außenseite des Walls."""
+        if self.ring:
+            return self._cell_level(ground_cell) == "aussen"
+        outside_south = self.wall_side() is Side.FEIND
+        return (ground_cell[1] > wall_cell[1]) == outside_south
 
     def on_wall(self, u: Lochos) -> bool:
         return self.is_wall_cell(self.cell(u.x, u.y), self.is_walker(u))
@@ -379,13 +570,14 @@ class Battle:
         if wall_cell in self.ladders and self.ladder_ok(wall_cell, ground_cell):
             return True
         if wall_cell in self.crossings and u.side is not self.wall_side():
-            # Turm: nur an der Außenseite des Walls (dort steht er)
-            outside_south = self.wall_side() is Side.FEIND
-            return (ground_cell[1] > wall_cell[1]) == outside_south
+            return self.tower_ok(wall_cell, ground_cell)   # Turm: nur an der Außenseite des Walls (dort steht er)
         return False
 
     def wall_connected(self, a: tuple[int, int], b: tuple[int, int]) -> bool:
         """Liegen zwei Wallstücke auf demselben Wehrgang ohne Lücke (offenes Tor) dazwischen?"""
+        if self.ring:
+            comp = self._walkway_parts()
+            return a in comp and comp.get(a) == comp.get(b)
         if a[1] != b[1]:
             return False
         lo, hi = sorted((a[0], b[0]))
@@ -409,6 +601,60 @@ class Battle:
         best = min(ladders, key=lambda c: dist(p, (c[0] + 0.5, c[1] + 0.5)) + dist((c[0] + 0.5, c[1] + 0.5), target))
         return (best[0] + 0.5, best[1] + 0.5)
 
+    def _walkway_parts(self) -> dict[tuple[int, int], int]:
+        """Zusammenhängende Stücke des Wehrgangs (Kanten-Nachbarn); ein offenes Tor trennt."""
+        key = tuple(g.closed for g in self.gates)
+        if self._walkway is not None and self._walkway[0] == key:
+            return self._walkway[1]
+        cells = set(self.blocked) | {c for g in self.gates if g.closed for c in g.cells}
+        comp: dict[tuple[int, int], int] = {}
+        for start in cells:
+            if start in comp:
+                continue
+            k = len(comp)
+            stack = [start]
+            comp[start] = k
+            while stack:
+                x, y = stack.pop()
+                for n in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if n in cells and n not in comp:
+                        comp[n] = k
+                        stack.append(n)
+        self._walkway = (key, comp)
+        return comp
+
+    def _cell_level(self, c: tuple[int, int]) -> str:
+        """Festung: "innen" oder "aussen" für eine Kachel am Boden (fest, einmal gerechnet)."""
+        level = self._level_of.get(c)
+        if level is None:
+            level = "innen" if inside_polygon(self.scenario.ring, c[0] + 0.5, c[1] + 0.5) else "aussen"
+            self._level_of[c] = level
+        return level
+
+    def _ground_step(self, c: tuple[int, int], level: str) -> tuple[int, int]:
+        """Von einem Wallstück der Schritt (dx, dy) zur Kachel am Boden auf der Seite
+        ``level``, möglichst geradeaus vom Wall weg."""
+        cx, cy = self.scenario.agora or (self.cols / 2, self.rows / 2)
+        to_centre = (cx - c[0] - 0.5, cy - c[1] - 0.5)
+        best, best_v = (0, 1), -math.inf
+        for d in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            n = (c[0] + d[0], c[1] + d[1])
+            if n in self.blocked or n in self._gate_of or self._cell_level(n) != level:
+                continue
+            v = d[0] * to_centre[0] + d[1] * to_centre[1]
+            v = v if level == "innen" else -v
+            if v > best_v:
+                best, best_v = d, v
+        return best
+
+    def foot_of(self, c: tuple[int, int]) -> Point:
+        """Wo man unten an Leiter oder Turm steht."""
+        if not self.ring:
+            side = self._inner_dir() if c in self.ladders else -self._inner_dir()
+            return (c[0] + 0.5, c[1] + 0.5 + side)
+        dx, dy = self._foot.get(c, (0, 1))
+        return (c[0] + 0.5 + dx, c[1] + 0.5 + dy)
+
     def _inner_dir(self) -> float:
         """Richtung (y) von der Palisade zur Innenseite, wo die Leitern stehen."""
         return 1.0 if self.wall_side() is Side.STADT else -1.0
@@ -421,12 +667,13 @@ class Battle:
         walker = unit is not None and self.is_walker(unit)
         if c in self.blocked:
             return not walker
-        if self.gate is not None and c in self.gate.cells:
+        g = self._gate_of.get(c)
+        if g is not None:
             if from_wall is None:
                 from_wall = unit is not None and self.on_wall(unit)
             if walker and from_wall:
                 return False          # oben über das Torhaus
-            return self.gate.closed
+            return g.closed
         return False
 
     def inside(self, x: float, y: float) -> bool:
@@ -447,6 +694,8 @@ class Battle:
 
     def route_from(self, u: Lochos, pos: Point, target: Point) -> tuple[Point, bool]:
         """Wie ``route``, aber von einer beliebigen Position aus (auch für einzelne Männer)."""
+        if self.ring:
+            return self._route_ring(u, pos, target)
         walker = self.is_walker(u) and bool(self.ladders_for(u))
         if walker:
             on = self.is_wall_cell(self.cell(*pos), True)
@@ -511,6 +760,185 @@ class Battle:
             return self._free_spot(wait, u), False
         return target, True
 
+    # -------------------------------------------------------- Festung: Wege
+    def _route_ring(self, u: Lochos, pos: Point, target: Point) -> tuple[Point, bool]:
+        """Wege in der Festung: auf dem Wehrgang an der Brüstung entlang, hinauf und
+        hinunter über Leitern (innen) und Türme (außen), am Boden um die Ecken des
+        Sechsecks herum und durch das Tor, das am wenigsten Umweg macht."""
+        walker = self.is_walker(u) and bool(self.ladders_for(u))
+        here, there = self.cell(*pos), self.cell(*target)
+        on, want = self.is_wall_cell(here, True), self.is_wall_cell(there, True)
+        if walker:
+            if on and want and not self.wall_connected(here, there):
+                want = False              # Lücke im Wehrgang: erst hinunter, unten weiter, drüben wieder hinauf
+            if on and want:
+                return self._walk_along(pos, there), True
+            if on != want or (not on and self._wall_level(pos) != self._wall_level(target)
+                              and not any(not g.closed for g in self.gates)):
+                ladder = self.nearest_ladder(u, pos, target)
+                if ladder is not None:
+                    lc = self.cell(*ladder)
+                    if on:
+                        if lc == here:
+                            return self.foot_of(lc), False     # auf der Leiter: hinunter
+                        return self._walk_along(pos, lc), False
+                    foot = self.foot_of(lc)
+                    if dist(pos, foot) > 0.35 and self.cell(*pos) != lc:
+                        wp, _ = self._ground_way(u, pos, foot)
+                        return wp, False
+                    return ladder, False
+                if on != want:
+                    return target, True
+        if on:
+            return target, True               # wer (ohne Erlaubnis) oben steht, geht geradeaus
+        return self._ground_way(u, pos, target)
+
+    def _walk_along(self, pos: Point, goal: tuple[int, int]) -> Point:
+        """Auf dem Wehrgang zum Wallstück ``goal``: über die Wallstücke dazwischen, nie
+        über den Rand hinaus (an den Schrägen geht es treppauf, treppab)."""
+        here = self.cell(*pos)
+        gp = (goal[0] + 0.5, goal[1] + 0.5)
+        if here == goal or self._on_walkway(pos, gp):
+            return gp
+        cells = self._walkway_parts()
+        prev: dict[tuple[int, int], tuple[int, int] | None] = {here: None}
+        queue = [here]
+        for c in queue:
+            if c == goal:
+                break
+            for n in ((c[0] + 1, c[1]), (c[0] - 1, c[1]), (c[0], c[1] + 1), (c[0], c[1] - 1)):
+                if n in cells and n not in prev:
+                    prev[n] = c
+                    queue.append(n)
+        if goal not in prev:
+            return gp
+        path = [goal]
+        while prev[path[-1]] is not None:
+            path.append(prev[path[-1]])
+        path.reverse()                                    # here ... goal
+        best = path[1] if len(path) > 1 else goal
+        for c in path[1:]:
+            q = (c[0] + 0.5, c[1] + 0.5)
+            if not self._on_walkway(pos, q):
+                break
+            best = c
+        return (best[0] + 0.5, best[1] + 0.5)
+
+    def _on_walkway(self, a: Point, b: Point) -> bool:
+        n = max(1, int(dist(a, b) / 0.2))
+        for i in range(1, n + 1):
+            t = i / n
+            if not self.is_wall_cell(self.cell(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t), True):
+                return False
+        return True
+
+    def _gate_side(self, g: Gate, p: Point) -> float:
+        """+1, wenn ``p`` außerhalb des Tores liegt, sonst -1."""
+        cx, cy = g.center
+        return 1.0 if (p[0] - cx) * g.normal[0] + (p[1] - cy) * g.normal[1] > 0 else -1.0
+
+    def gate_approach(self, g: Gate, side: float, extra: float = 0.0) -> Point:
+        """Ein Punkt vor (``side`` +1: außen) oder hinter dem Tor, mitten im Durchgang."""
+        cx, cy = g.center
+        d = g.half_thick + 0.7 + extra
+        return (cx + g.normal[0] * side * d, cy + g.normal[1] * side * d)
+
+    def _ground_way(self, u: Lochos | None, pos: Point, target: Point) -> tuple[Point, bool]:
+        if self.path_clear(pos, target, None):
+            return target, True
+        here = self._wall_level(pos)
+        there = self._wall_level(target)
+        if here == "tor":
+            g = self._gate_of[self.cell(*pos)]
+            beyond = self.gate_approach(g, self._gate_side(g, target))
+            if self.path_clear(pos, beyond, None):
+                return beyond, False
+            return self.gate_approach(g, -self._gate_side(g, target)), False
+        if there in ("wall", "tor"):
+            g = self._gate_of.get(self.cell(*target))
+            if g is not None:
+                there = "aussen" if self._gate_side(g, pos) > 0 else "innen"
+            else:
+                there = here
+        if here == there:
+            return self._around_ring(pos, target, here), False
+        gates = [g for g in self.gates if not g.closed]
+        if gates:
+            def cost(g: Gate) -> float:
+                s_ = self._gate_side(g, pos)
+                return dist(pos, self.gate_approach(g, s_)) + dist(self.gate_approach(g, -s_), target)
+            g = min(gates, key=cost)
+            s_ = self._gate_side(g, pos)
+            near, far = self.gate_approach(g, s_), self.gate_approach(g, -s_)
+            if self.path_clear(pos, far, None):
+                return far, False
+            if self.path_clear(pos, near, None):
+                return near, False
+            return self._around_ring(pos, near, here), False
+        # alle Tore zu: vor dem nächsten Tor warten (auf der eigenen Seite)
+        g = min(self.gates, key=lambda g: dist(pos, g.center) + dist(g.center, target))
+        s_ = self._gate_side(g, pos)
+        k = (u.id if u is not None else 0)
+        spread = ((k % 5) - 2) * 1.3
+        far = config.ENEMY_RALLY_DISTANCE + 0.6 * ((k // 5) % 3)
+        cx, cy = g.center
+        tx, ty = g.tangent
+        wait = (cx + g.normal[0] * s_ * far + tx * spread, cy + g.normal[1] * s_ * far + ty * spread)
+        wait = self._free_spot(wait, u)
+        if self.path_clear(pos, wait, None):
+            return wait, False
+        return self._around_ring(pos, wait, here), False
+
+    def _ring_nodes(self, level: str) -> list[Point]:
+        """Umwegpunkte um die Ecken des Sechsecks: außen etwas vor jeder Ecke, innen etwas davor."""
+        cx, cy = self.scenario.agora or (self.cols / 2, self.rows / 2)
+        out = []
+        for vx, vy in self.scenario.ring:
+            dx, dy = vx - cx, vy - cy
+            r = math.hypot(dx, dy)
+            k = (r + 1.6) / r if level == "aussen" else (r - 2.2) / r
+            out.append((cx + dx * k, cy + dy * k))
+        return out
+
+    def _around_ring(self, pos: Point, target: Point, level: str) -> Point:
+        """Nächster Umwegpunkt auf dem kürzesten Weg über die Eckpunkte (Sichtlinien)."""
+        key = (self.cell(*pos), (round(target[0], 1), round(target[1], 1)), level,
+               tuple(g.closed for g in self.gates))
+        hit = self._ring_cache.get(key)
+        if hit is not None:
+            return hit
+        nodes = self._ring_nodes(level)
+        n = len(nodes)
+        best = {i: dist(pos, nodes[i]) for i in range(n) if self.path_clear(pos, nodes[i], None)}
+        if not best:
+            wp = min(nodes, key=lambda q: dist(pos, q))
+            self._ring_cache[key] = wp
+            return wp
+        first = {i: i for i in best}
+        todo = dict(best)
+        done: dict[int, float] = {}
+        while todo:
+            i = min(todo, key=todo.get)
+            d = todo.pop(i)
+            done[i] = d
+            for j in ((i + 1) % n, (i - 1) % n):          # den Ring entlang, Ecke zu Ecke
+                if j in done:
+                    continue
+                nd = d + dist(nodes[i], nodes[j])
+                if nd < todo.get(j, math.inf):
+                    todo[j] = nd
+                    first[j] = first[i]
+        ends = [(done[i] + dist(nodes[i], target), i) for i in done if self.path_clear(nodes[i], target, None)]
+        if ends:
+            _, i = min(ends)
+        else:
+            i = min(done, key=lambda i: done[i] + dist(nodes[i], target))
+        wp = nodes[first[i]]
+        if len(self._ring_cache) > 4000:
+            self._ring_cache.clear()
+        self._ring_cache[key] = wp
+        return wp
+
     def throw_clear(self, a: Lochos, b: Lochos) -> bool:
         """Über die Palisade oder ein geschlossenes Tor wirft nur, wer auf dem Wehrgang steht."""
         if self.on_wall(a):
@@ -525,7 +953,8 @@ class Battle:
                 continue
             if c in self.blocked:
                 return False
-            if self.gate is not None and self.gate.closed and c in self.gate.cells:
+            g = self._gate_of.get(c)
+            if g is not None and g.closed:
                 return False
         return True
 
@@ -860,8 +1289,10 @@ class Battle:
             self.horses.append((u.x, u.y, n))
             self.events.append(f"{u.name} sitzen ab, {n} Pferde bleiben zurück")
 
-    def command_ram_gate(self, units: list[Lochos] | None) -> int:
+    def command_ram_gate(self, units: list[Lochos] | None, gate: Gate | None = None) -> int:
         """Gruppen mit Rammbock gehen ans Tor und brechen es auf."""
+        if self.ring:
+            return self._ram_gate_ring(units, gate)
         if self.gate is None or not self.gate.closed:
             return 0
         sel = [u for u in self._selection(units) if u.engine == "ram"]
@@ -880,8 +1311,42 @@ class Battle:
         self.events.append("Rammbock geht ans Tor")
         return len(sel)
 
+    def _ram_gate_ring(self, units: list[Lochos] | None, gate: Gate | None) -> int:
+        sel = [u for u in self._selection(units) if u.engine == "ram"]
+        if not sel:
+            self.events.append("Ohne Rammbock hält das Tor")
+            return 0
+        if gate is None:
+            closed = [g for g in self.gates if g.closed]
+            if not closed:
+                return 0
+            cx = sum(u.x for u in sel) / len(sel)
+            cy = sum(u.y for u in sel) / len(sel)
+            gate = min(closed, key=lambda g: dist((cx, cy), g.center))
+        if not gate.closed:
+            return 0
+        self.alarm = False
+        for i, u in enumerate(sel):
+            self.drive_ram(u, gate, (i - (len(sel) - 1) / 2) * 0.8)
+        self.events.append("Rammbock geht ans Tor")
+        return len(sel)
+
+    def drive_ram(self, u: Lochos, gate: Gate, offset: float = 0.0) -> None:
+        """Die Gruppe fährt den Rammbock von außen vor das Tor, die Front zum Tor."""
+        cx, cy = gate.center
+        (nx, ny), (tx, ty) = gate.normal, gate.tangent
+        d = gate.half_thick + u.half_d + 0.35
+        u.stance = Stance.HALTEN
+        u.in_line = False
+        u.target_id = None
+        u.ram_gate = self.gates.index(gate)
+        u.target = (cx + nx * d + tx * offset, cy + ny * d + ty * offset)
+        u.face_to = (-nx, -ny)
+
     def command_tower_wall(self, units: list[Lochos] | None, cell: tuple[int, int]) -> int:
         """Gruppen mit Turm setzen ihn an dieses Wallstück."""
+        if self.ring:
+            return self._tower_wall_ring(units, cell)
         if cell not in self.blocked or cell in self.crossings:
             return 0
         sel = [u for u in self._selection(units) if u.engine == "tower"]
@@ -901,6 +1366,40 @@ class Battle:
             u.face_to = (0.0, -side)
         self.events.append("Belagerungsturm rollt an den Wall")
         return len(sel)
+
+    def _tower_wall_ring(self, units: list[Lochos] | None, cell: tuple[int, int]) -> int:
+        if cell not in self.blocked or cell in self.crossings or self.tower_step(cell) is None:
+            return 0
+        sel = [u for u in self._selection(units) if u.engine == "tower"]
+        if not sel:
+            self.events.append("Ohne Belagerungsturm ist der Wall zu hoch")
+            return 0
+        self.alarm = False
+        for u in sel:
+            self.drive_tower(u, cell)
+        self.events.append("Belagerungsturm rollt an den Wall")
+        return len(sel)
+
+    def tower_step(self, cell: tuple[int, int]) -> tuple[int, int] | None:
+        """Festung: von welcher Seite (dx, dy) ein Turm an dieses Wallstück kommt, oder None,
+        wenn es außen keinen Boden daneben gibt (dicke Stelle an einer Schräge)."""
+        d = self._ground_step(cell, "aussen")
+        n = (cell[0] + d[0], cell[1] + d[1])
+        if n in self.blocked or n in self._gate_of or self._cell_level(n) != "aussen":
+            return None
+        return d
+
+    def drive_tower(self, u: Lochos, cell: tuple[int, int]) -> None:
+        """Die Gruppe fährt den Turm von außen an das Wallstück, die Front zum Wall."""
+        dx, dy = self.tower_step(cell) or (0, -1)
+        cx, cy = cell[0] + 0.5, cell[1] + 0.5
+        u.stance = Stance.HALTEN
+        u.in_line = False
+        u.target_id = None
+        u.tower_cell = cell
+        u.tower_progress = 0.0
+        u.target = (cx + dx * (0.5 + u.half_d + 0.3), cy + dy * (0.5 + u.half_d + 0.3))
+        u.face_to = (float(-dx), float(-dy))
 
     def plan_line(self, units: list[Lochos] | None, start: Point, end: Point) -> list[LinePlan]:
         sel = self._selection(units)
@@ -974,6 +1473,17 @@ class Battle:
     def _free_spot(self, p: Point, unit: Lochos | None = None) -> Point:
         x = min(max(p[0], 0.5), self.cols - 0.5)
         y = min(max(p[1], 0.5), self.rows - 0.5)
+        if self.ring and self.is_blocked(x, y, unit):
+            # auf dem Wall oder im Tor: daneben auf die Seite, auf der die Gruppe steht
+            level = self._wall_level(unit.pos) if unit is not None else None
+            for r in (0.8, 1.3, 1.8, 2.5):
+                for k in range(8):
+                    a = k * math.pi / 4
+                    q = (x + math.cos(a) * r, y + math.sin(a) * r)
+                    if (self.inside(*q) and not self.is_blocked(*q, unit)
+                            and (level not in ("innen", "aussen") or self._wall_level(q) == level)):
+                        return q
+            return (x, y)
         if self.is_blocked(x, y, unit):
             for dy in (1.0, -1.0, 2.0, -2.0):
                 if not self.is_blocked(x, y + dy, unit) and self.inside(x, y + dy):
@@ -999,6 +1509,8 @@ class Battle:
         self._separate()
         self._combat(dt)
         self._volleys(dt)
+        if self.corner_towers:
+            self._tower_fire(dt)
         self._engines(dt)
         if not self.attacking:
             self._loot(dt)
@@ -1592,8 +2104,10 @@ class Battle:
         c = self.cell(*p)
         if self.is_wall_cell(c, True):
             return "wall"
-        if self.gate is not None and c in self.gate.cells:
+        if c in self._gate_of:
             return "tor"
+        if self.ring:
+            return self._cell_level(c)
         if not self.blocked:
             return "sued"
         wall_y = next(iter(self.blocked))[1]
@@ -1657,11 +2171,11 @@ class Battle:
         if u.side is not Side.STADT and not config.LOOSE_AI:
             return ""                             # die Gegner gehen (vorerst) als Block um ihre Haufen herum und durchs Tor
         why = ""
-        if (self.blocked and self.gate is not None and not self.gate.closed
+        open_gates = [g.center for g in self.gates if not g.closed]
+        if (self.blocked and open_gates
                 and not self.is_wall_cell(self.cell(*u.target), True) and not self.path_clear(u.pos, u.target)):
-            gate = self.gate.center
             if any(e.side is not u.side and e.fighting and dist(e.pos, gate) <= config.LOOSE_ENEMY_RANGE
-                   for e in self.lochoi):
+                   for e in self.lochoi for gate in open_gates):
                 return ""                         # am Tor wird gekämpft: dort hält man die Ordnung und steht an
             why = "tor"                           # durchs offene Tor (oder um ein Wallstück herum)
         elif self.path_clear(u.pos, u.target) and (u.idle_block or self._detour(u, u.target, idle_only=True) is not None):
@@ -1733,7 +2247,10 @@ class Battle:
             elif u.face_to is not None:
                 f = u.face_to
             elif u.loose_why == "wall" and self._wall_level(c) != self._wall_level(t) and dist(t, c) > 0.3:
-                f = (0.0, 1.0 if t[1] > c[1] else -1.0)   # über den Wall: die Front vom Wall weg
+                if self.ring:
+                    f = norm(sub(t, c))                   # über den Wall: die Front zum Ziel
+                else:
+                    f = (0.0, 1.0 if t[1] > c[1] else -1.0)   # über den Wall: die Front vom Wall weg
             elif u.target_id is not None or u.stance is not Stance.PHALANX:
                 f = norm(sub(t, c)) if dist(t, c) > 0.3 else (u.dest_facing or u.facing)
             else:
@@ -1752,7 +2269,7 @@ class Battle:
         if not self.blocked:
             return None
         side_level = self._wall_level(target)
-        if side_level not in ("nord", "sued"):
+        if side_level not in ("nord", "sued", "innen", "aussen"):
             return None
         men = u.all_men()
         if not men or all(self._wall_level(m.pos) == side_level for m in men):
@@ -1766,6 +2283,8 @@ class Battle:
         else:
             ascent = self.nearest_ladder(u, c, target)
         down = self.nearest_ladder(u, ascent, target) if ascent is not None else None
+        if self.ring:
+            return self._muster_ring(u, target, down or ascent or c)
         x = (down or ascent or c)[0]
         side = 1.0 if side_level == "sued" else -1.0
         wall_y = next(iter(self.blocked))[1]
@@ -1802,6 +2321,43 @@ class Battle:
                 break
         if spot is None:
             spot = (min(max(x, ext_x + 0.2), self.cols - ext_x - 0.2), y0)
+        return self._free_spot(spot, u), facing, (ext_x, ext_y)
+
+    def _muster_ring(self, u: Lochos, target: Point, near: Point) -> tuple[Point, Point, Point]:
+        """Festung: Sammelplatz vor dem Fuß der Leiter, über die man hinabsteigt, vom Wall
+        weg, jede Gruppe auf ihrem eigenen Fleck."""
+        level = self._wall_level(target)
+        c = self.cell(*near)
+        if self.is_wall_cell(c, True):
+            foot = self.foot_of(c) if (c in self.ladders or c in self.crossings) else near
+        else:
+            foot = near
+        fx, fy = foot
+        dx, dy = norm(sub(foot, (c[0] + 0.5, c[1] + 0.5))) if dist(foot, (c[0] + 0.5, c[1] + 0.5)) > 0.1 else (0.0, 1.0)
+        facing = u.face_to or (norm(sub(target, foot)) if dist(target, foot) > 0.3 else (dx, dy))
+        ext_n = abs(facing[0] * dx + facing[1] * dy) * u.half_d + abs(-facing[1] * dx + facing[0] * dy) * u.half_w
+        ext_t = abs(facing[0] * dx + facing[1] * dy) * u.half_w + abs(-facing[1] * dx + facing[0] * dy) * u.half_d
+        ext_x = abs(facing[0]) * u.half_d + abs(facing[1]) * u.half_w
+        ext_y = abs(facing[1]) * u.half_d + abs(facing[0]) * u.half_w
+        taken = [g.muster[0] for g in self.lochoi if g is not u and g.side is u.side and g.alive and g.muster is not None]
+        taken += [g.pos for g in self.lochoi if g is not u and g.side is u.side and g.alive and not g.loose and self._standing(g)]
+        tx, ty = -dy, dx
+        spot = None
+        for ring in range(4):
+            d0 = 0.5 + ext_n + config.MUSTER_GAP + ring * (2 * ext_n + 0.3)
+            for k in (0, 1, -1, 2, -2, 3, -3):
+                off = k * (2 * ext_t + 0.3)
+                q = (fx - dx * 0.5 + dx * d0 + tx * off, fy - dy * 0.5 + dy * d0 + ty * off)
+                if not self.inside(*q) or self.is_blocked(*q, u) or self._wall_level(q) != level:
+                    continue
+                if any(dist(q, t) < max(ext_n, ext_t) * 2 + 0.3 for t in taken):
+                    continue
+                spot = q
+                break
+            if spot is not None:
+                break
+        if spot is None:
+            spot = foot
         return self._free_spot(spot, u), facing, (ext_x, ext_y)
 
     @staticmethod
@@ -1919,8 +2475,8 @@ class Battle:
         ``FIELD_REFRESH`` Sekunden neu gerechnet."""
         dest = dest if dest is not None else (u.dest or u.pos)
         facing = facing if facing is not None else (u.dest_facing or u.facing)
-        key = (round(dest[0], 1), round(dest[1], 1), round(facing[0], 2), round(facing[1], 2),
-               self.gate.closed if self.gate else None, len(slots))
+        closed = tuple(g.closed for g in self.gates)
+        key = (round(dest[0], 1), round(dest[1], 1), round(facing[0], 2), round(facing[1], 2), closed, len(slots))
         cached = self._fields.get(u.id)
         refresh = config.FIELD_REFRESH * (0.8 + 0.4 * ((u.id * 0.618) % 1.0))   # nicht alle Gruppen im selben Takt
         if cached is not None and cached[0] == key and self.time - cached[1] < refresh:
@@ -1929,7 +2485,6 @@ class Battle:
             return cached[2]                              # genug gerechnet in diesem Takt: das bisherige Feld tut es noch
         self._field_builds = {self.time: self._field_builds.get(self.time, 0) + 1}
         cell = config.FIELD_CELL
-        closed = self.gate.closed if self.gate else None
         if self._static_grid is None or self._static_grid[0] != closed:
             self._static_grid = (closed, pathing.grid(self.cols, self.rows, cell, lambda x, y: self.is_blocked(x, y)))
         blocked = bytearray(self._static_grid[1])
@@ -2020,7 +2575,7 @@ class Battle:
         if not slots:
             return
         dest_level = self._wall_level(u.dest if u.dest is not None else u.pos)
-        gate_open = self.gate is not None and not self.gate.closed
+        gate_open = any(not g.closed for g in self.gates)
         via = self._via(u)
         remaining = sorted(dist(m.pos, p) for m, p in slots)
         median = remaining[len(remaining) // 2]
@@ -2129,6 +2684,13 @@ class Battle:
             return goal
         if i == 0 or (self.climb_budget.get(cell, 1.0) >= 1.0 and dist(man.pos, goal) < 0.9):
             return goal
+        if self.ring:
+            fx, fy = self.foot_of(cell)
+            dx, dy = fx - cell[0] - 0.5, fy - cell[1] - 0.5          # zum Fuß, waagrecht oder senkrecht
+            px_, py_ = abs(dy), abs(dx)
+            k = 0.75 + (i // 6) * 0.15
+            o = ((i % 6) - 2.5) * 0.14
+            return (cell[0] + 0.5 + dx * k + px_ * o, cell[1] + 0.5 + dy * k + py_ * o)
         side = 1.0 if man.y > cell[1] + 0.5 else -1.0
         return (cell[0] + 0.5 + ((i % 6) - 2.5) * 0.14, cell[1] + 0.5 + side * (0.75 + (i // 6) * 0.15))
 
@@ -2442,8 +3004,7 @@ class Battle:
         if wall_cell in self.ladders and self.ladder_ok(wall_cell, ground_cell):
             return self._climb(wall_cell)
         if wall_cell in self.crossings and u.side is not self.wall_side():
-            outside_south = self.wall_side() is Side.FEIND
-            return (ground_cell[1] > wall_cell[1]) == outside_south and self._climb(wall_cell)
+            return self.tower_ok(wall_cell, ground_cell) and self._climb(wall_cell)
         return False
 
     def _climb(self, cell: tuple[int, int]) -> bool:
@@ -2865,6 +3426,57 @@ class Battle:
                 fallen = b.hit_man(pr.target_man, dmg)
                 self._after_hit(b, fallen, "ranged", dmg)
 
+    def _tower_fire(self, dt: float) -> None:
+        """Wehrtürme: Wer oben steht, gehört dazu. Steht nur der Feind oben, gehört der Turm
+        ihm; stehen beide oben, schweigt er. Sonst wirft er alle halbe Sekunde einen Speer
+        auf den nächsten Feind in Reichweite, ohne Vorrat."""
+        reach = config.TOWER_RANGE
+        for t in self.corner_towers:
+            cx, cy = t.center
+            present = {Side.STADT: 0, Side.FEIND: 0}
+            gx, gy = self._grid_cell(cx, cy)
+            for x in range(gx - 2, gx + 3):
+                for y in range(gy - 2, gy + 3):
+                    for m, uid in self._man_grid.get((x, y), ()):
+                        if m.hp > 0 and self.cell(m.x, m.y) == t.cell:
+                            present[self._man_side[id(m)]] += 1
+            if t.owner is None:
+                sides = [sd for sd, n in present.items() if n]
+                if len(sides) == 1:
+                    t.owner = sides[0]
+            else:
+                foe_side = Side.FEIND if t.owner is Side.STADT else Side.STADT
+                if present[foe_side] and not present[t.owner]:
+                    t.owner = foe_side
+                    who = "Der Feind nimmt" if foe_side is Side.FEIND else "Wir nehmen"
+                    self.events.append(f"{who} einen Turm ein")
+            if t.owner is None:
+                continue
+            foe_side = Side.FEIND if t.owner is Side.STADT else Side.STADT
+            if present[foe_side]:
+                t.timer = 0.0
+                continue                                          # umkämpft: niemand wirft
+            t.timer += dt
+            if t.timer < config.TOWER_THROW_INTERVAL:
+                continue
+            best, best_d = None, reach
+            for u in self.lochoi:
+                if u.side is not foe_side or not u.fighting or dist(u.pos, (cx, cy)) > reach + u.radius:
+                    continue
+                for m in u.all_men():
+                    d = math.hypot(m.x - cx, m.y - cy)
+                    if d <= best_d:
+                        best, best_d = (u, m), d
+            if best is None:
+                t.timer = config.TOWER_THROW_INTERVAL                 # bereit, sobald einer kommt
+                continue
+            t.timer -= config.TOWER_THROW_INTERVAL
+            u, victim = best
+            near = [m for m in u.all_men() if math.hypot(m.x - victim.x, m.y - victim.y) <= 0.8]
+            victim = near[self.rng.randrange(len(near))]
+            flight = max(0.1, math.hypot(victim.x - cx, victim.y - cy) / config.JAVELIN_SPEED)
+            self.projectiles.append(Projectile(cx, cy, victim.x, victim.y, u.id, config.JAVELIN_DAMAGE, 0.0, flight, victim))
+
     def _behind_palisade(self, man: Man, origin: Point) -> bool:
         """Steht der Mann auf dem Wehrgang und kam der Speer von außen? Dann deckt ihn
         die Palisade. Von innen (der Seite der Häuser) oder vom Wall selbst nicht."""
@@ -2872,7 +3484,7 @@ class Battle:
             return False
         inside = {self._wall_level((h.cx + 0.5, h.cy + 0.5)) for h in self.houses}
         thrown_from = self._wall_level(origin)
-        return thrown_from in ("nord", "sued") and thrown_from not in inside
+        return thrown_from in ("nord", "sued", "innen", "aussen") and thrown_from not in inside
 
     # -- Belagerung: Bau, Rammbock, Turm -----------------------------------
     def _engines(self, dt: float) -> None:
@@ -2888,6 +3500,9 @@ class Battle:
                     u.build_kind = None
                     what = "Der Rammbock" if u.engine == "ram" else "Der Belagerungsturm"
                     self.events.append(f"{what} von {u.name} ist fertig")
+                continue
+            if self.ring and u.engine in ("ram", "tower"):
+                self._engine_ring(u, dt)
                 continue
             if u.engine == "ram" and self.gate is not None and self.gate.closed:
                 gx, gy = self.gate.center
@@ -2911,9 +3526,64 @@ class Battle:
                         u.tower_cell = None
                         u.target = (cx, cy)                                  # hinauf auf den Wehrgang
 
-    def _drop_rams(self) -> None:
+    def _engine_ring(self, u: Lochos, dt: float) -> None:
+        """Festung: Rammbock vor einem geschlossenen Tor, Turm an seinem Wallstück."""
+        if u.engine == "ram":
+            for g in self.gates:
+                if not g.closed:
+                    continue
+                cx, cy = g.center
+                (nx, ny), (tx, ty) = g.normal, g.tangent
+                along = abs((u.x - cx) * tx + (u.y - cy) * ty)
+                across = abs((u.x - cx) * nx + (u.y - cy) * ny)
+                if along <= g.half_len + 0.3 and abs(across - g.half_thick) <= u.half_d + config.RAM_REACH:
+                    g.hp -= config.RAM_DPS * dt
+                    if g.hp <= 0:
+                        g.hp = 0.0
+                        g.closed = False
+                        self.events.append("Ein Tor ist aufgebrochen!")
+                        self._drop_rams(g)
+                    return
+            return
+        if u.tower_cell is None:
+            return
+        d = self.tower_step(u.tower_cell)
+        if d is None:
+            return
+        cx, cy = u.tower_cell[0] + 0.5, u.tower_cell[1] + 0.5
+        along = abs((u.x - cx) * -d[1] + (u.y - cy) * d[0])
+        across = (u.x - cx) * d[0] + (u.y - cy) * d[1]
+        if along <= 0.6 and abs(across - 0.5) <= u.half_d + config.TOWER_REACH:
+            u.tower_progress += dt
+            if u.tower_progress >= config.TOWER_DEPLOY_TIME:
+                cell = u.tower_cell
+                self.crossings.add(cell)
+                self._foot[cell] = d
+                self.events.append(f"{u.name} hat den Wall überwunden")
+                self.towers.append((cx + d[0] * 0.75, cy + d[1] * 0.75))   # Turm bleibt am Wall stehen
+                u.engine = None
+                u.tower_cell = None
+                u.target = (cx, cy)                                         # hinauf auf den Wehrgang
+
+    def _drop_rams(self, gate: Gate | None = None) -> None:
         """Nach dem Durchbruch bleibt der Rammbock liegen, die Gruppen treten
         zur Seite, damit der Durchgang frei ist, und sind wieder schnell."""
+        if self.ring and gate is not None:
+            cx, cy = gate.center
+            tx, ty = gate.tangent
+            for u in self.lochoi:
+                if u.engine == "ram" and dist(u.pos, gate.center) <= gate.half_thick + u.half_d + 1.5:
+                    fx, fy = u.facing
+                    self.debris.append((u.x + fx * (u.half_d + 0.3), u.y + fy * (u.half_d + 0.3), fx, fy))
+                    u.engine = None
+                    u.ram_gate = None
+                    if self.enemy_ram_id == u.id:
+                        self.enemy_ram_id = None
+                    side = 1.0 if (u.x - cx) * tx + (u.y - cy) * ty >= 0 else -1.0
+                    u.stance = Stance.HALTEN
+                    u.face_to = None
+                    u.target = self._free_spot((u.x + tx * side * (u.half_w + 1.6), u.y + ty * side * (u.half_w + 1.6)), u)
+            return
         gx = self.gate.center[0] if self.gate else self.cols / 2
         for u in self.lochoi:
             if u.engine == "ram":

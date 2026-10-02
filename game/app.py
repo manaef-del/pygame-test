@@ -1,7 +1,8 @@
 """Hauptschleife, Eingabe und Bildschirmzustand (Aufstellung / Schlacht).
 
 Asynchron, damit dieselbe Schleife nativ und im Browser (pygbag) läuft.
-Berührungen kommen als Mausereignisse an, deshalb reichen diese.
+Ein Finger kommt als Mausereignis an; liegen zwei Finger auf, verschieben sie
+die Ansicht einer großen Karte (am Rechner: rechte Maustaste, Pfeiltasten).
 """
 
 from __future__ import annotations
@@ -49,6 +50,9 @@ class App:
         self.menu_slider: tuple[int, pygame.Rect] | None = None
         self.enemy_counts: dict[str, int] = {s.key: s.enemy_default for s in SCENARIOS}
         self.own_count = OWN_DEFAULT
+        self.fingers: dict[int, tuple[float, float]] = {}   # aufliegende Finger (für das Verschieben)
+        self.panning = False                                 # zwei Finger liegen auf: kein Tippen, kein Ziehen
+        self.pan_from: tuple[int, int] | None = None         # rechte Maustaste: verschieben am Rechner
         self.battle = self._new_battle()
 
     def _new_battle(self) -> Battle:
@@ -62,19 +66,53 @@ class App:
         return Battle(scn, rng, army=army, enemy_count=self.enemy_counts[scn.key], memory=self.memory)
 
     # ---------------------------------------------------------- Eingabe
+    def to_tiles(self, pos: tuple[int, int]) -> tuple[float, float]:
+        return self.renderer.camera.to_tiles(pos)
+
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.QUIT:
             self.running = False
+        elif event.type in (pygame.FINGERDOWN, pygame.FINGERMOTION, pygame.FINGERUP):
+            self._finger(event)
         elif event.type == pygame.KEYDOWN:
             self._key(event.key)
+        elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
+            self.pan_from = event.pos
+        elif event.type == pygame.MOUSEBUTTONUP and event.button == 3:
+            self.pan_from = None
+        elif event.type == pygame.MOUSEMOTION and self.pan_from is not None:
+            self.renderer.camera.pan(event.pos[0] - self.pan_from[0], event.pos[1] - self.pan_from[1])
+            self.pan_from = event.pos
+        elif self.panning:
+            if event.type == pygame.MOUSEBUTTONUP:
+                self.drag_start = self.drag_now = None    # der Finger war Teil des Verschiebens
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
             self._press(event.pos)
         elif event.type == pygame.MOUSEMOTION and self.menu_slider is not None:
             self._slide(event.pos)
         elif event.type == pygame.MOUSEMOTION and self.drag_start is not None:
-            self.drag_now = to_tiles(event.pos)
+            self.drag_now = self.to_tiles(event.pos)
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             self._release(event.pos)
+
+    def _finger(self, event: pygame.event.Event) -> None:
+        """Zwei Finger verschieben die Karte; was der erste Finger angefangen hat (Tipp,
+        Front aufziehen), fällt dann weg."""
+        if event.type == pygame.FINGERDOWN:
+            self.fingers[event.finger_id] = (event.x, event.y)
+            if len(self.fingers) >= 2 and self.screen == "schlacht":
+                self.panning = True
+                self.drag_start = self.drag_now = None
+        elif event.type == pygame.FINGERMOTION:
+            if event.finger_id in self.fingers:
+                self.fingers[event.finger_id] = (event.x, event.y)
+            if self.panning and len(self.fingers) >= 2:
+                n = len(self.fingers)
+                self.renderer.camera.pan(event.dx * config.WIDTH / n, event.dy * config.HEIGHT / n)
+        else:
+            self.fingers.pop(event.finger_id, None)
+            if not self.fingers:
+                self.panning = False
 
     def _key(self, key: int) -> None:
         if key == pygame.K_ESCAPE:
@@ -101,6 +139,13 @@ class App:
             self.command("formation")
         elif key == pygame.K_v:
             self.command("vereinen")
+        elif key == pygame.K_z:
+            self.command("ansicht")
+        elif key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN):
+            step = 3 * config.TILE
+            dx = {pygame.K_LEFT: step, pygame.K_RIGHT: -step}.get(key, 0)
+            dy = {pygame.K_UP: step, pygame.K_DOWN: -step}.get(key, 0)
+            self.renderer.camera.pan(dx, dy)
 
     def _press(self, pos: tuple[int, int]) -> None:
         if self.screen == "aufstellung":
@@ -122,7 +167,7 @@ class App:
             return
         if pos[1] >= config.MAP_H:
             return
-        self.drag_start = self.drag_now = to_tiles(pos)
+        self.drag_start = self.drag_now = self.to_tiles(pos)
 
     def _slide(self, pos: tuple[int, int]) -> None:
         """Schieberegler: Anzahl aus der Fingerposition."""
@@ -151,11 +196,16 @@ class App:
         self.menu_slider = None
         if self.drag_start is None:
             return
-        start, end = self.drag_start, to_tiles(pos)
+        start, end = self.drag_start, self.to_tiles(pos)
         self.drag_start = self.drag_now = None
+        cam = self.renderer.camera
+        tap = abs(end[0] - start[0]) < DRAG_MIN / cam.zoom and abs(end[1] - start[1]) < DRAG_MIN / cam.zoom
+        if tap and cam.overview:
+            cam.zoom_to(end)                       # Übersicht: Tippen zoomt dorthin
+            return
         if self.battle.outcome is not None:
             return
-        if abs(end[0] - start[0]) < DRAG_MIN and abs(end[1] - start[1]) < DRAG_MIN:
+        if tap:
             self._tap(end)
             return
         sel = self._selection()
@@ -181,8 +231,9 @@ class App:
             return
         if not self.selected:
             return
-        if b.gate is not None and b.gate.closed and b.gate_at(p):
-            b.command_ram_gate(self._selection())
+        gate = b.gate_near(p) if b.ring else (b.gate if b.gate is not None and b.gate_at(p) else None)
+        if gate is not None and gate.closed:
+            b.command_ram_gate(self._selection(), gate)
             self.paused = False
             return
         cell = b.cell(*p)
@@ -242,6 +293,8 @@ class App:
                 b.command_drop(sel, kind)          # erneut drücken: ablegen oder Bau abbrechen
             elif sel and b.command_build(sel, kind):
                 self.paused = False
+        elif key == "ansicht":
+            self.renderer.camera.toggle()
         elif key == "alle":
             if self.selected:
                 self.selected = set()
