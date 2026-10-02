@@ -35,10 +35,11 @@ Zwölf Seeds (Festung im Angriff acht), verglichen mit Lauf 22 und 23:
 Auf den alten Karten verschiebt sich vieles um ein, zwei Siege in beide
 Richtungen. Deutlich sind: „passiv“ hinter der Palisade fällt auf 0 (die
 6 aus Lauf 22 waren schon auffällig, davor 1), die Schlachtordnung mit
-einem Zug verliert 4 Siege, „Tor mit Reserve“ gewinnt 4 dazu. Ausgeschaltet
-einzeln gemessen (offen „angriff“): ohne Reserve 0 statt 9 von 12, die
-Reserve der Räuber hilft dem angreifenden Spieler dort also eher (sie
-fehlt der Hauptmacht vorn). Der Abnahmetest „Phalanx, dann Verfolgung“
+einem Zug verliert 4 Siege, „Tor mit Reserve“ gewinnt 4 dazu. Einzeln
+abgeschaltet gemessen (offen „angriff“, noch mit der unten verworfenen
+Korrektur an der Schwelle): ohne Reserve 0 statt 3 von 12. Die Reserve
+der Räuber hilft dem angreifenden Spieler dort also eher, weil sie der
+Hauptmacht vorn fehlt. Der Abnahmetest „Phalanx, dann Verfolgung“
 gewinnt mit acht Startwerten weiter 8 von 8, verliert durch die Reserve aber
 im Mittel 21 statt 18 Mann; seine Verlustgrenze steht jetzt bei 35 %.
 
