@@ -1,5 +1,6 @@
 """Tests der Kampflogik. Läuft ohne Pygame."""
 
+import math
 import random
 
 import pytest
@@ -1446,11 +1447,27 @@ def test_short_move_wheels_before_it_marches(monkeypatch):
     b, u = standing_group("mittel")
     b.command_move([u], (14.0, 12.0))                                      # rechtwinklig nach Osten
     x0 = u.x
-    run(b, 0.15)
+    run(b, 0.25)
     assert u.facing[0] > 0.3 and u.facing[1] < -0.3                         # mitten im Schwenk
     assert abs(u.x - x0) < 0.05                                            # noch nicht losmarschiert
-    run(b, 0.5)
+    run(b, 0.7)
     assert abs(u.facing[0] - 1.0) < 1e-6 and u.x > x0 + 0.1                # ausgerichtet und unterwegs
+
+
+def test_wide_blocks_wheel_slower_than_small_groups():
+    """Wie schnell eine Gruppe im Stand schwenkt, hängt an ihrer Breite: Der äußere Mann muss
+    den Bogen ablaufen. Kleine Trupps drehen flink, eine breite Phalanx braucht ihre Zeit, Reiter
+    wenden nie schneller als ihr Höchstwert."""
+    def quarter_turn(kind, n, width):
+        b, u = standing_group(kind, n, width)
+        t = 0.0
+        while u.facing != (1.0, 0.0) and t < 10:
+            b._turn_towards(u, (1.0, 0.0), DT)
+            t += DT
+        return t
+    small, wide = quarter_turn("schwer", 8, 4), quarter_turn("schwer", 40, 14)
+    assert small < 0.8 and wide > 1.5 and wide > 2 * small
+    assert quarter_turn("reiter", 20, 10) >= (math.pi / 2) / config.CAVALRY_STAND_TURN - DT
 
 
 def test_foot_marches_in_an_arc_with_its_front_ahead():
@@ -1504,10 +1521,10 @@ def test_phalanx_wheels_to_its_ordered_front_without_swapping_rows():
     heavy = list(u.rows[0])
     b.command_line([u], (10.0, 12.0), (6.0, 12.0))                         # Front nach Süden, an Ort und Stelle
     assert u.face_to == (0.0, 1.0) and u.facing == (0.0, -1.0)             # noch nicht gesprungen
-    run(b, 0.3)
+    run(b, 0.6)
     assert -0.9 < u.facing[1] < 0.9                                        # mitten im Schwenk
     assert u.rows[0][0] is heavy[0]                                        # eine Phalanx tauscht keine Reihen
-    run(b, 1.5)
+    run(b, 2.5)
     assert u.facing == (0.0, 1.0) and u.face_to is None
 
 
@@ -1525,7 +1542,7 @@ def test_enemy_groups_wheel_and_about_turn_like_the_player():
     assert raider.facing == (0.0, -1.0) and same_men(raider.rows[-1], front) >= len(front) - 1
     raider.target = (10.5, raider.y)                                        # und nun ein kurzes Stück nach Osten
     x0 = raider.x
-    run(b, 0.15)
+    run(b, 0.25)
     assert 0.3 < raider.facing[0] < 0.95 and abs(raider.x - x0) < 0.05     # schwenkt erst, marschiert dann
 
 

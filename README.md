@@ -155,8 +155,11 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   durch einen aufgestellten Belagerungsturm (außer wer über ihn auf den
   Wall will) oder durch einen liegenden Rammbock. Eine Gruppe sucht sich
   ihren Weg mit so viel Abstand, wie ihre Front breit ist: durch Gassen,
-  in die sie passt, sonst außen herum; durch die schmalen Gänge zwischen
-  Häusern gehen nur Einzelne und ganz schmale Gruppen. Geplündert wird
+  in die sie passt, sonst außen herum. Gemessen wird von den Hauswänden
+  aus (auf einem Raster aus Kachelmitten und -grenzen), eine Gasse von
+  einer Kachel bietet in der Mitte also eine halbe Kachel Platz zu jeder
+  Seite. Eine Phalanx wird darin schmaler (etwa sechs Mann Front) und
+  marschiert als Kolonne hindurch; lockere Gruppen gehen Mann für Mann. Geplündert wird
   von außen, wer am Haus steht. Die Häuser stehen in Blöcken mit einer
   breiten Gasse zur Agora; ein aufgebrochener Rammbock bleibt hinter der
   Gruppe liegen, nicht im Tordurchgang.
@@ -303,10 +306,14 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   - „Aus Verband“ nimmt eine gewählte Gruppe heraus, „Auflösen“ beendet den
     Verband. Mit weniger als zwei Gruppen ist er keiner mehr.
 - **Wenden im Stand:** Bekommt eine stehende Gruppe ein Ziel in einer
-  anderen Richtung, springt ihre Front nicht mehr um. Sie schwenkt mit
-  einer halben Umdrehung je Sekunde, die Männer drehen auf ihren
-  Plätzen mit, und erst wenn die Richtung grob stimmt (45 Grad), geht es
-  los. Liegt das Ziel hinter der Gruppe, macht sie kehrt: Die hintere
+  anderen Richtung, springt ihre Front nicht mehr um. Sie schwenkt, die
+  Männer drehen auf ihren Plätzen mit, und erst wenn die Richtung grob
+  stimmt (45 Grad), geht es los. Wie schnell, hängt an der Breite: Der
+  äußere Mann geht den Bogen mit vier Fünfteln seines Tempos, höchstens
+  aber eine halbe Umdrehung je Sekunde. Ein Trupp von acht Mann steht so
+  nach einer halben Sekunde quer, eine Phalanx von 40 schweren Hopliten
+  in 14er-Front braucht dafür knapp zwei Sekunden. Reiter wenden auf der
+  Stelle höchstens eine Viertelumdrehung je Sekunde. Liegt das Ziel hinter der Gruppe, macht sie kehrt: Die hintere
   Reihe wird die vordere, links wird rechts, und jeder Mann bleibt fast
   auf seinem Platz. Das gilt für Reiter und Fußvolk, für Spieler und
   Gegner gleichermaßen; nur Fliehende und Kletternde wenden ohne
@@ -316,7 +323,8 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Ihre schweren Männer bleiben vorn, sie schwenkt den vollen Winkel.
 - **Schwung der Reiter:** Berittene fahren an (in gut einer Sekunde auf
   vollen Galopp), bremsen vor dem Ziel ab und wenden im Galopp in Bögen,
-  deren Halbmesser mit dem Tempo wächst; im Stand drehen sie frei. Ohne
+  deren Halbmesser mit dem Tempo wächst; im Stand wenden sie eine
+  Viertelumdrehung je Sekunde. Ohne
   Ziel rollen sie aus statt stehen zu bleiben. Beim Aufprall trägt der
   Schwung sie bis zu knapp eine Kachel in die feindliche Formation
   hinein, erst dort kommen sie zum Stehen.

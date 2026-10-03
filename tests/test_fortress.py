@@ -318,16 +318,18 @@ def test_houses_are_obstacles_and_a_phalanx_takes_the_street_to_the_agora():
 def test_a_wide_block_goes_round_houses_it_does_not_fit_between(monkeypatch, narrow):
     """Zwischen zwei Häusern mit einer Kachel Lücke passt keine breite Front. Ohne die
     Regel für Gassen geht der Block außen herum, statt sich hindurchzuquetschen; mit ihr
-    (der Umweg ist viel länger) löst er sich auf und geht Mann für Mann hindurch. Eine
-    Gruppe mit zwei Mann Front geht als Block hindurch (gemessen wird auf Halbkacheln)."""
+    (der Umweg ist viel länger) geht er hindurch: eine Phalanx wird dazu schmaler und
+    tiefer, ein lockerer Haufen löst sich auf und geht Mann für Mann. Eine Gruppe mit zwei
+    Mann Front geht ohnehin als Block hindurch."""
     from game.scenarios import OFFENE_SIEDLUNG
     from dataclasses import replace
     monkeypatch.setattr(config, "NARROW_LOOSE", narrow)
     scn = replace(OFFENE_SIEDLUNG, houses=((7, 10), (9, 10)))      # eine Kachel Lücke bei x = 8
-    for width, through in ((14, narrow), (2, True)):
+    for width, drill, through in ((14, "phalanx", narrow), (14, "locker", narrow), (2, "phalanx", True)):
         b = quiet(Battle(scn, random.Random(1)))
         hop = b.units(Side.STADT)[0]
         clear(b, [hop])
+        hop.drill = drill
         hop.x, hop.y = 8.5, 13.0
         hop.reform(width)
         hop.facing = (0.0, -1.0)
@@ -336,19 +338,38 @@ def test_a_wide_block_goes_round_houses_it_does_not_fit_between(monkeypatch, nar
         hop.target = (8.5, 7.0)
         xs = []
         why = set()
+        widths = set()
         for _ in range(int(25 / DT)):
             b.update(DT)
             if hop.loose:
                 why.add(hop.loose_why)
             if 9.8 <= hop.y <= 11.2:
                 xs.append(hop.x)
+                widths.add(hop.width)
             if math.dist(hop.pos, (8.5, 7.0)) < 0.3:
                 break
         assert math.dist(hop.pos, (8.5, 7.0)) < 0.5
         assert all(b.cell(m.x, m.y) not in b.house_cells for m in hop.all_men())
         went_between = bool(xs) and all(8.0 <= x <= 9.0 for x in xs)
-        assert went_between == through, (width, xs[:3])
-        assert ("enge" in why) == (narrow and width == 14)          # die breite Gruppe nur Mann für Mann
+        assert went_between == through, (width, drill, xs[:3])
+        loose_through = narrow and width == 14 and drill == "locker"
+        assert ("enge" in why) == loose_through                     # nur der lockere Haufen Mann für Mann
+        if narrow and width == 14 and drill == "phalanx":
+            assert not hop.loose and max(widths) <= 6               # die Phalanx als schmale Kolonne
+
+
+def test_room_in_a_lane_is_measured_from_the_house_walls():
+    """Das Abstandsraster liegt auf Kachelmitten und -grenzen: In einer Gasse von einer
+    Kachel ist in der Mitte eine halbe Kachel Platz, an der Hauswand keiner."""
+    from game.scenarios import OFFENE_SIEDLUNG
+    from dataclasses import replace
+    b = quiet(Battle(replace(OFFENE_SIEDLUNG, houses=((7, 10), (9, 10))), random.Random(1)))
+    assert abs(b._room_at((8.5, 10.5)) - 0.5) < 1e-6
+    assert b._room_at((8.0, 10.5)) == 0.0
+    assert 0.2 < b._room_at((8.25, 10.5)) <= 0.25 + 1e-6
+    assert b._block_path((8.5, 13.0), (8.5, 7.0), 0.45)            # eine Front von 0.9 Kacheln passt hindurch
+    path = b._block_path((8.5, 13.0), (8.5, 7.0), 0.55)            # eine breitere geht außen herum
+    assert path and not any(8.0 < x < 9.0 and 10.0 <= y <= 11.0 for x, y in path)
 
 
 def test_standing_siege_tower_and_dropped_ram_are_obstacles():

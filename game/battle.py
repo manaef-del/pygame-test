@@ -1140,22 +1140,31 @@ class Battle:
 
     # ----------------------------------------------- Wege der Blöcke um Hindernisse
     def _clearance_field(self) -> tuple:
-        """Abstand jeder Halbkachel zum nächsten Haus, Turm oder Rammbock, in Kacheln; neu,
-        wenn sich das Gerät ändert. Den Wall regelt die Wegwahl über Tore und Leitern."""
+        """Abstand jedes Rasterpunkts (alle halbe Kachel: Kachelmitten und -grenzen) zum nächsten
+        Haus, Turm oder Rammbock, in Kacheln; neu, wenn sich das Gerät ändert. Punkte auf dem Rand
+        eines Hauses haben den Abstand 0, die Mitte einer Gasse von einer Kachel also 0.5. Den Wall
+        regelt die Wegwahl über Tore und Leitern."""
         key = (tuple(g.closed for g in self.gates), self._engines_key)
         if self._clearance is not None and self._clearance[0] == key:
             return self._clearance
         step = 0.5
-        nx, ny = int(math.ceil(self.cols / step)), int(math.ceil(self.rows / step))
+        nx, ny = int(round(self.cols / step)) + 1, int(round(self.rows / step)) + 1
         dist_ = [math.inf] * (nx * ny)
+        blocked: set[int] = set()
+        for (cx, cy) in self.house_cells:                       # die Ecken und Kantenmitten jedes Hauses
+            for i in range(int(round(cx / step)), int(round((cx + 1) / step)) + 1):
+                for j in range(int(round(cy / step)), int(round((cy + 1) / step)) + 1):
+                    if 0 <= i < nx and 0 <= j < ny:
+                        blocked.add(j * nx + i)
+        for (qx, qy) in self._ram_cells | self._tower_cells:    # Gerät auf Viertelkacheln: die Punkte drumherum
+            for i in range(int(math.floor(qx / 4 / step)), int(math.ceil((qx + 1) / 4 / step)) + 1):
+                for j in range(int(math.floor(qy / 4 / step)), int(math.ceil((qy + 1) / 4 / step)) + 1):
+                    if 0 <= i < nx and 0 <= j < ny:
+                        blocked.add(j * nx + i)
         heap: list[tuple[float, int]] = []
-        for j in range(ny):
-            for i in range(nx):
-                x, y = (i + 0.5) * step, (j + 0.5) * step
-                q = (math.floor(x * 4), math.floor(y * 4))
-                if self.cell(x, y) in self.house_cells or q in self._ram_cells or q in self._tower_cells:
-                    dist_[j * nx + i] = 0.0
-                    heap.append((0.0, j * nx + i))
+        for k in blocked:
+            dist_[k] = 0.0
+            heap.append((0.0, k))
         import heapq
         heapq.heapify(heap)
         diag = math.sqrt(2) * step
@@ -1177,12 +1186,18 @@ class Battle:
         return self._clearance
 
     def _room_at(self, p: Point) -> float:
-        """Wie weit es von ``p`` bis zum nächsten Hindernis ist (grob, in Kacheln)."""
+        """Wie weit es von ``p`` bis zum nächsten Hindernis ist (in Kacheln, eher knapp): der
+        beste Abstand der Rasterpunkte ringsum, jeweils abzüglich des Wegs bis dorthin."""
         _, nx, ny, step, dist_ = self._clearance_field()
-        i, j = int(p[0] / step), int(p[1] / step)
-        if not (0 <= i < nx and 0 <= j < ny):
+        i0, j0 = int(math.floor(p[0] / step)), int(math.floor(p[1] / step))
+        if not (0 <= i0 < nx and 0 <= j0 < ny):
             return math.inf
-        return dist_[j * nx + i] - step / 2
+        best = 0.0
+        for i in (i0, i0 + 1):
+            for j in (j0, j0 + 1):
+                if i < nx and j < ny:
+                    best = max(best, dist_[j * nx + i] - math.hypot(p[0] - i * step, p[1] - j * step))
+        return best
 
     def _wide_clear(self, a: Point, b: Point, r: float) -> bool:
         """Kommt eine Gruppe mit dem halben Querschnitt ``r`` geradeaus von ``a`` nach ``b``?
@@ -1238,13 +1253,13 @@ class Battle:
         return best
 
     def _block_path(self, a: Point, b: Point, r: float) -> list[Point]:
-        """A* von ``a`` nach ``b`` über Halbkacheln mit mindestens ``r`` Abstand zu
+        """A* von ``a`` nach ``b`` über das Halbkachelraster mit mindestens ``r`` Abstand zu
         Hindernissen (Start und Ziel selbst dürfen enger liegen)."""
         import heapq
         _, nx, ny, step, dist_ = self._clearance_field()
 
         def idx(p: Point) -> int | None:
-            i, j = int(p[0] / step), int(p[1] / step)
+            i, j = int(round(p[0] / step)), int(round(p[1] / step))
             return j * nx + i if 0 <= i < nx and 0 <= j < ny else None
         inside_b = (min(max(b[0], 0.25), self.cols - 0.25), min(max(b[1], 0.25), self.rows - 0.25))
         s, t = idx(a), idx(inside_b)                  # ein Ziel jenseits des Kartenrands (Flucht): bis an den Rand
@@ -1258,10 +1273,10 @@ class Battle:
                     if 0 <= ti + di < nx and 0 <= tj + dj < ny and dist_[(tj + dj) * nx + ti + di] > 0.0]
             if not free:
                 return []
-            t = min(free, key=lambda f: (f[0], dist(a, ((f[1] % nx + 0.5) * step, (f[1] // nx + 0.5) * step))))[1]
-            end = ((t % nx + 0.5) * step, (t // nx + 0.5) * step)
+            t = min(free, key=lambda f: (f[0], dist(a, ((f[1] % nx) * step, (f[1] // nx) * step))))[1]
+            end = ((t % nx) * step, (t // nx) * step)
         tx, ty = t % nx, t // nx
-        ok = lambda k: dist_[k] - step / 2 >= r or dist_[k] > 0 and (                  # noqa: E731
+        ok = lambda k: dist_[k] >= r or dist_[k] > 0 and (                  # noqa: E731
             abs(k % nx - s % nx) + abs(k // nx - s // nx) <= 2 or abs(k % nx - tx) + abs(k // nx - ty) <= 2)
         g = {s: 0.0}
         prev: dict[int, int] = {}
@@ -1294,7 +1309,7 @@ class Battle:
         out = []
         k = t
         while k != s:
-            out.append(((k % nx + 0.5) * step, (k // nx + 0.5) * step))
+            out.append(((k % nx) * step, (k // nx) * step))
             k = prev[k]
         out.reverse()
         out[-1] = end
@@ -3073,6 +3088,18 @@ class Battle:
         """Vorzeichenbehafteter Winkel von der Blickrichtung zur gewünschten Richtung."""
         return math.atan2(facing[0] * want[1] - facing[1] * want[0], facing[0] * want[0] + facing[1] * want[1])
 
+    @staticmethod
+    def _stand_turn_rate(u: Lochos) -> float:
+        """Wie schnell eine Gruppe im Stand schwenkt (rad/s): so schnell, wie ihr äußerer Mann
+        den Bogen gehen kann; eine breite Phalanx dreht also langsamer als ein kleiner Trupp.
+        Reiter wenden auf der Stelle ohnehin bedächtig. Ein Kreis hat keine Front zu drehen."""
+        rate = config.STAND_TURN_RATE
+        if u.formation != "o":
+            rate = min(rate, config.TURN_OUTER_PACE * max(0.3, u.speed) / max(0.3, u.half_w))
+            if 2 * len(u.mounted_men()) >= max(1, u.men):
+                rate = min(rate, config.CAVALRY_STAND_TURN)
+        return rate * config.DRILL_TURN.get(u.drill_kind(), 1.0)
+
     def _turn_towards(self, u: Lochos, want: Point, dt: float, about: bool = True) -> float:
         """Im Stand wenden: Die Front dreht sich mit begrenzter Rate, die Männer
         schwenken auf ihren Plätzen mit. Liegt das Ziel hinter der Gruppe, macht
@@ -3085,7 +3112,7 @@ class Battle:
         if about and abs(ang) > config.ABOUT_TURN and not u.loose:
             self._about_turn(u)
             ang = self._angle_to(u.facing, want)
-        limit = config.STAND_TURN_RATE * config.DRILL_TURN.get(u.drill_kind(), 1.0) * dt
+        limit = self._stand_turn_rate(u) * dt
         if abs(ang) <= limit:
             u.facing = want
             return 0.0
@@ -3330,7 +3357,7 @@ class Battle:
             lane = min(inner) if inner else math.inf
         if lane == math.inf:
             return True
-        width = int((lane - 0.15) * 2 / u.man_gap())         # halbe Front plus Rand passt in die halbe Gasse
+        width = int((lane - 0.11) * 2 / u.man_gap() + 1e-6)  # halbe Front plus Rand passt in die halbe Gasse
         if width >= u.width:
             return True                                     # passt schon
         if width < config.DRILL_NARROW_MIN:
