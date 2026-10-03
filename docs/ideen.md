@@ -55,11 +55,6 @@ wandert nach unten.
    streuen die Geschosse breiter, sodass einige danebengehen. Wer
    gerade läuft, wird dann nicht mehr hinter sich getroffen, wer stehen
    bleibt oder abrupt wendet, entgeht manchem Wurf.
-8. **Auf dem Wehrgang verlegen.** Wer auf Mauer oder Palisade steht, lässt
-   sich an eine andere Stelle des Wehrgangs schicken und läuft oben
-   entlang, auch durch Ecktürme und über Tore. Nur wenn es schneller geht,
-   steigt er eine Leiter hinab und anderswo wieder hinauf; dabei rechnet
-   er ein, dass Hinab- und Hinaufsteigen viel Zeit kostet.
 9. **Formationsmodi.** Unten eine von drei Haltungen wählen, die dauerhaft
    gilt und die Bewegung prägt: Sturmangriff, Phalanx, geschlossene
    Stellung; für Hopliten dazu eine lockere Formation. Eine Gruppe in
@@ -82,6 +77,11 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Wehrgang** (3. Oktober 2026): dicht in Rotten, kein Vorbeischlüpfen an
+  Feinden, Hopliten der Festung auf der Mauer (Reserve an den Turmausstieg),
+  oben entlang oder über die Leitern je nach Zeit mit Kletterzeit.
+- **Hauptmann und Kontermarsch** (3. Oktober 2026): Hauptmann je Gruppe mit
+  Nachfolger, Hopliten wenden außerhalb des Handgemenges per Kontermarsch.
 - **Marsch im Bogen** (3. Oktober 2026): Fußvolk schwenkt auf längeren Wegen
   im Marsch, die Front in Marschrichtung, und marschiert erst am Ziel in
   Breite und Front auf (docs/ki-simulation.md, Lauf 26).

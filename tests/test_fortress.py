@@ -10,7 +10,7 @@ from game import config
 from game.app import App
 from game.battle import Battle
 from game.render import Renderer
-from game.scenarios import FESTUNG, FESTUNG_ANGRIFF, SCENARIOS
+from game.scenarios import FESTUNG, FESTUNG_ANGRIFF, PALISADE, SCENARIOS
 from game.units import Man, Side, Stance, UNIT_TYPES, arrange
 
 DT = 1 / 30
@@ -400,3 +400,77 @@ def test_cavalry_corner_speed_fits_the_turn():
     tight = corner((0.0, -1.0), (1.0, 0.0), 1.0)
     assert wide > 3.0                                       # weiter Bogen: Galopp (Reiter laufen 3 Kacheln/s)
     assert config.CAVALRY_MIN_TURN_SPEED <= tight < wide
+
+
+# ------------------------------------------------------------------ Wehrgang
+def test_men_stand_close_on_the_walkway():
+    """Auf dem Wehrgang stehen die Männer in Rotten mit dem Abstand einer Formation,
+    nicht verstreut über mehrere Kacheln."""
+    b = Battle(FESTUNG, random.Random(1))
+    pelt = next(u for u in b.units(Side.STADT) if u.arm() == "peltasten")
+    cell = next(c for c in sorted(b._walkway_parts()) if c not in b.ladders and c not in b._gate_of)
+    pts = [p for _, p in b._wall_slots(pelt, (cell[0] + 0.5, cell[1] + 0.5))]
+    assert len(pts) == pelt.men
+    assert max(math.dist(p, (cell[0] + 0.5, cell[1] + 0.5)) for p in pts) < 1.3
+    assert min(math.dist(p, q) for i, p in enumerate(pts) for q in pts[i + 1:]) >= 2 * config.MAN_RADIUS
+
+
+def test_nobody_slips_past_an_enemy_on_the_walkway():
+    """In eine Kachel des Wehrgangs, auf der ein Feind steht, kommt man nicht hinein; erst
+    wenn sie frei ist."""
+    b = Battle(FESTUNG, random.Random(1))
+    parts = b._walkway_parts()
+    a = next(c for c in sorted(parts) if (c[0] + 1, c[1]) in parts and c not in b.ladders and c not in b._gate_of
+             and (c[0] + 1, c[1]) not in b.ladders and (c[0] + 1, c[1]) not in b._gate_of)
+    nxt = (a[0] + 1, a[1])
+    b.crossings.add(next(c for c in sorted(parts) if c not in (a, nxt) and c not in b.ladders))   # Angreifer dürfen hinauf
+    attacker = b.units(Side.FEIND)[0]
+    defender = next(u for u in b.units(Side.STADT) if u.arm() == "peltasten")
+    m = attacker.all_men()[0]
+    m.x, m.y = a[0] + 0.7, a[1] + 0.5
+    d = defender.all_men()[0]
+    d.x, d.y = nxt[0] + 0.5, nxt[1] + 0.5
+    b._wall_occ = None
+    assert not b._man_can_step(attacker, m, m.pos, (nxt[0] + 0.2, nxt[1] + 0.5), True)
+    d.x, d.y = 2.0, 2.0                                      # der Verteidiger ist fort
+    b._wall_occ = None
+    assert b._man_can_step(attacker, m, m.pos, (nxt[0] + 0.2, nxt[1] + 0.5), True)
+
+
+def test_fortress_hoplites_may_climb_the_wall():
+    """In der Festung steigt jede Fußgruppe der Wallseite auf den Wehrgang, Reiter nicht; an der
+    Palisade nur reine Peltasten."""
+    b = Battle(FESTUNG, random.Random(1))
+    by = {u.arm(): u for u in b.units(Side.STADT)}
+    assert b.is_walker(by["hopliten"]) and b.is_walker(by["peltasten"]) and not b.is_walker(by["reiter"])
+    p = Battle(PALISADE, random.Random(1))
+    hop = next(u for u in p.units(Side.STADT) if u.arm() == "hopliten")
+    assert not p.is_walker(hop)
+    garrison = Battle(FESTUNG_ANGRIFF, random.Random(1))
+    assert all(garrison.is_walker(u) for u in garrison.units(Side.FEIND) if u.arm() != "reiter")
+
+
+def test_garrison_holds_the_tower_landing():
+    """Die Reserve der Besatzung steigt auf den Wehrgang an den Ausstieg neben einem Turm."""
+    b = Battle(FESTUNG_ANGRIFF, random.Random(1))
+    tower = next(c for c in sorted(b.blocked) if c not in b.ladders and b.landing(c) is not None
+                 and b.tower_step(c) is not None)
+    landing = b.landing(tower)
+    assert landing is not None and b.cell(*landing) in b._walkway_parts()
+    assert b.cell(*landing) not in b.crossings and b.cell(*landing) not in b.ladders
+
+
+def test_walkway_route_takes_the_ladders_only_when_faster():
+    """Oben entlang oder über die Leitern: ein kleiner Trupp kürzt über den Hof ab, ein großer
+    bleibt oben (das Klettern dauert für ihn zu lange), und ein nahes Ziel geht man oben."""
+    b = Battle(FESTUNG, random.Random(1))
+    pelt = next(u for u in b.units(Side.STADT) if u.arm() == "peltasten")
+    north, south = (16, 9), (16, 26)
+    assert not b._ladders_faster(pelt, north, south)               # 15 Mann: zweimal anstehen lohnt nicht
+    for m in pelt.all_men()[8:]:
+        m.hp = 0.0
+    pelt.bury()
+    b._wall_route.clear()
+    assert b._ladders_faster(pelt, north, south)                   # 8 Mann: über den Hof ist schneller
+    b._wall_route.clear()
+    assert not b._ladders_faster(pelt, north, (17, 9))             # gleich nebenan: oben

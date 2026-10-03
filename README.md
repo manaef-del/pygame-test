@@ -121,6 +121,17 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   und an ihren eigenen ruhenden Haufen vorbei. Steht dabei ein Feind näher
   als zweieinhalb Kacheln, halten sie die Ordnung und gehen als Block herum
   (abschaltbar mit `LOOSE_AI` in `game/config.py`).
+- **Wehrgang.** In der Festung stehen die Männer oben in vier Rotten quer zum
+  Wehrgang, mit dem Abstand einer Formation (bis zu 20 Mann je Kachel), und
+  jede Fußgruppe der Verteidiger darf über die Leitern hinauf, nicht nur
+  Peltasten. Der Wehrgang ist ein enger Gang: In eine Kachel, auf der ein
+  Feind steht, kommt niemand hinein, man muss ihn erst werfen. So wird der
+  Ausstieg eines Belagerungsturms zum Brückenkopf; die Besatzung schickt ihre
+  Reserve hinauf an den Ausstieg, sobald ein Turm am Wall steht. Wer oben an
+  eine andere Stelle will, geht oben entlang oder über eine Leiter hinab,
+  quer durch den Hof und eine andere hinauf, je nachdem, was schneller ist;
+  jedes Klettern kostet die Zeit, bis alle Männer an der Leiter vorbei sind
+  (drei je Sekunde).
 - **Niemand steht im anderen.** Kein Mann teilt seinen Platz mit einem
   anderen, auch nicht mit einem Fliehenden oder einem Feind: Zwischen
   Männern verschiedener Gruppen bleiben immer zwei Halbmesser, in der

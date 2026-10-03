@@ -486,9 +486,16 @@ class FortressBrain(Brain):
         post: Point | None = None
         facing: Point | None = None
         if spare and threats:
-            # Reserve: an die nächste Bedrohung, an einem Turm vor den Fuß der Leiter dort
+            # Reserve: an die nächste Bedrohung; an einem Turm hinauf auf den Wehrgang neben den
+            # Ausstieg (dort kommt keiner vorbei), ohne Leitern vor den Fuß der Leiter dort
             t = min(threats, key=lambda p: dist(p, u.pos))
             g = b.gate_near(t, 0.6)
+            tower = b.cell(*t)
+            landing = b.landing(tower) if (b.is_walker(u) and tower in b.blocked) else None
+            if landing is not None:
+                if dist(u.pos, landing) > 0.5:
+                    self._go_to(b, u, landing, Stance.HALTEN, eps=0.4)
+                return
             if g is not None:
                 post = b.gate_approach(g, -1.0, u.half_d + 2.4)
                 facing = g.normal

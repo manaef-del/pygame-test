@@ -140,7 +140,7 @@ def test_raiders_build_a_tower_when_the_gate_is_guarded():
     cell = next(iter(b.crossings))
     assert cell in b.blocked and cell[0] in (0, 1, 14, 15)          # am Rand, fern vom Tor
     over = False
-    for _ in range(int(20 / DT)):                        # die gedeckten Peltasten auf dem Wehrgang halten eine Weile
+    for _ in range(int(45 / DT)):                        # die Peltasten auf dem Wehrgang halten den Ausstieg (kein Vorbeischlüpfen)
         b.update(DT)
         over = any(m.y > 8.9 for u in b.units(Side.FEIND, fighting_only=True) for m in u.all_men())
         if over:

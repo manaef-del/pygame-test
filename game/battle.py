@@ -182,7 +182,10 @@ class Battle:
         self._engines_key = (0, 0)
         self._clearance: tuple | None = None                           # Abstandsfeld für die Wege der Blöcke
         self._block_ways: dict = {}
-        self._narrow_cache: dict = {}                                  # Gruppe -> (Ziel, Zeit, passt der Block nicht durch?)
+        self._narrow_cache: dict = {}
+        self._steps_cache: dict = {}                                   # Wehrgang: Schritte von einem Wallstück aus
+        self._wall_route: dict = {}                                    # Gruppe -> (Ziel, über die Leitern schneller?)
+        self._wall_occ: tuple | None = None                            # (Zeit, Kachel -> gesperrte Seiten) auf dem Wehrgang                                  # Gruppe -> (Ziel, Zeit, passt der Block nicht durch?)
         self.blocked = set(s.palisade)
         self.ladders = set(s.ladders)
         if s.gate is not None:
@@ -496,9 +499,12 @@ class Battle:
         return g is not None and g.closed
 
     def is_walker(self, u: Lochos) -> bool:
-        """Wer den Wehrgang betreten darf: reine Peltasten der Wallseite über
-        die Leitern, Angreifer über einen aufgestellten Turm."""
+        """Wer den Wehrgang betreten darf: von der Wallseite reine Peltasten über die Leitern
+        (in der Festung jede Fußgruppe), Angreifer über einen aufgestellten Turm."""
         if u.side is self.wall_side():
+            if self.ring and config.FORT_FOOT_ON_WALL:
+                men = u.men
+                return men > 0 and 2 * len(u.mounted_men()) < men and u.engine is None   # Festung: alles Fußvolk
             return u.wall_capable()
         if not self.crossings:
             return False
@@ -815,6 +821,8 @@ class Battle:
         if walker:
             if on and want and not self.wall_connected(here, there):
                 want = False              # Lücke im Wehrgang: erst hinunter, unten weiter, drüben wieder hinauf
+            if on and want and self._ladders_faster(u, here, there):
+                want = False              # über die Leitern ist es trotz Klettern schneller: hinab, quer, hinauf
             if on and want:
                 if self._on_walkway(pos, target):
                     return target, True
@@ -842,9 +850,55 @@ class Battle:
             return target, True               # wer (ohne Erlaubnis) oben steht, geht geradeaus
         return self._ground_way(u, pos, target)
 
+    def _walkway_steps(self, start: tuple[int, int]) -> dict[tuple[int, int], int]:
+        """Schritte (Kacheln) über den Wehrgang von ``start`` zu jedem erreichbaren Wallstück."""
+        key = (start, tuple(g.closed for g in self.gates))
+        hit = self._steps_cache.get(key)
+        if hit is not None:
+            return hit
+        cells = self._walkway_parts()
+        steps = {start: 0}
+        queue = [start]
+        for c in queue:
+            for n in ((c[0] + 1, c[1]), (c[0] - 1, c[1]), (c[0], c[1] + 1), (c[0], c[1] - 1)):
+                if n in cells and n not in steps:
+                    steps[n] = steps[c] + 1
+                    queue.append(n)
+        if len(self._steps_cache) > 400:
+            self._steps_cache.clear()
+        self._steps_cache[key] = steps
+        return steps
+
+    def _ladders_faster(self, u: Lochos, here: tuple[int, int], there: tuple[int, int]) -> bool:
+        """Festung, oben auf dem Wehrgang zu einem anderen Wallstück: oben entlang, oder über
+        eine Leiter hinab, unten quer und über eine andere hinauf? Jedes Klettern kostet die
+        Zeit, bis alle Männer die Leiter hinter sich haben. Einmal je Ziel entschieden."""
+        if not config.WALL_LADDER_SHORTCUT or not self.ladders:
+            return False
+        key = (there, tuple(g.closed for g in self.gates))
+        hit = self._wall_route.get(u.id)
+        if hit is not None and hit[0] == key:
+            return hit[1]
+        from_here, to_there = self._walkway_steps(here), self._walkway_steps(there)
+        along = from_here.get(there)
+        speed = max(0.1, u.speed)
+        climb = (u.men / config.CLIMB_RATE + config.WALL_CLIMB_EXTRA) * speed   # als Wegstrecke
+        best = math.inf
+        downs = [(c, from_here[c]) for c in self.ladders if c in from_here]
+        ups = [(c, to_there[c]) for c in self.ladders if c in to_there]
+        for a, da in downs:
+            fa = self.foot_of(a)
+            for c, dc in ups:
+                if c != a:
+                    best = min(best, da + climb + dist(fa, self.foot_of(c)) + climb + dc)
+        faster = along is not None and best < along
+        self._wall_route[u.id] = (key, faster)
+        return faster
+
     def _wall_slots(self, u: Lochos, centre: Point) -> list[tuple[Man, Point]]:
         """Festung: Plätze auf dem Wehrgang um ``centre``, Kachel für Kachel den Wehrgang
-        entlang (bis zu neun Mann je Kachel); Leitern und Turmübergänge bleiben frei."""
+        entlang, in vier Rotten mit dem Abstand einer Formation (bis zu 20 Mann je Kachel);
+        Leitern und Turmübergänge bleiben frei."""
         men = u.all_men()
         if not men:
             return []
@@ -864,8 +918,13 @@ class Battle:
             pts: list[Point] = []
             for c in free:
                 if c not in self.ladders and c not in self.crossings:
-                    pts += [(c[0] + 0.5 + dx, c[1] + 0.5 + dy) for dx in (-0.3, 0.0, 0.3) for dy in (-0.3, 0.0, 0.3)]
-                if len(pts) >= len(men) + 9:
+                    # in Rotten quer zum Wehrgang, mit dem Abstand einer Formation (dicht, nicht verstreut)
+                    along_x = (c[0] + 1, c[1]) in parts or (c[0] - 1, c[1]) in parts
+                    for a_ in config.WALL_ALONG:
+                        for q in config.WALL_ACROSS:
+                            dx, dy = (a_, q) if along_x else (q, a_)
+                            pts.append((c[0] + 0.5 + dx, c[1] + 0.5 + dy))
+                if len(pts) >= len(men) + 2 * len(config.WALL_ALONG) * len(config.WALL_ACROSS):
                     break
                 for n in ((c[0] + 1, c[1]), (c[0] - 1, c[1]), (c[0], c[1] + 1), (c[0], c[1] - 1)):
                     if n in parts and n not in seen:
@@ -1640,6 +1699,17 @@ class Battle:
             self.drive_tower(u, cell)
         self.events.append("Belagerungsturm rollt an den Wall")
         return len(sel)
+
+    def landing(self, cell: tuple[int, int]) -> Point | None:
+        """Festung: der Platz auf dem Wehrgang gleich neben einem Turmübergang, wo die
+        Verteidiger den Ausstieg abriegeln."""
+        parts = self._walkway_parts()
+        near = [n for n in ((cell[0] + 1, cell[1]), (cell[0] - 1, cell[1]), (cell[0], cell[1] + 1), (cell[0], cell[1] - 1))
+                if n in parts and n not in self.crossings and n not in self.ladders]
+        if not near:
+            return None
+        c = near[0]
+        return (c[0] + 0.5, c[1] + 0.5)
 
     def tower_step(self, cell: tuple[int, int]) -> tuple[int, int] | None:
         """Festung: von welcher Seite (dx, dy) ein Turm an dieses Wallstück kommt, oder None,
@@ -3547,6 +3617,8 @@ class Battle:
         if not through and self._walled_off(u, a, b, self._barrier_cache.get(u.side, [])):
             return False
         wb = self.is_wall_cell(cb, walker)
+        if wb and cb != ca and config.WALL_NO_PASSING and u.side in self._wall_occupants().get(cb, ()):
+            return False                      # Wehrgang: in eine Kachel, auf der ein Feind steht, kommt man nicht vorbei
         if wa == wb:
             return True
         if man.kind.cavalry and man.mounted:
@@ -3560,6 +3632,24 @@ class Battle:
         if wall_cell in self.crossings and u.side is not self.wall_side():
             return self.tower_ok(wall_cell, ground_cell) and self._climb(wall_cell)
         return False
+
+    def _wall_occupants(self) -> dict:
+        """Kachel des Wehrgangs -> Seiten, die dort NICHT hinein dürfen (weil ein Mann der
+        Gegenseite darauf steht); einmal je Takt gerechnet. Der Wehrgang ist ein enger Gang:
+        Wer weiter will, muss den Feind dort erst werfen."""
+        if self._wall_occ is not None and self._wall_occ[0] == self.time:
+            return self._wall_occ[1]
+        occ: dict = {}
+        for u in self.lochoi:
+            if not u.alive or not u.fighting:
+                continue
+            other = Side.FEIND if u.side is Side.STADT else Side.STADT
+            for m in u.all_men():
+                c = self.cell(m.x, m.y)
+                if self.is_wall_cell(c, True):
+                    occ.setdefault(c, set()).add(other)
+        self._wall_occ = (self.time, occ)
+        return occ
 
     def _climb(self, cell: tuple[int, int]) -> bool:
         """Leiter oder Turm lassen nur einen Mann nach dem anderen durch."""
