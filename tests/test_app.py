@@ -141,6 +141,21 @@ def test_drag_draws_line_for_selection():
     assert abs(b.line[0].center[0] - (x0 + x1) / 2) < 1e-6
 
 
+def test_swipe_without_selection_moves_nobody():
+    """Ohne gewählte Gruppe zieht ein Wischen keine Linie: niemand verlässt seinen Platz."""
+    app = make_app()
+    b = app.battle
+    before = {u.id: (u.target, u.stance, u.pos) for u in b.units(Side.STADT)}
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(150, 300)))
+    app.handle_event(pygame.event.Event(pygame.MOUSEMOTION, pos=(300, 300)))
+    assert app.drag_rect() is None                        # keine Vorschau
+    app.draw()
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=(330, 300)))
+    assert not b.line and app.selected == set()
+    assert {u.id: (u.target, u.stance, u.pos) for u in b.units(Side.STADT)} == before
+    assert "Erst eine Gruppe wählen" in b.events
+
+
 def test_buttons_in_bar():
     app = make_app()
     assert "angriff" not in bar(app)                      # ohne Auswahl keine Befehle

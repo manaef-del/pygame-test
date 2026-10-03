@@ -212,8 +212,9 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   bestimmt die Breite und damit die Zahl der echten Reihen. Landen
   mehrere Blöcke in einer Reihe, wechseln sich ihre Männer ab. Die Gruppe
   schaut senkrecht zur Linie: von links nach rechts gezogen nach oben, so
-  wie man hinter ihr steht. Ohne Auswahl (oder mit „Alle“) gilt die Linie
-  für alle Gruppen.
+  wie man hinter ihr steht. Mit „Alle“ gilt die Linie für alle Gruppen;
+  ohne Auswahl zieht ein Wischen keine Linie, damit niemand aus Versehen
+  seine Aufstellung verliert.
 - **Schlachtordnung:** Bekommen Gruppen verschiedener Gattungen dieselbe
   Linie, stehen die Hopliten vorn auf der Linie, die Peltasten dicht
   dahinter (etwas kürzer, damit die Enden der Phalanx frei bleiben; sie

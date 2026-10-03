@@ -272,6 +272,9 @@ class App:
         if tap:
             self._tap(end)
             return
+        if not self.selected:
+            self.battle.events.append("Erst eine Gruppe wählen")   # ohne Auswahl verrückt ein Wischen nichts
+            return
         sel = self._selection()
         v = self.battle.selected_verband(self.selected)
         if v is not None:
@@ -471,8 +474,8 @@ class App:
             self.selected = {i for i in self.selected if (u := self.battle.by_id(i)) and u.fighting}
 
     def drag_rect(self):
-        if self.drag_start is None or self.drag_now is None:
-            return None
+        if self.drag_start is None or self.drag_now is None or not self.selected:
+            return None                                   # ohne Auswahl wird keine Linie gezogen
         return (*self.drag_start, *self.drag_now)
 
     def draw(self) -> None:
