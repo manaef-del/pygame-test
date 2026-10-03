@@ -1,5 +1,67 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 32 (3. Oktober 2026): Bewegung, Drehtempo, Gassen, Fernkampf, Jagen
+
+Neu seit Lauf 31:
+
+- Bewegungskorrekturen (Häuser meiden, Stau auflösen, Nachzügler, Peltasten
+  treten beiseite).
+- Drehtempo nach Breite. Zuerst für alle Gruppen, dann nur noch für Hopliten
+  in Ordnung, siehe unten.
+- Abstandsraster der Blockwege auf Kachelmitten und -grenzen: Die Phalanx
+  zieht als Kolonne durch Gassen von einer Kachel.
+- Breiter Block gleitet an der Ecke eines Nachbarn vorbei (nur der Spieler).
+- Fernkampf mit Vorhalten und Streuung.
+- Reiter jagen (die Taktiken benutzen es nicht).
+
+Zwölf Seeds (Festung im Angriff acht), Lauf 31 → 32:
+
+| Szenario | Taktik | Siege | Häuser verloren |
+|---|---|---|---|
+| offen | linie | 6 → 3 | 7,2 → 7,8 |
+| offen | schlachtordnung | 7 → 0 | 7,1 → 8,0 |
+| offen | linie_reiter | 7 → 2 | 7,0 → 7,8 |
+| offen | linie_aktiv | 7 → 1 | 6,3 → 7,9 |
+| offen | linie_tief | 11 → 12 | 4,8 → 0,7 |
+| offen | passiv | 8 → 2 | 6,2 → 7,3 |
+| offen | angriff | 12 → 1 | 5,3 → 7,9 |
+| palisade | tor_halten | 0 → 1 | 8,0 → 7,6 |
+| palisade | tor_reserve | 9 → 6 | 4,2 → 6,5 |
+| palisade | tor_leiter | 11 → 10 | 1,6 → 2,5 |
+| palisade | passiv | 9 → 7 | 5,2 → 6,2 |
+| horde | vorruecken, angriff | 10, 12 → 7, 12 | – |
+| angriff_offen | phalanxstoss, vorruecken, angriff | 1, 0, 0 → 3, 0, 0 | – |
+| angriff_wall | beide | 0 → 0 | – |
+| festung | tore, passiv | 0, 0 → 0, 1 | 5,7, 5,5 → 9,5, 4,2 |
+| festung_angriff | rammbock, turm | 8/8, 0/8 → 8/8, 0/8 | – |
+
+**Drehtempo.** Ein erster Lauf mit dem Drehtempo für alle Gruppen brach stark
+ein: Horde „vorruecken“ 10 → 4, Festung im Angriff mit Rammbock 8/8 → 0/8.
+Varianten auf wenigen Seeds zeigten die Ursache:
+
+- Altes Raster, neues Drehtempo: ebenso schlecht. Das Raster war es also
+  nicht.
+- Nur der Gegner mit altem Tempo: Horde 5 von 6.
+- Nur der Spieler mit altem Tempo: Horde 2 von 6.
+
+Breite Räuberhaufen wendeten so schwerfällig wie eine Phalanx und kamen
+dadurch anders heran. Seitdem bremst die Breite nur Hopliten in Ordnung;
+Haufen, Plänkler und Stürmende drehen wie vorher. Lauf 32 ist mit dieser
+Korrektur gemessen.
+
+**Offenes Feld.** Fast alle Taktiken verlieren deutlich mehr; nur
+„linie_tief“ gewinnt (12 von 12, fast ohne Hausverlust). Bei „angriff“ ist
+die Ursache gefunden: Mit dem neuen Raster geht eine Räubergruppe 0,15
+Kacheln weiter an den Hopliten vorbei. Sie gerät nicht mehr in deren
+Angriffsweite (zwei Kacheln) und plündert, statt mitzukämpfen. Der alte Sieg
+hing an dieser Schwelle. Für die übrigen Taktiken ist die Ursache noch
+offen; dazu kommen der Fernkampf (bewegte Räuber werden seltener getroffen)
+und die Räuberwege um die Häuser. Das ist Arbeit für die Balance.
+
+Nach Lauf 32 kamen noch Änderungen an der Bewegung der Gegner dazu
+(README, „Kein Zappeln an Schwellen“). Sie verschieben die Schlachten
+wieder; vor der Balance wird neu gemessen.
+
 ## Lauf 31 (3. Oktober 2026): Modi der Hopliten und Verbände
 
 Neu seit Lauf 30 (README, „Modi der Hopliten“ und „Verbände“):
