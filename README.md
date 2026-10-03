@@ -175,7 +175,10 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Durch sie geht man hindurch, statt außen herum, etwa wenn die Phalanx
   durch die eigene Peltastenlinie nach vorn rückt; leichte Truppen
   dürfen auch dicht hinter eine ruhende eigene Formation, um über sie
-  hinweg zu werfen. An Feinden bleibt man hängen und kämpft.
+  hinweg zu werfen. An Feinden bleibt man hängen und kämpft. Streift ein
+  befohlener Block auf dem Weg zu seinem Platz nur die Ecke einer ruhenden
+  eigenen Gruppe (etwa beim Schwenk in eine Lücke neben ihr), gleitet er
+  schräg daran vorbei, statt zu warten.
 - **Anstehen statt Stapeln.** In eine eigene Gruppe, die steht oder
   gerade kämpft, fährt keine andere hinein: Wer nicht um sie herumkommt
   (etwa im Tor), wartet im Block dahinter, bis vorn Platz wird; wer am Umriss des

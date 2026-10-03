@@ -1467,9 +1467,16 @@ class Battle:
             u.target_id = None
             u.target = self._free_spot((px + off, py), u)
             if not self.is_wall_cell(self.cell(*u.target), self.is_walker(u)):
-                way = sub(u.target, u.pos)
-                facing = norm(way) if math.hypot(*way) > 0.5 else u.facing
-                u.target = self._fit_spot(u, u.target, facing)   # die Gruppe soll ganz neben das Haus passen
+                want = u.target
+                for _ in range(3):
+                    # die Gruppe soll ganz neben Haus und Nachbarn passen, mit der Front, mit der sie
+                    # ankommt (in Marschrichtung zum verrückten Platz, nicht zum getippten)
+                    way = sub(u.target, u.pos)
+                    facing = norm(way) if math.hypot(*way) > 0.5 else u.facing
+                    spot = self._fit_spot(u, want, facing)
+                    if dist(spot, u.target) < 0.05:
+                        break
+                    u.target = spot
             if self._cut_off(u, u.target):
                 if self.is_walker(u):
                     u.target = self._wall_spot_near(u.target)       # hinab geht es nur nach innen: oben stehen bleiben
@@ -4473,9 +4480,13 @@ class Battle:
         if not through and self._walled_off(u, u.pos, (nx, ny), self._barriers(u)):
             return
         if not through and self._own_in_the_way(u, (nx, ny)):
-            u.waiting = True                              # anstehen, bis vorn Platz wird
-            u.vel = 0.0
-            return
+            slide = self._slide_past(u, delta) if u.idle_block else None
+            if slide is None:
+                u.waiting = True                          # anstehen, bis vorn Platz wird
+                u.vel = 0.0
+                return
+            nx, ny = u.x + slide[0], u.y + slide[1]       # an der Ecke einer ruhenden Gruppe vorbeigleiten
+            u.idle_block = False
         u.waiting = False
         if self.can_step(u, u.pos, (nx, ny)):
             u.x, u.y = nx, ny
@@ -4483,6 +4494,37 @@ class Battle:
             u.x = nx
         elif self.can_step(u, u.pos, (u.x, ny)):
             u.y = ny
+
+    def _slide_past(self, u: Lochos, delta: Point) -> Point | None:
+        """Streift ein Block auf dem Weg zu seinem Ziel die Ecke einer ruhenden eigenen
+        Gruppe, gleitet er schräg daran vorbei (bis 60 Grad zur Seite, die von ihr weg
+        führt), solange er dem Ziel dabei näherkommt; sonst None (er wartet)."""
+        if u.target is None or u.loose or u.engaged or u.target_id is not None or u.side is not Side.STADT:
+            return None                                   # nur befohlene Märsche des Spielers, nicht im Angriff
+        step = math.hypot(*delta)
+        if step < 1e-9:
+            return None
+        near = [o for o in self.lochoi if o is not u and o.alive and o.side is u.side and not o.loose
+                and self._idle(o) and dist(o.pos, u.pos) <= o.radius + u.radius + step]
+        if not near:
+            return None
+        o = min(near, key=lambda o: self._gap(u, o))
+        away = sub(u.pos, o.pos)
+        here = dist(u.pos, u.target)
+        for ang in (0.35, 0.7, 1.05):
+            for sgn in (1.0, -1.0):
+                a = ang * sgn
+                c, s_ = math.cos(a), math.sin(a)
+                d2 = (delta[0] * c - delta[1] * s_, delta[0] * s_ + delta[1] * c)
+                if d2[0] * away[0] + d2[1] * away[1] <= delta[0] * away[0] + delta[1] * away[1]:
+                    continue                              # nur zur Seite, die von ihr weg führt
+                q = (u.x + d2[0], u.y + d2[1])
+                if dist(q, u.target) > here - 0.3 * step:
+                    continue                              # kommt dem Ziel nicht näher
+                if self._walled_off(u, u.pos, q, self._barriers(u)) or self._own_in_the_way(u, q):
+                    continue
+                return d2
+        return None
 
     def _separate(self) -> None:
         alive = [u for u in self.lochoi if u.alive]

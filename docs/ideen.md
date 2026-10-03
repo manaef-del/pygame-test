@@ -24,12 +24,6 @@ wandert nach unten.
    dass die Räuber-KI vor der Palisade zwischen „Umgehen“ (um ein Ende, das
    es dort nicht gibt) und „Frontal“ hin und her schwankt, wenn die Schlacht
    lange dauert.
-1. **Rechtsdrall.** Eine Phalanx drängt im Vorrücken nach rechts, weil
-   jeder Mann seine offene rechte Seite in den Schild des Nebenmanns
-   schiebt; der rechte Flügel ist der Ehrenplatz. Seit der Schildseite
-   (Lauf 22) wäre das die naheliegende Fortsetzung. Geringer Aufwand.
-3. **Hang und Höhe.** Gelände, das Tempo und Kampf beeinflusst. Großer
-   Aufwand.
 5. **Festung: Turm allein reicht nicht.** Über einen Belagerungsturm allein
    kommt kaum ein Angriff hinein (0 bis 1 von 8): Die Männer steigen einzeln,
    im Feuer der Ecktürme. Dazu greift die Turm-Taktik der Simulation die
@@ -51,12 +45,6 @@ wandert nach unten.
     Siedlung gegen Peltasten.
 11. **Reiter verfolgen.** Ein Modus für Reiter, der selbstständig
     Fliehende und ungeordnete Gruppen jagt (nie eine Phalanxfront).
-12. **Breiter Block streift Nachbarn im Bogen.** Tippt man eine breite
-    Phalanx in die Lücke zwischen zwei eigenen Gruppen, schwenkt sie im
-    Bogen, streift dabei mit der Flanke die Nachbargruppe, wartet 2 s und
-    geht dann aufgelöst hin (6,7 s statt etwa 2 s). Der Umweg um eigene
-    Gruppen müsste die Breite im Bogen mitrechnen.
-
 ## Zurückgestellt
 
 Das Spiel soll einfach bleiben und Spaß machen; die Flucht wirkt schon
@@ -68,9 +56,21 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
   Kachel, in der Pause die stärksten Moralgründe je Gruppe.
 - **Aura und „Sammeln“-Befehl des Anführers.** Der Anführer stärkt nur
   seine eigene Gruppe.
+- **Rechtsdrall.** Eine Phalanx drängt im Vorrücken nach rechts, weil
+  jeder Mann seine offene rechte Seite in den Schild des Nebenmanns
+  schiebt; der rechte Flügel ist der Ehrenplatz. Seit der Schildseite
+  (Lauf 22) wäre das die naheliegende Fortsetzung. Geringer Aufwand.
+- **Hang und Höhe.** Gelände, das Tempo und Kampf beeinflusst. Großer
+  Aufwand.
 
 ## Erledigt
 
+- **Breiter Block streift Nachbarn im Bogen** (3. Oktober 2026): Der
+  Zielplatz wird mit der Front geprüft, mit der die Gruppe ankommt, und ein
+  Block, der die Ecke einer ruhenden eigenen Gruppe streift, gleitet schräg
+  daran vorbei (bis 60 Grad), statt zu warten und sich aufzulösen. Nur für
+  die Gruppen des Spielers; bei der Gegner-KI verschob das die Schlachten
+  stark (siehe Lauf 32), das gehört zur Balance.
 - **Drehtempo und Gassen** (3. Oktober 2026): Eine Gruppe schwenkt im
   Stand so schnell, wie ihr äußerer Mann den Bogen geht; Reiter wenden auf
   der Stelle langsamer. Die Phalanx zieht als schmale Kolonne durch

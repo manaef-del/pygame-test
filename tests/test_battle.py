@@ -1470,6 +1470,35 @@ def test_wide_blocks_wheel_slower_than_small_groups():
     assert quarter_turn("reiter", 20, 10) >= (math.pi / 2) / config.CAVALRY_STAND_TURN - DT
 
 
+def test_wide_block_slides_past_a_neighbours_corner():
+    """Eine breite Phalanx, in die Lücke zwischen zwei eigenen Gruppen getippt, streift im
+    Bogen die Ecke der Reiter: Sie gleitet schräg daran vorbei, statt stehen zu bleiben
+    und sich aufzulösen."""
+    scn = raid(4, (1.0, 1.0), houses=())
+    army = army_of(GroupSpec("H", [Tier("schwer", 14), Tier("mittel", 13), Tier("leicht", 13)]),
+                   GroupSpec("P", [Tier("peltast", 15)]), GroupSpec("R", [Tier("reiter", 20)]))
+    b = Battle(scn, random.Random(1), army=army, ai="einfach")
+    b._ai_raiders = lambda: None
+    b._check_outcome = lambda: None
+    b.alarm = False
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_line([hop], (7.0, 12.0), (9.0, 12.0))
+    b.command_line([pelt], (9.3, 12.0), (10.6, 12.0))
+    b.command_line([cav], (10.9, 12.0), (12.2, 12.0))
+    run(b, 8)
+    b.command_move([hop], (10.7, 12.0))
+    loose = waited = 0
+    t = 0.0
+    while hop.target is not None and t < 10:
+        b.update(DT)
+        t += DT
+        loose += hop.loose
+        waited += hop.waiting
+    assert hop.target is None and t < 6.0, t
+    assert not loose and waited * DT < 0.5
+    assert b._gap(hop, cav) >= 0.0
+
+
 def test_foot_marches_in_an_arc_with_its_front_ahead():
     """Fußvolk auf längerem Weg: Es läuft in seiner Blickrichtung an und schwenkt im Marsch
     zum Ziel (ein Bogen), statt erst auf der Stelle zu drehen; die Front zeigt dabei in
