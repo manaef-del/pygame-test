@@ -1426,6 +1426,7 @@ class Battle:
         return [u for u in pool if u.id in ids]
 
     def _wake(self, u: Lochos) -> None:
+        u.stay_loose = False                      # ein neuer Befehl: wieder als Block, wo es geht
         u.pace = None                             # ein neuer Befehl: das Tempo des Verbands gilt nicht mehr
         u.free_attack = False
         u.stormed = False
@@ -1450,6 +1451,10 @@ class Battle:
             u.in_line = False
             u.target_id = None
             u.target = self._free_spot((px + off, py), u)
+            if not self.is_wall_cell(self.cell(*u.target), self.is_walker(u)):
+                way = sub(u.target, u.pos)
+                facing = norm(way) if math.hypot(*way) > 0.5 else u.facing
+                u.target = self._fit_spot(u, u.target, facing)   # die Gruppe soll ganz neben das Haus passen
             if self._cut_off(u, u.target):
                 if self.is_walker(u):
                     u.target = self._wall_spot_near(u.target)       # hinab geht es nur nach innen: oben stehen bleiben
@@ -1568,8 +1573,6 @@ class Battle:
                     g.stance = Stance.PLAENKELN
                 else:
                     g.stance = Stance.ANGRIFF
-                    if g.drill == "geschlossen":
-                        g.drill = "phalanx"               # aus dem Schildwall kann man nicht stürmen
                     if arm == "reiter" and g.mounted_men():
                         g.mode = "sturm"
                         g.hitrun_until = -1.0
@@ -1596,8 +1599,8 @@ class Battle:
         self.events.append("Halten")
 
     def command_drill(self, units: list[Lochos] | None, name: str) -> int:
-        """Modus der Hopliten setzen: locker, Phalanx oder geschlossen. Wer steht, bildet
-        mit Phalanx oder geschlossen an Ort und Stelle die Formation (wie „Halten“); wer
+        """Modus der Hopliten setzen: locker oder Phalanx. Wer steht, bildet mit Phalanx
+        an Ort und Stelle die Formation (wie „Halten“); wer
         unterwegs ist, marschiert im neuen Modus weiter. Andere Gattungen kennen keine Modi."""
         if name not in config.DRILLS:
             return 0
@@ -1923,15 +1926,78 @@ class Battle:
         for plan in plans:
             u = self.by_id(plan.unit_id)
             if u is not None:
-                self._take_plan(u, plan)
+                self._take_plan(u, plan, own=False)   # gezogen: genau dort, nur nicht im Haus
         self.line = plans
         if plans:
             what = "Schlachtordnung" if self.in_battle_order(self._selection(units)) else "Aufstellung"
             self.events.append(f"{what}: {len(plans)} Gruppe(n), Front {self._dir_name(snap4(plans[0].facing))}")
         return plans
 
-    def _take_plan(self, u: Lochos, plan: LinePlan) -> None:
+    def _fit_spot(self, u: Lochos, centre: Point, facing: Point, width: int | None = None,
+                  ignore: set[int] | None = None) -> Point:
+        return self._fit(u, centre, facing, width, ignore)[0]
+
+    def _fit(self, u: Lochos, centre: Point, facing: Point, width: int | None = None,
+             ignore: set[int] | None = None, own: bool = True) -> tuple[Point, bool]:
+        """Die Aufstellung so weit verrücken (höchstens 2,5 Kacheln), dass kein Platz in einem
+        Haus, im Wall, außerhalb der Karte oder in einer anderen stehenden eigenen Gruppe liegt
+        (``ignore``: Gruppen, die ohnehin gleich weggehen); sonst stünden dort Männer daneben,
+        und die Phalanx schlösse sich nie."""
+        if u.formation != "linie":
+            return centre, True
+        skip = (ignore or set()) | {u.id}
+        others = []                                       # (Gruppe, Versatz): wo sie steht oder gleich stehen wird
+        in_place = dist(u.pos, centre) <= u.radius        # an Ort und Stelle drehen oder umformen: nur Haus und Wall zählen
+        for o in (self.lochoi if own and not in_place else []):
+            if o.id in skip or not o.alive or o.side is not u.side or self.on_wall(o) != self.on_wall(u):
+                continue
+            if o.target is not None and o.target_id is None and not self._standing(o):
+                others.append((o, sub(o.pos, o.target)))  # unterwegs: ihr Ziel ist belegt
+            elif not o.loose and self._standing(o):
+                others.append((o, (0.0, 0.0)))
+        width = max(1, min(u.men, width or u.width or 1))
+        depth = max(1, math.ceil(u.men / width))
+        gap, rows = u.man_gap(), u.row_gap()
+        fx, fy = facing
+        ax, ay = -fy, fx
+        cols = sorted({0, width - 1, *range(0, width, 2)})
+        pts = [((i - (width - 1) / 2) * gap, ((depth - 1) / 2 - r) * rows) for r in range(depth) for i in cols]
+
+        reach = max(width * gap, depth * rows)
+        near = [(o, off) for o, off in others if dist(sub(o.pos, off), centre) <= o.radius + reach + 2.6]
+
+        def free(c: Point) -> bool:
+            for side, fwd in pts:
+                x, y = c[0] + ax * side + fx * fwd, c[1] + ay * side + fy * fwd
+                if not self.inside(x, y) or self.is_blocked(x, y, u):
+                    return False
+                if any(o.rect_distance((x + off[0], y + off[1])) < 0.1 for o, off in near):
+                    return False
+            return True
+        if free(centre):
+            return centre, True
+        level = self._wall_level(centre) if self.blocked else None
+        for k in range(1, 11):
+            r = 0.25 * k
+            for j in range(16):
+                a = 2 * math.pi * j / 16
+                c = (centre[0] + math.cos(a) * r, centre[1] + math.sin(a) * r)
+                if (level is None or self._wall_level(c) == level) and free(c):
+                    return c, True
+        return centre, False
+
+    def _take_plan(self, u: Lochos, plan: LinePlan, ignore: set[int] | None = None, own: bool = True) -> None:
         """Eine Gruppe stellt sich wie geplant auf (Mitte, Front, Breite)."""
+        if not u.engaged and not self.on_wall(u) and not self.is_wall_cell(self.cell(*plan.center), self.is_walker(u)):
+            # nicht halb im Haus oder in anderen; passt die Breite nirgends, schmaler und tiefer
+            # (im Handgemenge bleibt die Aufstellung, wo sie ist)
+            for w in (plan.width, max(1, round(plan.width * 0.7)), max(1, round(plan.width * 0.5))):
+                c, ok = self._fit(u, plan.center, plan.facing, w, ignore, own)
+                if ok:
+                    if w != plan.width:
+                        plan.width, plan.depth = w, math.ceil(u.men / w)
+                    plan.center = c
+                    break
         self._wake(u)
         u.formation = "linie"
         u.full_width = None
@@ -2191,11 +2257,12 @@ class Battle:
         plans = self.verband_plans(v, centre, facing, length)
         v.centre = centre
         v.length = length if length is not None else sum(p.length for p in plans if p.unit_id in v.rows[0]) or None
+        members = set(v.members())
         for plan in plans:
             u = self.by_id(plan.unit_id)
             if u is None:
                 continue
-            self._take_plan(u, plan)
+            self._take_plan(u, plan, members)
             u.pace = pace
             v.slots[u.id] = plan
         if not quiet:
@@ -3091,8 +3158,13 @@ class Battle:
         if not u.loose:
             if why:
                 self._dissolve(u, why)
-            elif self._stragglers(u):
+            elif self._stragglers(u) or self._jammed(u):
+                if u.target is None:
+                    u.target = u.pos                  # hier bleiben: die Hängenden kommen an ihre Plätze
+                u.straggled_at = u.target             # für dieses Ziel nur einmal
                 self._dissolve(u, "eigene")           # Männer hängen hinter eigenen Gruppen: jeder sucht sich den Weg
+                u.stay_loose = True                   # ... und zwar bis an die Plätze, nicht gleich wieder als Block
+                u.stay_since = self.time
             else:
                 self._widen_again(u)
             return
@@ -3167,7 +3239,7 @@ class Battle:
         if not why and self._narrow_way(u):
             why = "enge"                          # der Block passt nicht durch die Gasse: Mann für Mann statt großem Umweg
         if why in ("tor", "eigene", "enge") and self._keeps_order(u):
-            # Phalanx und Schildwall bleiben zusammen: um eigene Gruppen als Block herum,
+            # die Phalanx bleibt zusammen: um eigene Gruppen als Block herum,
             # durch Tor und Gasse schmaler und tiefer statt Mann für Mann
             if why == "eigene" or self._narrow_column(u, why):
                 return ""
@@ -3177,32 +3249,65 @@ class Battle:
             return ""                             # kein Durchkommen (die eigenen kämpfen im Durchgang): als Block anstehen
         return why
 
+    def _jammed(self, u: Lochos) -> bool:
+        """Steckt der Block fest? Er hat ein Ziel, kommt aber seit einer Weile nicht vom Fleck
+        (etwa zwischen zwei ruhenden eigenen Gruppen), und kein Feind ist nah. Dann löst er
+        sich auf, und jeder Mann sucht seinen Weg, statt endlos davor zu stehen."""
+        moving = (u.target is not None and u.target_id is None and not u.engaged and u.engine is None
+                  and u.building is None and not self.on_wall(u) and u.stance is not Stance.FLUCHT
+                  and dist(u.pos, u.target) > 0.5 and u.countermarch_until <= self.time)
+        if not moving:
+            u.jam_since = -1.0
+            return False
+        if u.jam_since < 0.0 or dist(u.pos, u.jam_at) > 0.1:
+            u.jam_since, u.jam_at = self.time, u.pos
+            return False
+        waited = self.time - u.jam_since
+        if waited < config.JAM_TIME:
+            return False
+        if any(e.side is not u.side and e.alive and e.rect_distance(u.pos) <= config.LOOSE_ENEMY_RANGE for e in self.lochoi):
+            u.jam_since = -1.0
+            return False                                  # nahe am Feind bleibt man im Block und steht an
+        if self._cut_off(u, u.target):
+            u.jam_since = -1.0
+            return False                                  # das Tor ist zu: davor warten, nicht auflösen
+        if self._field_builds.get(self.time, 0) >= self._field_budget() and waited < config.JAM_TIME + 1.0:
+            return False                                  # in diesem Takt schon genug Wegefelder: gleich noch einmal
+        u.jam_since = -1.0
+        return True
+
     def _stragglers(self, u: Lochos) -> bool:
         """Die Gruppe steht schon am Ziel, aber ein guter Teil ihrer Männer kommt seit einer
         Weile nicht an seinen Platz (etwa hinter eigenen Gruppen, die dazwischen stehen)?"""
-        if (u.target is None or u.target_id is not None or u.engaged or u.stance not in (Stance.PHALANX, Stance.HALTEN)
-                or u.in_line or self.on_wall(u) or u.building is not None or dist(u.pos, u.target) > 0.2
-                or u.countermarch_until > self.time
+        if (u.target_id is not None or u.engaged or u.stance not in (Stance.PHALANX, Stance.HALTEN)
+                or self.on_wall(u) or u.building is not None or (u.target is not None and dist(u.pos, u.target) > 0.2)
+                or u.countermarch_until > self.time or u.vel > 0.05 or u.engine is not None
                 or any(e.side is not u.side and e.alive and e.rect_distance(u.pos) <= config.LOOSE_ENEMY_RANGE
                        for e in self.lochoi)):
             u.lag_since = -1.0                            # (nahe am Feind bleibt man im Block)
             return False
-        far = sum(1 for m, p in u.slots() if dist(m.pos, p) > config.STRAGGLER_DIST)
-        if far < config.STRAGGLER_SHARE * u.men:
+        if u.straggled_at is not None and u.target is not None and dist(u.straggled_at, u.target) < 0.2:
+            return False                                  # für dieses Ziel schon einmal versucht
+        far = sum(1 for m, p in u.slots() if dist(m.pos, p) > config.STRAGGLER_DIST and not m.bound)
+        if far == 0:
             u.lag_since = -1.0
             return False
         if u.lag_since < 0.0:
             u.lag_since = self.time
             return False
-        if self.time - u.lag_since < config.STRAGGLER_TIME:
-            return False
+        waited = self.time - u.lag_since
+        limit = config.STRAGGLER_TIME if far >= config.STRAGGLER_SHARE * u.men else config.STRAGGLER_TIME_FEW
+        if waited < limit:
+            return False                                  # viele: nach 1,5 s; einzelne: nach 3 s
+        if self._field_builds.get(self.time, 0) >= self._field_budget() and waited < limit + 1.0:
+            return False                                  # in diesem Takt schon genug Wegefelder: gleich noch einmal
         u.lag_since = -1.0
-        return self._field_builds.get(self.time, 0) < self._field_budget()
+        return True
 
     def _keeps_order(self, u: Lochos) -> bool:
-        """Hält die Gruppe auf dem Marsch ihre Ordnung (Phalanx oder Schildwall in Linie)?"""
+        """Hält die Gruppe auf dem Marsch ihre Ordnung (eine Phalanx in Linie)?"""
         return (config.DRILL_NARROW and not u.loose and u.formation == "linie" and u.stance is not Stance.FLUCHT
-                and u.drill_kind() in ("phalanx", "geschlossen"))
+                and u.drill_kind() == "phalanx")
 
     def _narrow_column(self, u: Lochos, why: str) -> bool:
         """Vor Tor oder Gasse schmaler werden, so dass die Front hindurchpasst (die Reihen
@@ -3526,6 +3631,13 @@ class Battle:
         Männer geschlossen gehen (jeder etwa gleich weit hinter seinem Platz)."""
         if u.target is None or u.engaged or u.stance is Stance.FLUCHT or u.target_id is not None:
             return True
+        if u.stay_loose and self.time - u.stay_since > config.STAY_LOOSE_MAX:
+            u.stay_loose = False                          # lange genug gewartet: wie sonst schließen
+        if u.stay_loose:
+            slots = self._dest_slots(u)                   # nach einem Stau: erst schließen, wenn alle da sind
+            return not slots or all(dist(m.pos, p) <= config.SLOT_TOLERANCE or
+                                    (dist(m.pos, p) <= config.BLOCKED_SLOT_REACH and self.is_blocked(p[0], p[1], u))
+                                    for m, p in slots)
         if u.loose_why in ("tor", "eigene", "") and not self._way_open(u):
             return True                                   # der Weg ist zu: als Block anstehen
         if u.muster is not None:
@@ -3556,6 +3668,7 @@ class Battle:
     def _close(self, u: Lochos) -> None:
         """Die Gruppe schließt sich dort, wo ihre Männer stehen: Mitte der Zielaufstellung
         plus der mittlere Rückstand der Männer, mit der Front der Zielaufstellung."""
+        u.stay_loose = False
         slots = self._dest_slots(u)
         anchor = u.dest if u.dest is not None else u.pos
         there = sum(1 for m, p in slots if dist(m.pos, p) <= config.SLOT_TOLERANCE)
@@ -4085,6 +4198,32 @@ class Battle:
                 return o
         return None
 
+    def _step_aside(self, other: Man, man: Man, move: Point, u: Lochos) -> bool:
+        """Steht ein Mann einer eigenen Gruppe in lockerer Ordnung (Peltasten, nicht im
+        Handgemenge) im Weg, tritt er seitlich beiseite und lässt durch; danach geht er
+        wieder an seinen Platz."""
+        gid = self._man_group.get(id(other))
+        if gid is None or gid == u.id or self._man_side.get(id(other)) is not u.side:
+            return False
+        g = self._group_map.get(gid)
+        if g is None or not self._passable(g) or other.bound:
+            return False
+        n = math.hypot(*move)
+        if n < 1e-9:
+            return False
+        mx, my = move[0] / n, move[1] / n
+        px, py = -my, mx                                  # quer zum Weg des Durchgehenden
+        rel = (other.x - man.x) * px + (other.y - man.y) * py
+        side = 1.0 if rel > 0 or (abs(rel) < 1e-6 and id(other) % 2) else -1.0
+        push = 2 * config.MAN_RADIUS - abs(rel) + 0.01
+        nx, ny = other.x + px * side * push, other.y + py * side * push
+        if (not self.inside(nx, ny) or self.is_blocked(nx, ny)
+                or self._crowding(other, other.pos, (nx, ny), gid) is not None):
+            return False
+        other.x, other.y = nx, ny
+        g.in_line = False
+        return True
+
     def _shove(self, man: Man, other: Man, u: Lochos) -> bool:
         """Stürmende Reiter drängen einen Mann beiseite, statt vor ihm zu halten."""
         dx, dy = other.x - man.x, other.y - man.y
@@ -4132,6 +4271,11 @@ class Battle:
             return False                                 # Gebundene rücken nur nach, sie weichen niemandem aus
         if self._rides(u) and u.ride_in > 0.0 and u.vel > 0.05 and self._shove(man, crowded, u):
             nx, ny = man.x + dx, man.y + dy                 # der Sturm drängt hindurch
+            if self._crowding(man, man.pos, (nx, ny), u.id) is None and self._man_can_step(u, man, man.pos, (nx, ny), walker, through):
+                man.x, man.y = nx, ny
+                return True
+        if self._step_aside(crowded, man, (dx, dy), u):
+            nx, ny = man.x + dx, man.y + dy                 # der Leichte tritt beiseite: hindurch
             if self._crowding(man, man.pos, (nx, ny), u.id) is None and self._man_can_step(u, man, man.pos, (nx, ny), walker, through):
                 man.x, man.y = nx, ny
                 return True
@@ -4367,8 +4511,7 @@ class Battle:
                     pairs.append((a, b))
                     a.engaged = True
                     a.contacts.append(b.id)
-                    if (b.id not in previous.get(a.id, ()) and a.runup >= config.CHARGE_RUNUP and not a.loose
-                            and a.drill_kind() != "geschlossen"):
+                    if b.id not in previous.get(a.id, ()) and a.runup >= config.CHARGE_RUNUP and not a.loose:
                         self._charge(a, b)                # erster Kontakt mit Anlauf: Aufprall
         for u in alive:
             u.contact_since = {bid: u.contact_since.get(bid, self.time) for bid in u.contacts}
@@ -4449,8 +4592,6 @@ class Battle:
             shield = b.shield_factor()
             if arc_name == "front":
                 front = config.PHALANX_FRONT_O if b.formation == "o" else config.PHALANX_FRONT
-                if b.drill_kind() == "geschlossen":
-                    front *= config.DRILL_CLOSED_FRONT        # Schild an Schild: noch dichter
                 mod = 1.0 + (front - 1.0) * shield
             elif arc_name == "rear":
                 mod = config.PHALANX_REAR
@@ -4621,10 +4762,7 @@ class Battle:
                 continue
             a.volley_timer = config.VOLLEY_INTERVAL
             shield = 1.0 - 0.5 * foe.shield_factor() if foe.in_phalanx else 1.0
-            drill = foe.drill_kind()
-            if drill == "geschlossen" and foe.in_phalanx and foe.arc_to(a.pos) == "front":
-                shield = 1.0 - config.DRILL_CLOSED_SHIELD * foe.shield_factor()   # die Schilde überlappen
-            elif drill == "locker":
+            if foe.drill_kind() == "locker":
                 # jeder trägt seinen Schild, und bei weiten Abständen gehen viele Speere ins Leere
                 shield = (1.0 - 0.5 * foe.shield_factor()) * config.DRILL_LOOSE_MISSILE
             targets = foe.all_men()

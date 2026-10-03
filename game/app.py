@@ -138,8 +138,6 @@ class App:
             self.command("drill:locker")
         elif key == pygame.K_p:
             self.command("drill:phalanx")
-        elif key == pygame.K_g:
-            self.command("drill:geschlossen")
         elif key == pygame.K_SPACE:
             self.command("pause")
         elif key == pygame.K_r:

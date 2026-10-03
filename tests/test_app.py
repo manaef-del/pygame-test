@@ -170,12 +170,12 @@ def test_context_bar_shows_only_what_the_selection_can_do():
     assert app.selected == {hop.id}
     lab = labels(app)
     assert lab["angriff"] == "Sturm" and "halten" not in lab           # Hopliten: die Modi statt „Halten“
-    assert (lab["drill:locker"], lab["drill:phalanx"], lab["drill:geschlossen"]) == ("Locker", "Phalanx", "Geschlossen")
+    assert (lab["drill:locker"], lab["drill:phalanx"]) == ("Locker", "Phalanx") and "drill:geschlossen" not in lab
     assert buttons(app)["drill:phalanx"].active and not buttons(app)["drill:locker"].active
     assert {"formation:linie", "formation:o"} <= set(lab) and "formation:keil" not in lab and "formation:u" not in lab
     assert "rammbock" not in lab                           # kein Belagerungsgerät in der Verteidigung
-    press(app, bar(app)["drill:geschlossen"])
-    assert hop.drill == "geschlossen" and buttons(app)["drill:geschlossen"].active
+    press(app, bar(app)["drill:locker"])
+    assert hop.drill == "locker" and buttons(app)["drill:locker"].active
     press(app, bar(app)["formation:o"])
     assert hop.formation == "o"
     press(app, bar(app)[f"group:{cav.id}"])

@@ -228,11 +228,16 @@ class Lochos:
     file: bool = False                # auf dem Wehrgang: eine Reihe längs der Palisade
     formation: str = "linie"          # "linie", "o" (Kreis) oder "keil" (Reiter)
     mode: str = ""                    # freier Angriff je Waffengattung: "", "sturm" (Reiter: Stoß und Lösen)
-    drill: str = "phalanx"            # Modus der Hopliten: "locker", "phalanx", "geschlossen" (andere Gattungen: ohne Wirkung)
+    drill: str = "phalanx"            # Modus der Hopliten: "locker" oder "phalanx" (andere Gattungen: ohne Wirkung)
     full_width: int | None = None     # vor Tor oder Gasse schmaler geworden: so breit war die Front vorher
     pace: float | None = None         # im Verband: so schnell wie die langsamste Gruppe (bis zum nächsten Befehl)
     free_attack: bool = False         # im freien Angriff (Sturm, Plänkeln, Sturmangriff)
     stormed: bool = False             # ... und schon im Handgemenge gewesen
+    stay_loose: bool = False          # nach einem Stau aufgelöst: erst an den Plätzen wieder Block
+    stay_since: float = 0.0
+    straggled_at: tuple[float, float] | None = None   # Ziel, für das schon einmal wegen Nachzüglern aufgelöst wurde
+    jam_since: float = -1.0           # seit wann der Block mit Ziel nicht vom Fleck kommt
+    jam_at: tuple[float, float] = (0.0, 0.0)
     lag_since: float = -1.0           # seit wann die Gruppe am Ziel steht, ihre Männer aber nicht an ihre Plätze kommen
     _hoplite_key: tuple | None = field(default=None, repr=False, compare=False)
     _hoplite_led: bool = field(default=False, repr=False, compare=False)

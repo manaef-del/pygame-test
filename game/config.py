@@ -184,19 +184,20 @@ ORDER_SECOND_GAP = 0.35      # Kacheln Luft zwischen Phalanx und Peltasten dahin
 ORDER_WING_GAP = 0.4         # Kacheln Luft zwischen Phalanx und Reitern am Flügel
 ORDER_WING_DEPTH = 3         # Reiter am Flügel: so viele Reihen tief
 
-# Modi der Hopliten: locker, Phalanx (Standard), geschlossen (Schildwall); Sturm ist der freie Angriff
-DRILLS = ("locker", "phalanx", "geschlossen")
-DRILL_NAMES = {"locker": "Locker", "phalanx": "Phalanx", "geschlossen": "Geschlossen"}
-DRILL_SPACING = {"locker": (1.7, 1.4), "phalanx": (1.0, 1.0), "geschlossen": (0.87, 0.8)}   # Abstand in der Reihe, zwischen Reihen
-DRILL_SPEED = {"locker": 1.15, "phalanx": 1.0, "geschlossen": 0.6}
-DRILL_TURN = {"locker": 1.0, "phalanx": 1.0, "geschlossen": 0.6}       # Schwenken und Kehrt
+# Modi der Hopliten: locker oder Phalanx (Standard); Sturm ist der freie Angriff
+DRILLS = ("locker", "phalanx")
+DRILL_NAMES = {"locker": "Locker", "phalanx": "Phalanx"}
+DRILL_SPACING = {"locker": (1.7, 1.4), "phalanx": (1.0, 1.0)}   # Abstand in der Reihe, zwischen Reihen
+DRILL_SPEED = {"locker": 1.15, "phalanx": 1.0}
+DRILL_TURN = {"locker": 1.0, "phalanx": 1.0}                    # Schwenken und Kehrt
 DRILL_LOOSE_MISSILE = 0.7     # locker: Wurfspeere treffen seltener (weite Abstände), dazu deckt jeder Schild
-DRILL_CLOSED_FRONT = 0.75     # geschlossen: noch weniger Schaden von vorn als die Phalanx
-DRILL_CLOSED_SHIELD = 0.75    # geschlossen: so viel der Speere von vorn fangen die Schilde (Phalanx 0,5)
-DRILL_NARROW = True           # Phalanx und Schildwall lösen sich an Tor und Gasse nicht auf, sie werden schmaler
+DRILL_NARROW = True           # die Phalanx löst sich an Tor und Gasse nicht auf, sie wird schmaler
+JAM_TIME = 2.0                # Sekunden: so lange kommt ein Block mit Ziel nicht vom Fleck, dann löst er sich auf
 STRAGGLER_DIST = 0.4          # Kacheln: so weit von seinem Platz gilt ein Mann als hängengeblieben
 STRAGGLER_SHARE = 0.25        # ... und hängt so ein Teil der Gruppe ...
 STRAGGLER_TIME = 1.5          # ... so viele Sekunden am Ziel fest, löst sie sich auf und jeder geht für sich
+STAY_LOOSE_MAX = 6.0          # Sekunden: so lange bleibt eine wegen Staus aufgelöste Gruppe höchstens offen
+STRAGGLER_TIME_FEW = 3.0      # hängen nur einzelne Männer, wartet sie etwas länger
 VERBAND_RETURN = 3.0          # Kacheln: ist kein kämpfender Feind so nah, kehrt ein Stürmer an seinen Platz im Verband zurück
 DRILL_NARROW_MIN = 2          # schmaler als so viele Männer wird die Front nicht (sonst doch Mann für Mann)
 

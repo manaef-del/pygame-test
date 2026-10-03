@@ -47,8 +47,8 @@ wandert nach unten.
    gerade läuft, wird dann nicht mehr hinter sich getroffen, wer stehen
    bleibt oder abrupt wendet, entgeht manchem Wurf.
 10. **Verbände für die Gegner-KI.** Die KI bildet noch keine Verbände und
-    wechselt keine Modi; denkbar wären etwa ein Schildwall der Besatzung am
-    Tor oder eine lockere Ordnung der Siedlung gegen Peltasten.
+    wechselt keine Modi; denkbar wäre etwa eine lockere Ordnung der
+    Siedlung gegen Peltasten.
 11. **Reiter verfolgen.** Ein Modus für Reiter, der selbstständig
     Fliehende und ungeordnete Gruppen jagt (nie eine Phalanxfront).
 
@@ -66,8 +66,8 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
-- **Modi der Hopliten und Verbände** (3. Oktober 2026): Locker, Phalanx,
-  Geschlossen und Sturm; die Phalanx wird an Tor und Gasse schmaler statt
+- **Modi der Hopliten und Verbände** (3. Oktober 2026): Locker, Phalanx
+  und Sturm (ein Modus „Geschlossen“ war zu nah an der Phalanx und entfiel); die Phalanx wird an Tor und Gasse schmaler statt
   sich aufzulösen. Keine gemischten Gruppen mehr: Mehrere Gruppen bilden
   einen Verband, per Langdrücken gewählt, mit Rahmen in der Seitenleiste
   und einer Tafel zum Anordnen (docs/ki-simulation.md, Lauf 31). Damit ist

@@ -648,9 +648,9 @@ class Renderer:
                      ("aufloesen", "Auflösen", 1.2, False, "Verband")]
             return self._lay_out(items, y, h)
         if arm == "hopliten" and not mixed:
-            # die Modi: locker, Phalanx, geschlossen, dazu der Sturm
+            # die Modi: locker oder Phalanx, dazu der Sturm
             for name in config.DRILLS:
-                items.append((f"drill:{name}", config.DRILL_NAMES[name], 1.25 if name == "geschlossen" else 1.0,
+                items.append((f"drill:{name}", config.DRILL_NAMES[name], 1.0,
                               not storming and all(u.drill == name for u in sel), None))
             items.append(("angriff", ATTACK_LABEL["hopliten"], 1.0, storming, None))
         else:
@@ -711,8 +711,7 @@ class Renderer:
             drill = u.drill_kind()
             if drill == "locker":
                 return "locker"
-            name = "geschlossen" if drill == "geschlossen" else "Phalanx"
-            return name if u.in_phalanx else "formiert sich"
+            return "Phalanx" if u.in_phalanx else "formiert sich"
         if u.stance is Stance.PLAENKELN:
             return "plänkelt"
         if u.stance is Stance.ANGRIFF:

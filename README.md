@@ -116,7 +116,7 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   befohlen oder in Marschrichtung. Angriffe bleiben Block, ebenso, wer
   durch ein Tor muss, an dem gekämpft wird. Halten oder „Verband bilden“
   schließt eine aufgelöste Gruppe sofort dort, wo ihre Männer stehen.
-  Hopliten im Modus Phalanx oder geschlossen lösen sich nur noch über den
+  Hopliten im Modus Phalanx lösen sich nur noch über den
   Wall auf (siehe „Modi der Hopliten“).
 - **Sammelplatz hinter dem Wall.** Wer über den Wall steigt und weiter will,
   sammelt sich drüben zuerst: am Fuß der Leiter, über die die Männer
@@ -243,8 +243,8 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Stelle eine Phalanx mit der Front, wie sie gerade stehen; Peltasten und
   Reiter bleiben stehen und kämpfen rundum ohne Bonus.
 - **Modi der Hopliten.** Hopliten haben einen Modus, der gilt, bis man
-  ihn wechselt; die Leiste zeigt „Locker“, „Phalanx“, „Geschlossen“ und
-  „Sturm“ (Tasten L, P, G, A).
+  ihn wechselt; die Leiste zeigt „Locker“, „Phalanx“ und „Sturm“
+  (Tasten L, P, A).
   - *Locker*: weite Abstände (1,7-fach in der Reihe), 15 % schneller,
     ohne Phalanxbonus; Wurfspeere treffen seltener. An Tor, Gasse und
     eigenen Gruppen löst sich die Gruppe auf und geht Mann für Mann.
@@ -253,14 +253,10 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
     Gasse wird sie schmaler und tiefer, bis die Front hindurchpasst, und
     marschiert dahinter wieder in voller Breite auf. Passt nicht einmal
     eine Front von zwei Mann, geht sie doch Mann für Mann.
-  - *Geschlossen* (Schildwall): Schild an Schild, 40 % langsamer und
-    träger im Schwenken; von vorn nimmt sie noch ein Viertel weniger
-    Schaden als die Phalanx, und die Schilde fangen drei Viertel der Speere
-    von vorn. Aus dem Schildwall gibt es keinen Aufprall mit Anlauf.
-  - *Sturm*: der freie Angriff (siehe „Angriff“); aus dem Schildwall
-    heraus wird zuerst wieder Phalanx.
-  Wer steht, bildet mit Phalanx oder geschlossen an Ort und Stelle die
-  Formation; wer unterwegs ist, marschiert im neuen Modus weiter.
+  - *Sturm*: der freie Angriff (siehe „Angriff“).
+  Wer steht, bildet mit Phalanx an Ort und Stelle die Formation; wer
+  unterwegs ist, marschiert im neuen Modus weiter. (Ein dritter Modus,
+  „Geschlossen“, war zu nah an der Phalanx und ist wieder entfallen.)
 - **Formationen:** Standard ist die Linie. Die Leiste zeigt für die
   gewählte Gruppe die möglichen Formationen, F schaltet weiter. Gruppen
   mit Fußvolk: Linie und Kreis (rundum Front ohne Flanke und Rücken,
@@ -587,7 +583,7 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
   Verbands stehen beisammen im Rahmen, die Kopfzeile wählt den Verband.
   Tippen auf die Gruppe im Feld geht weiterhin.
 - **Unten nur die Befehle der gewählten Gruppen**, benannt nach dem,
-  was passiert: Hopliten „Locker“, „Phalanx“, „Geschlossen“, „Sturm“ und
+  was passiert: Hopliten „Locker“, „Phalanx“, „Sturm“ und
   die Formationen Linie, Kreis; Peltasten „Plänkeln“, „Halten“; Reiter
   „Sturmangriff“, „Halten“, Linie, Keil. Der aktive Modus und die aktive
   Formation sind hervorgehoben, ein Tipp setzt sie direkt. Mehrere
@@ -621,7 +617,7 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 | Tippen auf den Wall | gewählte Gruppen mit Turm setzen ihn dort an |
 | Ziehen auf der Karte | Front aufziehen: Länge = Breite, Richtung = Blickrichtung; bei Gruppen im Kreis: Anfang = Mitte, Länge = Halbmesser |
 | Sturm / Plänkeln / Sturmangriff / A | gewählte Gruppen greifen frei an, je Waffengattung (siehe oben) |
-| Locker, Phalanx, Geschlossen / L, P, G | Modus der gewählten Hopliten |
+| Locker, Phalanx / L, P | Modus der gewählten Hopliten |
 | Halten / H | Hopliten bilden an Ort und Stelle eine Phalanx, andere bleiben stehen |
 | Verband bilden / V | mehrere gewählte Gruppen werden ein Verband |
 | Anordnen | Tafel: Gruppen des Verbands mit dem Finger in Reihen ordnen |

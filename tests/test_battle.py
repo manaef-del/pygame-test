@@ -2089,43 +2089,21 @@ def test_light_troops_and_melee_turn_about_at_once():
 
 # ------------------------------------------------------------- Modi der Hopliten
 def test_drill_sets_spacing_speed_and_phalanx_bonus():
-    """Locker: weite Abstände, schneller, ohne Phalanxbonus; geschlossen: Schild an Schild,
-    langsamer; Peltasten und Reiter kennen keine Modi."""
+    """Locker: weite Abstände, schneller, ohne Phalanxbonus; Peltasten und Reiter kennen
+    keine Modi."""
     hop = Lochos(1, Side.STADT, arrange(men("mittel", 20), 10), 5.0, 5.0)
     hop.stance, hop.in_line = Stance.PHALANX, True
     base_w, base_v = hop.half_w, hop.speed
     assert hop.drill == "phalanx" and hop.in_phalanx
     hop.drill = "locker"
     assert hop.half_w > base_w and hop.speed > base_v and not hop.in_phalanx
-    hop.drill = "geschlossen"
-    assert hop.half_w < base_w and hop.speed < base_v and hop.in_phalanx
-    assert hop.man_gap() >= 2 * config.MAN_RADIUS                    # niemand steht im anderen
     pelt = Lochos(2, Side.STADT, arrange(men("peltast", 10), 5), 5.0, 5.0)
     pelt.drill = "locker"
     assert pelt.drill_kind() == "" and pelt.man_gap() == config.MAN_SPACING
 
 
-def test_shield_wall_takes_less_from_the_front_and_cannot_charge():
-    """Geschlossen nimmt die Phalanx vorn noch weniger Schaden; aus dem Schildwall
-    heraus gibt es keinen Aufprall mit Anlauf, Sturm schaltet zurück auf Phalanx."""
-    b = static_line(raider_y=8.6)
-    hop = b.units(Side.STADT)[1]
-    raider = min(b.units(Side.FEIND), key=lambda r: dist_of(r, hop))
-    phalanx, _ = b._defense_mod(raider, hop)
-    hop.drill = "geschlossen"
-    closed, arc_name = b._defense_mod(raider, hop)
-    assert arc_name == "front" and closed < phalanx
-    hop.runup = config.CHARGE_RUNUP + 1
-    hp = sum(m.hp for m in raider.all_men())
-    hop.stance = Stance.ANGRIFF
-    b._combat(0.0)                                                  # erster Kontakt: kein Aufprall
-    assert sum(m.hp for m in raider.all_men()) == hp
-    b.command_attack([hop])
-    assert hop.drill == "phalanx" and hop.stance is Stance.ANGRIFF
-
-
 def test_loose_order_suffers_fewer_javelin_hits():
-    """Locker gehen viele Speere ins Leere, geschlossen fangen die Schilde von vorn mehr."""
+    """Locker gehen viele Speere ins Leere."""
     def damage(drill: str) -> float:
         b = Battle(raid(16, (8.0, 3.0)), random.Random(3), army=army_of(GroupSpec("H", [Tier("mittel", 20)])))
         b._ai_raiders = lambda: None
@@ -2143,17 +2121,17 @@ def test_loose_order_suffers_fewer_javelin_hits():
         for _ in range(int(3 / DT)):
             b._volleys(DT)
         return hp - sum(m.hp for m in hop.all_men())
-    loose, phalanx, closed = damage("locker"), damage("phalanx"), damage("geschlossen")
-    assert loose < phalanx and closed < phalanx
+    assert damage("locker") < damage("phalanx")
 
 
 def test_drill_command_forms_up_in_place_and_only_for_hoplites():
     b = Battle(raid(16, (8.0, 3.0)), random.Random(0))
     b._ai_raiders = lambda: None
     hop, pelt, cav = b.units(Side.STADT)
-    assert b.command_drill([hop, pelt, cav], "geschlossen") == 1
-    assert hop.drill == "geschlossen" and hop.stance is Stance.PHALANX and hop.target == hop.pos
-    assert pelt.drill == "phalanx" and cav.drill == "phalanx"       # unverändert: ohne Wirkung
+    hop.drill = "locker"
+    assert b.command_drill([hop, pelt, cav], "phalanx") == 1
+    assert hop.drill == "phalanx" and hop.stance is Stance.PHALANX and hop.target == hop.pos
+    assert b.command_drill([pelt, cav], "locker") == 0                # andere Gattungen: ohne Modi
     run(b, 3)
     assert hop.in_phalanx
     b.command_drill([hop], "locker")
@@ -2205,8 +2183,8 @@ def test_verband_rows_can_be_rearranged_and_dissolved():
     assert pelt.y < hop.y and cav.x < hop.x
     b.command_leave_verband([pelt])                                   # eine Gruppe geht: zwei bleiben
     assert b.verband_of(pelt) is None and v.members() == [cav.id, hop.id]
-    b.command_drill([hop], "geschlossen")                             # Modi gelten weiter je Gruppe
-    assert hop.drill == "geschlossen" and b.verband_of(hop) is v
+    b.command_drill([hop], "locker")                                  # Modi gelten weiter je Gruppe
+    assert hop.drill == "locker" and b.verband_of(hop) is v
     b.command_dissolve_verband(v)
     assert b.verbaende == []
 
@@ -2282,3 +2260,30 @@ def test_peltasts_stay_on_the_wall_when_there_is_no_way_down_outside():
     assert b.on_wall(pelt) and not pelt.loose
     b.command_move([hop], (8.0, 4.0))
     assert any("das Tor ist zu" in e for e in b.events)
+
+
+def test_a_group_sent_next_to_a_house_moves_clear_of_it():
+    """Liegt das angetippte Ziel so nah an einem Haus, dass Plätze im Haus lägen, rückt die
+    Gruppe daneben: Alle Männer finden ihren Platz, keiner steht daneben herum."""
+    b = Battle(raid(16, (8.0, 1.0), houses=((8, 6), (9, 6))), random.Random(0))
+    b._ai_raiders = lambda: None
+    b.alarm = False
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_move([hop], (8.9, 7.1))
+    assert not any(b.is_blocked(*p) for _, p in hop.slots_at(hop.target, (0.0, -1.0)))
+    run(b, 8)
+    assert all(dist_of_pt(m.pos, p) <= 0.3 for m, p in hop.slots())
+
+
+def test_a_jammed_block_dissolves_and_finds_its_way():
+    """Kommt ein Block mit Ziel zwei Sekunden lang nicht vom Fleck (etwa zwischen zwei
+    ruhenden eigenen Gruppen), löst er sich auf, und jeder Mann sucht seinen Weg; er bleibt
+    aufgelöst, bis die Männer an ihren Plätzen sind."""
+    b = Battle(raid(16, (8.0, 1.0)), random.Random(0))
+    b._ai_raiders = lambda: None
+    b.alarm = False
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_move([hop], (hop.x, hop.y - 3.0))
+    b._own_in_the_way = lambda u, p: True          # festgefahren
+    run(b, 3.5)
+    assert hop.loose and hop.stay_loose
