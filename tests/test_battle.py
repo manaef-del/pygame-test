@@ -968,7 +968,7 @@ def test_the_palisade_covers_the_walkway_against_spears_from_outside():
     def hit(at, origin):
         man.x, man.y = at
         man.hp = man.kind.hp
-        b.projectiles = [Projectile(origin[0], origin[1], man.x, man.y, target.id, 1.0, 0.0, 0.1, man)]
+        b.projectiles = [Projectile(origin[0], origin[1], man.x, man.y, target.id, 0.2, 0.0, 0.1, man)]
         for u in b.lochoi:                                # nur der eine Speer zählt
             u.volley_timer = 99.0
         b._volleys(0.2)
@@ -2168,6 +2168,32 @@ def test_loose_order_suffers_fewer_javelin_hits():
             b._volleys(DT)
         return hp - sum(m.hp for m in hop.all_men())
     assert damage("locker") < damage("phalanx")
+
+
+def test_javelins_lead_a_running_man_and_miss_one_who_stops(monkeypatch):
+    """Werfer zielen dorthin, wo der Mann sein wird: Wer weiterläuft, wird getroffen; wer
+    abrupt stehen bleibt, entgeht dem Wurf."""
+    from game.battle import Projectile
+    b = Battle(raid(16, (8.0, 3.0)), random.Random(3), army=army_of(GroupSpec("H", [Tier("mittel", 20)])))
+    (hop,) = b.units(Side.STADT)
+    man = hop.all_men()[0]
+    man.x, man.y, man.vx, man.vy = 8.0, 9.0, 3.0, 0.0                    # läuft nach Osten
+    for k in ("MISSILE_SPREAD", "MISSILE_SPREAD_DIST", "MISSILE_LEAD_ERROR"):
+        monkeypatch.setattr(config, k, 0.0)
+    (tx, ty), flight = b._aim((8.0, 5.5), man)
+    assert tx > 8.0 + 3.0 * 0.2 and abs(tx - (8.0 + 3.0 * flight)) < 0.05 and ty == 9.0   # vorgehalten
+
+    def throw(runs_on: bool) -> float:
+        man.x, man.y, man.hp = 8.0, 9.0, man.kind.hp
+        b.projectiles = [Projectile(8.0, 5.5, tx, ty, hop.id, 0.2, 0.0, flight, man)]
+        for u in b.lochoi:
+            u.volley_timer = 99.0
+        if runs_on:
+            man.x = tx
+        b._volleys(flight + 0.01)
+        return man.kind.hp - man.hp
+    assert throw(True) > 0.0                                            # weitergelaufen: getroffen
+    assert throw(False) == 0.0                                          # stehen geblieben: daneben
 
 
 def test_drill_command_forms_up_in_place_and_only_for_hoplites():

@@ -19,8 +19,14 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   mittel-, hellblau), Peltasten (rot) und Reiter (grün). Räuber sind grau
   mit rotem Ring. Vorgabe: 40 Hopliten, 15 Peltasten, 20 Reiter.
 - **Peltasten** haben zehn Speere je Mann und werfen in Salven. Jeder
-  Speer fliegt sichtbar vom werfenden Mann zu einem bestimmten Gegner
-  und trifft nur diesen. Sind die Speere verschossen, geht die Gruppe in
+  Speer fliegt sichtbar vom werfenden Mann dorthin, wo sein Ziel sein
+  wird, wenn er ankommt (der Werfer hält vor, aus Laufrichtung und
+  Tempo), und streut dabei: mehr auf Entfernung, und je mehr er
+  vorhalten muss, desto mehr. Getroffen wird, wer an der Einschlagstelle
+  steht. Auf Stehende geht etwa jeder achte Speer daneben, auf eine
+  marschierende Phalanx jeder dritte, auf Reiter im Galopp jeder zweite;
+  wer abrupt wendet oder stehen bleibt, entgeht manchem Wurf. Die
+  Wehrtürme zielen ebenso. Sind die Speere verschossen, geht die Gruppe in
   den Nahkampf über. Das gilt für beide Seiten: auch die Peltasten der
   Räuber tragen zehn Speere und stürmen, sobald sie leer sind.
 - **Es kämpft, wer den Gegner erreicht.** Von der vorderen Reihe kämpfen
@@ -252,7 +258,8 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   ihn wechselt; die Leiste zeigt „Locker“, „Phalanx“ und „Sturm“
   (Tasten L, P, A).
   - *Locker*: weite Abstände (1,7-fach in der Reihe), 15 % schneller,
-    ohne Phalanxbonus; Wurfspeere treffen seltener. An Tor, Gasse und
+    ohne Phalanxbonus; Wurfspeere gehen öfter zwischen den Männern ins
+    Leere, und wer getroffen wird, deckt sich mit dem Schild. An Tor, Gasse und
     eigenen Gruppen löst sich die Gruppe auf und geht Mann für Mann.
   - *Phalanx* (Standard): wie gewohnt im Kampf. Auf dem Marsch bleibt sie
     zusammen: Um eigene Gruppen geht sie als Block herum, vor Tor und

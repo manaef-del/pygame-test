@@ -91,6 +91,8 @@ class Man:
     show_dy: float = 0.0
     flash: float = 0.0    # nur fürs Bild: so lange (Sekunden) blitzt er nach einem Treffer noch auf
     hurt: float = 0.0     # nur fürs Bild: Schaden seit dem letzten Aufblitzen
+    vx: float = 0.0       # geschätzte Geschwindigkeit (Kacheln je Sekunde): danach zielen Werfer vor
+    vy: float = 0.0
 
     def __post_init__(self) -> None:
         if self.hp == 0.0:

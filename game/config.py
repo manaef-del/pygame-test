@@ -78,9 +78,15 @@ RALLY_EDGE = 1.5             # Kacheln vom eigenen Kartenrand, wo sich Angreifer
 # Peltasten
 JAVELINS = 10                # Würfe je Peltast
 VOLLEY_INTERVAL = 1.5        # Sekunden zwischen zwei Salven
-JAVELIN_DAMAGE = 0.2         # Schaden je Speer (trifft einen bestimmten Mann)
+JAVELIN_DAMAGE = 0.23        # Schaden je Treffer (etwa jeder achte Speer geht auch auf Stehende daneben)
 JAVELIN_RANGE = 3.5          # Kacheln
 JAVELIN_SPEED = 14.0         # Kacheln pro Sekunde (Anzeige und Einschlag)
+MISSILE_LEAD = True          # Werfer und Ecktürme zielen dorthin, wo der Mann sein wird, wenn der Speer ankommt
+MISSILE_SPREAD = 0.05        # Kacheln: Streuung (Standardabweichung) eines Wurfs, dazu ...
+MISSILE_SPREAD_DIST = 0.025  # ... so viel je Kachel Entfernung
+MISSILE_LEAD_ERROR = 0.35    # ... und so viel je Kachel, die vorgehalten werden muss (wer schnell läuft, ist schwer zu treffen)
+MISSILE_HIT_RADIUS = 0.13    # Kacheln: getroffen wird, wer so nah an der Einschlagstelle steht (Mann und Schild)
+MISSILE_LEAD_TIME = 0.25     # Sekunden: über so viel Zeit schätzt der Werfer, wie schnell sich sein Ziel bewegt
 
 # Sturmangriff der Reiter
 CHARGE_RUNUP = 2.0           # Kacheln Anlauf, bevor ein Aufprall wirkt
@@ -192,7 +198,7 @@ DRILL_NAMES = {"locker": "Locker", "phalanx": "Phalanx"}
 DRILL_SPACING = {"locker": (1.7, 1.4), "phalanx": (1.0, 1.0)}   # Abstand in der Reihe, zwischen Reihen
 DRILL_SPEED = {"locker": 1.15, "phalanx": 1.0}
 DRILL_TURN = {"locker": 1.0, "phalanx": 1.0}                    # Schwenken und Kehrt
-DRILL_LOOSE_MISSILE = 0.7     # locker: Wurfspeere treffen seltener (weite Abstände), dazu deckt jeder Schild
+DRILL_LOOSE_MISSILE = 0.85    # locker: weniger Schaden je Treffer (die weiten Abstände lassen ohnehin Speere ins Leere gehen)
 DRILL_NARROW = True           # die Phalanx löst sich an Tor und Gasse nicht auf, sie wird schmaler
 JAM_TIME = 2.0                # Sekunden: so lange kommt ein Block mit Ziel nicht vom Fleck, dann löst er sich auf
 STRAGGLER_DIST = 0.4          # Kacheln: so weit von seinem Platz gilt ein Mann als hängengeblieben

@@ -106,7 +106,8 @@ class Projectile:
     dmg: float
     progress: float = 0.0
     total: float = 1.0
-    target_man: Man | None = None
+    target_man: Man | None = None      # auf ihn wurde gezielt; getroffen wird, wer am Einschlag steht
+    cover: bool = True                 # Schilde decken (Wurfspeere der Peltasten; nicht von den Ecktürmen herab)
 
     @property
     def pos(self) -> Point:
@@ -2382,8 +2383,10 @@ class Battle:
         self._ai_city()
         self._verband_upkeep()
         self._skirmishers()
+        before = [(m, m.x, m.y) for u in self.lochoi if u.alive for m in u.all_men()]
         self._move(dt)
         self._separate()
+        self._track_motion(before, dt)
         self._combat(dt)
         self._volleys(dt)
         if self.corner_towers:
@@ -4830,34 +4833,81 @@ class Battle:
             if foe is None:
                 continue
             a.volley_timer = config.VOLLEY_INTERVAL
-            shield = 1.0 - 0.5 * foe.shield_factor() if foe.in_phalanx else 1.0
-            if foe.drill_kind() == "locker":
-                # jeder trägt seinen Schild, und bei weiten Abständen gehen viele Speere ins Leere
-                shield = (1.0 - 0.5 * foe.shield_factor()) * config.DRILL_LOOSE_MISSILE
             targets = foe.all_men()
             for m in throwers:
                 m.ammo -= 1
                 victim = targets[self.rng.randrange(len(targets))]
-                flight = max(0.1, dist(m.pos, victim.pos) / config.JAVELIN_SPEED)
-                self.projectiles.append(Projectile(
-                    m.x, m.y, victim.x, victim.y, foe.id, config.JAVELIN_DAMAGE * shield, 0.0, flight, victim,
-                ))
+                (tx, ty), flight = self._aim(m.pos, victim)
+                self.projectiles.append(Projectile(m.x, m.y, tx, ty, foe.id, config.JAVELIN_DAMAGE, 0.0, flight, victim))
         for pr in list(self.projectiles):
             pr.progress += dt
             if pr.progress >= pr.total:
                 self.projectiles.remove(pr)
-                b = self.by_id(pr.target_id)
-                if b is None or not b.alive or pr.target_man is None:
+                aimed = self.by_id(pr.target_id)
+                if aimed is None:
                     continue
-                if pr.target_man.hp <= 0 or dist(pr.target_man.pos, (pr.tx, pr.ty)) > 0.35:
-                    continue                                   # daneben: der Mann ist nicht mehr dort
-                dmg = pr.dmg * (config.LEADER_ARMOR if b.leader_man() is not None else 1.0)
+                hit = self._struck(aimed.side, (pr.tx, pr.ty))
+                if hit is None:
+                    continue                                   # daneben: dort steht niemand (mehr)
+                man, b = hit
+                dmg = pr.dmg * (self._missile_cover(b) if pr.cover else 1.0)
+                dmg *= config.LEADER_ARMOR if b.leader_man() is not None else 1.0
                 if not b.loose and b.arc_to((pr.x, pr.y)) == "flank":
                     dmg *= self.shield_side(b, (pr.x, pr.y), config.SHIELD_SPEAR_COVER, config.SHIELD_SPEAR_OPEN)
-                if self._behind_palisade(pr.target_man, (pr.x, pr.y)):
+                if self._behind_palisade(man, (pr.x, pr.y)):
                     dmg *= config.WALL_COVER_FACTOR
-                fallen = b.hit_man(pr.target_man, dmg)
+                fallen = b.hit_man(man, dmg)
                 self._after_hit(b, fallen, "ranged", dmg)
+
+    @staticmethod
+    def _missile_cover(b: Lochos) -> float:
+        """Wie viel ein Wurfspeer bei ``b`` noch ausrichtet: Die Phalanx deckt sich mit
+        den Schilden, in lockerer Ordnung trägt jeder seinen Schild für sich."""
+        if b.in_phalanx:
+            return 1.0 - 0.5 * b.shield_factor()
+        if b.drill_kind() == "locker":
+            return (1.0 - 0.5 * b.shield_factor()) * config.DRILL_LOOSE_MISSILE
+        return 1.0
+
+    def _aim(self, origin: Point, victim: Man) -> tuple[Point, float]:
+        """Wohin der Speer fliegt und wie lange: dorthin, wo ``victim`` sein wird, wenn er
+        ankommt (aus seiner Bewegung geschätzt), dazu eine Streuung, die mit der
+        Entfernung wächst. Wer abrupt wendet oder stehen bleibt, entgeht manchem Wurf."""
+        aim = victim.pos
+        lead = 0.0
+        if config.MISSILE_LEAD:
+            for _ in range(2):
+                flight = dist(origin, aim) / config.JAVELIN_SPEED
+                aim = (victim.x + victim.vx * flight, victim.y + victim.vy * flight)
+            lead = dist(aim, victim.pos)
+        sigma = (config.MISSILE_SPREAD + config.MISSILE_SPREAD_DIST * dist(origin, aim)
+                 + config.MISSILE_LEAD_ERROR * lead)
+        land = (aim[0] + self.rng.gauss(0.0, sigma), aim[1] + self.rng.gauss(0.0, sigma))
+        return land, max(0.1, dist(origin, land) / config.JAVELIN_SPEED)
+
+    def _struck(self, side: Side, p: Point) -> tuple[Man, Lochos] | None:
+        """Der Mann der Seite ``side``, der dem Einschlag bei ``p`` am nächsten steht (höchstens
+        einen Trefferhalbmesser entfernt), mit seiner Gruppe."""
+        best, best_d = None, config.MISSILE_HIT_RADIUS
+        for g in self.lochoi:
+            if g.side is not side or not g.alive:
+                continue
+            for m in g.all_men():
+                d = math.hypot(m.x - p[0], m.y - p[1])
+                if m.hp > 0 and d <= best_d:
+                    best, best_d = (m, g), d
+        return best
+
+    def _track_motion(self, before: list[tuple[Man, float, float]], dt: float) -> None:
+        """Die Geschwindigkeit jedes Mannes, geglättet über ``MISSILE_LEAD_TIME``: Danach
+        zielen die Werfer vor. Ein Sprung (neu aufgestellt) zählt nicht als Lauf."""
+        k = min(1.0, dt / config.MISSILE_LEAD_TIME)
+        for m, x, y in before:
+            vx, vy = (m.x - x) / dt, (m.y - y) / dt
+            if vx * vx + vy * vy > 36.0:
+                vx = vy = 0.0
+            m.vx += (vx - m.vx) * k
+            m.vy += (vy - m.vy) * k
 
     def _tower_fire(self, dt: float) -> None:
         """Wehrtürme: Wer oben steht, gehört dazu. Steht nur der Feind oben, gehört der Turm
@@ -4907,8 +4957,9 @@ class Battle:
             u, victim = best
             near = [m for m in u.all_men() if math.hypot(m.x - victim.x, m.y - victim.y) <= 0.8]
             victim = near[self.rng.randrange(len(near))]
-            flight = max(0.1, math.hypot(victim.x - cx, victim.y - cy) / config.JAVELIN_SPEED)
-            self.projectiles.append(Projectile(cx, cy, victim.x, victim.y, u.id, config.JAVELIN_DAMAGE, 0.0, flight, victim))
+            (tx, ty), flight = self._aim((cx, cy), victim)
+            self.projectiles.append(Projectile(cx, cy, tx, ty, u.id, config.JAVELIN_DAMAGE, 0.0, flight, victim,
+                                               cover=False))
 
     def _behind_palisade(self, man: Man, origin: Point) -> bool:
         """Steht der Mann auf dem Wehrgang und kam der Speer von außen? Dann deckt ihn

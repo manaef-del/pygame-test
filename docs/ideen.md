@@ -34,12 +34,6 @@ wandert nach unten.
    (8 von 8) gegen eine Besatzung von 40. Bildete die Besatzung gegen
    Reiter schon Kreise, wenn sie vorn gebunden war, gewann man nie (Lauf 24);
    seit der Kreis nur eine Verzweiflungstat ist, wieder immer.
-7. **Vorhalten und Streuung beim Fernkampf.** Werfer und Ecktürme zielen
-   dorthin, wo die beschossene Gruppe sein wird, wenn das Geschoss
-   ankommt: aus ihrer Bewegungsrichtung und Geschwindigkeit. Dafür
-   streuen die Geschosse breiter, sodass einige danebengehen. Wer
-   gerade läuft, wird dann nicht mehr hinter sich getroffen, wer stehen
-   bleibt oder abrupt wendet, entgeht manchem Wurf.
 10. **Verbände für die Gegner-KI.** Die KI bildet noch keine Verbände und
     wechselt keine Modi; denkbar wäre etwa eine lockere Ordnung der
     Siedlung gegen Peltasten.
@@ -65,6 +59,12 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Vorhalten und Streuung beim Fernkampf** (3. Oktober 2026): Werfer und
+  Ecktürme zielen auf die künftige Stelle, die Speere streuen mit
+  Entfernung und Vorhalt, getroffen wird, wer am Einschlag steht.
+  Trefferquoten (gleiche Lage, vorher → nachher): stehende Phalanx 100 % →
+  87 %, marschierende 100 % → 71 %, Reiter quer im Galopp 46 % → 54 %,
+  Reiter im Zickzack 22 % → 44 %. Schaden je Treffer 0,2 → 0,23.
 - **Breiter Block streift Nachbarn im Bogen** (3. Oktober 2026): Der
   Zielplatz wird mit der Front geprüft, mit der die Gruppe ankommt, und ein
   Block, der die Ecke einer ruhenden eigenen Gruppe streift, gleitet schräg
