@@ -132,6 +132,8 @@ CHARGE_SLOW_TIME = 2.5       # Sekunden
 # Freier Angriff je Waffengattung
 SKIRMISH_NEAR = 1.6          # Kacheln: näher lassen Peltasten den Feind nicht heran
 SKIRMISH_FAR = 0.4           # Kacheln unter der Wurfweite, auf die sie herangehen
+FLANK_LEG_TIME = 1.5         # Sekunden: so lange bleiben Plänkler auf dem Weg zur Flanke bei ihrem Abschnitt
+SKIRMISH_RETREAT = 1.0       # Sekunden: so lange weichen Plänkler mindestens zurück (sonst wenden sie an der Schwelle jeden Augenblick)
 HITRUN_DISTANCE = 3.0        # Kacheln, auf die sich Reiter nach dem Stoß absetzen
 HITRUN_TIME = 5.0            # Sekunden, längstens
 HUNT_RANGE = 8.0             # Kacheln: so weit sucht sich eine jagende Reitergruppe Fliehende und Ungeordnete

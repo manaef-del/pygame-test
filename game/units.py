@@ -231,6 +231,9 @@ class Lochos:
     detour_side: float = 0.0          # Seite (+1/-1 quer zum Weg), auf der der Block um eigene Gruppen herumgeht; 0 = frei
     detour_on: bool = False           # wich im letzten Schritt einer eigenen Gruppe aus
     detour_until: float = -1.0        # bis dahin bleibt die Seite gemerkt, auch wenn gerade nichts im Weg steht
+    flank_leg: int = 0                # Plänkler auf dem Weg zur offenen Flanke: 1 = erst seitlich entlang, 2 = nun zur Flanke
+    flank_since: float = -1.0         # ... seit wann (gewechselt wird frühestens nach FLANK_LEG_TIME)
+    retreat_until: float = -1.0       # Plänkler weichen bis dahin zurück, ohne neu zu entscheiden
     detour_wp: tuple[float, float] | None = None   # der zuletzt genommene Umwegpunkt (gilt noch kurz, auch wenn frei scheint)
     file: bool = False                # auf dem Wehrgang: eine Reihe längs der Palisade
     formation: str = "linie"          # "linie", "o" (Kreis) oder "keil" (Reiter)

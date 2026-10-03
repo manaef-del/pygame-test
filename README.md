@@ -114,6 +114,9 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   - Streift der gerade Weg eine Wallecke, geht es schräg vom Wall weg statt
     zum Eckpunkt hinter der Gruppe.
   - Fliehende wenden höchstens 6 rad/s.
+  - Plänkler auf dem Weg zur offenen Flanke bleiben mindestens 1,5 s bei
+    ihrem Abschnitt (erst seitlich entlang, dann zur Flanke).
+  - Plänkler weichen mindestens 1 s zurück, bevor sie neu entscheiden.
   - Ein Mann, der seinem Platz eine Sekunde lang nicht näherkommt, während
     seine Gruppe steht, bleibt stehen, statt endlos auszuweichen.
 - **Hauptmann und Kontermarsch.** Jede Gruppe hat einen Hauptmann (weißer

@@ -2638,10 +2638,13 @@ class Battle:
             u.target = None
             return
         u.target_id = foe.id
+        if self.time < u.retreat_until and u.target is not None and not u.engaged:
+            return                                         # weicht noch zurück: erst danach neu entscheiden
         d = foe.rect_distance(u.pos)
         away = norm(sub(u.pos, foe.pos))
         if self._gap(u, foe) < config.SKIRMISH_NEAR:       # Lücke zwischen den Formationen, wie beim Handgemenge
             u.target = self._free_spot((u.x + away[0] * 1.5, u.y + away[1] * 1.5), u)
+            u.retreat_until = self.time + config.SKIRMISH_RETREAT
         elif u.flank_throw and (spot := self._open_side_spot(u, foe)) is not None:
             u.target = spot                                # erst an die schildlose Seite, dabei wird schon geworfen
         elif d > config.JAVELIN_RANGE - config.SKIRMISH_FAR:
@@ -2686,11 +2689,20 @@ class Battle:
         if (not self.inside(*spot) or self.is_blocked(*spot, u) or not self.wall_clear(u.pos, spot)
                 or self.arc_of(foe, spot) != "flank"):
             return None                                    # am Rand, im Haus, hinter dem Wall, oder ein Nachbar deckt
-        if abs(forward) > foe.half_d + 0.3 and along < out - 0.4:
+        # (mit Spiel: wer schon zur Flanke geht, kehrt erst bei deutlich mehr Abstand zum Entlanggehen zurück)
+        reach = 0.4 if u.flank_leg != 2 else 0.8
+        want = 1 if abs(forward) > foe.half_d + 0.3 and along < out - reach else 2
+        if u.flank_leg in (1, 2) and want != u.flank_leg and self.time - u.flank_since < config.FLANK_LEG_TIME:
+            want = u.flank_leg                             # eben erst gewechselt: dabei bleiben
+        if want == 1:
             # vor (oder hinter) der Phalanx: im selben Abstand an ihr entlang nach rechts, dann auf Höhe der Flanke
             slide = at(out, forward)
             if self.inside(*slide) and not self.is_blocked(*slide, u):
+                if u.flank_leg != 1:
+                    u.flank_leg, u.flank_since = 1, self.time
                 return self._free_spot(slide, u)
+        if u.flank_leg != 2:
+            u.flank_leg, u.flank_since = 2, self.time
         return self._free_spot(spot, u)
 
     def _reachable_level(self, u: Lochos, f: Lochos) -> bool:

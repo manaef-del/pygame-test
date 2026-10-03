@@ -58,11 +58,15 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
-- **Zappeln an Wall, Tor und Häusern** (3. Oktober 2026): acht Schwellen,
+- **Zappeln an Wall, Tor und Häusern** (3. Oktober 2026): Zehn Schwellen,
   an denen Gruppen hin und her kippten, haben Spiel bekommen (README, „Kein
-  Zappeln an Schwellen“). Gemessen als Drehen hin und her plus Unruhe der
-  Männer ohne Vorankommen, je 2 s: Festung „passiv“ höchstens 71 → 10,
-  Palisade „tor_halten“ 20 → 8.
+  Zappeln an Schwellen“). Gemessen wurde je 2 s, wie weit sich eine Gruppe
+  hin und her dreht und wie unruhig ihre Männer sind, ohne voranzukommen;
+  acht Schlachten:
+  - Festung „passiv“: höchstens 71 → 11
+  - Palisade „tor_halten“: 20 → 6
+  - offenes Feld „linie“: 14 → 8
+  - Abschnitte über 5, zusammen: 201 → 68
 - **Lockere Hopliten umstellen** (3. Oktober 2026): Auf kurzen Wegen
   stellt sich eine lockere Gruppe Mann für Mann um, statt als Block zu
   schwenken und Umwege zu gehen; die Männer werden dabei nach ihrer Stelle
