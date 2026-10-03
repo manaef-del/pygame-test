@@ -34,6 +34,10 @@ def bar(app: App) -> dict[str, tuple[int, int]]:
     return {b.key: b.rect.center for b in buttons}
 
 
+def buttons(app: App) -> dict:
+    return {b.key: b for b in app.renderer.layout_bar(app.battle, app.paused, app.selected, app.menu_open)}
+
+
 def labels(app: App) -> dict[str, str]:
     return {b.key: b.label for b in app.renderer.layout_bar(app.battle, app.paused, app.selected, app.menu_open)}
 
@@ -165,16 +169,22 @@ def test_context_bar_shows_only_what_the_selection_can_do():
     press(app, bar(app)[f"group:{hop.id}"])                # Gruppenkarte wählt
     assert app.selected == {hop.id}
     lab = labels(app)
-    assert lab["angriff"] == "Sturm" and lab["halten"] == "Phalanx bilden"
+    assert lab["angriff"] == "Sturm" and "halten" not in lab           # Hopliten: die Modi statt „Halten“
+    assert (lab["drill:locker"], lab["drill:phalanx"], lab["drill:geschlossen"]) == ("Locker", "Phalanx", "Geschlossen")
+    assert buttons(app)["drill:phalanx"].active and not buttons(app)["drill:locker"].active
     assert {"formation:linie", "formation:o"} <= set(lab) and "formation:keil" not in lab and "formation:u" not in lab
     assert "rammbock" not in lab                           # kein Belagerungsgerät in der Verteidigung
+    press(app, bar(app)["drill:geschlossen"])
+    assert hop.drill == "geschlossen" and buttons(app)["drill:geschlossen"].active
     press(app, bar(app)["formation:o"])
     assert hop.formation == "o"
     press(app, bar(app)[f"group:{cav.id}"])
     lab = labels(app)
     assert lab["angriff"] == "Sturmangriff" and "formation:keil" in lab and "formation:o" not in lab
     press(app, bar(app)[f"group:{pelt.id}"])
-    assert labels(app)["angriff"] == "Plänkeln"
+    lab = labels(app)
+    assert lab["angriff"] == "Plänkeln" and lab["halten"] == "Halten"
+    assert not any(k.startswith("formation") for k in lab)  # Peltasten: nur die Linie, kein Knopf dafür
     press(app, bar(app)[f"group:{pelt.id}"])               # nochmal: abwählen
     assert app.selected == set()
     press(app, bar(app)["alle"])
@@ -305,7 +315,7 @@ def test_attack_and_hold_need_a_selection_and_formation_cycles():
     assert cav.formation == "keil"
     app.selected = {pelt.id}
     app.command("formation")
-    assert pelt.formation == "o"
+    assert pelt.formation == "linie"                                       # Peltasten kennen nur die Linie
     app.draw()
 
 

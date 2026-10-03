@@ -1325,8 +1325,7 @@ def test_mixed_groups_form_nested_rings_with_alternating_rows():
         assert abs(dist_of_pt(p, (5.0, 5.0)) - want) < 1e-6
     assert u.formation_options() == ("linie", "o")
     p = Lochos(2, Side.STADT, [men("peltast", 6), men("reiter", 4)], 5.0, 5.0)
-    assert p.formation_options() == ("linie", "o")
-    assert p.formation_options() == ("linie", "o") and len(p.layers()) == 2
+    assert p.formation_options() == ("linie",) and len(p.layers()) == 2   # ohne Schildwand kein Kreis
 
 
 def test_mixed_group_splits_by_arm_on_free_attack_and_merges_back():
@@ -2080,3 +2079,77 @@ def test_light_troops_and_melee_turn_about_at_once():
     b.command_move([u], (8.0, 15.5))
     b.update(DT)
     assert u.facing == (0.0, 1.0) and u.countermarch_until < b.time
+
+
+# ------------------------------------------------------------- Modi der Hopliten
+def test_drill_sets_spacing_speed_and_phalanx_bonus():
+    """Locker: weite Abstände, schneller, ohne Phalanxbonus; geschlossen: Schild an Schild,
+    langsamer; Peltasten und Reiter kennen keine Modi."""
+    hop = Lochos(1, Side.STADT, arrange(men("mittel", 20), 10), 5.0, 5.0)
+    hop.stance, hop.in_line = Stance.PHALANX, True
+    base_w, base_v = hop.half_w, hop.speed
+    assert hop.drill == "phalanx" and hop.in_phalanx
+    hop.drill = "locker"
+    assert hop.half_w > base_w and hop.speed > base_v and not hop.in_phalanx
+    hop.drill = "geschlossen"
+    assert hop.half_w < base_w and hop.speed < base_v and hop.in_phalanx
+    assert hop.man_gap() >= 2 * config.MAN_RADIUS                    # niemand steht im anderen
+    pelt = Lochos(2, Side.STADT, arrange(men("peltast", 10), 5), 5.0, 5.0)
+    pelt.drill = "locker"
+    assert pelt.drill_kind() == "" and pelt.man_gap() == config.MAN_SPACING
+
+
+def test_shield_wall_takes_less_from_the_front_and_cannot_charge():
+    """Geschlossen nimmt die Phalanx vorn noch weniger Schaden; aus dem Schildwall
+    heraus gibt es keinen Aufprall mit Anlauf, Sturm schaltet zurück auf Phalanx."""
+    b = static_line(raider_y=8.6)
+    hop = b.units(Side.STADT)[1]
+    raider = min(b.units(Side.FEIND), key=lambda r: dist_of(r, hop))
+    phalanx, _ = b._defense_mod(raider, hop)
+    hop.drill = "geschlossen"
+    closed, arc_name = b._defense_mod(raider, hop)
+    assert arc_name == "front" and closed < phalanx
+    hop.runup = config.CHARGE_RUNUP + 1
+    hp = sum(m.hp for m in raider.all_men())
+    hop.stance = Stance.ANGRIFF
+    b._combat(0.0)                                                  # erster Kontakt: kein Aufprall
+    assert sum(m.hp for m in raider.all_men()) == hp
+    b.command_attack([hop])
+    assert hop.drill == "phalanx" and hop.stance is Stance.ANGRIFF
+
+
+def test_loose_order_suffers_fewer_javelin_hits():
+    """Locker gehen viele Speere ins Leere, geschlossen fangen die Schilde von vorn mehr."""
+    def damage(drill: str) -> float:
+        b = Battle(raid(16, (8.0, 3.0)), random.Random(3), army=army_of(GroupSpec("H", [Tier("mittel", 20)])))
+        b._ai_raiders = lambda: None
+        b.alarm = False
+        (hop,) = b.units(Side.STADT)
+        hop.reform(10)
+        hop.x, hop.y, hop.facing = 8.0, 9.0, (0.0, -1.0)
+        hop.stance, hop.in_line, hop.target = Stance.PHALANX, True, (8.0, 9.0)
+        hop.drill = drill
+        hop.place_men()
+        thrower = b._spawn(Side.FEIND, arrange(men("peltast", 10), 10), 8.0, 7.0, "Werfer")
+        thrower.facing = (0.0, 1.0)
+        thrower.place_men()
+        hp = sum(m.hp for m in hop.all_men())
+        for _ in range(int(3 / DT)):
+            b._volleys(DT)
+        return hp - sum(m.hp for m in hop.all_men())
+    loose, phalanx, closed = damage("locker"), damage("phalanx"), damage("geschlossen")
+    assert loose < phalanx and closed < phalanx
+
+
+def test_drill_command_forms_up_in_place_and_only_for_hoplites():
+    b = Battle(raid(16, (8.0, 3.0)), random.Random(0))
+    b._ai_raiders = lambda: None
+    hop, pelt, cav = b.units(Side.STADT)
+    assert b.command_drill([hop, pelt, cav], "geschlossen") == 1
+    assert hop.drill == "geschlossen" and hop.stance is Stance.PHALANX and hop.target == hop.pos
+    assert pelt.drill == "phalanx" and cav.drill == "phalanx"       # unverändert: ohne Wirkung
+    run(b, 3)
+    assert hop.in_phalanx
+    b.command_drill([hop], "locker")
+    run(b, 2)
+    assert not hop.in_phalanx and hop.on_slots(0.25)

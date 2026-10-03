@@ -184,6 +184,18 @@ ORDER_SECOND_GAP = 0.35      # Kacheln Luft zwischen Phalanx und Peltasten dahin
 ORDER_WING_GAP = 0.4         # Kacheln Luft zwischen Phalanx und Reitern am Flügel
 ORDER_WING_DEPTH = 3         # Reiter am Flügel: so viele Reihen tief
 
+# Modi der Hopliten: locker, Phalanx (Standard), geschlossen (Schildwall); Sturm ist der freie Angriff
+DRILLS = ("locker", "phalanx", "geschlossen")
+DRILL_NAMES = {"locker": "Locker", "phalanx": "Phalanx", "geschlossen": "Geschlossen"}
+DRILL_SPACING = {"locker": (1.7, 1.4), "phalanx": (1.0, 1.0), "geschlossen": (0.87, 0.8)}   # Abstand in der Reihe, zwischen Reihen
+DRILL_SPEED = {"locker": 1.15, "phalanx": 1.0, "geschlossen": 0.6}
+DRILL_TURN = {"locker": 1.0, "phalanx": 1.0, "geschlossen": 0.6}       # Schwenken und Kehrt
+DRILL_LOOSE_MISSILE = 0.7     # locker: Wurfspeere treffen seltener (weite Abstände), dazu deckt jeder Schild
+DRILL_CLOSED_FRONT = 0.75     # geschlossen: noch weniger Schaden von vorn als die Phalanx
+DRILL_CLOSED_SHIELD = 0.75    # geschlossen: so viel der Speere von vorn fangen die Schilde (Phalanx 0,5)
+DRILL_NARROW = True           # Phalanx und Schildwall lösen sich an Tor und Gasse nicht auf, sie werden schmaler
+DRILL_NARROW_MIN = 2          # schmaler als so viele Männer wird die Front nicht (sonst doch Mann für Mann)
+
 # Zeit
 TIME_SCALE = 0.5             # Spielzeit je Echtzeit (halbe Geschwindigkeit)
 

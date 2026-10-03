@@ -125,6 +125,12 @@ class App:
             self.command("angriff")
         elif key == pygame.K_h:
             self.command("halten")
+        elif key == pygame.K_l:
+            self.command("drill:locker")
+        elif key == pygame.K_p:
+            self.command("drill:phalanx")
+        elif key == pygame.K_g:
+            self.command("drill:geschlossen")
         elif key == pygame.K_SPACE:
             self.command("pause")
         elif key == pygame.K_r:
@@ -263,7 +269,7 @@ class App:
             self.menu_open = False
         elif key == "menue":
             self.menu_open = not self.menu_open
-        elif key in ("angriff", "halten", "formation") or key.startswith("formation:"):
+        elif key in ("angriff", "halten", "formation") or key.startswith(("formation:", "drill:")):
             if b.outcome is not None:
                 return
             sel = self._selection()
@@ -277,6 +283,8 @@ class App:
                 self.paused = False
             elif key.startswith("formation:"):
                 b.command_formation(sel, key.split(":")[1])
+            elif key.startswith("drill:"):
+                b.command_drill(sel, key.split(":")[1])
             else:
                 u = sel[0]
                 opts = u.formation_options()

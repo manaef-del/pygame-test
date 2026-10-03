@@ -228,6 +228,10 @@ class Lochos:
     file: bool = False                # auf dem Wehrgang: eine Reihe längs der Palisade
     formation: str = "linie"          # "linie", "o" (Kreis) oder "keil" (Reiter)
     mode: str = ""                    # freier Angriff je Waffengattung: "", "sturm" (Reiter: Stoß und Lösen)
+    drill: str = "phalanx"            # Modus der Hopliten: "locker", "phalanx", "geschlossen" (andere Gattungen: ohne Wirkung)
+    full_width: int | None = None     # vor Tor oder Gasse schmaler geworden: so breit war die Front vorher
+    _hoplite_key: tuple | None = field(default=None, repr=False, compare=False)
+    _hoplite_led: bool = field(default=False, repr=False, compare=False)
     hitrun_until: float = -1.0        # Reiter: bis dahin wird vom Feind abgesetzt
     flank_throw: bool = False         # KI-Peltasten: beim Plänkeln an die schildlose rechte Flanke einer Phalanx
     march: tuple | None = None        # (Ziel, Breite, Front): erst im Bogen hin, kurz vor dem Ziel aufmarschieren
@@ -259,7 +263,24 @@ class Lochos:
 
     @property
     def in_phalanx(self) -> bool:
-        return self.stance is Stance.PHALANX and self.in_line and not self.loose
+        return self.stance is Stance.PHALANX and self.in_line and not self.loose and self.drill_kind() != "locker"
+
+    def drill_kind(self) -> str:
+        """Der Modus, der wirkt: nur bei Hopliten (sonst "")."""
+        key = (id(self.rows), self.men)
+        if self._hoplite_key != key:                  # neu zählen, wenn sich die Reihen ändern
+            men = self.all_men()
+            self._hoplite_key = key
+            self._hoplite_led = bool(men) and 2 * sum(1 for m in men if m.kind.hoplite) >= len(men)
+        return self.drill if self._hoplite_led else ""
+
+    def man_gap(self) -> float:
+        """Abstand der Männer in der Reihe, je nach Modus."""
+        return config.MAN_SPACING * config.DRILL_SPACING.get(self.drill_kind(), (1.0, 1.0))[0]
+
+    def row_gap(self) -> float:
+        """Abstand der Reihen, je nach Modus."""
+        return config.ROW_SPACING * config.DRILL_SPACING.get(self.drill_kind(), (1.0, 1.0))[1]
 
     def bound_men(self) -> list[Man]:
         return [m for m in self.all_men() if m.bound]
@@ -293,7 +314,7 @@ class Lochos:
     def speed(self) -> float:
         base = min((m.speed for m in self.all_men()), default=1.0)
         factor = {"ram": config.RAM_SPEED_FACTOR, "tower": config.TOWER_SPEED_FACTOR}.get(self.engine, 1.0)
-        return base * factor
+        return base * factor * config.DRILL_SPEED.get(self.drill_kind(), 1.0)
 
     def mounted_men(self) -> list[Man]:
         return [m for m in self.all_men() if m.kind.cavalry and m.mounted]
@@ -342,11 +363,12 @@ class Lochos:
     def ring_radii(self) -> list[float]:
         """Halbmesser je Schicht, von außen nach innen; die äußere ist so weit,
         dass alle inneren Ringe mit Reihenabstand hineinpassen."""
-        need = [max(0.12, len(layer) * config.MAN_SPACING / (2 * math.pi)) for layer in self.layers()]
+        gap, rows = self.man_gap(), self.row_gap()
+        need = [max(0.12, len(layer) * gap / (2 * math.pi)) for layer in self.layers()]
         if not need:
             return [0.35]
-        outer = max(0.35, self.ring_size, max(r + i * config.ROW_SPACING for i, r in enumerate(need)))
-        return [outer - i * config.ROW_SPACING for i in range(len(need))]
+        outer = max(0.35, self.ring_size, max(r + i * rows for i, r in enumerate(need)))
+        return [outer - i * rows for i in range(len(need))]
 
     def ring_minimum(self) -> float:
         """Der engste Kreis, in dem alle Schichten Platz haben."""
@@ -372,7 +394,7 @@ class Lochos:
             return self.ring_radius() + 0.08
         if self.formation == "keil":
             return max(0.2, self.wedge_rows() * config.MAN_SPACING / 2 + 0.08)
-        return max(0.2, self.width * config.MAN_SPACING / 2 + 0.08)
+        return max(0.2, self.width * self.man_gap() / 2 + 0.08)
 
     @property
     def half_d(self) -> float:
@@ -381,7 +403,7 @@ class Lochos:
             return self.ring_radius() + 0.08
         if self.formation == "keil":
             return max(0.2, self.wedge_rows() * config.ROW_SPACING / 2 + 0.08)
-        return max(0.2, self.depth * config.ROW_SPACING / 2 + 0.08)
+        return max(0.2, self.depth * self.row_gap() / 2 + 0.08)
 
     @property
     def radius(self) -> float:
@@ -566,11 +588,12 @@ class Lochos:
                     break
             return out
         n_rows = len(self.rows)
+        gap, rows = self.man_gap(), self.row_gap()
         for r, row in enumerate(self.rows):
-            forward = ((n_rows - 1) / 2 - r) * config.ROW_SPACING
+            forward = ((n_rows - 1) / 2 - r) * rows
             n = len(row)
             for i, man in enumerate(row):
-                side = (i - (n - 1) / 2) * config.MAN_SPACING
+                side = (i - (n - 1) / 2) * gap
                 out.append((man, (cx + fx * forward - fy * side, cy + fy * forward + fx * side)))
         return out
 
@@ -608,7 +631,7 @@ class Lochos:
         total = sum(m.attack for m in front)
         if len(self.rows) > 1:
             total += config.SECOND_ROW_SPEARS * sum(m.attack for m in self.rows[1]
-                                                    if m.kind.hoplite and distance(m) <= reach + config.ROW_SPACING)
+                                                    if m.kind.hoplite and distance(m) <= reach + self.row_gap())
         if not front:
             nearest = sorted(self.rows[0], key=distance)[:2]
             total = 0.5 * sum(m.attack for m in nearest)
@@ -624,13 +647,14 @@ class Lochos:
 
     def formation_options(self) -> tuple[str, ...]:
         """Linie immer; mit Fußvolk auch den Kreis (Reiter und Peltasten darin
-        in inneren Ringen), reine Reiter den Keil, reine Peltasten den Kreis."""
+        in inneren Ringen), reine Reiter den Keil. Reinen Peltasten hilft der Kreis
+        ohne Schildwand nicht: nur die Linie."""
         men = self.all_men()
         if any(not m.kind.cavalry and not m.kind.ranged for m in men):
             return ("linie", "o")
         if men and all(m.kind.cavalry for m in men):
             return ("linie", "keil")
-        return ("linie", "o")
+        return ("linie",)
 
     def cavalry_share(self) -> float:
         """Anteil berittener Männer in der vorderen Reihe."""

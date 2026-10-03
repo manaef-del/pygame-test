@@ -24,8 +24,9 @@ def quiet_raid() -> Scenario:
                     enemy_max=8, houses=((2, 17),), raider_spawns=(RaiderSpawn(1.0, 1.0),))
 
 
-def line_and_block(block_at=(8.0, 11.5), block_width=14) -> tuple[Battle, object, object]:
-    """Eine Phalanx (14 breit) steht bei (8, 9) auf ihrem Posten, ein Block dahinter."""
+def line_and_block(block_at=(8.0, 11.5), block_width=14, drill="locker") -> tuple[Battle, object, object]:
+    """Eine Phalanx (14 breit) steht bei (8, 9) auf ihrem Posten, ein Block dahinter (im
+    Modus ``drill``: locker löst er sich auf, um vorbeizukommen, als Phalanx nicht)."""
     army = Army(groups=[GroupSpec("Linie", [Tier("schwer", 14), Tier("mittel", 14)]),
                         GroupSpec("Block", [Tier("schwer", 14), Tier("mittel", 13), Tier("leicht", 13)])])
     b = Battle(quiet_raid(), random.Random(0), army=army, ai="einfach")
@@ -41,6 +42,7 @@ def line_and_block(block_at=(8.0, 11.5), block_width=14) -> tuple[Battle, object
         u.target = pos if phalanx else None
         u.in_line = phalanx
         u.place_men()
+    block.drill = drill
     return b, line, block
 
 
@@ -211,6 +213,7 @@ def test_gate_line_streams_through_and_forms():
     b.gate.closed = False
     b.gate.hp = 0
     hop = b.units(Side.STADT)[0]
+    hop.drill = "locker"
     b.alarm = False
     b.command_line([hop], (5.0, 4.5), (11.0, 4.5))
     went_loose = False
@@ -218,7 +221,39 @@ def test_gate_line_streams_through_and_forms():
         b.update(DT)
         went_loose = went_loose or hop.loose
     assert went_loose
+    b.command_drill([hop], "phalanx")
+    for _ in range(int(2 / DT)):
+        b.update(DT)
     assert not hop.loose and hop.in_phalanx and dist(hop.pos, (8.0, 4.5)) < 0.1
+
+
+def test_phalanx_narrows_through_the_gate_and_widens_behind():
+    """Eine Phalanx löst sich am offenen Tor nicht auf: Sie wird schmaler und tiefer,
+    zieht als Block hindurch und marschiert dahinter wieder in voller Breite auf."""
+    b = Battle(SIEDLUNG_WALL, random.Random(1), ai="einfach", doctrine="spiegel", enemy_count=12)
+    for i, e in enumerate(b.units(Side.FEIND)):
+        e.x, e.y = 1.5 + i * 0.1, 0.8 + i * 0.1
+        e.target = None
+        e.stance = Stance.HALTEN
+        e.place_men()
+    b._ai_defenders = lambda: None
+    b._volleys = lambda dt: None
+    b.gate.closed = False
+    b.gate.hp = 0
+    hop = b.units(Side.STADT)[0]
+    assert hop.drill == "phalanx"
+    b.alarm = False
+    b.command_line([hop], (5.0, 4.5), (11.0, 4.5))
+    plan_width = b.line[0].width
+    narrowest = hop.width
+    for _ in range(int(20 / DT)):
+        b.update(DT)
+        assert not hop.loose                                         # nie Mann für Mann
+        narrowest = min(narrowest, hop.width)
+        if hop.full_width is not None:
+            assert hop.half_w <= b.gate.half_len                     # die Front passt durchs Tor
+    assert narrowest < plan_width                                    # im Tor schmaler
+    assert hop.width == plan_width and hop.in_phalanx and dist(hop.pos, (8.0, 4.5)) < 0.1
 
 
 def test_hold_and_merge_close_a_dissolved_group_where_its_men_are():
@@ -429,6 +464,19 @@ def test_small_detour_around_own_group_stays_a_block():
     assert not went_loose
     assert dist(block.pos, (4.0, 4.0)) < 0.3
     assert all(f[1] <= 0.05 for f in facings)               # kein Ausschlag zurück nach Süden an der Ecke
+
+
+def test_phalanx_goes_around_its_own_line_as_a_block():
+    """Im Modus Phalanx löst sich der Block vor der stehenden eigenen Linie nicht auf: Er
+    geht als Block außen herum und kommt geschlossen am Ziel an."""
+    b, line, block = line_and_block(drill="phalanx")
+    b.command_move([block], (8.0, 6.0))
+    for _ in range(int(20 / DT)):
+        b.update(DT)
+        assert not block.loose
+        closest = min(dist(m.pos, n.pos) for m in block.all_men() for n in line.all_men())
+        assert closest >= 2 * config.MAN_RADIUS - 1e-6
+    assert dist(block.pos, (8.0, 6.0)) < 0.3
 
 
 def test_big_detour_still_goes_man_by_man():

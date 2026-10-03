@@ -1519,6 +1519,8 @@ class Battle:
                     g.stance = Stance.PLAENKELN
                 else:
                     g.stance = Stance.ANGRIFF
+                    if g.drill == "geschlossen":
+                        g.drill = "phalanx"               # aus dem Schildwall kann man nicht stürmen
                     if arm == "reiter" and g.mounted_men():
                         g.mode = "sturm"
                         g.hitrun_until = -1.0
@@ -1543,6 +1545,33 @@ class Battle:
                 u.stance = Stance.HALTEN
                 u.target = None
         self.events.append("Halten")
+
+    def command_drill(self, units: list[Lochos] | None, name: str) -> int:
+        """Modus der Hopliten setzen: locker, Phalanx oder geschlossen. Wer steht, bildet
+        mit Phalanx oder geschlossen an Ort und Stelle die Formation (wie „Halten“); wer
+        unterwegs ist, marschiert im neuen Modus weiter. Andere Gattungen kennen keine Modi."""
+        if name not in config.DRILLS:
+            return 0
+        self.alarm = False
+        changed = 0
+        for u in self._selection(units):
+            if u.arm() != "hopliten" or self.on_wall(u):
+                continue
+            was = u.drill
+            u.drill = name
+            if u.stance is Stance.ANGRIFF and u.target_id is None:
+                u.stance = Stance.HALTEN              # Sturm vorbei: der neue Modus gilt ab hier
+                u.target = None
+            if name != "locker" and u.target is None and not u.engaged:
+                self._settle(u)
+                u.stance = Stance.PHALANX
+                u.target = u.pos
+            if was != name:
+                u.in_line = False                     # neue Abstände: die Männer rücken an ihre Plätze
+                changed += 1
+        if changed:
+            self.events.append(f"Modus: {config.DRILL_NAMES[name]}")
+        return changed
 
     def command_formation(self, units: list[Lochos] | None, name: str) -> int:
         """Formation der gewählten Gruppen setzen, wenn ihre Waffengattung sie kennt."""
@@ -1764,7 +1793,7 @@ class Battle:
         usable = max(0.3, length - gap * (len(sel) - 1))
         for u in sel:
             seg = usable * u.men / total_men
-            width = max(1, min(u.men, int(seg / config.MAN_SPACING)))
+            width = max(1, min(u.men, int(seg / u.man_gap())))
             depth = math.ceil(u.men / width)
             center = add(start, scale(axis, pos + seg / 2))
             plans.append(LinePlan(u.id, self._free_spot(center, u), facing, width, depth, seg))
@@ -1785,21 +1814,22 @@ class Battle:
         front = by_arm["hopliten"] or by_arm["peltasten"]
         second = by_arm["peltasten"] if by_arm["hopliten"] else []
         plans = self._plan_row(front, start, end)
-        front_half = max(p.depth for p in plans) * config.ROW_SPACING / 2
+        gaps = {u.id: (u.man_gap(), u.row_gap()) for u in sel}
+        front_half = max(p.depth * gaps[p.unit_id][1] for p in plans) / 2
         if second:
             # etwas kürzer als die Front, damit die Enden der Phalanx frei bleiben
             length = dist(start, end)
             trim = length * (1 - config.ORDER_SECOND_SHARE) / 2
             a, b = add(start, scale(axis, trim)), add(end, scale(axis, -trim))
             row = self._plan_row(second, a, b)
-            half = max(p.depth for p in row) * config.ROW_SPACING / 2
+            half = max(p.depth * gaps[p.unit_id][1] for p in row) / 2
             shift = scale(back, front_half + config.ORDER_SECOND_GAP + half)
             plans += [LinePlan(p.unit_id, self._free_spot(add(p.center, shift), self.by_id(p.unit_id)),
                                p.facing, p.width, p.depth, p.length) for p in row]
         # Reiter: abwechselnd rechts und links neben die Front, die Fronten bündig
         mid = scale(add(start, end), 0.5)
         along_of = [(p.center[0] - mid[0]) * axis[0] + (p.center[1] - mid[1]) * axis[1] for p in plans[:len(front)]]
-        halves = [p.width * config.MAN_SPACING / 2 for p in plans[:len(front)]]
+        halves = [p.width * gaps[p.unit_id][0] / 2 for p in plans[:len(front)]]
         edges = {1: max(a + h for a, h in zip(along_of, halves)) + config.ORDER_WING_GAP,
                  -1: -min(a - h for a, h in zip(along_of, halves)) + config.ORDER_WING_GAP}
         for k, u in enumerate(sorted(by_arm["reiter"], key=lambda u: -u.men)):
@@ -1847,6 +1877,7 @@ class Battle:
                 continue
             self._wake(u)
             u.formation = "linie"
+            u.full_width = None
             u.ring_size = 0.0
             u.mode = ""
             u.stance = Stance.PHALANX
@@ -2317,7 +2348,9 @@ class Battle:
         """Aufmarschieren: die befohlene Breite und Front einnehmen."""
         _, width, facing = u.march
         u.march = None
-        if width != u.width:
+        if u.full_width is not None:
+            u.full_width = width                  # noch im Engpass: erst dahinter in voller Breite aufmarschieren
+        elif width != u.width:
             u.reform(width)
         u.face_to = facing
 
@@ -2331,7 +2364,7 @@ class Battle:
         if abs(self._angle_to(u.facing, want)) > config.ABOUT_TURN:
             self._about_turn(u)
         ang = self._angle_to(u.facing, want)
-        rate = min(config.MARCH_WHEEL_MAX, config.MARCH_WHEEL / max(0.3, u.half_w))
+        rate = min(config.MARCH_WHEEL_MAX, config.MARCH_WHEEL / max(0.3, u.half_w)) * config.DRILL_TURN.get(u.drill_kind(), 1.0)
         turn = max(-rate * dt, min(rate * dt, ang))
         fx, fy = u.facing
         c, s_ = math.cos(turn), math.sin(turn)
@@ -2625,7 +2658,7 @@ class Battle:
         if about and abs(ang) > config.ABOUT_TURN and not u.loose:
             self._about_turn(u)
             ang = self._angle_to(u.facing, want)
-        limit = config.STAND_TURN_RATE * dt
+        limit = config.STAND_TURN_RATE * config.DRILL_TURN.get(u.drill_kind(), 1.0) * dt
         if abs(ang) <= limit:
             u.facing = want
             return 0.0
@@ -2653,7 +2686,7 @@ class Battle:
         u.heading = u.facing
         u.in_line = False
         u.vel = 0.0
-        duration = config.COUNTERMARCH_BASE + config.COUNTERMARCH_PER_ROW * max(0, len(u.rows) - 1)
+        duration = (config.COUNTERMARCH_BASE + config.COUNTERMARCH_PER_ROW * max(0, len(u.rows) - 1)) / config.DRILL_TURN.get(u.drill_kind(), 1.0)
         u.countermarch_until = self.time + duration
 
     def _coast(self, u: Lochos, dt: float) -> None:
@@ -2697,6 +2730,8 @@ class Battle:
         if not u.loose:
             if why:
                 self._dissolve(u, why)
+            else:
+                self._widen_again(u)
             return
         if why:
             if why == "wall" and not u.over_wall:
@@ -2729,8 +2764,8 @@ class Battle:
             if self.ring:
                 levels = {self._wall_level(m.pos) for m in u.all_men()} | {centre_level}
                 levels.discard("tor")             # der Tordurchgang ist keine Wallseite
-                if on_route or len(levels) > 1 or "wall" in levels:
-                    return "wall"
+                if on_route or "wall" in levels or (len(levels) > 1 and not self._keeps_order(u)):
+                    return "wall"                 # (eine Phalanx, die als Block durchs Tor zieht, steht kurz auf beiden Seiten)
             elif on_route or any(self._wall_level(m.pos) != centre_level for m in u.all_men()):
                 return "wall"                     # der Weg führt über den Wall, oder Männer stehen noch drüben oder oben
         if (u.target is None or u.engine is not None or u.building is not None or u.stance is Stance.FLUCHT
@@ -2768,11 +2803,86 @@ class Battle:
             why = "eigene"                        # eine ruhende eigene Gruppe steht im Weg (hinter kämpfenden steht man an)
         if not why and self._narrow_way(u):
             why = "enge"                          # der Block passt nicht durch die Gasse: Mann für Mann statt großem Umweg
+        if why in ("tor", "eigene", "enge") and self._keeps_order(u):
+            # Phalanx und Schildwall bleiben zusammen: um eigene Gruppen als Block herum,
+            # durch Tor und Gasse schmaler und tiefer statt Mann für Mann
+            if why == "eigene" or self._narrow_column(u, why):
+                return ""
         if why and self._field_builds.get(self.time, 0) >= self._field_budget():
             return ""                             # in diesem Takt schon genug Wegefelder gerechnet: einen Takt später auflösen
         if why and not self._way_open(u):
             return ""                             # kein Durchkommen (die eigenen kämpfen im Durchgang): als Block anstehen
         return why
+
+    def _keeps_order(self, u: Lochos) -> bool:
+        """Hält die Gruppe auf dem Marsch ihre Ordnung (Phalanx oder Schildwall in Linie)?"""
+        return (config.DRILL_NARROW and not u.loose and u.formation == "linie" and u.stance is not Stance.FLUCHT
+                and u.drill_kind() in ("phalanx", "geschlossen"))
+
+    def _narrow_column(self, u: Lochos, why: str) -> bool:
+        """Vor Tor oder Gasse schmaler werden, so dass die Front hindurchpasst (die Reihen
+        werden tiefer). False, wenn selbst die schmalste Front nicht passt: dann doch Mann
+        für Mann."""
+        if u.target is None:
+            return False
+        if why == "tor":
+            gates = [g for g in self.gates if not g.closed]
+            if not gates:
+                return False
+            goal, _ = self.route(u, u.target)
+            g = min(gates, key=lambda g: dist(g.center, u.pos) + dist(g.center, goal))
+            lane = g.half_len
+        else:
+            thin = self._block_path(u.pos, u.target, config.NARROW_MIN_WIDTH)
+            if not thin:
+                return False
+            inner = [self._room_at(p) for p in thin if dist(p, u.pos) > 0.8 and dist(p, u.target) > 0.8]
+            lane = min(inner) if inner else math.inf
+        if lane == math.inf:
+            return True
+        width = int((lane - 0.15) * 2 / u.man_gap())         # halbe Front plus Rand passt in die halbe Gasse
+        if width >= u.width:
+            return True                                     # passt schon
+        if width < config.DRILL_NARROW_MIN:
+            return False
+        if u.full_width is None:
+            u.full_width = u.width
+            self.events.append(f"{u.name}: schmaler, {width} breit durch den Engpass")
+        u.reform(width)
+        u.in_line = False
+        self._narrow_cache.pop(u.id, None)
+        return True
+
+    def _widen_again(self, u: Lochos) -> None:
+        """Hinter dem Engpass wieder in die volle Breite: sobald alle Männer durchs Tor sind,
+        die volle Front hier Platz hat und der Weg zum Ziel für sie frei ist."""
+        if u.full_width is None or u.loose or not u.alive:
+            return
+        if u.full_width <= u.width:
+            u.full_width = None
+            return
+        if int(self.time * 4) % 2 != u.id % 2:
+            return                                          # nur jeden zweiten Viertelschritt prüfen
+        if u.target is not None and self.blocked and not self.wall_clear(u.pos, u.target):
+            return                                          # das Tor kommt noch
+        levels = {self._wall_level(m.pos) for m in u.all_men()}
+        if len(levels) > 1 or "tor" in levels:
+            return                                          # noch im Tor
+        half = u.full_width * u.man_gap() / 2 + 0.08
+        fx, fy = u.facing
+        ax, ay = -fy, fx
+        for k in (-1.0, -0.5, 0.0, 0.5, 1.0):
+            for f in (-u.half_d, 0.0, u.half_d):
+                p = (u.x + ax * half * k + fx * f, u.y + ay * half * k + fy * f)
+                if not self.inside(*p) or self.is_blocked(p[0], p[1], u) or self._room_at(p) < 0.05:
+                    return
+        if u.target is not None and dist(u.pos, u.target) > 0.8:
+            r = min(half, config.BLOCK_CLEARANCE_MAX) + 0.03
+            if not self._wide_clear(u.pos, u.target, r):
+                return
+        u.reform(u.full_width)
+        u.full_width = None
+        u.in_line = False
 
     def _narrow_way(self, u: Lochos) -> bool:
         """Passt der Block nicht durch eine Gasse zwischen Häusern (oder Gerät), sodass Mann für
@@ -2847,6 +2957,9 @@ class Battle:
     def _dissolve(self, u: Lochos, why: str) -> None:
         if u.march is not None and u.march[0] == u.target:
             self._deploy(u)                       # jeder geht einzeln an seinen Platz: gleich in der befohlenen Aufstellung
+        if u.full_width is not None:
+            u.reform(u.full_width)                # aufgelöst zählt wieder die volle Breite
+            u.full_width = None
         u.loose = True
         u.loose_why = why
         u.in_line = False
@@ -3105,9 +3218,12 @@ class Battle:
         else:
             level = None
         c = (sum(m.x for m in men) / len(men), sum(m.y for m in men) / len(men))
+        others = [o for o in self.lochoi if o is not u and o.alive and not o.loose]
         if (self.is_blocked(*c, u) or (level is not None and self._wall_level(c) != level)
-                or any(o is not u and o.alive and not o.loose and o.rect_distance(c) == 0.0 for o in self.lochoi)):
-            m = min(men, key=lambda m: (m.x - u.x) ** 2 + (m.y - u.y) ** 2)
+                or any(o.rect_distance(c) == 0.0 for o in others)):
+            # (wer dicht an der anderen Gruppe entlanggeht, steht noch in ihrem Rand: lieber einer weiter außen)
+            clear = [m for m in men if not any(o.rect_distance(m.pos) == 0.0 for o in others)] or men
+            m = min(clear, key=lambda m: (m.x - u.x) ** 2 + (m.y - u.y) ** 2)
             return (m.x, m.y)
         return c
 
@@ -3848,7 +3964,8 @@ class Battle:
                     pairs.append((a, b))
                     a.engaged = True
                     a.contacts.append(b.id)
-                    if b.id not in previous.get(a.id, ()) and a.runup >= config.CHARGE_RUNUP and not a.loose:
+                    if (b.id not in previous.get(a.id, ()) and a.runup >= config.CHARGE_RUNUP and not a.loose
+                            and a.drill_kind() != "geschlossen"):
                         self._charge(a, b)                # erster Kontakt mit Anlauf: Aufprall
         for u in alive:
             u.contact_since = {bid: u.contact_since.get(bid, self.time) for bid in u.contacts}
@@ -3929,6 +4046,8 @@ class Battle:
             shield = b.shield_factor()
             if arc_name == "front":
                 front = config.PHALANX_FRONT_O if b.formation == "o" else config.PHALANX_FRONT
+                if b.drill_kind() == "geschlossen":
+                    front *= config.DRILL_CLOSED_FRONT        # Schild an Schild: noch dichter
                 mod = 1.0 + (front - 1.0) * shield
             elif arc_name == "rear":
                 mod = config.PHALANX_REAR
@@ -4099,6 +4218,12 @@ class Battle:
                 continue
             a.volley_timer = config.VOLLEY_INTERVAL
             shield = 1.0 - 0.5 * foe.shield_factor() if foe.in_phalanx else 1.0
+            drill = foe.drill_kind()
+            if drill == "geschlossen" and foe.in_phalanx and foe.arc_to(a.pos) == "front":
+                shield = 1.0 - config.DRILL_CLOSED_SHIELD * foe.shield_factor()   # die Schilde überlappen
+            elif drill == "locker":
+                # jeder trägt seinen Schild, und bei weiten Abständen gehen viele Speere ins Leere
+                shield = (1.0 - 0.5 * foe.shield_factor()) * config.DRILL_LOOSE_MISSILE
             targets = foe.all_men()
             for m in throwers:
                 m.ammo -= 1

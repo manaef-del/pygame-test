@@ -222,8 +222,9 @@ class Renderer:
         for plan in plans:
             fx, fy = plan.facing
             ax, ay = -fy, fx   # entlang der Linie
-            half_w = plan.width * MAN_SPACING / 2
-            half_d = plan.depth * ROW_SPACING / 2
+            g = battle.by_id(plan.unit_id)
+            half_w = plan.width * (g.man_gap() if g else MAN_SPACING) / 2
+            half_d = plan.depth * (g.row_gap() if g else ROW_SPACING) / 2
             cx, cy = plan.center                           # die Mitte des Blocks, wie er stehen wird
             corners = [
                 (cx + ax * half_w + fx * half_d, cy + ay * half_w + fy * half_d),
@@ -242,8 +243,9 @@ class Renderer:
         for plan in plans:
             # Beschriftung hinter den Block, sonst daneben oder davor; wo alles belegt ist, keine
             fx, fy = plan.facing
-            half_w = plan.width * MAN_SPACING / 2
-            half_d = plan.depth * ROW_SPACING / 2
+            g = battle.by_id(plan.unit_id)
+            half_w = plan.width * (g.man_gap() if g else MAN_SPACING) / 2
+            half_d = plan.depth * (g.row_gap() if g else ROW_SPACING) / 2
             cx, cy = plan.center
             label = self.small.render(f"{plan.width} breit, {plan.depth} tief", True, config.COLOR_RECT)
             spots = [(-fx * (half_d + 0.35), -fy * (half_d + 0.35)),          # hinten
@@ -596,19 +598,32 @@ class Renderer:
         arms = {u.arm() for u in sel}
         arm = next(iter(arms)) if len(arms) == 1 else "gemischt"
         mixed = any(battle.mixed(u) for u in sel)                 # gemischte Gruppe: teilt sich beim Angriff
-        items: list[tuple[str, str, float, bool, str | None]] = [           # key, label, Gewicht, aktiv, Unterzeile
-            ("angriff", "Angriff" if mixed else ATTACK_LABEL.get(arm, "Angriff"), 1.6, False,
-             "je Gattung" if mixed else None),
-            ("halten", "Phalanx bilden" if arm == "hopliten" else "Halten", 1.6, False, None),
-        ]
+        storming = all(u.stance is Stance.ANGRIFF and u.target_id is None for u in sel)
+        items: list[tuple[str, str, float, bool, str | None]] = []          # key, label, Gewicht, aktiv, Unterzeile
+        if arm == "hopliten" and not mixed:
+            # die Modi: locker, Phalanx, geschlossen, dazu der Sturm
+            for name in config.DRILLS:
+                items.append((f"drill:{name}", config.DRILL_NAMES[name], 1.25 if name == "geschlossen" else 1.0,
+                              not storming and all(u.drill == name for u in sel), None))
+            items.append(("angriff", ATTACK_LABEL["hopliten"], 1.0, storming, None))
+        else:
+            items.append(("angriff", "Angriff" if mixed else ATTACK_LABEL.get(arm, "Angriff"), 1.6, False,
+                          "je Gattung" if mixed else None))
+            items.append(("halten", "Halten", 1.6, False, None))
         if len(sel) >= 2:
             items.append(("vereinen", "Vereinen", 1.4, False, None))
+        engines = battle.scenario.ram_available
         if arm != "gemischt":
             opts = sel[0].formation_options()
-            for name in opts:
-                items.append((f"formation:{name}", FORMATION_NAMES[name].replace("-Stellung", ""), 0.9,
-                              all(u.formation == name for u in sel), None))
-        if battle.scenario.ram_available:
+            if len(opts) > 1 and engines and arm == "hopliten":
+                # wenig Platz: ein Knopf, der die Formation weiterschaltet
+                now = sel[0].formation
+                items.append(("formation", FORMATION_NAMES[now], 1.0, False, "wechseln"))
+            elif len(opts) > 1:
+                for name in opts:
+                    items.append((f"formation:{name}", FORMATION_NAMES[name].replace("-Stellung", ""), 0.9,
+                                  all(u.formation == name for u in sel), None))
+        if engines:
             gate_open = battle.gate is not None and not battle.gate.closed
             for key, kind, name in (("rammbock", "ram", "Rammbock"), ("turm", "tower", "Turm")):
                 carrying = any(u.engine == kind for u in sel)
@@ -639,7 +654,11 @@ class Renderer:
         if battle.on_wall(u):
             return "Wehrgang"
         if u.stance is Stance.PHALANX:
-            return "Phalanx" if u.in_phalanx else "formiert sich"
+            drill = u.drill_kind()
+            if drill == "locker":
+                return "locker"
+            name = "geschlossen" if drill == "geschlossen" else "Phalanx"
+            return name if u.in_phalanx else "formiert sich"
         if u.stance is Stance.PLAENKELN:
             return "plänkelt"
         if u.stance is Stance.ANGRIFF:
