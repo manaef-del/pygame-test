@@ -60,6 +60,13 @@ wandert nach unten.
    entlang, auch durch Ecktürme und über Tore. Nur wenn es schneller geht,
    steigt er eine Leiter hinab und anderswo wieder hinauf; dabei rechnet
    er ein, dass Hinab- und Hinaufsteigen viel Zeit kostet.
+9. **Formationsmodi.** Unten eine von drei Haltungen wählen, die dauerhaft
+   gilt und die Bewegung prägt: Sturmangriff, Phalanx, geschlossene
+   Stellung; für Hopliten dazu eine lockere Formation. Eine Gruppe in
+   Phalanx bleibt auch beim Marsch immer zusammen: An Engpässen schmälert
+   sich ihr Rechteck, bis die Truppe durchpasst, statt sich aufzulösen. Was
+   die Modi im Einzelnen bedeuten und wie sie für Peltasten und Reiter
+   aussehen, klären wir nach dem Umbau von Hauptmann und Wehrgang.
 
 ## Zurückgestellt
 
