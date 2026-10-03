@@ -28,9 +28,6 @@ wandert nach unten.
    jeder Mann seine offene rechte Seite in den Schild des Nebenmanns
    schiebt; der rechte Flügel ist der Ehrenplatz. Seit der Schildseite
    (Lauf 22) wäre das die naheliegende Fortsetzung. Geringer Aufwand.
-2. **Mehrere Gruppen wählen.** Bisher wählt man eine Gruppe oder alle.
-   Mit einer Auswahl von zwei oder drei Gruppen ließe sich die
-   Schlachtordnung auch für einen Teil des Heers ziehen. Geringer Aufwand.
 3. **Hang und Höhe.** Gelände, das Tempo und Kampf beeinflusst. Großer
    Aufwand.
 5. **Festung: Turm allein reicht nicht.** Über einen Belagerungsturm allein
@@ -49,13 +46,11 @@ wandert nach unten.
    streuen die Geschosse breiter, sodass einige danebengehen. Wer
    gerade läuft, wird dann nicht mehr hinter sich getroffen, wer stehen
    bleibt oder abrupt wendet, entgeht manchem Wurf.
-9. **Formationsmodi.** Unten eine von drei Haltungen wählen, die dauerhaft
-   gilt und die Bewegung prägt: Sturmangriff, Phalanx, geschlossene
-   Stellung; für Hopliten dazu eine lockere Formation. Eine Gruppe in
-   Phalanx bleibt auch beim Marsch immer zusammen: An Engpässen schmälert
-   sich ihr Rechteck, bis die Truppe durchpasst, statt sich aufzulösen. Was
-   die Modi im Einzelnen bedeuten und wie sie für Peltasten und Reiter
-   aussehen, klären wir nach dem Umbau von Hauptmann und Wehrgang.
+10. **Verbände für die Gegner-KI.** Die KI bildet noch keine Verbände und
+    wechselt keine Modi; denkbar wären etwa ein Schildwall der Besatzung am
+    Tor oder eine lockere Ordnung der Siedlung gegen Peltasten.
+11. **Reiter verfolgen.** Ein Modus für Reiter, der selbstständig
+    Fliehende und ungeordnete Gruppen jagt (nie eine Phalanxfront).
 
 ## Zurückgestellt
 
@@ -71,6 +66,12 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Modi der Hopliten und Verbände** (3. Oktober 2026): Locker, Phalanx,
+  Geschlossen und Sturm; die Phalanx wird an Tor und Gasse schmaler statt
+  sich aufzulösen. Keine gemischten Gruppen mehr: Mehrere Gruppen bilden
+  einen Verband, per Langdrücken gewählt, mit Rahmen in der Seitenleiste
+  und einer Tafel zum Anordnen (docs/ki-simulation.md, Lauf 31). Damit ist
+  auch „Mehrere Gruppen wählen“ erledigt.
 - **Umweg-Flackern** (3. Oktober 2026): Hysterese an der Schwelle, gemerkte
   Seite, gegenseitiges Warten gelöst, gegen einen Kreis keine Flankensuche
   (docs/ki-simulation.md, Lauf 30).

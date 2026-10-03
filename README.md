@@ -114,8 +114,10 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   wo sie stehen: Wer seinen Platz erreicht hat, verlässt ihn nicht noch
   einmal. Über den Wall zeigt die Front danach vom Wall weg, sonst wie
   befohlen oder in Marschrichtung. Angriffe bleiben Block, ebenso, wer
-  durch ein Tor muss, an dem gekämpft wird. Halten oder Vereinen schließt
-  eine aufgelöste Gruppe sofort dort, wo ihre Männer stehen.
+  durch ein Tor muss, an dem gekämpft wird. Halten oder „Verband bilden“
+  schließt eine aufgelöste Gruppe sofort dort, wo ihre Männer stehen.
+  Hopliten im Modus Phalanx oder geschlossen lösen sich nur noch über den
+  Wall auf (siehe „Modi der Hopliten“).
 - **Sammelplatz hinter dem Wall.** Wer über den Wall steigt und weiter will,
   sammelt sich drüben zuerst: am Fuß der Leiter, über die die Männer
   hinabsteigen, mit etwas Abstand zum Wall und der Front zum Ziel. Jede
@@ -240,6 +242,25 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
 - **Halten** (nur für gewählte Gruppen): Hopliten bilden an Ort und
   Stelle eine Phalanx mit der Front, wie sie gerade stehen; Peltasten und
   Reiter bleiben stehen und kämpfen rundum ohne Bonus.
+- **Modi der Hopliten.** Hopliten haben einen Modus, der gilt, bis man
+  ihn wechselt; die Leiste zeigt „Locker“, „Phalanx“, „Geschlossen“ und
+  „Sturm“ (Tasten L, P, G, A).
+  - *Locker*: weite Abstände (1,7-fach in der Reihe), 15 % schneller,
+    ohne Phalanxbonus; Wurfspeere treffen seltener. An Tor, Gasse und
+    eigenen Gruppen löst sich die Gruppe auf und geht Mann für Mann.
+  - *Phalanx* (Standard): wie gewohnt im Kampf. Auf dem Marsch bleibt sie
+    zusammen: Um eigene Gruppen geht sie als Block herum, vor Tor und
+    Gasse wird sie schmaler und tiefer, bis die Front hindurchpasst, und
+    marschiert dahinter wieder in voller Breite auf. Passt nicht einmal
+    eine Front von zwei Mann, geht sie doch Mann für Mann.
+  - *Geschlossen* (Schildwall): Schild an Schild, 40 % langsamer und
+    träger im Schwenken; von vorn nimmt sie noch ein Viertel weniger
+    Schaden als die Phalanx, und die Schilde fangen drei Viertel der Speere
+    von vorn. Aus dem Schildwall gibt es keinen Aufprall mit Anlauf.
+  - *Sturm*: der freie Angriff (siehe „Angriff“); aus dem Schildwall
+    heraus wird zuerst wieder Phalanx.
+  Wer steht, bildet mit Phalanx oder geschlossen an Ort und Stelle die
+  Formation; wer unterwegs ist, marschiert im neuen Modus weiter.
 - **Formationen:** Standard ist die Linie. Die Leiste zeigt für die
   gewählte Gruppe die möglichen Formationen, F schaltet weiter. Gruppen
   mit Fußvolk: Linie und Kreis (rundum Front ohne Flanke und Rücken,
@@ -250,25 +271,41 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Männer Platz brauchen, höchstens drei Kacheln); ein weiter Kreis steht
   lockerer. Reine Reiter: Linie und
   Keil; der Keil trifft beim Sturm halb so viele Männer, die aber fast
-  doppelt so hart. Reine Peltasten: Linie und Kreis. Wer eine neue Linie
-  zieht, steht wieder in Linie.
-- **Gemischte Gruppen im Kreis** stehen in Schichten: das Fußvolk
-  bildet den äußeren Ring, Reiter den mittleren,
-  Peltasten den inneren; jede Schicht ist um einen Reihenabstand nach
-  innen gerückt, die inneren Ringe stehen auf Lücke. Innerhalb einer
-  Schicht wechseln die Reihen ab wie in einer einzigen langen Reihe:
-  ein Mann der ersten Reihe, einer der zweiten, einer der dritten und so
-  fort, damit schwere, mittlere und leichte Hopliten gleichmäßig um die
-  Front verteilt sind. „Halten“ bildet nur bei Hoplitenmehrheit eine
-  Phalanx.
-- **Angriff einer gemischten Gruppe teilt sie** nach Gattung: Die Reiter
-  stürmen voraus, die Peltasten folgen im Plänkeln, die Hopliten stürmen
-  als Langsamste hinterher, jede Gattung in ihrem Tempo und mit ihrem
-  eigenen Verhalten. Die Männer bleiben dabei stehen und laufen aus ihrer
-  Position los; die größte Gattung behält die Gruppe, die anderen werden
-  eigene Gruppen mit eigener Kachel. Alle Teile bleiben gewählt. Sind
-  mehrere Gruppen gewählt, vereint „Vereinen“ (V) sie wieder zu einer
-  Linie an ihrem gemeinsamen Schwerpunkt.
+  doppelt so hart. Reine Peltasten: nur die Linie (ohne Schildwand hilft
+  ihnen der Kreis nicht). Wer eine neue Linie zieht, steht wieder in Linie.
+- **Verbände.** Jede Gruppe hat nur eine Gattung. Mehrere Gruppen bilden
+  einen Verband: rechts lange auf weitere Kacheln drücken (die Gruppe kommt
+  zur Auswahl dazu), dann „Verband bilden“ (V). Die Gruppen stellen sich
+  gleich in Schlachtordnung auf, Hopliten vorn, die Reiter an den Flügeln
+  (die größte rechts), die Peltasten dahinter. Eine Gruppe mit mehreren
+  Gattungen aus der Aufstellung wird in der Schlacht je Gattung eine
+  Gruppe, zusammen ein Verband.
+  - Die Kacheln eines Verbands stehen beisammen, ein Rahmen mit Kopfzeile
+    („V1“) umschließt sie. Die Kopfzeile wählt den ganzen Verband, eine
+    Kachel nur diese Gruppe.
+  - Ist der Verband gewählt, bewegt Tippen auf die Karte ihn dorthin (die
+    vordere Reihe mit ihrer Mitte an den Punkt, die Front in
+    Marschrichtung), Ziehen legt die vordere Reihe auf die Linie. Alle
+    gehen im Tempo der langsamsten Gruppe, die Reiter reiten nicht voraus.
+  - „Anordnen“ öffnet eine Tafel über der Leiste: je Reihe eine Zeile,
+    oben vorn, darin die Sinnbilder der Gruppen von links nach rechts (wie
+    die Front schaut). Mit dem Finger verschiebt man sie: neben ein anderes
+    Sinnbild, in eine andere Zeile oder in die leere Zeile unten, dann wird
+    es eine neue Reihe hinten. Der Verband stellt sich sofort neu auf.
+    „Fertig“ schließt die Tafel.
+  - In einer Reihe stehen die Gruppen nebeneinander, die Fronten bündig:
+    Reiter drei Glieder tief, die anderen teilen sich die Länge nach
+    Mannzahl. Jede weitere Reihe steht dicht hinter der vorigen, auf drei
+    Vierteln ihrer Länge.
+  - „Kreis“ stellt die Reihen als Ringe ineinander, die vordere außen. Beim
+    Aufziehen treten die Männer der Ringe aneinander vorbei.
+  - Jede Gruppe behält ihren Modus und nimmt Befehle einzeln an, sie bleibt
+    dabei im Verband; der nächste Befehl an den Verband stellt sie wieder
+    an ihren Platz. Wer aus dem Verband heraus frei angreift (Sturm,
+    Plänkeln, Sturmangriff), kehrt an seinen Platz zurück, sobald nach dem
+    Handgemenge kein kämpfender Feind mehr in drei Kacheln Nähe ist.
+  - „Aus Verband“ nimmt eine gewählte Gruppe heraus, „Auflösen“ beendet den
+    Verband. Mit weniger als zwei Gruppen ist er keiner mehr.
 - **Wenden im Stand:** Bekommt eine stehende Gruppe ein Ziel in einer
   anderen Richtung, springt ihre Front nicht mehr um. Sie schwenkt mit
   einer halben Umdrehung je Sekunde, die Männer drehen auf ihren
@@ -546,14 +583,17 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
   mit Sinnbild der Gattung (Schild, Wurfspeer, Pferdekopf), Mannzahl und
   Moralbalken; im Kampf orange umrandet, auf der Flucht ausgegraut. Oben
   „Alle“ beziehungsweise „Keine“. Tippen wählt die Gruppe, nochmal tippen
-  wählt ab; so bleibt auch bei vielen Gruppen Platz. Tippen auf die Gruppe
-  im Feld geht weiterhin.
+  wählt ab; langes Drücken nimmt sie zur Auswahl dazu. Die Gruppen eines
+  Verbands stehen beisammen im Rahmen, die Kopfzeile wählt den Verband.
+  Tippen auf die Gruppe im Feld geht weiterhin.
 - **Unten nur die Befehle der gewählten Gruppen**, benannt nach dem,
-  was passiert: Hopliten „Sturm“, „Phalanx bilden“ und die Formationen
-  Linie, Kreis; Peltasten „Plänkeln“, „Halten“, Linie, Kreis; Reiter
-  „Sturmangriff“, „Halten“, Linie, Keil. Die aktive Formation ist
-  hervorgehoben, ein Tipp setzt sie direkt. Eine gemischte Auswahl zeigt
-  nur „Angriff“ und „Halten“. Beim Angriff mit Wall kommen „Rammbock“
+  was passiert: Hopliten „Locker“, „Phalanx“, „Geschlossen“, „Sturm“ und
+  die Formationen Linie, Kreis; Peltasten „Plänkeln“, „Halten“; Reiter
+  „Sturmangriff“, „Halten“, Linie, Keil. Der aktive Modus und die aktive
+  Formation sind hervorgehoben, ein Tipp setzt sie direkt. Mehrere
+  gewählte Gruppen: „Angriff“, „Halten“ und „Verband bilden“; ein
+  gewählter Verband: „Angriff“, „Halten“, Linie, Kreis, „Anordnen“ und
+  „Auflösen“; eine Gruppe im Verband zusätzlich „Aus Verband“. Beim Angriff mit Wall kommen „Rammbock“
   und „Turm“ dazu, mit dem Zustand als zweiter Zeile (bauen, abbrechen,
   ablegen); der Rammbock verschwindet, sobald das Tor offen ist. Ohne
   Auswahl steht in der Leiste ein Hinweis, nach der Schlacht „Neu“ und
@@ -573,14 +613,19 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 | Eingabe | Aktion |
 |---------|--------|
 | Tippen auf Gruppenkachel oder eigene Gruppe | auswählen (erneut tippen: abwählen) |
-| Tippen auf die Karte | gewählte Gruppen laufen dorthin |
+| Lange auf eine Gruppenkachel drücken | Gruppe zur Auswahl dazunehmen (oder herausnehmen) |
+| Tippen auf die Kopfzeile eines Verbands | den ganzen Verband wählen |
+| Tippen auf die Karte | gewählte Gruppen laufen dorthin (ein Verband in seiner Ordnung) |
 | Tippen auf Feind | gewählte Gruppen greifen diese an |
 | Tippen auf das Tor | gewählte Gruppen mit Rammbock brechen es auf (in der Festung das angetippte Tor) |
 | Tippen auf den Wall | gewählte Gruppen mit Turm setzen ihn dort an |
 | Ziehen auf der Karte | Front aufziehen: Länge = Breite, Richtung = Blickrichtung; bei Gruppen im Kreis: Anfang = Mitte, Länge = Halbmesser |
-| Sturm / Plänkeln / Sturmangriff / A | gewählte Gruppen greifen frei an, je Waffengattung (siehe oben); gemischte Gruppen teilen sich dafür nach Gattung |
-| Vereinen / V | mehrere gewählte Gruppen werden eine |
-| Phalanx bilden / Halten / H | Hopliten bilden an Ort und Stelle eine Phalanx, andere bleiben stehen |
+| Sturm / Plänkeln / Sturmangriff / A | gewählte Gruppen greifen frei an, je Waffengattung (siehe oben) |
+| Locker, Phalanx, Geschlossen / L, P, G | Modus der gewählten Hopliten |
+| Halten / H | Hopliten bilden an Ort und Stelle eine Phalanx, andere bleiben stehen |
+| Verband bilden / V | mehrere gewählte Gruppen werden ein Verband |
+| Anordnen | Tafel: Gruppen des Verbands mit dem Finger in Reihen ordnen |
+| Auflösen, Aus Verband | Verband beenden, eine Gruppe herausnehmen |
 | Linie, Kreis, Keil / F | Formation der gewählten Gruppe setzen (F schaltet weiter) |
 | Rammbock, Turm / B, T | gewählte Gruppen bauen das Gerät; erneut drücken: ablegen oder Bau abbrechen (nur beim Angriff mit Wall) |
 | Alle / Keine | alle Gruppen wählen oder Auswahl aufheben |
