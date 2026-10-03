@@ -1278,8 +1278,9 @@ def make_brain(kind: str, memory: Memory | None = None):
 
 def flank_route(b: "Battle", u: Lochos, foe: Lochos) -> Point | None:
     """Steht die Gruppe vor der Front einer Phalanx, liefert dies den
-    nächsten Wegpunkt um die Front herum; sonst ``None`` (direkt angreifen)."""
-    if not formed(foe):
+    nächsten Wegpunkt um die Front herum; sonst ``None`` (direkt angreifen). Ein
+    Kreis hat keine Flanke: um ihn herum zu gehen, bringt nichts."""
+    if not formed(foe) or foe.formation == "o":
         return None
     along, forward = foe.local(u.pos)
     if b.arc_of(foe, u.pos) != "front":
@@ -1310,7 +1311,7 @@ def flank_route(b: "Battle", u: Lochos, foe: Lochos) -> Point | None:
 def rear_route(b: "Battle", u: Lochos, foe: Lochos) -> Point | None:
     """Weg in den Rücken einer Phalanx: vor der Front erst neben die Flanke, von
     dort hinter die Ecke, dann hinter die Mitte; im Rücken ``None`` (angreifen)."""
-    if not formed(foe):
+    if not formed(foe) or foe.formation == "o":
         return None
     arc_now = b.arc_of(foe, u.pos)
     if arc_now == "rear":

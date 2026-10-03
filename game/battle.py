@@ -2410,13 +2410,16 @@ class Battle:
                 fp = min(free, key=lambda p: dist(p, u.pos))
                 dx, dy = norm(sub(goal, u.pos))
                 side = 1.0 if (fp[0] - u.x) * -dy + (fp[1] - u.y) * dx > 0 else -1.0
-        plan = self._detour_plan(u, goal, side=side)
+        sticky = config.DETOUR_STICKY
+        plan = self._detour_plan(u, goal, side=side, hyst=config.DETOUR_HYST if sticky and side else 0.0)
         if plan is None:
-            u.detour_side = 0.0                           # frei: beim nächsten Hindernis wird neu gewählt
+            if not sticky or self.time > u.detour_until:
+                u.detour_side = 0.0                       # frei: beim nächsten Hindernis wird neu gewählt
             return goal
         if free is not None and not free:
             return None                                   # am Gegner ist kein Platz mehr frei: geordnet dahinter warten
         wp, u.detour_side = plan                          # die Seite bleibt, bis man vorbei ist (kein Hin und Her)
+        u.detour_until = self.time + config.DETOUR_MEMORY # und noch kurz danach, falls gleich die nächste Gruppe kommt
         if not self.inside(*wp) or self.is_blocked(*wp) or not self.path_clear(u.pos, wp, u):
             return goal                                   # kein begehbarer Umweg (Palisade, Tor): dahinter anstehen
         return wp
@@ -2465,9 +2468,11 @@ class Battle:
         return plan[0] if plan is not None else None
 
     def _detour_plan(self, u: Lochos, goal: Point, idle_only: bool = False,
-                     side: float | None = None) -> tuple[Point, float] | None:
+                     side: float | None = None, hyst: float = 0.0) -> tuple[Point, float] | None:
         """Wie ``_detour``, mit der Seite (+1/-1 quer zum Weg), auf der man vorbeigeht;
-        ``side`` gibt sie vor, sonst die Seite, die dem Weg näher liegt."""
+        ``side`` gibt sie vor, sonst die Seite, die dem Weg näher liegt. ``hyst``: wer
+        schon ausweicht, gilt erst mit so viel mehr Abstand als vorbei (sonst schaltet ein
+        Block an der Schwelle jeden Schritt zwischen Umweg und geradem Weg)."""
         d = dist(u.pos, goal)
         if d < 1e-6:
             return None
@@ -2493,17 +2498,18 @@ class Battle:
             if along <= 0.0 or along - o.radius > d:
                 continue                                  # hinter uns oder erst hinter dem Ziel
             off = ox * px + oy * py
-            if abs(off) >= clear:
+            if abs(off) >= clear + hyst:
                 continue                                  # geht knapp vorbei
             if along > d - o.radius and (u.target_id is not None
                                          or self._gap_at(u, goal, o, u.face_to or u.facing) < config.SEPARATION):
                 continue                                  # das Ziel liegt bei ihr: Ankunft, oder dahinter kämpft man (anstehen)
             if best is None or along < best[0]:
                 s_ = side if side else (1.0 if off < 0 else -1.0)   # vorgegeben, sonst die Seite, die dem Weg näher liegt
-                wp = (o.x + px * s_ * clear, o.y + py * s_ * clear)
+                wide = clear + hyst                       # so weit hinaus, dass man dort auch als vorbei gilt
+                wp = (o.x + px * s_ * wide, o.y + py * s_ * wide)
                 if along < self._extent(o, *direction) + self._extent(u, *direction) + config.DETOUR_MARGIN:
                     # liegt man schon an ihr an: erst seitlich heraus, dann vorbei (nicht über ihre Ecke)
-                    lateral = off + s_ * clear
+                    lateral = off + s_ * wide
                     wp = (u.x + px * lateral, u.y + py * lateral)
                 best = (along, wp, s_)
         return (best[1], best[2]) if best is not None else None

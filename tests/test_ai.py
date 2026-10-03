@@ -3,7 +3,7 @@
 import random
 
 from game import config
-from game.ai import Brain, Memory, PLAN_NAMES
+from game.ai import Brain, Memory, PLAN_NAMES, formed, rear_route
 from game.army import Army, GroupSpec, Tier
 from game.battle import Battle
 from game.scenarios import OFFENE_SIEDLUNG, PALISADE, RAEUBERHORDE, SIEDLUNG_OFFEN, SIEDLUNG_WALL, RaiderSpawn, Scenario
@@ -85,6 +85,21 @@ def test_flank_route_walks_around_the_front_and_attacks_from_the_side():
     assert abs(wp[0] - 8.0) > hop.half_w                 # seitlich neben der Front
     raider.x, raider.y = hop.x + hop.half_w + 0.7, 9.0   # in der Flanke: direkt angreifen
     assert b.brain.flank_route(b, raider, hop) is None
+
+
+def test_a_ring_has_no_flank_to_walk_around():
+    """Gegen einen Kreis gibt es keinen Weg um die Front: Wer davor steht, greift an,
+    statt neben dem Kreis auf eine Flanke zu warten, die es nicht gibt."""
+    b = Battle(raid(16, (8.0, 3.0)), random.Random(0), army=line_army())
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_formation([hop], "o")
+    b.command_ring([hop], (8.0, 9.0), 1.0)
+    run(b, 6)
+    assert hop.formation == "o" and formed(hop)
+    raider = b.units(Side.FEIND)[0]
+    raider.x, raider.y = 8.0, 6.0
+    assert b.brain.flank_route(b, raider, hop) is None
+    assert rear_route(b, raider, hop) is None
 
 
 # ---------------------------------------------------------------- Pläne
