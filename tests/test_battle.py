@@ -1328,38 +1328,30 @@ def test_mixed_groups_form_nested_rings_with_alternating_rows():
     assert p.formation_options() == ("linie",) and len(p.layers()) == 2   # ohne Schildwand kein Kreis
 
 
-def test_mixed_group_splits_by_arm_on_free_attack_and_merges_back():
-    rows = [men("schwer", 10), men("mittel", 10), men("peltast", 6), men("reiter", 6)]
-    for t, row in enumerate(rows):
-        for m in row:
-            m.tier = t
+def test_mixed_group_of_the_muster_becomes_a_verband():
+    """Eine Gruppe mit mehreren Gattungen in der Aufstellung wird in der Schlacht je
+    Gattung eine eigene Gruppe; zusammen bilden sie einen Verband in Schlachtordnung
+    (Hopliten vorn, Reiter am Flügel, Peltasten dahinter). Im freien Angriff geht jede
+    in ihrem Tempo los, der Verband bleibt."""
     army = Army(groups=[GroupSpec("Gemischt", [Tier("schwer", 10), Tier("mittel", 10), Tier("peltast", 6), Tier("reiter", 6)])])
     b = Battle(raid(16, (8.0, 3.0)), random.Random(0), army=army, ai="einfach")
     b._ai_raiders = lambda: None
-    (g,) = b.units(Side.STADT)
-    assert b.mixed(g) and g.men == 32
-    before = {id(m): m.pos for m in g.all_men()}
-    parts = b.command_attack([g])
+    parts = b.units(Side.STADT)
     assert sorted(p.name for p in parts) == ["Hopliten", "Peltasten", "Reiter"]
-    assert len(b.units(Side.STADT)) == 3 and b.fallen(Side.STADT) == 0
+    assert not any(b.mixed(p) for p in parts)
+    (v,) = b.verbaende
     by = {p.name: p for p in parts}
-    assert by["Hopliten"] is g and by["Hopliten"].men == 20                  # die größte Gattung behält die Gruppe
-    assert by["Hopliten"].stance is Stance.ANGRIFF
-    assert by["Peltasten"].stance is Stance.PLAENKELN
+    assert v.name == "Gemischt" and v.rows == [[by["Hopliten"].id, by["Reiter"].id], [by["Peltasten"].id]]
+    assert by["Peltasten"].y > by["Hopliten"].y                               # dahinter (die Front schaut nach Norden)
+    assert by["Reiter"].x > by["Hopliten"].x                                  # rechts daneben
+    b.command_attack(parts)
+    assert by["Hopliten"].stance is Stance.ANGRIFF and by["Peltasten"].stance is Stance.PLAENKELN
     assert by["Reiter"].stance is Stance.ANGRIFF and by["Reiter"].mode == "sturm"
-    assert by["Reiter"].speed > by["Peltasten"].speed > by["Hopliten"].speed
-    for p in parts:
-        for m in p.all_men():
-            assert m.pos == before[id(m)]                                    # niemand springt
     start = {n: p.y for n, p in by.items()}
-    run(b, 3)                                    # die Reiter müssen erst anfahren und um die eigenen Hopliten herum
+    run(b, 3)
     moved = {n: start[n] - p.y for n, p in by.items()}
-    assert moved["Reiter"] > moved["Peltasten"] > moved["Hopliten"] > 0     # jede in ihrem Tempo nach vorn
-    merged = b.command_merge(parts)
-    assert merged is not None and merged.men == 32 and len(b.units(Side.STADT)) == 1
-    assert merged.name == "Gemischt" and merged.stance is Stance.HALTEN
-    assert b.fallen(Side.STADT) == 0
-    assert b.command_merge([merged]) is None
+    assert moved["Reiter"] > moved["Hopliten"] > 0 and moved["Peltasten"] > 0     # jede in ihrem Tempo nach vorn
+    assert b.verbaende == [v] and b.fallen(Side.STADT) == 0
 
 
 # ------------------------------------------------------------ Schwung der Reiter
@@ -1871,12 +1863,26 @@ def test_ring_counts_as_a_circle_for_distances():
     assert len(ring.outline()) == 8 and all(abs(dist_of_pt(p, ring.pos) - r) < 1e-6 for p in ring.outline())
 
 
+def one_ring_group(b: Battle) -> Lochos:
+    """Alle eigenen Männer in einer Gruppe (Hopliten außen, Reiter und Peltasten in inneren
+    Ringen): so stehen Räuber vor einem Kreis, der die ganze Truppe ist. Im Spiel gibt es
+    keine gemischten Gruppen mehr, für den Aufbau dieser Lage genügt es."""
+    units = b.units(Side.STADT)
+    keep = max(units, key=lambda u: u.men)
+    keep.rows = arrange([m for u in units for m in u.all_men()], max(u.width for u in units))
+    keep.men_start = keep.men
+    for u in units:
+        if u is not keep:
+            u.rows = []
+    b.lochoi = [u for u in b.lochoi if u.rows]
+    return keep
+
+
 def test_groups_queue_behind_their_own_fighting_group():
     """Greifen mehrere eigene Gruppen denselben Feind durch eine Enge an, fährt keine
     in die vordere hinein: Wer nicht mehr an den Feind kommt, wartet im Block dahinter."""
     b = Battle(PALISADE, random.Random(1))
-    hop, pelt, cav = b.units(Side.STADT)
-    g = b.command_merge([hop, pelt, cav])
+    g = one_ring_group(b)
     b.command_formation([g], "o")
     gx, gy = b.gate.center
     b.command_ring([g], (gx, gy + 2.2), 1.2)
@@ -2153,3 +2159,83 @@ def test_drill_command_forms_up_in_place_and_only_for_hoplites():
     b.command_drill([hop], "locker")
     run(b, 2)
     assert not hop.in_phalanx and hop.on_slots(0.25)
+
+
+# ------------------------------------------------------------- Verbände
+def verband_battle():
+    b = Battle(raid(16, (8.0, 1.0)), random.Random(0))
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    b.alarm = False
+    for r in b.units(Side.FEIND):
+        r.x, r.y, r.target, r.stance = 1.0, 1.0, None, Stance.HALTEN
+        r.place_men()
+    return b
+
+
+def test_verband_forms_in_battle_order_and_marches_together():
+    """Ein Verband stellt sich in Schlachtordnung auf (Hopliten vorn, Reiter rechts daneben,
+    Peltasten dahinter) und marschiert im Tempo der langsamsten Gruppe: Die Reiter laufen
+    den Hopliten nicht davon, am Ziel steht die Ordnung wieder."""
+    b = verband_battle()
+    hop, pelt, cav = b.units(Side.STADT)
+    v = b.command_verband([hop, pelt, cav])
+    assert v.rows == [[hop.id, cav.id], [pelt.id]]
+    assert b.selected_verband({hop.id, pelt.id, cav.id}) is v and b.selected_verband({hop.id, cav.id}) is None
+    run(b, 6)
+    b.command_verband_move(v, (8.0, 6.0))
+    spread = 0.0
+    for _ in range(int(14 / DT)):
+        b.update(DT)
+        spread = max(spread, abs(cav.y - hop.y))
+    assert spread < 1.0                                               # nebeneinander, nicht vorausgeritten
+    assert v.facing[1] < -0.9                                         # Front in Marschrichtung (Norden)
+    assert pelt.y > hop.y + hop.half_d and cav.x > hop.x              # Peltasten dahinter, Reiter rechts
+    assert abs((hop.y - hop.half_d) - (cav.y - cav.half_d)) < 0.1     # die Fronten bündig
+    assert hop.in_phalanx and dist_of_pt(v.centre, (8.0, 6.0)) < 1e-6
+
+
+def test_verband_rows_can_be_rearranged_and_dissolved():
+    b = verband_battle()
+    hop, pelt, cav = b.units(Side.STADT)
+    v = b.command_verband([hop, pelt, cav])
+    b.set_verband_rows(v, [[pelt.id], [cav.id, hop.id]])               # Peltasten vorn, Reiter links hinten
+    run(b, 12)
+    assert v.rows == [[pelt.id], [cav.id, hop.id]]
+    assert pelt.y < hop.y and cav.x < hop.x
+    b.command_leave_verband([pelt])                                   # eine Gruppe geht: zwei bleiben
+    assert b.verband_of(pelt) is None and v.members() == [cav.id, hop.id]
+    b.command_drill([hop], "geschlossen")                             # Modi gelten weiter je Gruppe
+    assert hop.drill == "geschlossen" and b.verband_of(hop) is v
+    b.command_dissolve_verband(v)
+    assert b.verbaende == []
+
+
+def test_verband_ring_puts_the_front_row_outside():
+    b = verband_battle()
+    hop, pelt, cav = b.units(Side.STADT)
+    v = b.command_verband([hop, pelt, cav])
+    b.command_verband_formation(v, "o")
+    run(b, 15)
+    assert hop.formation == cav.formation == pelt.formation == "o"
+    assert hop.ring_size > cav.ring_size > pelt.ring_size                # vorn außen, dann Reiter, Peltasten innen
+    assert dist_of(hop, cav) < 0.2 and dist_of(hop, pelt) < 0.2         # eine Mitte
+    assert hop.in_phalanx
+
+
+def test_verband_member_returns_after_its_storm():
+    """Wer aus dem Verband heraus stürmt, kehrt an seinen Platz zurück, sobald kein
+    kämpfender Feind mehr in der Nähe ist. Ein einzeln befohlener Marsch lässt die
+    Gruppe im Verband (nächster Befehl an den Verband stellt sie wieder auf)."""
+    b = verband_battle()
+    hop, pelt, cav = b.units(Side.STADT)
+    v = b.command_verband([hop, pelt, cav])
+    run(b, 6)
+    home = v.slots[hop.id].center
+    b.command_attack([hop])
+    assert hop.free_attack
+    hop.stormed = True                                               # war im Handgemenge; der Feind ist weit weg
+    b.update(DT)
+    assert not hop.free_attack and hop.target == home and hop.stance is Stance.PHALANX
+    b.command_move([cav], (12.0, 12.0))
+    assert b.verband_of(cav) is v

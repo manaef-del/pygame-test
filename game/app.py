@@ -22,6 +22,7 @@ from .scenarios import SCENARIOS
 from .units import Side
 
 DRAG_MIN = 0.4  # Kacheln: kürzer ist ein Tipp, kein Bereich
+LONG_PRESS = 0.45  # Sekunden: so lange auf einer Gruppenkachel, und sie kommt zur Auswahl dazu
 
 
 def to_tiles(pos: tuple[int, int]) -> tuple[float, float]:
@@ -53,6 +54,10 @@ class App:
         self.fingers: dict[int, tuple[float, float]] = {}   # aufliegende Finger (für das Verschieben)
         self.panning = False                                 # zwei Finger liegen auf: kein Tippen, kein Ziehen
         self.pan_from: tuple[int, int] | None = None         # rechte Maustaste: verschieben am Rechner
+        self.clock = 0.0                                     # Echtzeit seit dem Start (für langes Drücken)
+        self.chip_press: list | None = None                  # [Taste, seit wann, schon erledigt] auf einer Gruppenkachel
+        self.arranging: int | None = None                    # Verband, dessen Anordnung gerade bearbeitet wird
+        self.arrange_drag: tuple | None = None               # (Gruppe, Fingerposition) beim Anordnen
         self.battle = self._new_battle()
 
     def _new_battle(self) -> Battle:
@@ -61,6 +66,7 @@ class App:
         self.menu_open = False
         self.selected = set()
         self.drag_start = self.drag_now = None
+        self._arrange(None)
         scn = SCENARIOS[self.scenario_index]
         army = copy.deepcopy(self.army) if self.army.total_men() else scaled_army(default_army(), self.own_count)
         return Battle(scn, rng, army=army, enemy_count=self.enemy_counts[scn.key], memory=self.memory)
@@ -90,6 +96,9 @@ class App:
             self._press(event.pos)
         elif event.type == pygame.MOUSEMOTION and self.menu_slider is not None:
             self._slide(event.pos)
+        elif event.type == pygame.MOUSEMOTION and self.arrange_drag is not None:
+            self.arrange_drag = (self.arrange_drag[0], event.pos)
+            self.renderer.arrange_drag = self.arrange_drag
         elif event.type == pygame.MOUSEMOTION and self.drag_start is not None:
             self.drag_now = self.to_tiles(event.pos)
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
@@ -144,7 +153,7 @@ class App:
         elif key == pygame.K_f:
             self.command("formation")
         elif key == pygame.K_v:
-            self.command("vereinen")
+            self.command("verband")
         elif key == pygame.K_z:
             self.command("ansicht")
         elif key in (pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN):
@@ -164,7 +173,12 @@ class App:
                 self.menu_slider = slider
                 self._slide(pos)
             return
+        if self.arranging is not None and self._arrange_press(pos):
+            return
         key = self.renderer.button_at(pos, self.battle, self.paused, self.selected, self.menu_open)
+        if key and key.startswith("group:"):
+            self.chip_press = [key, self.clock, False]   # Tipp wählt beim Loslassen, langes Drücken wählt dazu
+            return
         if key:
             self.command(key)                      # Leiste unten, Menü und Pause oben, Gruppenkacheln rechts
             return
@@ -198,8 +212,52 @@ class App:
         """Die bearbeitete Mischung wird zur Vorlage für das Skalieren."""
         self.template = copy.deepcopy(self.army)
 
+    def _arrange(self, vid: int | None) -> None:
+        self.arranging = vid
+        self.arrange_drag = None
+        self.renderer.arranging = vid
+        self.renderer.arrange_drag = None
+
+    def _arrange_press(self, pos: tuple[int, int]) -> bool:
+        """Fingerdruck, solange die Tafel zum Anordnen offen ist: „Fertig“ schließt sie, ein
+        Sinnbild wird verschoben. Ein Druck außerhalb schließt sie (und gilt dann normal)."""
+        layout = self.renderer.arrange_layout(self.battle, self.arranging)
+        if layout is None:
+            self._arrange(None)
+            return False
+        if layout["done"].collidepoint(pos):
+            self._arrange(None)
+            return True
+        for _, icons in layout["rows"]:
+            for gid, r in icons:
+                if r.collidepoint(pos):
+                    self.arrange_drag = (gid, pos)
+                    self.renderer.arrange_drag = self.arrange_drag
+                    return True
+        if layout["panel"].collidepoint(pos):
+            return True
+        key = self.renderer.button_at(pos, self.battle, self.paused, self.selected, self.menu_open)
+        if key != "anordnen":
+            self._arrange(None)
+        return False
+
     def _release(self, pos: tuple[int, int]) -> None:
         self.menu_slider = None
+        if self.chip_press is not None:
+            key, _, done = self.chip_press
+            self.chip_press = None
+            if not done:
+                self.command(key)                  # kurzer Tipp: nur diese Gruppe
+            return
+        if self.arrange_drag is not None:
+            gid = self.arrange_drag[0]
+            self.arrange_drag = None
+            self.renderer.arrange_drag = None
+            v = next((x for x in self.battle.verbaende if x.id == self.arranging), None)
+            layout = self.renderer.arrange_layout(self.battle, self.arranging)
+            if v is not None and layout is not None:
+                self.battle.set_verband_rows(v, self.renderer.drop_rows(layout, gid, pos))
+            return
         if self.drag_start is None:
             return
         start, end = self.drag_start, self.to_tiles(pos)
@@ -215,6 +273,11 @@ class App:
             self._tap(end)
             return
         sel = self._selection()
+        v = self.battle.selected_verband(self.selected)
+        if v is not None:
+            self.battle.command_verband_line(v, start, end)
+            self.paused = False
+            return
         rings = [u for u in sel if u.formation == "o"] if sel else []
         if rings:
             self.battle.command_ring(rings, start, ((end[0] - start[0]) ** 2 + (end[1] - start[1]) ** 2) ** 0.5)
@@ -248,8 +311,11 @@ class App:
             self.paused = False
             return
         foe = b.unit_at(p, Side.FEIND)
+        v = b.selected_verband(self.selected)
         if foe is not None:
             b.command_attack_target(self._selection(), foe)
+        elif v is not None:
+            b.command_verband_move(v, p)            # der Verband marschiert, die Ordnung bleibt
         else:
             b.command_move(self._selection(), p)
         self.paused = False
@@ -290,10 +356,32 @@ class App:
                 opts = u.formation_options()
                 nxt = opts[(opts.index(u.formation) + 1) % len(opts)] if u.formation in opts else opts[0]
                 b.command_formation(sel, nxt)
-        elif key == "vereinen" and b.outcome is None:
-            g = b.command_merge(self._selection())
-            if g is not None:
-                self.selected = {g.id}
+        elif key.startswith("verband:"):
+            v = next((x for x in b.verbaende if x.id == int(key.split(":")[1])), None)
+            if v is not None:
+                ids = {uid for uid in v.members() if (u := b.by_id(uid)) is not None and u.fighting}
+                self.selected = set() if self.selected == ids else ids
+            self.menu_open = False
+        elif key == "verband" and b.outcome is None:
+            v = b.command_verband(self._selection())
+            if v is not None:
+                self.selected = {uid for uid in v.members()}
+                self.paused = False
+        elif key == "aufloesen" and b.outcome is None:
+            v = b.selected_verband(self.selected)
+            if v is not None and v.id == self.arranging:
+                self._arrange(None)
+            b.command_dissolve_verband(v)
+        elif key == "verlassen" and b.outcome is None:
+            b.command_leave_verband(self._selection())
+        elif key == "anordnen" and b.outcome is None:
+            v = b.selected_verband(self.selected)
+            self._arrange(None if v is None or self.arranging == v.id else v.id)
+        elif key.startswith("vformation:") and b.outcome is None:
+            v = b.selected_verband(self.selected)
+            if v is not None:
+                b.command_verband_formation(v, key.split(":")[1])
+                self.paused = False
         elif key in ("rammbock", "turm") and b.outcome is None:
             kind = "ram" if key == "rammbock" else "tower"
             sel = self._selection()
@@ -364,6 +452,15 @@ class App:
 
     # ------------------------------------------------------------ Takt
     def tick(self, dt: float) -> None:
+        self.clock += dt
+        if self.chip_press is not None and not self.chip_press[2] and self.clock - self.chip_press[1] >= LONG_PRESS:
+            self.chip_press[2] = True              # lange gedrückt: die Gruppe kommt zur Auswahl dazu (oder geht)
+            uid = int(self.chip_press[0].split(":")[1])
+            u = self.battle.by_id(uid)
+            if u is not None and u.fighting:
+                self.selected = self.selected ^ {uid}
+        if self.arranging is not None and not any(v.id == self.arranging for v in self.battle.verbaende):
+            self._arrange(None)
         if self.screen == "schlacht" and not self.paused:
             self.battle.update(dt * config.TIME_SCALE)
             self.selected = {i for i in self.selected if (u := self.battle.by_id(i)) and u.fighting}

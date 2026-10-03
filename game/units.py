@@ -230,6 +230,9 @@ class Lochos:
     mode: str = ""                    # freier Angriff je Waffengattung: "", "sturm" (Reiter: Stoß und Lösen)
     drill: str = "phalanx"            # Modus der Hopliten: "locker", "phalanx", "geschlossen" (andere Gattungen: ohne Wirkung)
     full_width: int | None = None     # vor Tor oder Gasse schmaler geworden: so breit war die Front vorher
+    pace: float | None = None         # im Verband: so schnell wie die langsamste Gruppe (bis zum nächsten Befehl)
+    free_attack: bool = False         # im freien Angriff (Sturm, Plänkeln, Sturmangriff)
+    stormed: bool = False             # ... und schon im Handgemenge gewesen
     _hoplite_key: tuple | None = field(default=None, repr=False, compare=False)
     _hoplite_led: bool = field(default=False, repr=False, compare=False)
     hitrun_until: float = -1.0        # Reiter: bis dahin wird vom Feind abgesetzt

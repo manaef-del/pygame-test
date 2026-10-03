@@ -374,7 +374,7 @@ def test_settlement_splits_mixed_groups_by_arm():
     assert parts.total_men() == 42
     b = Battle(SIEDLUNG_OFFEN, random.Random(1), army=army, enemy_count=42, doctrine="spiegel")
     assert len(b.units(Side.FEIND)) == 3
-    assert len(b.units(Side.STADT)) == 1                    # der Spieler behält seine eine Gruppe
+    assert len(b.units(Side.STADT)) == 3 and len(b.verbaende) == 1   # beim Spieler: je Gattung eine Gruppe, ein Verband
 
 
 def test_settlement_cavalry_flanks_a_pinned_phalanx():

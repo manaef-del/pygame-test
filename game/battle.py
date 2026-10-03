@@ -127,6 +127,25 @@ class LinePlan:
 
 
 @dataclass
+class Verband:
+    """Mehrere Gruppen in einer Formation: Reihen vorn nach hinten, je Reihe die
+    Gruppen von links nach rechts (wie sie auf die Front schauen). Die Gruppen bleiben
+    eigenständig (Modus, Moral, Befehle); ein Befehl an den Verband stellt alle auf."""
+
+    id: int
+    name: str
+    rows: list[list[int]]
+    formation: str = "linie"                       # "linie" oder "o" (Ringe ineinander, vorn außen)
+    centre: Point | None = None                    # Mitte der vorderen Reihe (Kreis: Mitte), zuletzt befohlen
+    facing: Point = (0.0, -1.0)
+    length: float | None = None                    # Länge der vorderen Reihe
+    slots: dict = field(default_factory=dict)      # Gruppen-id -> ihr Platz (LinePlan oder (Mitte, Halbmesser))
+
+    def members(self) -> list[int]:
+        return [uid for row in self.rows for uid in row]
+
+
+@dataclass
 class Battle:
     scenario: Scenario
     rng: random.Random = field(default_factory=random.Random)
@@ -168,6 +187,8 @@ class Battle:
     memory: Memory | None = None         # Gedächtnis der Gegner über Schlachten hinweg
     doctrine: str | None = None          # Aufstellung der Siedlung; None = passend zum Spieler wählen
     _next_id: int = 0
+    verbaende: list[Verband] = field(default_factory=list)
+    _next_vid: int = 1
 
     # ------------------------------------------------------------ Aufbau
     def __post_init__(self) -> None:
@@ -183,6 +204,7 @@ class Battle:
         self._clearance: tuple | None = None                           # Abstandsfeld für die Wege der Blöcke
         self._block_ways: dict = {}
         self._narrow_cache: dict = {}
+        self._ring_friends: dict = {}                                  # Gruppe -> Gruppen, deren Ringe in ihrem stehen
         self._pass_choice: dict = {}                                   # Gruppe -> (Ziel, als Block um eigene herum?)
         self._steps_cache: dict = {}                                   # Wehrgang: Schritte von einem Wallstück aus
         self._wall_route: dict = {}                                    # Gruppe -> (Ziel, über die Leitern schneller?)
@@ -244,15 +266,39 @@ class Battle:
         return self.scenario.role == "angriff"
 
     def _deploy_army(self) -> None:
+        """Die eigene Truppe nebeneinander aufstellen. Eine Gruppe mit mehreren Gattungen
+        wird je Gattung eine eigene Gruppe; zusammen bilden sie einen Verband."""
         specs = [g for g in self.army.groups if g.men() > 0]
         if not specs:
             return
-        rows_units = [arrange(spec.build_men(), default_width(spec.men())) for spec in specs]
+        parts: list[tuple[int, str, list[Man]]] = []          # (Aufstellungsgruppe, Name, Männer)
+        names = {"hopliten": "Hopliten", "peltasten": "Peltasten", "reiter": "Reiter"}
+        for k, spec in enumerate(specs):
+            by_arm: dict[str, list[Man]] = {}
+            for m in spec.build_men():
+                by_arm.setdefault(arm_of(m.kind.key), []).append(m)
+            for arm, men_ in by_arm.items():
+                parts.append((k, spec.name if len(by_arm) == 1 else names[arm], men_))
+        rows_units = [arrange(men_, default_width(len(men_))) for _, _, men_ in parts]
         widths = [max(0.9, 2 * Lochos(0, Side.STADT, r, 0, 0).radius + 0.2) for r in rows_units]
         x = self.cols / 2 - sum(widths) / 2
-        for spec, rows, w in zip(specs, rows_units, widths):
-            self._spawn(Side.STADT, rows, min(max(x + w / 2, 0.6), self.cols - 0.6), self.scenario.deploy_y, spec.name)
+        made: dict[int, list[Lochos]] = {}
+        for (k, name, _), rows, w in zip(parts, rows_units, widths):
+            u = self._spawn(Side.STADT, rows, min(max(x + w / 2, 0.6), self.cols - 0.6), self.scenario.deploy_y, name)
+            made.setdefault(k, []).append(u)
             x += w
+        for k, units in made.items():
+            if len(units) > 1:
+                v = self._new_verband(units, specs[k].name)
+                self._form_verband(v, self._verband_anchor(units)[0], v.facing, None, quiet=True)
+                for u in units:
+                    if u.march is not None:
+                        u.reform(u.march[1])
+                    u.march = None
+                    u.x, u.y = u.target
+                    if u.face_to is not None:
+                        u.facing = u.face_to
+                    u.place_men()
 
     def _spawn_raiders(self) -> None:
         """Räuber in Haufen, bei großer Zahl größere; etwa ein Fünftel Peltasten in der zweiten Reihe."""
@@ -1379,6 +1425,9 @@ class Battle:
         return [u for u in pool if u.id in ids]
 
     def _wake(self, u: Lochos) -> None:
+        u.pace = None                             # ein neuer Befehl: das Tempo des Verbands gilt nicht mehr
+        u.free_attack = False
+        u.stormed = False
         if u.building is not None:
             self.events.append(f"{u.name}: Bau abgebrochen")
         u.building = None
@@ -1462,43 +1511,6 @@ class Battle:
         self.events.append("Aufgeteilt: " + ", ".join(f"{g.name} {g.men}" for g in out))
         return out
 
-    def command_merge(self, units: list[Lochos] | None) -> Lochos | None:
-        """Mehrere Gruppen zu einer vereinen: die Männer bleiben stehen und
-        laufen zu den Plätzen der neuen Linie; die größte Gruppe bleibt bestehen."""
-        for u in self._selection(units):
-            self._settle(u)
-        sel = [u for u in self._selection(units)
-               if not u.loose and not self.on_wall(u) and u.engine is None and u.building is None]
-        if len(sel) < 2:
-            return None
-        keep = max(sel, key=lambda u: (u.men, -u.id))
-        others = [u for u in sel if u is not keep]
-        men = [m for u in sel for m in u.all_men()]
-        pos = {id(m): (m.x, m.y) for m in men}
-        total = len(men)
-        morale = sum(u.morale * u.men for u in sel) / total
-        keep.rows = arrange(men, max(u.width for u in sel))
-        keep.x = sum(m.x for m in men) / total
-        keep.y = sum(m.y for m in men) / total
-        keep.stance = Stance.HALTEN
-        keep.formation = "linie"
-        keep.in_line = False
-        keep.mode = ""
-        keep.target = None
-        keep.target_id = None
-        keep.waypoints = []
-        keep.men_start = keep.men
-        keep.morale = morale
-        if self.mixed(keep):
-            keep.name = "Gemischt"
-        for m in men:
-            m.x, m.y = pos[id(m)]
-        for u in others:
-            u.rows = []
-        self.lochoi = [u for u in self.lochoi if u not in others]
-        self.events.append(f"Vereint: {keep.name} mit {keep.men} Mann")
-        return keep
-
     def command_attack(self, units: list[Lochos] | None = None) -> list[Lochos]:
         """Freier Angriff, je Waffengattung: Hopliten stürmen den nächsten Gegner,
         Peltasten plänkeln (auf Wurfweite heran, werfen, ausweichen), Reiter
@@ -1510,6 +1522,7 @@ class Battle:
         for u in self._selection(units):
             for g in self.split_group(u):
                 self._wake(g)
+                g.free_attack = True                  # im Verband: nach dem Kampf zurück an den Platz
                 arm = g.arm()
                 g.in_line = False
                 g.target_id = None
@@ -1873,30 +1886,338 @@ class Battle:
         plans = self.plan_line(units, start, end)
         for plan in plans:
             u = self.by_id(plan.unit_id)
-            if u is None:
-                continue
-            self._wake(u)
-            u.formation = "linie"
-            u.full_width = None
-            u.ring_size = 0.0
-            u.mode = ""
-            u.stance = Stance.PHALANX
-            u.in_line = False
-            u.target = plan.center
-            u.target_id = None
-            u.waypoints = []
-            if config.MARCH_ARC and not u.loose and dist(u.pos, plan.center) > config.MARCH_MIN:
-                u.march = (plan.center, plan.width, plan.facing)   # erst hin, kurz vor dem Ziel aufmarschieren
-                u.face_to = None
-            else:
-                u.march = None
-                u.reform(plan.width)
-                u.face_to = plan.facing              # die Front schwenkt mit begrenzter Rate dorthin
+            if u is not None:
+                self._take_plan(u, plan)
         self.line = plans
         if plans:
             what = "Schlachtordnung" if self.in_battle_order(self._selection(units)) else "Aufstellung"
             self.events.append(f"{what}: {len(plans)} Gruppe(n), Front {self._dir_name(snap4(plans[0].facing))}")
         return plans
+
+    def _take_plan(self, u: Lochos, plan: LinePlan) -> None:
+        """Eine Gruppe stellt sich wie geplant auf (Mitte, Front, Breite)."""
+        self._wake(u)
+        u.formation = "linie"
+        u.full_width = None
+        u.ring_size = 0.0
+        u.mode = ""
+        u.stance = Stance.PHALANX
+        u.in_line = False
+        u.target = plan.center
+        u.target_id = None
+        u.waypoints = []
+        if config.MARCH_ARC and not u.loose and dist(u.pos, plan.center) > config.MARCH_MIN:
+            u.march = (plan.center, plan.width, plan.facing)   # erst hin, kurz vor dem Ziel aufmarschieren
+            u.face_to = None
+        else:
+            u.march = None
+            u.reform(plan.width)
+            u.face_to = plan.facing              # die Front schwenkt mit begrenzter Rate dorthin
+
+    # -- Verbände ----------------------------------------------------------
+    def verband_of(self, u: Lochos | int | None) -> Verband | None:
+        uid = u.id if isinstance(u, Lochos) else u
+        return next((v for v in self.verbaende if uid in v.members()), None)
+
+    def selected_verband(self, ids: set[int] | None) -> Verband | None:
+        """Der Verband, dessen (kämpfende) Gruppen genau die Auswahl sind."""
+        if not ids or len(ids) < 2:
+            return None
+        for v in self.verbaende:
+            mine = {uid for uid in v.members() if (u := self.by_id(uid)) is not None and u.fighting}
+            if mine == set(ids):
+                return v
+        return None
+
+    def verband_units(self, v: Verband, fighting: bool = True) -> list[list[Lochos]]:
+        """Die Reihen eines Verbands als Gruppen (nur lebende, ``fighting``: nur kämpfende)."""
+        out = []
+        for row in v.rows:
+            us = [u for uid in row if (u := self.by_id(uid)) is not None and (u.fighting if fighting else u.alive)]
+            if us:
+                out.append(us)
+        return out
+
+    def _new_verband(self, units: list[Lochos], name: str = "") -> Verband:
+        for u in units:
+            self._leave_verband(u, quiet=True)
+        v = Verband(self._next_vid, name or f"Verband {self._next_vid}", self._default_rows(units))
+        self._next_vid += 1
+        front = max(units, key=lambda u: (u.arm() == "hopliten", u.men))
+        v.facing = front.facing
+        self.verbaende.append(v)
+        return v
+
+    @staticmethod
+    def _default_rows(units: list[Lochos]) -> list[list[int]]:
+        """Schlachtordnung als Anfang: Hopliten vorn, die Peltasten dahinter, die Reiter an den
+        Flügeln der vorderen Reihe (die größte rechts, dann links). Ohne Hopliten stehen die
+        Peltasten vorn; reine Reiter nebeneinander."""
+        by_arm: dict[str, list[Lochos]] = {"hopliten": [], "peltasten": [], "reiter": []}
+        for u in units:
+            by_arm[u.arm()].append(u)
+        front = by_arm["hopliten"] or by_arm["peltasten"]
+        second = by_arm["peltasten"] if by_arm["hopliten"] else []
+        ref = max(front or by_arm["reiter"], key=lambda u: u.men)
+        fx, fy = ref.facing
+
+        def along(u: Lochos) -> float:
+            return u.x * -fy + u.y * fx
+        if not front:
+            return [[u.id for u in sorted(by_arm["reiter"], key=along)]]
+        row = [u.id for u in sorted(front, key=along)]
+        for k, u in enumerate(sorted(by_arm["reiter"], key=lambda u: -u.men)):
+            if k % 2 == 0:
+                row.append(u.id)                  # rechts, an der schildlosen Seite
+            else:
+                row.insert(0, u.id)
+        rows = [row]
+        if second:
+            rows.append([u.id for u in sorted(second, key=along)])
+        return rows
+
+    def _verband_anchor(self, units: list[Lochos]) -> tuple[Point, float]:
+        """Wo ein Verband aus diesen Gruppen ungefähr steht: Mitte der Gruppen (nach Mannzahl)."""
+        total = sum(u.men for u in units) or 1
+        c = (sum(u.x * u.men for u in units) / total, sum(u.y * u.men for u in units) / total)
+        return c, 0.0
+
+    def _leave_verband(self, u: Lochos, quiet: bool = False) -> None:
+        v = self.verband_of(u)
+        if v is None:
+            return
+        v.rows = [[uid for uid in row if uid != u.id] for row in v.rows]
+        v.rows = [row for row in v.rows if row]
+        v.slots.pop(u.id, None)
+        if not quiet:
+            self.events.append(f"{u.name} verlässt {v.name}")
+        if len(v.members()) < 2:
+            self.verbaende.remove(v)
+
+    def _tidy_verbaende(self) -> None:
+        """Gefallene und vom Feld gegangene Gruppen verlassen ihren Verband; mit weniger als
+        zwei Gruppen ist er keiner mehr."""
+        for v in list(self.verbaende):
+            rows = [[uid for uid in row if (u := self.by_id(uid)) is not None and u.alive] for row in v.rows]
+            v.rows = [row for row in rows if row]
+            if len(v.members()) < 2:
+                self.verbaende.remove(v)
+
+    def command_verband(self, units: list[Lochos] | None) -> Verband | None:
+        """Die gewählten Gruppen bilden einen Verband (Schlachtordnung) und stellen sich gleich
+        dort auf, wo sie stehen."""
+        sel = [u for u in self._selection(units)
+               if not self.on_wall(u) and u.engine is None and u.building is None]
+        if len(sel) < 2:
+            return None
+        self.alarm = False
+        v = self._new_verband(sel)
+        centre, _ = self._verband_anchor(sel)
+        self._form_verband(v, centre, v.facing, None)
+        self.events.append(f"{v.name}: {len(sel)} Gruppen in einer Formation")
+        return v
+
+    def command_dissolve_verband(self, v: Verband | None) -> None:
+        if v is None or v not in self.verbaende:
+            return
+        self.verbaende.remove(v)
+        self.events.append(f"{v.name} aufgelöst: die Gruppen handeln wieder einzeln")
+
+    def command_leave_verband(self, units: list[Lochos] | None) -> int:
+        n = 0
+        for u in self._selection(units):
+            if self.verband_of(u) is not None:
+                self._leave_verband(u)
+                n += 1
+        return n
+
+    def set_verband_rows(self, v: Verband, rows: list[list[int]]) -> None:
+        """Neue Anordnung (vorn nach hinten, links nach rechts); der Verband stellt sich dort
+        neu auf, wo er steht."""
+        known = set(v.members())
+        rows = [[uid for uid in row if uid in known] for row in rows]
+        rows = [row for row in rows if row]
+        missing = [uid for uid in v.members() if uid not in {x for row in rows for x in row}]
+        if missing:
+            rows.append(missing)
+        v.rows = rows
+        self._form_verband(v, v.centre, v.facing, v.length)
+
+    def command_verband_move(self, v: Verband, point: Point) -> None:
+        """Der Verband marschiert dorthin: die vordere Reihe (der Kreis) mit ihrer Mitte an den
+        Punkt, die Front in Marschrichtung."""
+        self.alarm = False
+        here = v.centre or self._verband_anchor([u for row in self.verband_units(v) for u in row])[0]
+        facing = v.facing
+        if dist(here, point) > 0.5:
+            facing = norm(sub(point, here))
+        self._form_verband(v, point, facing, v.length)
+        self.events.append(f"{v.name} marschiert")
+
+    def command_verband_line(self, v: Verband, start: Point, end: Point) -> None:
+        """Front des Verbands aufziehen: die vordere Reihe auf der Linie, die anderen dahinter.
+        Im Kreis: Mitte am Anfang des Zugs."""
+        self.alarm = False
+        if v.formation == "o":
+            self._form_verband(v, start, v.facing, v.length)
+            return
+        axis = norm(sub(end, start))
+        facing = (axis[1], -axis[0])
+        self._form_verband(v, scale(add(start, end), 0.5), facing, dist(start, end))
+        self.events.append(f"{v.name}: Front {self._dir_name(snap4(facing))}")
+
+    def command_verband_formation(self, v: Verband, name: str) -> None:
+        if name not in ("linie", "o") or v.formation == name:
+            return
+        v.formation = name
+        units = [u for row in self.verband_units(v) for u in row]
+        centre = self._verband_anchor(units)[0] if name == "o" else v.centre
+        self._form_verband(v, centre, v.facing, v.length)
+        self.events.append(f"{v.name}: {'Kreis, Ring in Ring' if name == 'o' else 'Linie'}")
+
+    def verband_plans(self, v: Verband, centre: Point, facing: Point, length: float | None) -> list[LinePlan]:
+        """Plätze der Gruppen eines Verbands in Linie: die vordere Reihe mit ihrer Mitte bei
+        ``centre`` (Front ``facing``, Länge ``length``), jede weitere dicht dahinter. In einer
+        Reihe stehen die Gruppen nebeneinander, die Fronten bündig; Reiter drei Glieder tief,
+        die anderen teilen sich den Rest nach Mannzahl."""
+        rows = self.verband_units(v)
+        if not rows:
+            return []
+        fx, fy = facing
+        axis = (-fy, fx)                                   # nach rechts, wie die Front schaut
+        back = (-fx, -fy)
+        if length is None:
+            length = sum(u.width * u.man_gap() + 0.3 for u in rows[0])
+        plans: list[LinePlan] = []
+        front_line = centre                                # Mitte der vorderen Kante der Reihe
+        for r, row in enumerate(rows):
+            row_len = length if r == 0 else length * config.ORDER_SECOND_SHARE
+            gap = 0.3
+            cav = [u for u in row if u.arm() == "reiter"]
+            cav_w = {u.id: max(1, math.ceil(u.men / config.ORDER_WING_DEPTH)) for u in cav}
+            rest = [u for u in row if u not in cav]
+            cav_len = sum(cav_w[u.id] * u.man_gap() for u in cav)
+            share = max(0.3 * len(rest), row_len - cav_len - gap * (len(row) - 1))
+            total = sum(u.men for u in rest) or 1
+            widths = {}
+            for u in row:
+                if u in cav:
+                    widths[u.id] = cav_w[u.id]
+                else:
+                    widths[u.id] = max(1, min(u.men, int(share * u.men / total / u.man_gap())))
+            segs = [widths[u.id] * u.man_gap() for u in row]
+            span = sum(segs) + gap * (len(row) - 1)
+            pos = -span / 2
+            deepest = 0.0
+            for u, seg in zip(row, segs):
+                w = widths[u.id]
+                depth = math.ceil(u.men / w)
+                half_d = depth * u.row_gap() / 2
+                c = add(add(front_line, scale(axis, pos + seg / 2)), scale(back, half_d))
+                plans.append(LinePlan(u.id, self._free_spot(c, u), facing, w, depth, seg))
+                deepest = max(deepest, 2 * half_d)
+                pos += seg + gap
+            front_line = add(front_line, scale(back, deepest + config.ORDER_SECOND_GAP))
+        return plans
+
+    def _form_verband(self, v: Verband, centre: Point | None, facing: Point, length: float | None,
+                      quiet: bool = False) -> None:
+        """Alle Gruppen des Verbands an ihre Plätze, im Tempo der langsamsten."""
+        units = [u for row in self.verband_units(v) for u in row]
+        if not units:
+            return
+        if centre is None:
+            centre = self._verband_anchor(units)[0]
+        pace = min(u.speed for u in units)
+        v.facing = facing
+        v.slots = {}
+        if v.formation == "o":
+            v.centre = centre
+            radius = 0.0
+            for u in reversed(units):                      # von innen nach außen: die vordere Reihe außen
+                self._wake(u)
+                u.formation = "o"
+                r = max(u.ring_minimum(), radius + (config.ROW_SPACING + 0.05 if radius else 0.0))
+                u.ring_size = r
+                u.full_width = None
+                u.mode = ""
+                u.in_line = False
+                u.march = None
+                u.face_to = None
+                u.target_id = None
+                u.waypoints = []
+                u.pace = pace
+                v.slots[u.id] = (centre, r)
+                radius = r + u.row_gap() / 2
+                u.stance = Stance.PHALANX
+                u.target = centre                          # alle Ringe um dieselbe Mitte
+            return
+        plans = self.verband_plans(v, centre, facing, length)
+        v.centre = centre
+        v.length = length if length is not None else sum(p.length for p in plans if p.unit_id in v.rows[0]) or None
+        for plan in plans:
+            u = self.by_id(plan.unit_id)
+            if u is None:
+                continue
+            self._take_plan(u, plan)
+            u.pace = pace
+            v.slots[u.id] = plan
+        if not quiet:
+            self.line = plans
+
+    def _return_to_slot(self, v: Verband, u: Lochos) -> None:
+        slot = v.slots.get(u.id)
+        if slot is None:
+            return
+        if isinstance(slot, LinePlan):
+            self._take_plan(u, slot)
+        else:
+            centre, r = slot
+            self._wake(u)
+            u.formation, u.ring_size, u.stance, u.in_line = "o", r, Stance.PHALANX, False
+            u.mode, u.target_id, u.target, u.march = "", None, centre, None
+        self.events.append(f"{u.name} kehrt in {v.name} zurück")
+
+    def _nested(self, u: Lochos, o: Lochos) -> bool:
+        """Zwei Ringe desselben Verbands: sie stehen gewollt ineinander."""
+        if not self.verbaende or u.formation != "o" or o.formation != "o":
+            return False
+        v = self.verband_of(u)
+        return v is not None and v.formation == "o" and o.id in v.members()
+
+    def _verband_ring(self, u: Lochos) -> bool:
+        """Steht die Gruppe als Ring in einem Verband (Ringe um dieselbe Mitte)?"""
+        if u.formation != "o" or not self.verbaende:
+            return False
+        v = self.verband_of(u)
+        return v is not None and v.formation == "o"
+
+    def _verband_upkeep(self) -> None:
+        """Wer aus dem Verband heraus frei angegriffen hat, kehrt an seinen Platz zurück,
+        sobald kein kämpfender Feind mehr in der Nähe ist (der Gegner flieht oder ist tot)."""
+        self._tidy_verbaende()
+        self._ring_friends = {}
+        for v in self.verbaende:
+            if v.formation == "o":
+                ids = set(v.members())
+                for uid in ids:
+                    self._ring_friends[uid] = ids
+        if not self.verbaende:
+            return
+        foes = [f for f in self.lochoi if f.side is Side.FEIND and f.fighting]
+        for v in self.verbaende:
+            for uid in v.members():
+                u = self.by_id(uid)
+                if u is None or not u.fighting or not u.free_attack:
+                    continue
+                if u.engaged:
+                    u.stormed = True
+                    continue
+                if not u.stormed:
+                    continue
+                if any(f.rect_distance(u.pos) <= config.VERBAND_RETURN for f in foes):
+                    continue
+                self._return_to_slot(v, u)
 
     def _free_spot(self, p: Point, unit: Lochos | None = None) -> Point:
         x = min(max(p[0], 0.5), self.cols - 0.5)
@@ -1934,6 +2255,7 @@ class Battle:
         else:
             self._ai_raiders()
         self._ai_city()
+        self._verband_upkeep()
         self._skirmishers()
         self._move(dt)
         self._separate()
@@ -2251,6 +2573,8 @@ class Battle:
                     self._coast(u, dt)                  # Reiter laufen aus statt auf der Stelle zu stehen
                 continue
             speed = u.speed * (1.25 if u.stance is Stance.FLUCHT else 1.0)
+            if u.pace is not None and u.stance is not Stance.FLUCHT:
+                speed = min(speed, u.pace)              # im Verband: so schnell wie die langsamste Gruppe
             if u.engaged and u.stance is not Stance.FLUCHT:
                 speed *= config.ENGAGED_SPEED           # im Handgemenge kommt man kaum vom Fleck
             if u.charge_slow_until > self.time:
@@ -2525,8 +2849,8 @@ class Battle:
         for o in self.lochoi:
             if o is u or not o.alive or o.loose or o.side is not u.side or self.on_wall(o) != self.on_wall(u):
                 continue
-            if self._passable(o):
-                continue                                  # lockere Ordnung: man geht hindurch
+            if self._passable(o) or self._nested(u, o):
+                continue                                  # lockere Ordnung (oder Ring im Ring): man geht hindurch
             if not self._standing(o) or (idle_only and not self._idle(o)):
                 continue                                  # selbst unterwegs: man weicht sich Mann für Mann aus
             if o.id == u.target_id or o.id in u.contacts:
@@ -2723,7 +3047,8 @@ class Battle:
         if not u.alive:
             return
         if (u.target is not None and u.target_id is None and not u.loose and u.stance is not Stance.FLUCHT
-                and not u.in_phalanx and u.building is None and u.target != u.target_checked):
+                and not u.in_phalanx and u.building is None and u.target != u.target_checked
+                and not self._verband_ring(u)):
             u.target = self._clear_of_own(u, u.target)   # besetzter Platz: daneben halten (einmal je Befehl)
             u.target_checked = u.target
         why = self._loose_reason(u)
@@ -3663,6 +3988,7 @@ class Battle:
         Gruppe (``own``) rückt man Schulter an Schulter, bis auf einen. Wer schon zu
         dicht steht, darf sich entfernen."""
         cx, cy = self._grid_cell(*b)
+        friends = self._ring_friends.get(own) if self._ring_friends else None
         near: list[tuple[Man, bool, float, float]] = []
         nearest = {True: float("inf"), False: float("inf")}   # wie dicht er jetzt schon steht: eigene / fremde
         for gx in (cx - 1, cx, cx + 1):
@@ -3670,6 +3996,8 @@ class Battle:
                 for o, uid in self._man_grid.get((gx, gy), ()):
                     if o is man or o.hp <= 0.0:
                         continue
+                    if friends and uid in friends and uid != own:
+                        continue                          # Ring im Ring desselben Verbands: man tritt aneinander vorbei
                     mine = uid == own
                     da = math.hypot(a[0] - o.x, a[1] - o.y)
                     nearest[mine] = min(nearest[mine], da)
@@ -3858,7 +4186,7 @@ class Battle:
                 continue                                  # ein Wartender hinter uns hält uns nicht auf (sonst warten alle aufeinander)
             if o.waiting and o.blocked_by == u.id and self._gives_way(o, u):
                 continue                                  # sie wartet auf uns: wer nicht angreift (etwa zurückweicht), geht zuerst
-            if dist(o.pos, pos) > o.radius + u.radius or self._passable(o):
+            if dist(o.pos, pos) > o.radius + u.radius or self._passable(o) or self._nested(u, o):
                 continue
             if not self._standing(o):
                 continue                                  # unterwegs: man weicht sich Mann für Mann aus
@@ -3917,8 +4245,8 @@ class Battle:
                 idle_a, idle_b = self._idle(a), self._idle(b)
                 if a.side is b.side and not (idle_a and idle_b):
                     continue          # eigene Gruppen drückt niemand weg: wer unterwegs ist, kommt gar nicht erst hinein
-                if a.side is b.side and (self._passable(a) or self._passable(b)):
-                    continue          # durch leichte Truppen geht man hindurch
+                if a.side is b.side and (self._passable(a) or self._passable(b) or self._nested(a, b)):
+                    continue          # durch leichte Truppen geht man hindurch (Ringe eines Verbands stehen ineinander)
                 if a.side is b.side and (a.engaged or b.engaged):
                     continue          # im Handgemenge drückt man den eigenen Nebenmann nicht weg
                 if a.loose or b.loose or self.on_wall(a) != self.on_wall(b):

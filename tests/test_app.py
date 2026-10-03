@@ -188,13 +188,14 @@ def test_context_bar_shows_only_what_the_selection_can_do():
     press(app, bar(app)[f"group:{pelt.id}"])               # nochmal: abwählen
     assert app.selected == set()
     press(app, bar(app)["alle"])
-    assert "vereinen" in bar(app)                          # mehrere gewählt: vereinen möglich
-    press(app, bar(app)["vereinen"])
-    assert len(app.selected) == 1 and len(b.units(Side.STADT)) == 1
-    (g,) = b.units(Side.STADT)
-    assert labels(app)["angriff"] == "Angriff" and b.mixed(g)
-    press(app, bar(app)["angriff"])                        # gemischt: teilt sich, alle Teile bleiben gewählt
-    assert len(b.units(Side.STADT)) == 3 and len(app.selected) == 3
+    assert "verband" in bar(app) and "vereinen" not in bar(app)   # mehrere gewählt: Verband bilden
+    press(app, bar(app)["verband"])
+    (v,) = b.verbaende
+    assert app.selected == {hop.id, pelt.id, cav.id} and len(b.units(Side.STADT)) == 3
+    lab = labels(app)
+    assert {"angriff", "halten", "vformation:linie", "vformation:o", "anordnen", "aufloesen"} <= set(lab)
+    press(app, bar(app)["angriff"])                        # Angriff je Gattung, die Gruppen bleiben gewählt
+    assert len(app.selected) == 3 and b.verbaende == [v]
     app.command("alle")
     press(app, bar(app)["menue"])                          # Menü: Neu erst nach Bestätigung
     assert app.menu_open and "neu" in bar(app)
@@ -338,3 +339,63 @@ def test_formation_frames_only_in_pause_and_while_dragging(monkeypatch):
     goals.clear()
     r.draw(app.battle, (4.0, 10.0, 9.0, 10.0), False, set())
     assert seen and all(seen) and goals
+
+
+def test_long_press_adds_groups_and_the_frame_selects_the_verband():
+    """Tippen auf eine Kachel wählt nur diese Gruppe, langes Drücken nimmt sie dazu. Aus
+    mehreren wird ein Verband; seine Kacheln stehen beisammen, die Kopfzeile wählt ihn."""
+    app = make_app()
+    b = app.battle
+    hop, pelt, cav = b.units(Side.STADT)
+    press(app, bar(app)[f"group:{hop.id}"])
+    assert app.selected == {hop.id}
+    pos = bar(app)[f"group:{cav.id}"]
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=pos))
+    app.tick(0.6)                                          # lange gedrückt
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=pos))
+    assert app.selected == {hop.id, cav.id}
+    press(app, bar(app)["verband"])
+    (v,) = b.verbaende
+    assert v.rows == [[hop.id, cav.id]] and app.selected == {hop.id, cav.id}
+    keys = [k for k in bar(app) if k.startswith(("group:", "verband:"))]
+    assert keys[keys.index(f"verband:{v.id}") + 1:keys.index(f"verband:{v.id}") + 3] == [f"group:{hop.id}", f"group:{cav.id}"]
+    press(app, bar(app)[f"group:{pelt.id}"])               # eine andere Gruppe
+    assert app.selected == {pelt.id}
+    press(app, bar(app)[f"verband:{v.id}"])                # Kopfzeile: der ganze Verband
+    assert app.selected == {hop.id, cav.id} and b.selected_verband(app.selected) is v
+    app.paused = True
+    app.draw()
+
+
+def test_arranging_a_verband_by_dragging_its_icons():
+    """„Anordnen“ öffnet die Tafel; ein Sinnbild, in die leere Zeile gezogen, wird eine neue
+    Reihe hinten, neben ein anderes gezogen steht es daneben."""
+    app = make_app()
+    b = app.battle
+    hop, pelt, cav = b.units(Side.STADT)
+    app.selected = {hop.id, pelt.id, cav.id}
+    press(app, bar(app)["verband"])
+    (v,) = b.verbaende
+    assert v.rows == [[hop.id, cav.id], [pelt.id]]
+    press(app, bar(app)["anordnen"])
+    assert app.arranging == v.id
+    app.draw()
+    layout = app.renderer.arrange_layout(b, v.id)
+    icon = dict(layout["rows"][0][1])[cav.id]
+    target = layout["new_row"].center
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=icon.center))
+    app.handle_event(pygame.event.Event(pygame.MOUSEMOTION, pos=target, rel=(0, 0), buttons=(1, 0, 0)))
+    app.draw()
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=target))
+    assert v.rows == [[hop.id], [pelt.id], [cav.id]]               # Reiter jetzt ganz hinten
+    layout = app.renderer.arrange_layout(b, v.id)
+    pelt_icon = dict(layout["rows"][1][1])[pelt.id]
+    hop_icon = dict(layout["rows"][0][1])[hop.id]
+    drop = (hop_icon.left - 4, hop_icon.centery)                   # links neben die Hopliten
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=pelt_icon.center))
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=drop))
+    assert v.rows == [[pelt.id, hop.id], [cav.id]]
+    press(app, layout["done"].center)
+    assert app.arranging is None
+    press(app, bar(app)["aufloesen"])
+    assert b.verbaende == []

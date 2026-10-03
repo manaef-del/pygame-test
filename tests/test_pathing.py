@@ -256,8 +256,8 @@ def test_phalanx_narrows_through_the_gate_and_widens_behind():
     assert hop.width == plan_width and hop.in_phalanx and dist(hop.pos, (8.0, 4.5)) < 0.1
 
 
-def test_hold_and_merge_close_a_dissolved_group_where_its_men_are():
-    """Halten und Vereinen wirken auch auf eine Gruppe, die gerade Mann für Mann
+def test_hold_and_verband_close_a_dissolved_group_where_its_men_are():
+    """Halten und Verband bilden wirken auch auf eine Gruppe, die gerade Mann für Mann
     um eine andere herumgeht: Sie schließt sich dort, wo ihre Männer stehen."""
     b, line, block = line_and_block()
     b.command_move([block], (8.0, 6.0))
@@ -272,7 +272,7 @@ def test_hold_and_merge_close_a_dissolved_group_where_its_men_are():
     for _ in range(int(1.5 / DT)):
         b2.update(DT)
     assert block2.loose
-    assert b2.command_merge([line2, block2]) is not None
+    assert b2.command_verband([line2, block2]) is not None
 
 
 def test_enemies_dissolve_around_their_own_unless_switched_off(monkeypatch):
@@ -331,6 +331,11 @@ def test_enemies_keep_their_order_next_to_a_foe():
     assert not walk.loose
 
 
+def ring_army() -> Army:
+    """Eine einzige große Hoplitengruppe (75 Mann), die sich als Kreis stellt."""
+    return Army(groups=[GroupSpec("Ring", [Tier("schwer", 25), Tier("mittel", 25), Tier("leicht", 25)])])
+
+
 def approaching_attacker(b, ring):
     """Der erste Räuberhaufen, der den Kreis angreift, aber noch nicht dran ist, weil eigene
     kämpfende Haufen davor stehen (frühestens nach 13 Sekunden)."""
@@ -351,9 +356,8 @@ def test_attacker_keeps_its_detour_side_instead_of_dithering():
     eine Seite und bleibt dabei: er wechselt sie nicht hin und her und kommt voran
     oder wartet geordnet (Umweg-Flackern, docs/ideen.md)."""
     from game.scenarios import OFFENE_SIEDLUNG
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
-    own = b.units(Side.STADT)
-    g = b.command_merge(own)
+    b = Battle(OFFENE_SIEDLUNG, random.Random(1), army=ring_army())
+    (g,) = b.units(Side.STADT)
     b.command_formation([g], "o")
     b.command_ring([g], (7.5, 9.5), 1.0)
     r6 = approaching_attacker(b, g)
@@ -372,9 +376,8 @@ def test_attacker_waits_when_the_enemy_outline_is_full(monkeypatch):
     """Ist am ganzen Umriss des Gegners kein Platz mehr frei, wartet der Block hinter
     den eigenen Gruppen, statt herumzulaufen."""
     from game.scenarios import OFFENE_SIEDLUNG
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
-    own = b.units(Side.STADT)
-    g = b.command_merge(own)
+    b = Battle(OFFENE_SIEDLUNG, random.Random(1), army=ring_army())
+    (g,) = b.units(Side.STADT)
     b.command_formation([g], "o")
     b.command_ring([g], (7.5, 9.5), 1.0)
     r6 = approaching_attacker(b, g)

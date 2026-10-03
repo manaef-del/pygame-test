@@ -194,6 +194,7 @@ DRILL_LOOSE_MISSILE = 0.7     # locker: Wurfspeere treffen seltener (weite Abst�
 DRILL_CLOSED_FRONT = 0.75     # geschlossen: noch weniger Schaden von vorn als die Phalanx
 DRILL_CLOSED_SHIELD = 0.75    # geschlossen: so viel der Speere von vorn fangen die Schilde (Phalanx 0,5)
 DRILL_NARROW = True           # Phalanx und Schildwall lösen sich an Tor und Gasse nicht auf, sie werden schmaler
+VERBAND_RETURN = 3.0          # Kacheln: ist kein kämpfender Feind so nah, kehrt ein Stürmer an seinen Platz im Verband zurück
 DRILL_NARROW_MIN = 2          # schmaler als so viele Männer wird die Front nicht (sonst doch Mann für Mann)
 
 # Zeit

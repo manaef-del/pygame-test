@@ -124,12 +124,17 @@ BAR_ROWS = (42,)                           # nur die Befehle für die gewählten
 CHIP = 44                                  # Kantenlänge der Gruppenkacheln am rechten Kartenrand
 CHIP_GAP = 4
 CHIP_TOP = 54                              # unter Pause und dem Plan des Gegners
+VERBAND_HEAD = 14                          # Kopfzeile eines Verbands über seinen Kacheln
 TOP_BTN_H = 28                             # Menü oben links, Pause oben rechts
 TOP_BTN_Y = 4
 ATTACK_LABEL = {"hopliten": "Sturm", "peltasten": "Plänkeln", "reiter": "Sturmangriff"}
 
 
 class Renderer:
+    arranging: int | None = None                  # Verband, dessen Anordnung gerade bearbeitet wird
+    arrange_drag: tuple | None = None             # (Gruppe, Fingerposition), die gerade verschoben wird
+    _selected: set = set()
+
     def __init__(self, surface: pygame.Surface) -> None:
         self.surface = surface
         pygame.font.init()
@@ -157,6 +162,8 @@ class Renderer:
             Camera().apply()                          # Leiste und Anzeigen im Bildschirmmaß
         self._draw_hud(battle, paused, selected)
         self._draw_bar(battle, paused, selected, menu_open)
+        if self.arranging is not None:
+            self._draw_arrange(battle, self.arranging, self.arrange_drag)
 
     def _draw_field(self, battle: Battle, drag, paused: bool, selected: set[int]) -> None:
         s = self.surface
@@ -576,19 +583,50 @@ class Renderer:
         return out
 
     @staticmethod
+    def chip_order(battle: Battle) -> list[tuple[str, object]]:
+        """Reihenfolge der Kacheln: die Gruppen eines Verbands zusammen, vorn nach hinten
+        und links nach rechts, mit einer Kopfzeile davor; die anderen einzeln."""
+        out: list[tuple[str, object]] = []
+        done: set[int] = set()
+        for u in battle.units(Side.STADT):
+            if u.id in done:
+                continue
+            v = battle.verband_of(u)
+            if v is None:
+                out.append(("group", u))
+                done.add(u.id)
+                continue
+            out.append(("verband", v))
+            for row in battle.verband_units(v, fighting=False):
+                for g in row:
+                    out.append(("group", g))
+                    done.add(g.id)
+        return out
+
+    @staticmethod
     def _chips(battle: Battle, selected: set[int]) -> list[Button]:
         """Eine Kachel je eigene Gruppe, untereinander am rechten Kartenrand,
-        oben „Alle“; sie wählen aus und zeigen Gattung, Mannzahl und Moral."""
+        oben „Alle“; sie wählen aus und zeigen Gattung, Mannzahl und Moral. Die
+        Gruppen eines Verbands stehen beisammen, ein Rahmen mit Kopfzeile umschließt
+        sie; die Kopfzeile wählt den ganzen Verband."""
         groups = battle.units(Side.STADT)
         if not groups:
             return []
         x = config.MAP_W - CHIP - 6
         out = [Button("alle", "Keine" if selected else "Alle", pygame.Rect(x, CHIP_TOP, CHIP, CHIP), active=bool(selected))]
         y = CHIP_TOP + CHIP + CHIP_GAP
-        for u in groups:
-            if y + CHIP > config.MAP_H - 44:
+        chosen = battle.selected_verband(selected)
+        for kind, item in Renderer.chip_order(battle):
+            h = VERBAND_HEAD if kind == "verband" else CHIP
+            if y + h > config.MAP_H - 44:
                 break                                     # mehr passt nicht neben die Karte
-            out.append(Button(f"group:{u.id}", str(u.men), pygame.Rect(x, y, CHIP, CHIP), active=u.id in selected))
+            if kind == "verband":
+                y += 2
+                out.append(Button(f"verband:{item.id}", f"V{item.id}", pygame.Rect(x, y, CHIP, VERBAND_HEAD),
+                                  active=chosen is item))
+                y += VERBAND_HEAD + 2
+                continue
+            out.append(Button(f"group:{item.id}", str(item.men), pygame.Rect(x, y, CHIP, CHIP), active=item.id in selected))
             y += CHIP + CHIP_GAP
         return out
 
@@ -600,6 +638,15 @@ class Renderer:
         mixed = any(battle.mixed(u) for u in sel)                 # gemischte Gruppe: teilt sich beim Angriff
         storming = all(u.stance is Stance.ANGRIFF and u.target_id is None for u in sel)
         items: list[tuple[str, str, float, bool, str | None]] = []          # key, label, Gewicht, aktiv, Unterzeile
+        verband = battle.selected_verband({u.id for u in sel})
+        if verband is not None:
+            # der ganze Verband: Angriff und Halten je Gattung, seine Form, Anordnung, Auflösen
+            items = [("angriff", "Angriff", 1.2, False, "je Gattung"), ("halten", "Halten", 1.1, False, None),
+                     ("vformation:linie", "Linie", 0.9, verband.formation == "linie", None),
+                     ("vformation:o", "Kreis", 0.9, verband.formation == "o", None),
+                     ("anordnen", "Anordnen", 1.3, self.arranging == verband.id, None),
+                     ("aufloesen", "Auflösen", 1.2, False, "Verband")]
+            return self._lay_out(items, y, h)
         if arm == "hopliten" and not mixed:
             # die Modi: locker, Phalanx, geschlossen, dazu der Sturm
             for name in config.DRILLS:
@@ -611,11 +658,13 @@ class Renderer:
                           "je Gattung" if mixed else None))
             items.append(("halten", "Halten", 1.6, False, None))
         if len(sel) >= 2:
-            items.append(("vereinen", "Vereinen", 1.4, False, None))
+            items.append(("verband", "Verband", 1.3, False, "bilden"))
+        elif battle.verband_of(sel[0]) is not None:
+            items.append(("verlassen", "Aus", 1.0, False, "Verband"))
         engines = battle.scenario.ram_available
         if arm != "gemischt":
             opts = sel[0].formation_options()
-            if len(opts) > 1 and engines and arm == "hopliten":
+            if len(opts) > 1 and len(items) + len(opts) + (2 if engines else 0) > 7:
                 # wenig Platz: ein Knopf, der die Formation weiterschaltet
                 now = sel[0].formation
                 items.append(("formation", FORMATION_NAMES[now], 1.0, False, "wechseln"))
@@ -632,6 +681,11 @@ class Renderer:
                     continue                                              # das Tor ist schon offen
                 sub = "ablegen" if carrying else ("abbrechen" if building else "bauen")
                 items.append((key, name, 1.4, carrying or building, sub))
+        return self._lay_out(items, y, h)
+
+    @staticmethod
+    def _lay_out(items: list, y: int, h: int) -> list[Button]:
+        W, gap = config.WIDTH, 6
         total = sum(it[2] for it in items)
         unit = (W - gap * (len(items) + 1)) / total
         out, x = [], float(gap)
@@ -669,11 +723,18 @@ class Renderer:
         s = self.surface
         pygame.draw.rect(s, config.COLOR_BAR, pygame.Rect(0, config.MAP_H, config.WIDTH, config.BAR_H))
         self.buttons = self.layout_bar(battle, paused, selected, menu_open)
+        self._selected = selected
         (y2, h2), = self._bar_rows()
         by_id = {u.id: u for u in battle.lochoi}
+        self._draw_verband_frames(battle)
         for b in self.buttons:
             if b.key.startswith("group:"):
                 self._draw_chip(b, by_id[int(b.key.split(":")[1])])
+                continue
+            if b.key.startswith("verband:"):
+                pygame.draw.rect(s, config.COLOR_SHIELD if b.active else config.COLOR_BUTTON, b.rect, border_radius=4)
+                img = self.small.render(b.label, True, config.COLOR_BAR if b.active else config.COLOR_TEXT)
+                s.blit(img, img.get_rect(center=b.rect.center))
                 continue
             if b.key == "alle":
                 pygame.draw.rect(s, config.COLOR_BUTTON_ACTIVE if b.active else config.COLOR_BUTTON, b.rect, border_radius=6)
@@ -700,9 +761,113 @@ class Renderer:
             elif battle.alarm:
                 hint = "Gruppe wählen und aufstellen, Los startet die Schlacht"
             else:
-                hint = "Gruppe wählen: Kachel rechts oder Gruppe im Feld antippen"
+                hint = "Gruppe wählen: Kachel antippen, lange drücken wählt dazu"
             img = self.small.render(hint, True, config.COLOR_TEXT_DIM)
             s.blit(img, img.get_rect(center=(config.WIDTH // 2, y2 + h2 // 2)))
+
+    # ------------------------------------------------ Anordnung eines Verbands
+    def arrange_layout(self, battle: Battle, vid: int) -> dict | None:
+        """Die Tafel zum Anordnen: je Reihe des Verbands eine Zeile (oben vorn), darin die
+        Sinnbilder der Gruppen von links nach rechts; darunter eine leere Zeile für eine neue
+        Reihe hinten; oben rechts „Fertig“."""
+        v = next((x for x in battle.verbaende if x.id == vid), None)
+        if v is None:
+            return None
+        rows = [[u.id for u in row] for row in battle.verband_units(v, fighting=False)]
+        icon, row_h, head = 40, 48, 26
+        x0, w = 8, config.MAP_W - CHIP - 26
+        h = head + (len(rows) + 1) * row_h + 8
+        y0 = config.MAP_H - 8 - h
+        panel = pygame.Rect(x0, y0, w, h)
+        out_rows = []
+        for i, row in enumerate(rows + [[]]):
+            rect = pygame.Rect(x0 + 6, y0 + head + i * row_h, w - 12, row_h - 4)
+            total = len(row) * icon + max(0, len(row) - 1) * 8
+            x = rect.centerx - total // 2
+            icons = []
+            for gid in row:
+                icons.append((gid, pygame.Rect(x, rect.y + (rect.h - icon) // 2, icon, icon)))
+                x += icon + 8
+            out_rows.append((rect, icons))
+        return {"panel": panel, "rows": out_rows[:-1], "new_row": out_rows[-1][0],
+                "done": pygame.Rect(panel.right - 76, y0 + 3, 70, 20), "ids": rows}
+
+    @staticmethod
+    def drop_rows(layout: dict, gid: int, pos: tuple[int, int]) -> list[list[int]]:
+        """Neue Anordnung, wenn die Gruppe ``gid`` bei ``pos`` abgelegt wird: in die Zeile
+        unter dem Finger, zwischen die Nachbarn links und rechts; unter der letzten Zeile
+        wird sie eine neue Reihe hinten."""
+        rows = [[x for x in row if x != gid] for row in layout["ids"]]
+        target = None
+        for i, (rect, _) in enumerate(layout["rows"]):
+            if rect.top - 2 <= pos[1] < rect.bottom + 2:
+                target = i
+                break
+        if target is None:
+            if pos[1] >= layout["new_row"].top - 2:
+                rows.append([gid])
+            elif pos[1] < layout["rows"][0][0].top:
+                rows.insert(0, [gid])
+            else:
+                return layout["ids"]
+            return [r for r in rows if r]
+        centres = {g: r.centerx for _, icons in layout["rows"] for g, r in icons}
+        row = rows[target]
+        k = sum(1 for g in row if centres.get(g, 0) < pos[0])
+        row.insert(k, gid)
+        return [r for r in rows if r]
+
+    def _draw_arrange(self, battle: Battle, vid: int, drag) -> None:
+        layout = self.arrange_layout(battle, vid)
+        if layout is None:
+            return
+        s = self.surface
+        by_id = {u.id: u for u in battle.lochoi}
+        pygame.draw.rect(s, config.COLOR_BAR, layout["panel"], border_radius=8)
+        pygame.draw.rect(s, config.COLOR_SHIELD, layout["panel"], 2, border_radius=8)
+        title = self.small.render("Anordnung: oben ist vorn", True, config.COLOR_TEXT)
+        s.blit(title, (layout["panel"].x + 8, layout["panel"].y + 6))
+        done = layout["done"]
+        pygame.draw.rect(s, config.COLOR_BUTTON_ACTIVE, done, border_radius=5)
+        img = self.small.render("Fertig", True, config.COLOR_TEXT)
+        s.blit(img, img.get_rect(center=done.center))
+        for i, (rect, icons) in enumerate(layout["rows"]):
+            pygame.draw.rect(s, config.COLOR_BUTTON, rect, 1, border_radius=5)
+            img = self.small.render("vorn" if i == 0 else f"{i + 1}.", True, config.COLOR_TEXT_DIM)
+            s.blit(img, (rect.x + 4, rect.y + 3))
+            for gid, r in icons:
+                if drag is not None and drag[0] == gid:
+                    continue
+                u = by_id.get(gid)
+                if u is not None:
+                    self._draw_chip(Button(f"group:{gid}", str(u.men), r), u)
+        rect = layout["new_row"]
+        pygame.draw.rect(s, config.COLOR_BUTTON, rect, 1, border_radius=5)
+        img = self.small.render("hierher ziehen: neue Reihe hinten", True, config.COLOR_TEXT_DIM)
+        s.blit(img, img.get_rect(center=rect.center))
+        if drag is not None and drag[0] in by_id:
+            r = pygame.Rect(0, 0, 40, 40)
+            r.center = drag[1]
+            self._draw_chip(Button(f"group:{drag[0]}", str(by_id[drag[0]].men), r, active=True), by_id[drag[0]])
+
+    def _draw_verband_frames(self, battle: Battle) -> None:
+        """Ein Rahmen um die Kopfzeile und die Kacheln jedes Verbands."""
+        rects: dict[int, pygame.Rect] = {}
+        current = None
+        for b in self.buttons:
+            if b.key.startswith("verband:"):
+                current = int(b.key.split(":")[1])
+                rects[current] = b.rect.copy()
+            elif b.key.startswith("group:") and current is not None:
+                v = battle.verband_of(int(b.key.split(":")[1]))
+                if v is not None and v.id == current:
+                    rects[current].union_ip(b.rect)
+                else:
+                    current = None
+        chosen = battle.selected_verband(self._selected)
+        for vid, r in rects.items():
+            color = config.COLOR_SHIELD if chosen is not None and chosen.id == vid else config.COLOR_RECT
+            pygame.draw.rect(self.surface, color, r.inflate(6, 6), 2, border_radius=7)
 
     def _draw_chip(self, b: Button, u: Lochos) -> None:
         """Gruppenkachel: Sinnbild der Gattung, Mannzahl, Moralbalken; gewählt blau,
