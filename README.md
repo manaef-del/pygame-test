@@ -74,8 +74,13 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   eine ruhende eigene Gruppe nur am Rand des Weges (der Umweg ist höchstens
   ein Fünftel länger), geht eine Gruppe als Block im Bogen an ihr vorbei;
   steht sie quer davor, löst sich die Gruppe auf und geht Mann für Mann
-  vorbei. Kurze Wege, Angriffe, Flucht und Umwege um Wall, Tor und Häuser
-  gehen wie zuvor: erst schwenken, dann geradeaus.
+  vorbei. Passt ein Block nicht durch eine Gasse zwischen Häusern und wäre
+  der Weg außen herum mehr als 1,4-mal so lang wie für einzelne Männer, geht
+  er Mann für Mann hindurch und schließt sich danach wieder. Reiter traben
+  durch enge Wendungen, statt im Galopp eine Schleife zu ziehen: Sie nehmen
+  das höchste Tempo, mit dem der Bogen zum nächsten Wegpunkt noch passt.
+  Kurze Wege, Angriffe, Flucht und Umwege um Wall und Tor gehen wie zuvor:
+  erst schwenken, dann geradeaus.
 - **Das Rechteck sagt, wo jeder stehen soll; den Weg sucht jeder selbst.**
   Auf freiem Feld marschiert eine Gruppe als Block. Muss sie über den
   Wall, durchs offene Tor oder an einer ruhenden eigenen Gruppe vorbei,

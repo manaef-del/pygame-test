@@ -314,14 +314,17 @@ def test_houses_are_obstacles_and_a_phalanx_takes_the_street_to_the_agora():
     assert hop.in_line and math.dist(hop.pos, (b.agora[0], b.agora[1] + 2.2)) < 0.3
 
 
-def test_a_wide_block_goes_round_houses_it_does_not_fit_between():
-    """Zwischen zwei Häusern mit einer Kachel Lücke passt keine breite Front: der Block
-    geht außen herum, statt sich hindurchzuquetschen; eine Gruppe mit zwei Mann Front geht
-    hindurch (gemessen wird auf Halbkacheln: so schmale Gänge sind für Einzelne gedacht)."""
+@pytest.mark.parametrize("narrow", [False, True])
+def test_a_wide_block_goes_round_houses_it_does_not_fit_between(monkeypatch, narrow):
+    """Zwischen zwei Häusern mit einer Kachel Lücke passt keine breite Front. Ohne die
+    Regel für Gassen geht der Block außen herum, statt sich hindurchzuquetschen; mit ihr
+    (der Umweg ist viel länger) löst er sich auf und geht Mann für Mann hindurch. Eine
+    Gruppe mit zwei Mann Front geht als Block hindurch (gemessen wird auf Halbkacheln)."""
     from game.scenarios import OFFENE_SIEDLUNG
     from dataclasses import replace
+    monkeypatch.setattr(config, "NARROW_LOOSE", narrow)
     scn = replace(OFFENE_SIEDLUNG, houses=((7, 10), (9, 10)))      # eine Kachel Lücke bei x = 8
-    for width, through in ((14, False), (2, True)):
+    for width, through in ((14, narrow), (2, True)):
         b = quiet(Battle(scn, random.Random(1)))
         hop = b.units(Side.STADT)[0]
         clear(b, [hop])
@@ -332,8 +335,11 @@ def test_a_wide_block_goes_round_houses_it_does_not_fit_between():
         hop.stance = Stance.HALTEN
         hop.target = (8.5, 7.0)
         xs = []
+        why = set()
         for _ in range(int(25 / DT)):
             b.update(DT)
+            if hop.loose:
+                why.add(hop.loose_why)
             if 9.8 <= hop.y <= 11.2:
                 xs.append(hop.x)
             if math.dist(hop.pos, (8.5, 7.0)) < 0.3:
@@ -342,6 +348,7 @@ def test_a_wide_block_goes_round_houses_it_does_not_fit_between():
         assert all(b.cell(m.x, m.y) not in b.house_cells for m in hop.all_men())
         went_between = bool(xs) and all(8.0 <= x <= 9.0 for x in xs)
         assert went_between == through, (width, xs[:3])
+        assert ("enge" in why) == (narrow and width == 14)          # die breite Gruppe nur Mann für Mann
 
 
 def test_standing_siege_tower_and_dropped_ram_are_obstacles():
@@ -357,3 +364,39 @@ def test_standing_siege_tower_and_dropped_ram_are_obstacles():
     assert not b.is_blocked(24.0, 30.5)
     b.crossings.add((15, 26))                                   # steht ein Übergang, steigen die Angreifer in den Turm
     assert not b.is_blocked(20.0, 30.0, attacker)
+
+
+def test_cavalry_takes_the_short_way_through_an_alley():
+    """Kurze Strecke zwischen Häusern: Reiter, deren Block nicht durch die Gasse passt,
+    reiten nicht außen um den ganzen Häuserblock (vorher gut doppelt so weit), sondern
+    Mann für Mann hindurch."""
+    b = Battle(FESTUNG, random.Random(1))
+    for e in b.units(Side.FEIND):
+        e.x, e.y = 3.0, 3.0
+        e.place_men()
+    b.brain.think = lambda b: None
+    cav = next(u for u in b.units(Side.STADT) if u.arm() == "reiter")
+    cav.x, cav.y, cav.facing = 11.0, 14.0, (0.0, -1.0)
+    cav.place_men()
+    b.alarm = False
+    b.command_move([cav], (14.5, 17.5))
+    path, last = 0.0, cav.pos
+    for _ in range(int(8 / DT)):
+        b.update(DT)
+        path += math.dist(last, cav.pos)
+        last = cav.pos
+        if cav.target is None:
+            break
+    assert cav.target is None and math.dist(cav.pos, (14.5, 17.5)) < 0.3
+    assert path < 1.5 * math.dist((11.0, 14.0), (14.5, 17.5)), path
+
+
+def test_cavalry_corner_speed_fits_the_turn():
+    """Das Tempo für eine Wendung: geradeaus unbegrenzt, je enger der Bogen zum Punkt,
+    desto langsamer, nie unter dem Mindesttempo."""
+    corner = Battle._corner_speed
+    assert corner((0.0, -1.0), (0.0, -1.0), 3.0) == float("inf")
+    wide = corner((0.0, -1.0), (1.0, 0.0), 6.0)
+    tight = corner((0.0, -1.0), (1.0, 0.0), 1.0)
+    assert wide > 3.0                                       # weiter Bogen: Galopp (Reiter laufen 3 Kacheln/s)
+    assert config.CAVALRY_MIN_TURN_SPEED <= tight < wide

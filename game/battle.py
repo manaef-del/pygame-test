@@ -182,6 +182,7 @@ class Battle:
         self._engines_key = (0, 0)
         self._clearance: tuple | None = None                           # Abstandsfeld für die Wege der Blöcke
         self._block_ways: dict = {}
+        self._narrow_cache: dict = {}                                  # Gruppe -> (Ziel, Zeit, passt der Block nicht durch?)
         self.blocked = set(s.palisade)
         self.ladders = set(s.ladders)
         if s.gate is not None:
@@ -2490,6 +2491,8 @@ class Battle:
             want_v = min(top, math.sqrt(2.0 * config.CAVALRY_BRAKE * d), 3.0 * d + 0.05)   # Bremsweg, zuletzt weich auslaufen
         if rest > 0.0 and u.vel < 1.0:
             want_v *= max(0.25, math.cos(min(rest, math.pi / 2)))           # beim Anreiten weit seitlich: enger schwenken
+        if config.MARCH_ARC and u.stance is not Stance.FLUCHT:
+            want_v = min(want_v, self._corner_speed(head, want, d))       # enge Wendung: traben statt Schleife
         if u.vel < want_v:
             u.vel = min(want_v, u.vel + config.CAVALRY_ACCEL * dt)
         else:
@@ -2501,6 +2504,21 @@ class Battle:
         if abs(ang) < 1e-3 and dist(head, want) < 1e-3:
             step = min(step, d)
         self._step(u, scale(head, step))
+
+    @staticmethod
+    def _corner_speed(head: Point, want: Point, d: float) -> float:
+        """Das höchste Tempo, mit dem Reiter den Punkt in Abstand ``d`` und Richtung ``want``
+        noch ohne Schleife erreichen: Der Kreis durch ihn, tangential zur Fahrtrichtung, hat
+        den Halbmesser d / (2 sin Winkel); im Galopp wendet man mit Halbmesser v²/K (unter
+        Schritttempo v/K). Was schneller ist, Galopp im weiten Bogen oder Trab im engen,
+        entscheidet sich so von selbst: getrabt wird nur, wo der Bogen sonst nicht passt."""
+        ang = abs(math.atan2(head[0] * want[1] - head[1] * want[0], head[0] * want[0] + head[1] * want[1]))
+        if ang < 0.05 or d < 1e-6:
+            return float("inf")
+        radius = d / (2.0 * math.sin(min(ang, math.pi / 2)))
+        k = config.CAVALRY_TURN_RATE
+        v = math.sqrt(k * radius) if k * radius >= 1.0 else k * radius
+        return max(config.CAVALRY_MIN_TURN_SPEED, v)
 
     @staticmethod
     def _angle_to(facing: Point, want: Point) -> float:
@@ -2643,11 +2661,40 @@ class Battle:
             if not u.idle_block and not u.loose and self._block_passes(u, wp):
                 return ""                         # neben der eigenen Gruppe ist Platz: als Block im Bogen herum
             why = "eigene"                        # eine ruhende eigene Gruppe steht im Weg (hinter kämpfenden steht man an)
+        if not why and self._narrow_way(u):
+            why = "enge"                          # der Block passt nicht durch die Gasse: Mann für Mann statt großem Umweg
         if why and self._field_builds.get(self.time, 0) >= self._field_budget():
             return ""                             # in diesem Takt schon genug Wegefelder gerechnet: einen Takt später auflösen
         if why and not self._way_open(u):
             return ""                             # kein Durchkommen (die eigenen kämpfen im Durchgang): als Block anstehen
         return why
+
+    def _narrow_way(self, u: Lochos) -> bool:
+        """Ist der Weg zwischen Häusern (oder Gerät) für den Block viel länger als für einzelne
+        Männer, weil er nicht durch eine Gasse passt? Dann geht man besser Mann für Mann
+        hindurch. Gerechnet wird nur, wo die gerade Linie für den Block nicht frei ist, und
+        das Ergebnis gilt eine Weile."""
+        if (not config.NARROW_LOOSE or u.target is None or not self.house_cells and not self._ram_cells
+                and not self._tower_cells):
+            return False
+        if self.on_wall(u) or not self.wall_clear(u.pos, u.target):
+            return False                          # über den Wall oder durchs Tor regeln andere Gründe
+        r = self._block_width(u)
+        if r <= config.NARROW_MIN_WIDTH or self._wide_clear(u.pos, u.target, r):
+            return False
+        key = (round(u.target[0], 1), round(u.target[1], 1), round(r, 1))
+        hit = self._narrow_cache.get(u.id)
+        if hit is not None and hit[0] == key and self.time - hit[1] < config.BLOCK_WAY_TIME:
+            return hit[2]
+
+        def length(path: list[Point]) -> float:
+            pts = [u.pos] + path
+            return sum(dist(a, c) for a, c in zip(pts, pts[1:]))
+        wide = self._block_path(u.pos, u.target, r)
+        thin = self._block_path(u.pos, u.target, config.NARROW_MIN_WIDTH)
+        narrow = bool(thin) and (not wide or length(wide) > config.NARROW_RATIO * length(thin) + 0.5)
+        self._narrow_cache[u.id] = (key, self.time, narrow)
+        return narrow
 
     def _block_passes(self, u: Lochos, wp: Point) -> bool:
         """Kommt die Gruppe als Block um die eigene Gruppe herum, die im Weg ruht (über den
