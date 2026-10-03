@@ -243,8 +243,8 @@ def test_hold_and_merge_close_a_dissolved_group_where_its_men_are():
 def test_enemies_dissolve_around_their_own_unless_switched_off(monkeypatch):
     """Die Gegner lösen sich wie die Spielergruppen auf, um an einem ruhenden eigenen
     Haufen vorbeizukommen; mit abgeschaltetem LOOSE_AI gehen sie als Block herum.
-    (Ein kleiner Umweg ginge auch als Block: hier ausgeschaltet.)"""
-    monkeypatch.setattr(config, "DETOUR_BLOCK_RATIO", 1.0)
+    (Ein Umweg ginge hier auch als Block gleich schnell: hier ausgeschaltet.)"""
+    monkeypatch.setattr(config, "FORMATION_MARGIN", -100.0)
     def setup():
         b = Battle(Scenario("t", "t", "", role="verteidigung", enemy_kind="raeuber", enemy_default=32, enemy_min=32,
                             enemy_max=32, houses=((2, 17),), raider_spawns=(RaiderSpawn(8.0, 5.0), RaiderSpawn(8.0, 8.0))),

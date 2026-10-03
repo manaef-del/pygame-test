@@ -100,9 +100,12 @@ MARCH_MIN = 3.0              # Kacheln: kürzere Wege geht man wie bisher (drehe
 MARCH_DEPLOY = 1.5           # Kacheln vor dem Ziel: dort marschiert die Gruppe in Breite und Front auf
 MARCH_WHEEL = 1.2            # Kacheln/s, die der äußere Mann beim Schwenken zusätzlich läuft (Drehrate = dies / halbe Breite)
 MARCH_WHEEL_MAX = 1.6        # rad/s: schneller schwenkt auch ein kleiner Block nicht
-DETOUR_BLOCK_RATIO = 1.2     # an einer ruhenden eigenen Gruppe vorbei: als Block, wenn der Umweg höchstens so viel länger ist
-NARROW_LOOSE = True          # passt ein Block nicht durch eine Gasse (großer Umweg), geht er Mann für Mann hindurch
-NARROW_RATIO = 1.4           # ... wenn sein Weg mehr als so viel länger ist als der für einzelne Männer
+# Schnellster Weg: als Block oder kurz auflösen (gemessen: quer vor eigener Linie 8,7 s als Block, 6,4 s Mann für Mann)
+BLOCK_DETOUR_TIME = 0.0      # Sekunden, die ein Block für die Schwenks eines Umwegs zusätzlich braucht (gemessen: kaum, er zieht Bögen)
+LOOSE_REFORM_TIME = 0.6      # Sekunden, die eine aufgelöste Gruppe am Ende zum Neuformieren braucht
+LOOSE_SQUEEZE = 0.02         # Sekunden je Mann, die sie in einer engen Gasse ansteht
+FORMATION_MARGIN = 0.5       # Sekunden: so viel schneller muss Auflösen sein, sonst hält man die Ordnung
+NARROW_LOOSE = True          # passt ein Block nicht durch eine Gasse und ist Mann für Mann schneller, geht er so hindurch
 NARROW_MIN_WIDTH = 0.2       # Kacheln: halbe Breite, mit der einzelne Männer durchkommen
 MARCH_LOOKAHEAD = 1.0        # Kacheln: so weit über einen Umwegpunkt hinaus zielt ein Block im Bogen (zum Ziel hin)
 CAVALRY_ACCEL = 2.5          # Kacheln/s²: Reiter fahren an

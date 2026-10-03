@@ -183,6 +183,7 @@ class Battle:
         self._clearance: tuple | None = None                           # Abstandsfeld für die Wege der Blöcke
         self._block_ways: dict = {}
         self._narrow_cache: dict = {}
+        self._pass_choice: dict = {}                                   # Gruppe -> (Ziel, als Block um eigene herum?)
         self._steps_cache: dict = {}                                   # Wehrgang: Schritte von einem Wallstück aus
         self._wall_route: dict = {}                                    # Gruppe -> (Ziel, über die Leitern schneller?)
         self._wall_occ: tuple | None = None                            # (Zeit, Kachel -> gesperrte Seiten) auf dem Wehrgang                                  # Gruppe -> (Ziel, Zeit, passt der Block nicht durch?)
@@ -2743,8 +2744,13 @@ class Battle:
                                                 and e.rect_distance(u.pos) <= config.LOOSE_ENEMY_RANGE
                                                 for e in self.lochoi):
                 return ""                         # die Gegner halten nahe am Feind die Ordnung und gehen als Block herum
-            if not u.idle_block and not u.loose and self._block_passes(u, wp):
-                return ""                         # neben der eigenen Gruppe ist Platz: als Block im Bogen herum
+            if not u.idle_block and not u.loose:
+                key = (round(u.target[0], 1), round(u.target[1], 1))
+                hit = self._pass_choice.get(u.id)
+                if hit is None or hit[0] != key:   # einmal je Ziel entschieden (kein Umschwenken unterwegs)
+                    hit = self._pass_choice[u.id] = (key, self._block_passes(u, wp))
+                if hit[1]:
+                    return ""                     # als Block im Bogen herum ist nicht langsamer
             why = "eigene"                        # eine ruhende eigene Gruppe steht im Weg (hinter kämpfenden steht man an)
         if not why and self._narrow_way(u):
             why = "enge"                          # der Block passt nicht durch die Gasse: Mann für Mann statt großem Umweg
@@ -2755,10 +2761,9 @@ class Battle:
         return why
 
     def _narrow_way(self, u: Lochos) -> bool:
-        """Ist der Weg zwischen Häusern (oder Gerät) für den Block viel länger als für einzelne
-        Männer, weil er nicht durch eine Gasse passt? Dann geht man besser Mann für Mann
-        hindurch. Gerechnet wird nur, wo die gerade Linie für den Block nicht frei ist, und
-        das Ergebnis gilt eine Weile."""
+        """Passt der Block nicht durch eine Gasse zwischen Häusern (oder Gerät), sodass Mann für
+        Mann hindurch schneller wäre als außen herum? Gerechnet wird nur, wo die gerade Linie
+        für den Block nicht frei ist, und das Ergebnis gilt eine Weile."""
         if (not config.NARROW_LOOSE or u.target is None or not self.house_cells and not self._ram_cells
                 and not self._tower_cells):
             return False
@@ -2777,21 +2782,30 @@ class Battle:
             return sum(dist(a, c) for a, c in zip(pts, pts[1:]))
         wide = self._block_path(u.pos, u.target, r)
         thin = self._block_path(u.pos, u.target, config.NARROW_MIN_WIDTH)
-        narrow = bool(thin) and (not wide or length(wide) > config.NARROW_RATIO * length(thin) + 0.5)
+        narrow = bool(thin) and (not wide or self._loose_faster(u, length(wide), length(thin), squeeze=True))
         self._narrow_cache[u.id] = (key, self.time, narrow)
         return narrow
 
+    def _loose_faster(self, u: Lochos, block_len: float, loose_len: float, squeeze: bool = False) -> bool:
+        """Was ist schneller: als Block den Weg ``block_len`` (mit Schwenks), oder aufgelöst
+        Mann für Mann den Weg ``loose_len`` und am Ende neu formieren (durch eine enge Gasse
+        stehen die Männer dazu an)? Aufgelöst wird nur, wenn es merklich schneller ist; bei
+        etwa gleicher Zeit hält die Gruppe ihre Ordnung."""
+        v = max(0.1, u.speed)
+        t_block = block_len / v + config.BLOCK_DETOUR_TIME
+        t_loose = loose_len / v + config.LOOSE_REFORM_TIME + (u.men * config.LOOSE_SQUEEZE if squeeze else 0.0)
+        return t_loose + config.FORMATION_MARGIN < t_block
+
     def _block_passes(self, u: Lochos, wp: Point) -> bool:
         """Kommt die Gruppe als Block um die eigene Gruppe herum, die im Weg ruht (über den
-        Umweg ``wp`` neben ihr, ohne Wall, Haus oder Kartenrand), und ist der Umweg klein?
-        Nur mit dem Marsch im Bogen; sonst löst sie sich wie bisher auf."""
+        Umweg ``wp`` neben ihr, ohne Wall, Haus oder Kartenrand), und ist das nicht langsamer,
+        als sich aufzulösen und neu zu formieren? Nur mit dem Marsch im Bogen."""
         if not config.MARCH_ARC or u.target is None:
             return False
         if not self.inside(*wp) or self.is_blocked(wp[0], wp[1], u):
             return False
-        straight = dist(u.pos, u.target)
-        if dist(u.pos, wp) + dist(wp, u.target) > config.DETOUR_BLOCK_RATIO * straight:
-            return False                          # großer Umweg: Mann für Mann vorbei ist kürzer
+        if self._loose_faster(u, dist(u.pos, wp) + dist(wp, u.target), dist(u.pos, u.target)):
+            return False                          # Mann für Mann vorbei ist schneller
         r = self._block_width(u)
         return (self.path_clear(u.pos, wp, u) and self.path_clear(wp, u.target, u)
                 and self._wide_clear(u.pos, wp, r) and self._wide_clear(wp, u.target, r))

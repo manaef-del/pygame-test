@@ -71,12 +71,15 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Kacheln vor dem Ziel in die neue Breite und Front auf. Reiter traben
   ebenso im Bogen an, statt erst auf der Stelle zu wenden, und reiten mit der
   Front voraus; im Galopp behalten sie ihren Schwung und weiten Bogen. Steht
-  eine ruhende eigene Gruppe nur am Rand des Weges (der Umweg ist höchstens
-  ein Fünftel länger), geht eine Gruppe als Block im Bogen an ihr vorbei;
-  steht sie quer davor, löst sich die Gruppe auf und geht Mann für Mann
-  vorbei. Passt ein Block nicht durch eine Gasse zwischen Häusern und wäre
-  der Weg außen herum mehr als 1,4-mal so lang wie für einzelne Männer, geht
-  er Mann für Mann hindurch und schließt sich danach wieder. Reiter traben
+  eine ruhende eigene Gruppe nur am Rand des Weges, geht eine Gruppe als
+  Block im Bogen an ihr vorbei; steht sie quer davor, löst sich die Gruppe
+  auf und geht Mann für Mann vorbei. Ebenso zwischen Häusern: Passt der Block nicht durch eine Gasse,
+  geht er außen herum oder Mann für Mann hindurch. Entschieden wird nach der
+  Zeit, einmal je Ziel: als Block der Weg mit seinem Tempo, aufgelöst der
+  kürzeste Weg einzelner Männer, dazu 0,6 s zum Neuformieren und in engen
+  Gassen 0,02 s je Mann zum Anstehen. Aufgelöst wird nur, wenn das
+  mindestens eine halbe Sekunde schneller ist; sonst hält die Gruppe ihre
+  Ordnung. Reiter traben
   durch enge Wendungen, statt im Galopp eine Schleife zu ziehen: Sie nehmen
   das höchste Tempo, mit dem der Bogen zum nächsten Wegpunkt noch passt.
   Kurze Wege, Angriffe, Flucht und Umwege um Wall und Tor gehen wie zuvor:
