@@ -33,14 +33,6 @@ wandert nach unten.
    Schlachtordnung auch für einen Teil des Heers ziehen. Geringer Aufwand.
 3. **Hang und Höhe.** Gelände, das Tempo und Kampf beeinflusst. Großer
    Aufwand.
-4. **Umweg-Flackern der Räuber.** Steht neben dem Ziel eines Haufens eine
-   eigene kämpfende Gruppe genau auf der Schwelle „dort anstellen“, schaltet
-   er jeden Schritt zwischen Umweg und geradem Weg und kommt kaum voran; nach
-   einem Umweg wählt er für die nächste Gruppe manchmal die andere Seite und
-   läuft zurück. Behoben (Spiel an der Schwelle, zuletzt gewählte Seite
-   merken) werden die Räuber deutlich stärker: offen „angriff“ 9 statt 3,
-   mit Merk-Seite „linie_aktiv“ 0 statt 9 Siege von 12 (Lauf 24). Erst
-   zusammen mit einer Balance-Runde angehen.
 5. **Festung: Turm allein reicht nicht.** Über einen Belagerungsturm allein
    kommt kaum ein Angriff hinein (0 bis 1 von 8): Die Männer steigen einzeln,
    im Feuer der Ecktürme. Dazu greift die Turm-Taktik der Simulation die
@@ -79,6 +71,9 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Umweg-Flackern** (3. Oktober 2026): Hysterese an der Schwelle, gemerkte
+  Seite, gegenseitiges Warten gelöst, gegen einen Kreis keine Flankensuche
+  (docs/ki-simulation.md, Lauf 30).
 - **Wehrgang** (3. Oktober 2026): dicht in Rotten, kein Vorbeischlüpfen an
   Feinden, Hopliten der Festung auf der Mauer (Reserve an den Turmausstieg),
   oben entlang oder über die Leitern je nach Zeit mit Kletterzeit.

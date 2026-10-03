@@ -84,6 +84,14 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   das höchste Tempo, mit dem der Bogen zum nächsten Wegpunkt noch passt.
   Kurze Wege, Angriffe, Flucht und Umwege um Wall und Tor gehen wie zuvor:
   erst schwenken, dann geradeaus.
+- **Umwege ohne Hin und Her.** Wer um eine eigene Gruppe herumgeht, gilt
+  erst mit einer Viertelkachel mehr Abstand als vorbei, und der Umwegpunkt
+  liegt noch eine Viertelkachel weiter außen. Die gewählte Seite bleibt
+  1,5 s gemerkt, damit die nächste Gruppe auf derselben Seite umgangen
+  wird. Warten zwei eigene Gruppen aufeinander (eine weicht zurück, die
+  andere will hinein), lässt die angreifende die zurückweichende vorbei.
+  Gegen einen Kreis sucht die KI keine Flanke, die es nicht gibt, sondern
+  greift an.
 - **Hauptmann und Kontermarsch.** Jede Gruppe hat einen Hauptmann (weißer
   Ring) auf dem mittleren Platz der mittleren Reihe; an ihm richtet sich die
   Gruppe beim Marsch aus. Fällt er, übernimmt der Mann, der dem Platz am

@@ -1,5 +1,73 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 30 (3. Oktober 2026): Umweg-Flackern behoben
+
+Ein Haufen, der um eine eigene Gruppe herum wollte, schaltete an der
+Schwelle „im Weg / vorbei“ oft jeden Schritt zwischen Umweg und geradem Weg
+um, und nach einem Umweg wählte er manchmal die andere Seite und lief
+zurück. Gefunden und behoben (README, „Umwege ohne Hin und Her“):
+
+- **Spiel an der Schwelle:** Der Umweg endet erst mit 0,25 Kacheln mehr
+  Abstand, als er braucht, um zu beginnen. Der Umwegpunkt liegt weitere
+  0,25 Kacheln außen.
+- **Gemerkte Seite:** Die Seite bleibt 1,5 s gemerkt.
+- **Breite unabhängig vom Schwenk:** Die eigene Breite zählt, als zeige die
+  Front in den Weg. Vorher schaltete das Schwenken zum Umwegpunkt den Umweg
+  selbst wieder ab.
+- **Gegenseitiges Warten:** Wartete ein zurückweichender Haufen im Tor auf
+  einen, der hinein wollte, und umgekehrt, standen beide bis zum Ende.
+  Jetzt lässt der angreifende den anderen vorbei.
+- **Kreis:** Die KI schickte Gruppen gegen einen Kreis an eine Flanke, die
+  es nicht gibt. Dort blieben sie stehen, und hinter ihnen stauten sich die
+  anderen. Jetzt greifen sie an.
+
+Gezählt über drei Seeds je Taktik (offen „linie“, „angriff“, „linie_aktiv“,
+Palisade „tor_halten“), ohne → mit Korrektur:
+
+- Seitenwechsel: 243 → 64
+- Umschalten zwischen Umweg und geradem Weg binnen 0,2 s: 1484 → 473
+
+Ein Rest bleibt, meist dort, wo der Umwegpunkt am Wall liegt und
+abwechselnd begehbar ist oder nicht.
+
+Zwölf Seeds (Festung im Angriff acht), Lauf 29 → 30:
+
+| Szenario | Taktik | Siege | Häuser verloren |
+|---|---|---|---|
+| offen | linie | 4 → 6 | 7,6 → 7,2 |
+| offen | schlachtordnung | 10 → 7 | 4,7 → 7,1 |
+| offen | linie_reiter | 8 → 7 | 5,2 → 7,0 |
+| offen | linie_aktiv | 11 → 7 | 2,7 → 6,3 |
+| offen | linie_tief | 10 → 11 | 4,0 → 4,8 |
+| offen | passiv | 2 → 8 | 7,8 → 6,2 |
+| offen | angriff | 12 → 12 | 6,4 → 5,3 |
+| palisade | tor_halten | 1 → 0 | 7,8 → 8,0 |
+| palisade | tor_reserve | 5 → 6 | 5,4 → 5,1 |
+| palisade | tor_leiter | 9 → 10 | 2,8 → 1,8 |
+| palisade | passiv | 5 → 9 | 6,2 → 5,2 |
+| horde | vorruecken | 12 → 10 | – |
+| horde | angriff | 11 → 12 | – |
+| angriff_offen | phalanxstoss | 1 → 1 | – |
+| angriff_offen | vorruecken, angriff | 0 → 0 | – |
+| angriff_wall | beide | 0 → 0 | – |
+| festung | tore | 1 → 0 | 7,1 → 6,8 |
+| festung | passiv | 1 → 0 | 3,8 → 4,5 |
+| festung_angriff | rammbock | 8/8 → 8/8 | – |
+| festung_angriff | turm | 1/8 → 0/8 | – |
+
+In der Summe bleibt die Balance fast gleich: offen 57 → 58 Siege, Palisade
+20 → 25. Sie verschiebt sich aber zwischen den Taktiken:
+
+- **Aktive Taktiken verlieren:** Die Räuber stehen nicht mehr hinter
+  eigenen Haufen herum und plündern mehr Häuser. Die Schlachtordnung
+  verliert 3 Siege, „linie_aktiv“ 4.
+- **„passiv“ gewinnt deutlich** (offen 2 → 8, Palisade 5 → 9). Der Grund
+  ist nicht untersucht. Vermutlich laufen die Räuber jetzt geschlossener
+  frontal in die stehende Phalanx, statt sich zu verteilen.
+
+Das ist ein Punkt für die Balance-Runde: Stillstehen sollte nicht die
+beste Taktik sein.
+
 ## Lauf 29 (3. Oktober 2026): Hauptmann, Kontermarsch, Wehrgang, Wegwahl nach Zeit
 
 Neu seit Lauf 28 (README, „Hauptmann und Kontermarsch“, „Wehrgang“ und
