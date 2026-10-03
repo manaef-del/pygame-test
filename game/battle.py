@@ -3165,14 +3165,17 @@ class Battle:
 
     @staticmethod
     def _stand_turn_rate(u: Lochos) -> float:
-        """Wie schnell eine Gruppe im Stand schwenkt (rad/s): so schnell, wie ihr äußerer Mann
-        den Bogen gehen kann; eine breite Phalanx dreht also langsamer als ein kleiner Trupp.
-        Reiter wenden auf der Stelle ohnehin bedächtig. Ein Kreis hat keine Front zu drehen."""
+        """Wie schnell eine Gruppe im Stand schwenkt (rad/s). Geordnete Hopliten so schnell, wie
+        ihr äußerer Mann den Bogen gehen kann: Eine breite Phalanx dreht langsamer als ein
+        kleiner Trupp. Reiter wenden auf der Stelle bedächtig. Haufen, Plänkler und Stürmende
+        drehen sich Mann für Mann, so schnell wie bisher; ein Kreis hat keine Front zu drehen."""
         rate = config.STAND_TURN_RATE
-        if u.formation != "o":
+        if u.formation == "o":
+            return rate
+        if 2 * len(u.mounted_men()) >= max(1, u.men):
+            rate = min(rate, config.CAVALRY_STAND_TURN)
+        elif u.drill_kind() and u.stance is not Stance.ANGRIFF:
             rate = min(rate, config.TURN_OUTER_PACE * max(0.3, u.speed) / max(0.3, u.half_w))
-            if 2 * len(u.mounted_men()) >= max(1, u.men):
-                rate = min(rate, config.CAVALRY_STAND_TURN)
         return rate * config.DRILL_TURN.get(u.drill_kind(), 1.0)
 
     def _turn_towards(self, u: Lochos, want: Point, dt: float, about: bool = True) -> float:

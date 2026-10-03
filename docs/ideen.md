@@ -37,6 +37,7 @@ wandert nach unten.
 10. **Verbände für die Gegner-KI.** Die KI bildet noch keine Verbände und
     wechselt keine Modi; denkbar wäre etwa eine lockere Ordnung der
     Siedlung gegen Peltasten.
+
 ## Zurückgestellt
 
 Das Spiel soll einfach bleiben und Spaß machen; die Flucht wirkt schon

@@ -1455,11 +1455,13 @@ def test_short_move_wheels_before_it_marches(monkeypatch):
 
 
 def test_wide_blocks_wheel_slower_than_small_groups():
-    """Wie schnell eine Gruppe im Stand schwenkt, hängt an ihrer Breite: Der äußere Mann muss
-    den Bogen ablaufen. Kleine Trupps drehen flink, eine breite Phalanx braucht ihre Zeit, Reiter
-    wenden nie schneller als ihr Höchstwert."""
-    def quarter_turn(kind, n, width):
+    """Wie schnell geordnete Hopliten im Stand schwenken, hängt an ihrer Breite: Der äußere Mann
+    muss den Bogen ablaufen. Kleine Trupps drehen flink, eine breite Phalanx braucht ihre Zeit,
+    Reiter wenden nie schneller als ihr Höchstwert; Stürmende (und Haufen) drehen sich Mann für Mann."""
+    def quarter_turn(kind, n, width, stance=None):
         b, u = standing_group(kind, n, width)
+        if stance is not None:
+            u.stance = stance
         t = 0.0
         while u.facing != (1.0, 0.0) and t < 10:
             b._turn_towards(u, (1.0, 0.0), DT)
@@ -1468,6 +1470,7 @@ def test_wide_blocks_wheel_slower_than_small_groups():
     small, wide = quarter_turn("schwer", 8, 4), quarter_turn("schwer", 40, 14)
     assert small < 0.8 and wide > 1.5 and wide > 2 * small
     assert quarter_turn("reiter", 20, 10) >= (math.pi / 2) / config.CAVALRY_STAND_TURN - DT
+    assert quarter_turn("schwer", 40, 14, Stance.ANGRIFF) < 0.6           # im Sturm dreht sich jeder für sich
 
 
 def test_wide_block_slides_past_a_neighbours_corner():

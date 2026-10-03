@@ -318,9 +318,11 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
 - **Wenden im Stand:** Bekommt eine stehende Gruppe ein Ziel in einer
   anderen Richtung, springt ihre Front nicht mehr um. Sie schwenkt, die
   Männer drehen auf ihren Plätzen mit, und erst wenn die Richtung grob
-  stimmt (45 Grad), geht es los. Wie schnell, hängt an der Breite: Der
-  äußere Mann geht den Bogen mit vier Fünfteln seines Tempos, höchstens
-  aber eine halbe Umdrehung je Sekunde. Ein Trupp von acht Mann steht so
+  stimmt (45 Grad), geht es los. Wie schnell, hängt bei geordneten
+  Hopliten an der Breite: Der äußere Mann geht den Bogen mit vier
+  Fünfteln seines Tempos, höchstens aber eine halbe Umdrehung je Sekunde.
+  Haufen (Räuber), Peltasten und Stürmende drehen sich Mann für Mann und
+  schwenken weiter eine halbe Umdrehung je Sekunde. Ein Trupp von acht Mann steht so
   nach einer halben Sekunde quer, eine Phalanx von 40 schweren Hopliten
   in 14er-Front braucht dafür knapp zwei Sekunden. Reiter wenden auf der
   Stelle höchstens eine Viertelumdrehung je Sekunde. Liegt das Ziel hinter der Gruppe, macht sie kehrt: Die hintere
