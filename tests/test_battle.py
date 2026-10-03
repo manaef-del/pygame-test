@@ -1502,6 +1502,30 @@ def test_wide_block_slides_past_a_neighbours_corner():
     assert b._gap(hop, cav) >= 0.0
 
 
+@pytest.mark.parametrize("by_line", [False, True])
+def test_loose_hoplites_shift_man_by_man_keeping_their_front(by_line):
+    """Lockere Hopliten, kurz zur Seite verlegt: Sie schwenken nicht erst als Block, jeder geht
+    gerade an seinen neuen Platz, die Front bleibt; niemand bleibt hinter einem anderen hängen."""
+    b, u = standing_group("schwer", 40, 10)
+    u.drill = "locker"
+    u.stance, u.in_line, u.target = Stance.PHALANX, False, u.pos
+    run(b, 4)
+    if by_line:
+        b.command_line([u], (10.0, 12.0), (12.0, 12.0))                    # Front Nord, drei Kacheln weiter rechts
+    else:
+        b.command_move([u], (11.0, 12.0))
+    turned = False
+    t = 0.0
+    while t < 8:
+        b.update(DT)
+        t += DT
+        turned |= abs(u.facing[0]) > 0.2
+        if not u.loose and (u.in_line or u.target is None) and math.hypot(u.x - 11.0, u.y - 12.0) < 0.3:
+            break
+    assert t < 3.5, t
+    assert not turned and u.facing == (0.0, -1.0)
+
+
 def test_foot_marches_in_an_arc_with_its_front_ahead():
     """Fußvolk auf längerem Weg: Es läuft in seiner Blickrichtung an und schwenkt im Marsch
     zum Ziel (ein Bogen), statt erst auf der Stelle zu drehen; die Front zeigt dabei in

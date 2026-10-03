@@ -260,7 +260,12 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   - *Locker*: weite Abstände (1,7-fach in der Reihe), 15 % schneller,
     ohne Phalanxbonus; Wurfspeere gehen öfter zwischen den Männern ins
     Leere, und wer getroffen wird, deckt sich mit dem Schild. An Tor, Gasse und
-    eigenen Gruppen löst sich die Gruppe auf und geht Mann für Mann.
+    eigenen Gruppen löst sich die Gruppe auf und geht Mann für Mann. Auf
+    kurzen Wegen (bis fünf Kacheln), für die sie als Block erst schwenken
+    müsste (zur Seite, zurück, mit neuer Front), stellt sie sich Mann für
+    Mann um: Jeder geht gerade an seinen neuen Platz, die Front bleibt
+    (oder wird die befohlene). Lockere Hopliten schwenken so flink wie
+    Leichte, ohne Bremse durch die Breite.
   - *Phalanx* (Standard): wie gewohnt im Kampf. Auf dem Marsch bleibt sie
     zusammen: Um eigene Gruppen geht sie als Block herum, vor Tor und
     Gasse wird sie schmaler und tiefer, bis die Front hindurchpasst, und
@@ -318,10 +323,10 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
 - **Wenden im Stand:** Bekommt eine stehende Gruppe ein Ziel in einer
   anderen Richtung, springt ihre Front nicht mehr um. Sie schwenkt, die
   Männer drehen auf ihren Plätzen mit, und erst wenn die Richtung grob
-  stimmt (45 Grad), geht es los. Wie schnell, hängt bei geordneten
-  Hopliten an der Breite: Der äußere Mann geht den Bogen mit vier
+  stimmt (45 Grad), geht es los. Wie schnell, hängt bei einer Phalanx
+  an der Breite: Der äußere Mann geht den Bogen mit vier
   Fünfteln seines Tempos, höchstens aber eine halbe Umdrehung je Sekunde.
-  Haufen (Räuber), Peltasten und Stürmende drehen sich Mann für Mann und
+  Lockere Hopliten, Haufen (Räuber), Peltasten und Stürmende drehen sich Mann für Mann und
   schwenken weiter eine halbe Umdrehung je Sekunde. Ein Trupp von acht Mann steht so
   nach einer halben Sekunde quer, eine Phalanx von 40 schweren Hopliten
   in 14er-Front braucht dafür knapp zwei Sekunden. Reiter wenden auf der

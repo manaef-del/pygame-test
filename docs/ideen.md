@@ -58,6 +58,12 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Lockere Hopliten umstellen** (3. Oktober 2026): Auf kurzen Wegen
+  stellt sich eine lockere Gruppe Mann für Mann um, statt als Block zu
+  schwenken und Umwege zu gehen; die Männer werden dabei nach ihrer Stelle
+  auf die Plätze verteilt, damit niemand quer durch die anderen muss.
+  Drei Kacheln zur Seite: 3,6 s → 2,7 s, die Front bleibt. Lockere
+  Hopliten schwenken ohne Bremse durch die Breite.
 - **Reiter jagen** (3. Oktober 2026): Knopf „Jagen“ (Taste J) für Reiter.
   Sie jagen Fliehende und Ungeordnete bis acht Kacheln weit, nie eine
   geschlossene Phalanx, und kehren dann an ihren Platz zurück.

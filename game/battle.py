@@ -2881,7 +2881,10 @@ class Battle:
         if abs(self._angle_to(u.facing, want)) > config.ABOUT_TURN:
             self._about_turn(u)
         ang = self._angle_to(u.facing, want)
-        rate = min(config.MARCH_WHEEL_MAX, config.MARCH_WHEEL / max(0.3, u.half_w)) * config.DRILL_TURN.get(u.drill_kind(), 1.0)
+        rate = config.MARCH_WHEEL_MAX
+        if u.drill_kind() != "locker":
+            rate = min(rate, config.MARCH_WHEEL / max(0.3, u.half_w))   # locker: jeder schwenkt für sich
+        rate *= config.DRILL_TURN.get(u.drill_kind(), 1.0)
         turn = max(-rate * dt, min(rate * dt, ang))
         fx, fy = u.facing
         c, s_ = math.cos(turn), math.sin(turn)
@@ -3165,16 +3168,16 @@ class Battle:
 
     @staticmethod
     def _stand_turn_rate(u: Lochos) -> float:
-        """Wie schnell eine Gruppe im Stand schwenkt (rad/s). Geordnete Hopliten so schnell, wie
-        ihr äußerer Mann den Bogen gehen kann: Eine breite Phalanx dreht langsamer als ein
-        kleiner Trupp. Reiter wenden auf der Stelle bedächtig. Haufen, Plänkler und Stürmende
+        """Wie schnell eine Gruppe im Stand schwenkt (rad/s). Eine Phalanx so schnell, wie ihr
+        äußerer Mann den Bogen gehen kann: Eine breite dreht langsamer als ein kleiner Trupp.
+        Reiter wenden auf der Stelle bedächtig. Lockere Hopliten, Haufen, Plänkler und Stürmende
         drehen sich Mann für Mann, so schnell wie bisher; ein Kreis hat keine Front zu drehen."""
         rate = config.STAND_TURN_RATE
         if u.formation == "o":
             return rate
         if 2 * len(u.mounted_men()) >= max(1, u.men):
             rate = min(rate, config.CAVALRY_STAND_TURN)
-        elif u.drill_kind() and u.stance is not Stance.ANGRIFF:
+        elif u.drill_kind() == "phalanx" and u.stance is not Stance.ANGRIFF:
             rate = min(rate, config.TURN_OUTER_PACE * max(0.3, u.speed) / max(0.3, u.half_w))
         return rate * config.DRILL_TURN.get(u.drill_kind(), 1.0)
 
@@ -3287,7 +3290,7 @@ class Battle:
             self._aim_dest(u)
 
     def _loose_reason(self, u: Lochos) -> str:
-        """"wall", "tor", "eigene" oder "" (kein Grund, sich aufzulösen)."""
+        """"wall", "tor", "eigene", "enge", "umstellen" oder "" (kein Grund, sich aufzulösen)."""
         dest = u.target if u.target is not None else (u.dest if u.loose else None)
         if self.is_walker(u):
             via = self._via(u)
@@ -3318,10 +3321,14 @@ class Battle:
         if u.side is not Side.STADT and not config.LOOSE_AI:
             return ""                             # die Gegner gehen (vorerst) als Block um ihre Haufen herum und durchs Tor
         why = ""
+        if self._loose_shift(u):
+            why = "umstellen"                     # locker auf kurzem Weg: jeder geht gerade an seinen neuen Platz
         open_gates = [g.center for g in self.gates if not g.closed]
         here, there = self._wall_level(u.pos), self._wall_level(u.target)
         through = here != there and "tor" not in (here, there) and "wall" not in (here, there)
-        if (self.blocked and open_gates and not self.is_wall_cell(self.cell(*u.target), True)
+        if why:
+            pass
+        elif (self.blocked and open_gates and not self.is_wall_cell(self.cell(*u.target), True)
                 and (through or not self.wall_clear(u.pos, u.target))):
             if any(e.side is not u.side and e.fighting and dist(e.pos, gate) <= config.LOOSE_ENEMY_RANGE
                    for e in self.lochoi for gate in open_gates):
@@ -3353,6 +3360,23 @@ class Battle:
         if why and not self._way_open(u):
             return ""                             # kein Durchkommen (die eigenen kämpfen im Durchgang): als Block anstehen
         return why
+
+    def _loose_shift(self, u: Lochos) -> bool:
+        """Stellt sich eine lockere Gruppe Mann für Mann um? Auf kurzem Weg (ohne Wall und Tor
+        dazwischen), wenn sie dafür als Block erst schwenken müsste: Das Ziel liegt seitlich oder
+        hinter ihr, oder sie soll mit anderer Front stehen. Einmal je Ziel."""
+        if u.loose or u.drill_kind() != "locker" or u.target is None or u.shifted_to == u.target:
+            return False
+        d = dist(u.pos, u.target)
+        if d < 0.3 or d > config.LOOSE_SHIFT_MAX:
+            return False
+        if self._wall_level(u.pos) != self._wall_level(u.target) or not self.wall_clear(u.pos, u.target):
+            return False
+        way = norm(sub(u.target, u.pos))
+        turn = abs(self._angle_to(u.facing, way))
+        if u.face_to is not None:
+            turn = max(turn, abs(self._angle_to(u.facing, u.face_to)))
+        return turn > config.LOOSE_SHIFT_ANGLE
 
     def _jammed(self, u: Lochos) -> bool:
         """Steckt der Block fest? Er hat ein Ziel, kommt aber seit einer Weile nicht vom Fleck
@@ -3562,6 +3586,11 @@ class Battle:
         u.idle_block = False
         u.vel = 0.0
         u.dest = None
+        if why == "umstellen":
+            u.shifted_to = u.target
+            u.stay_loose, u.stay_since = True, self.time   # erst schließen, wenn alle an ihren Plätzen stehen
+            u.dest_facing = u.face_to or u.facing          # die Front bleibt (oder wird die befohlene)
+            self._rows_by_place(u, u.dest_facing)          # jeder nimmt den Platz, der von ihm aus in Richtung liegt
         if why == "wall":
             if u.stance is Stance.PHALANX:
                 u.stance = Stance.HALTEN
@@ -3601,6 +3630,8 @@ class Battle:
                     f = norm(sub(t, c))                   # über den Wall: die Front zum Ziel
                 else:
                     f = (0.0, 1.0 if t[1] > c[1] else -1.0)   # über den Wall: die Front vom Wall weg
+            elif u.loose_why == "umstellen":
+                f = u.dest_facing or u.facing             # umstellen: mit derselben Front an den neuen Platz
             elif u.target_id is not None or u.stance is not Stance.PHALANX:
                 f = norm(sub(t, c)) if dist(t, c) > 0.3 else (u.dest_facing or u.facing)
             else:
@@ -3709,6 +3740,24 @@ class Battle:
         if spot is None:
             spot = foot
         return self._free_spot(spot, u), facing, (ext_x, ext_y)
+
+    @classmethod
+    def _rows_by_place(cls, u: Lochos, facing: Point) -> None:
+        """Die Männer nach ihrer Stelle auf die Reihen verteilen (vorn, wer vorn steht), die
+        Reihen so lang wie bisher, und jede Reihe von links nach rechts: Beim Umstellen läuft
+        dann niemand quer durch die anderen hindurch."""
+        men = sorted(u.all_men(), key=lambda m: -(m.x * facing[0] + m.y * facing[1]))
+        k = 0
+        for row in u.rows:
+            n = len(row)
+            row[:] = men[k:k + n]
+            k += n
+        cls._sort_rows(u, facing)
+        if u.formation == "linie" and u.rows:
+            row = u.rows[len(u.rows) // 2]
+            mid = row[len(row) // 2] if row else None
+            if mid is not None and not mid.leader:
+                u.commander = mid                     # Hauptmann ist, wer in der Mitte ankommt (sonst tauschte er quer)
 
     @staticmethod
     def _sort_rows(u: Lochos, facing: Point) -> None:

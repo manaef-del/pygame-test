@@ -238,6 +238,7 @@ class Lochos:
     hunt_home: tuple[float, float] | None = None   # Reiter auf der Jagd: hierher kehren sie zurück, wenn nichts zu jagen ist
     stay_loose: bool = False          # nach einem Stau aufgelöst: erst an den Plätzen wieder Block
     stay_since: float = 0.0
+    shifted_to: tuple[float, float] | None = None     # Ziel, zu dem sich die lockere Gruppe schon Mann für Mann umgestellt hat
     straggled_at: tuple[float, float] | None = None   # Ziel, für das schon einmal wegen Nachzüglern aufgelöst wurde
     jam_since: float = -1.0           # seit wann der Block mit Ziel nicht vom Fleck kommt
     jam_at: tuple[float, float] = (0.0, 0.0)
