@@ -228,6 +228,8 @@ class Lochos:
     hitrun_until: float = -1.0        # Reiter: bis dahin wird vom Feind abgesetzt
     flank_throw: bool = False         # KI-Peltasten: beim Plänkeln an die schildlose rechte Flanke einer Phalanx
     march: tuple | None = None        # (Ziel, Breite, Front): erst im Bogen hin, kurz vor dem Ziel aufmarschieren
+    countermarch_until: float = -1.0  # Kontermarsch: bis dahin ziehen die Rotten durch sich hindurch (steht, ungeordnet)
+    commander: object = field(default=None, repr=False, compare=False)   # Hauptmann: Mann in der Mitte, Richtpunkt
 
     def __post_init__(self) -> None:
         self.rows = [list(r) for r in self.rows if r]
@@ -459,6 +461,44 @@ class Lochos:
             return 0.0
         return sum(1 for m in self.rows[0] if m.kind.hoplite) / len(self.rows[0])
 
+    def commander_man(self) -> "Man | None":
+        """Der Hauptmann der Gruppe: steht mittig, an ihm richtet sich die Gruppe aus. Fällt
+        er (oder ist noch keiner bestimmt), übernimmt der Mann, der dem Platz in der Mitte am
+        nächsten steht; der Anführer bleibt Anführer."""
+        c = self.commander
+        if c is not None and c.hp > HP_EPS and any(m is c for row in self.rows for m in row):
+            return c
+        men = [m for m in self.all_men() if not m.leader] or self.all_men()
+        if not men:
+            self.commander = None
+            return None
+        if self.formation == "linie" and self.rows:
+            mr = len(self.rows) // 2
+            row = self.rows[mr]
+            mid = row[len(row) // 2] if row else None
+            if mid is not None and not mid.leader:
+                self.commander = mid
+                return mid
+        self.commander = min(men, key=lambda m: (m.x - self.x) ** 2 + (m.y - self.y) ** 2)
+        return self.commander
+
+    def seat_commander(self) -> None:
+        """Der Hauptmann steht auf dem mittleren Platz der mittleren Reihe (nur in Linie)."""
+        if self.formation != "linie" or not self.rows:
+            return
+        c = self.commander_man()
+        if c is None or c.leader:
+            return
+        mr = len(self.rows) // 2
+        mc = len(self.rows[mr]) // 2
+        if mc < len(self.rows[mr]) and self.rows[mr][mc] is c:
+            return
+        for ri, row in enumerate(self.rows):
+            for ci, m in enumerate(row):
+                if m is c:
+                    row[ci], self.rows[mr][mc] = self.rows[mr][mc], row[ci]
+                    return
+
     def leader_man(self) -> "Man | None":
         """Der Anführer, wenn er in dieser Gruppe kämpft und lebt."""
         return next((m for m in self.all_men() if m.leader), None)
@@ -499,6 +539,7 @@ class Lochos:
                 out.append((man, (cx + (i - (n - 1) / 2) * config.MAN_SPACING, cy)))
             return out
         fx, fy = facing
+        self.seat_commander()
         if self.formation == "o":
             for k, (layer, r) in enumerate(zip(self.layers(), self.ring_radii())):
                 n = len(layer)

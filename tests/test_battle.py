@@ -1429,15 +1429,21 @@ def standing_group(kind: str, n: int = 12, width: int = 6):
     return b, u
 
 
-@pytest.mark.parametrize("kind", ["mittel", "reiter"])
+def same_men(a, b) -> int:
+    return len(set(map(id, a)) & set(map(id, b)))
+
+
+@pytest.mark.parametrize("kind", ["reiter"])
 def test_about_turn_swaps_rows_so_nobody_crosses_the_block(kind):
+    """Ohne feste Reihen (Reiter, Leichte) wird sofort kehrtgemacht: Die alte Front steht
+    hinten (bis auf den Hauptmann, der in der Mitte bleibt), niemand läuft quer durch."""
     b, u = standing_group(kind)
     front_row = list(u.rows[0])
     before = {id(m): m.pos for m in u.all_men()}
     b.command_move([u], (8.0, 16.0))                                       # das Ziel liegt hinter der Gruppe
     b.update(DT)
     assert u.facing == (0.0, 1.0)                                          # kehrtgemacht, ohne zu schwenken
-    assert u.rows[-1] == list(reversed(front_row))                          # die alte Front ist jetzt hinten
+    assert same_men(u.rows[-1], front_row) >= len(front_row) - 1           # die alte Front ist jetzt hinten
     run(b, 0.3)
     moved = max(dist_of_pt(m.pos, before[id(m)]) for m in u.all_men())
     assert moved < 0.6                                                     # niemand läuft quer durch den Block
@@ -1525,7 +1531,7 @@ def test_enemy_groups_wheel_and_about_turn_like_the_player():
     front = list(raider.rows[0])
     raider.stance, raider.target = Stance.HALTEN, (8.0, 2.0)              # zurück nach Norden
     b.update(DT)
-    assert raider.facing == (0.0, -1.0) and raider.rows[-1] == list(reversed(front))
+    assert raider.facing == (0.0, -1.0) and same_men(raider.rows[-1], front) >= len(front) - 1
     raider.target = (10.5, raider.y)                                        # und nun ein kurzes Stück nach Osten
     x0 = raider.x
     run(b, 0.15)
@@ -2033,3 +2039,44 @@ def test_battle_order_is_where_the_groups_end_up():
     hop, pelt, cav = units["hopliten"], units["peltasten"], units["reiter"]
     assert pelt.y > hop.y + 0.3
     assert cav.x > hop.x + hop.half_w
+
+
+# ------------------------------------------------------------ Hauptmann und Kontermarsch
+def test_commander_stands_in_the_middle_and_is_succeeded():
+    b, u = standing_group("mittel", 12, 6)
+    c = u.commander_man()
+    slots = dict((id(m), p) for m, p in u.slots())
+    assert dist_of_pt(slots[id(c)], u.pos) < 0.2                          # mittig: Richtpunkt der Gruppe
+    c.hp = 0.0
+    u.bury()
+    nxt = u.commander_man()
+    assert nxt is not None and nxt is not c and nxt.hp > 0
+    slots = dict((id(m), p) for m, p in u.slots())
+    assert dist_of_pt(slots[id(nxt)], u.pos) < 0.2                        # der Nachfolger rückt in die Mitte
+
+
+def test_hoplites_countermarch_and_keep_their_front_rank():
+    """Liegt das Ziel hinten, machen Hopliten einen Kontermarsch: dieselben Männer bleiben
+    vorn, die Gruppe steht dabei kurz ungeordnet und geht dann los."""
+    b, u = standing_group("mittel", 12, 4)
+    front = list(u.rows[0])
+    b.command_move([u], (8.0, 15.5))                                       # hinter der Gruppe
+    b.update(DT)
+    assert u.facing == (0.0, 1.0)
+    assert set(map(id, u.rows[0])) == set(map(id, front))                 # die vordere Reihe bleibt vorn
+    assert u.countermarch_until > b.time and not u.in_phalanx
+    y0 = u.y
+    run(b, config.COUNTERMARCH_BASE * 0.8)
+    assert abs(u.y - y0) < 1e-6                                            # steht, während die Rotten durchziehen
+    run(b, 3.0)
+    assert u.y > y0 + 0.5                                                  # danach unterwegs
+    assert all(p[1] > u.y for m, p in u.slots() if any(m is f for f in front))   # die Vorderen stehen jetzt vorn (Süden)
+
+
+def test_light_troops_and_melee_turn_about_at_once():
+    """Peltasten, Reiter und Räuberhaufen haben keine festen Reihen: Sie wenden sofort, die
+    hintere Reihe steht dann vorn."""
+    b, u = standing_group("peltast", 12, 4)
+    b.command_move([u], (8.0, 15.5))
+    b.update(DT)
+    assert u.facing == (0.0, 1.0) and u.countermarch_until < b.time

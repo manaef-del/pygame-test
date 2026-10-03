@@ -2141,6 +2141,9 @@ class Battle:
                 if u.stance is Stance.FLUCHT and not any(self.inside(m.x, m.y) for m in u.all_men()):
                     u.withdrawn = True            # die Männer sind schon vom Feld
                 continue                          # aufgelöst: jeder Mann geht für sich (siehe _move_men)
+            if u.alive and u.countermarch_until > self.time and u.stance is not Stance.FLUCHT:
+                u.in_line = False
+                continue                          # Kontermarsch: die Rotten ziehen durch, die Gruppe steht
             if not u.alive or u.target is None or u.in_phalanx or u.building is not None:
                 if u.alive and u.vel > 0.0:
                     self._coast(u, dt)                  # Reiter laufen aus statt auf der Stelle zu stehen
@@ -2547,14 +2550,26 @@ class Battle:
         u.facing = (fx * c - fy * s_, fx * s_ + fy * c)
         return ang - turn
 
-    @staticmethod
-    def _about_turn(u: Lochos) -> None:
-        """Kehrtwendung: hintere Reihe wird vordere, links wird rechts, Front
-        nach hinten; die Plätze bleiben, wo die Männer stehen."""
-        u.rows = [list(reversed(r)) for r in reversed(u.rows)]
+    def _about_turn(self, u: Lochos) -> None:
+        """Kehrtwendung. Hopliten (außerhalb des Handgemenges) machen einen Kontermarsch: Die
+        Front wechselt die Seite, aber dieselben Männer bleiben vorn; jede Rotte zieht durch
+        sich selbst hindurch (links bleibt links). Das braucht seine Zeit, solange steht die
+        Gruppe ungeordnet."""
+        if not config.COUNTERMARCH or u.engaged or u.share(lambda m: m.kind.hoplite) < 0.5:
+            # Haufen, Leichte und Reiter haben keine festen Reihen, und im Handgemenge wendet sich
+            # jeder dem Feind zu: einfache Kehrtwendung, die hintere Reihe steht dann vorn
+            u.rows = [list(reversed(r)) for r in reversed(u.rows)]
+            u.facing = (-u.facing[0], -u.facing[1])
+            u.heading = u.facing
+            u.in_line = False
+            return
+        u.rows = [list(reversed(r)) for r in u.rows]
         u.facing = (-u.facing[0], -u.facing[1])
         u.heading = u.facing
         u.in_line = False
+        u.vel = 0.0
+        duration = config.COUNTERMARCH_BASE + config.COUNTERMARCH_PER_ROW * max(0, len(u.rows) - 1)
+        u.countermarch_until = self.time + duration
 
     def _coast(self, u: Lochos, dt: float) -> None:
         """Ohne Ziel: Reiter bremsen ab und rollen dabei noch aus."""

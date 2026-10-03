@@ -81,6 +81,15 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   das höchste Tempo, mit dem der Bogen zum nächsten Wegpunkt noch passt.
   Kurze Wege, Angriffe, Flucht und Umwege um Wall und Tor gehen wie zuvor:
   erst schwenken, dann geradeaus.
+- **Hauptmann und Kontermarsch.** Jede Gruppe hat einen Hauptmann (weißer
+  Ring) auf dem mittleren Platz der mittleren Reihe; an ihm richtet sich die
+  Gruppe beim Marsch aus. Fällt er, übernimmt der Mann, der dem Platz am
+  nächsten steht, ohne weitere Boni (anders als der Anführer). Liegt ein Ziel
+  hinter Hopliten, machen sie einen Kontermarsch: Die Front wechselt die
+  Seite, aber dieselben Männer bleiben vorn, jede Rotte zieht durch sich
+  selbst hindurch. Das dauert 0,6 s und 0,3 s je weiterer Reihe; solange
+  steht die Gruppe ungeordnet. Im Handgemenge, und bei Peltasten, Reitern und
+  Räuberhaufen ohne feste Reihen, wird wie bisher sofort kehrtgemacht.
 - **Das Rechteck sagt, wo jeder stehen soll; den Weg sucht jeder selbst.**
   Auf freiem Feld marschiert eine Gruppe als Block. Muss sie über den
   Wall, durchs offene Tor oder an einer ruhenden eigenen Gruppe vorbei,

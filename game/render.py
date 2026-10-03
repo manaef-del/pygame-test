@@ -400,6 +400,7 @@ class Renderer:
 
         fx, fy = u.facing
         r_man = 3 if T >= 24 else 2                      # in der Übersicht kleiner
+        chief = u.commander_man() if not u.loose else None
         for row in u.rows:
             for man in row:
                 color = man.kind.color
@@ -417,6 +418,8 @@ class Renderer:
                     pygame.draw.circle(s, config.COLOR_LEADER, (mx, my), r_man + 2, 2)
                     continue
                 pygame.draw.circle(s, color, (mx, my), r_man)
+                if man is chief:                         # der Hauptmann: weißer Ring, Richtpunkt der Gruppe
+                    pygame.draw.circle(s, config.COLOR_COMMANDER, (mx, my), r_man + 1, 1)
                 if man.bound:
                     pygame.draw.circle(s, config.COLOR_BOUND, (mx, my), r_man + 1, 1)
                 if man.kind.cavalry and not man.mounted:

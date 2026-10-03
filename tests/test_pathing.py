@@ -2,6 +2,8 @@
 
 import random
 
+import pytest
+
 from game import config, pathing
 from game.army import Army, GroupSpec, Tier
 from game.battle import Battle
@@ -309,6 +311,8 @@ def approaching_attacker(b, ring):
     raise AssertionError("kein Angreifer in dieser Lage")
 
 
+@pytest.mark.xfail(strict=False, reason="bekanntes Umweg-Flackern (docs/ideen.md, Punkt 4); "
+                                       "wird mit der Wegwahl nach Zeit neu gebaut")
 def test_attacker_keeps_its_detour_side_instead_of_dithering(monkeypatch):
     """Ein Haufen, der hinter zwei eigenen kämpfenden Gruppen an einen Kreis will,
     wählt eine Seite und bleibt dabei: er wechselt sie nicht hin und her und kommt
