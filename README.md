@@ -274,8 +274,8 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   doppelt so hart. Reine Peltasten: nur die Linie (ohne Schildwand hilft
   ihnen der Kreis nicht). Wer eine neue Linie zieht, steht wieder in Linie.
 - **Verbände.** Jede Gruppe hat nur eine Gattung. Mehrere Gruppen bilden
-  einen Verband: rechts die Kacheln der Gruppen antippen (jeder Tipp nimmt
-  eine Gruppe zur Auswahl dazu), dann „Verband bilden“ (V). Die Gruppen stellen sich
+  einen Verband: rechts lange auf weitere Kacheln drücken (die Gruppe kommt
+  zur Auswahl dazu), dann „Verband bilden“ (V). Die Gruppen stellen sich
   gleich in Schlachtordnung auf, Hopliten vorn, die Reiter an den Flügeln
   (die größte rechts), die Peltasten dahinter. Eine Gruppe mit mehreren
   Gattungen aus der Aufstellung wird in der Schlacht je Gattung eine
@@ -582,8 +582,8 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 - **Am rechten Kartenrand eine Kachel je eigene Gruppe**, untereinander,
   mit Sinnbild der Gattung (Schild, Wurfspeer, Pferdekopf), Mannzahl und
   Moralbalken; im Kampf orange umrandet, auf der Flucht ausgegraut. Oben
-  „Alle“ beziehungsweise „Keine“. Tippen nimmt die Gruppe zur Auswahl
-  dazu, nochmal tippen nimmt sie heraus. Die Gruppen eines
+  „Alle“ beziehungsweise „Keine“. Tippen wählt die Gruppe, nochmal tippen
+  wählt ab; langes Drücken nimmt sie zur Auswahl dazu. Die Gruppen eines
   Verbands stehen beisammen im Rahmen, die Kopfzeile wählt den Verband.
   Tippen auf die Gruppe im Feld geht weiterhin.
 - **Unten nur die Befehle der gewählten Gruppen**, benannt nach dem,
@@ -612,8 +612,8 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 
 | Eingabe | Aktion |
 |---------|--------|
-| Tippen auf eine Gruppenkachel | Gruppe zur Auswahl dazunehmen (erneut tippen: herausnehmen) |
-| Tippen auf eine eigene Gruppe im Feld | nur diese Gruppe wählen (erneut tippen: abwählen) |
+| Tippen auf Gruppenkachel oder eigene Gruppe | auswählen (erneut tippen: abwählen) |
+| Lange auf eine Gruppenkachel drücken | Gruppe zur Auswahl dazunehmen (oder herausnehmen) |
 | Tippen auf die Kopfzeile eines Verbands | den ganzen Verband wählen |
 | Tippen auf die Karte | gewählte Gruppen laufen dorthin (ein Verband in seiner Ordnung) |
 | Tippen auf Feind | gewählte Gruppen greifen diese an |

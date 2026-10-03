@@ -22,6 +22,7 @@ from .scenarios import SCENARIOS
 from .units import Side
 
 DRAG_MIN = 0.4  # Kacheln: kürzer ist ein Tipp, kein Bereich
+LONG_PRESS = 0.45  # Sekunden: so lange auf einer Gruppenkachel, und sie kommt zur Auswahl dazu
 
 
 def to_tiles(pos: tuple[int, int]) -> tuple[float, float]:
@@ -53,6 +54,8 @@ class App:
         self.fingers: dict[int, tuple[float, float]] = {}   # aufliegende Finger (für das Verschieben)
         self.panning = False                                 # zwei Finger liegen auf: kein Tippen, kein Ziehen
         self.pan_from: tuple[int, int] | None = None         # rechte Maustaste: verschieben am Rechner
+        self.clock = 0.0                                     # Echtzeit seit dem Start (für langes Drücken)
+        self.chip_press: list | None = None                  # [Taste, seit wann, schon erledigt] auf einer Gruppenkachel
         self.arranging: int | None = None                    # Verband, dessen Anordnung gerade bearbeitet wird
         self.arrange_drag: tuple | None = None               # (Gruppe, Fingerposition) beim Anordnen
         self.battle = self._new_battle()
@@ -173,6 +176,9 @@ class App:
         if self.arranging is not None and self._arrange_press(pos):
             return
         key = self.renderer.button_at(pos, self.battle, self.paused, self.selected, self.menu_open)
+        if key and key.startswith("group:"):
+            self.chip_press = [key, self.clock, False]   # Tipp wählt beim Loslassen, langes Drücken wählt dazu
+            return
         if key:
             self.command(key)                      # Leiste unten, Menü und Pause oben, Gruppenkacheln rechts
             return
@@ -237,6 +243,12 @@ class App:
 
     def _release(self, pos: tuple[int, int]) -> None:
         self.menu_slider = None
+        if self.chip_press is not None:
+            key, _, done = self.chip_press
+            self.chip_press = None
+            if not done:
+                self.command(key)                  # kurzer Tipp: nur diese Gruppe
+            return
         if self.arrange_drag is not None:
             gid = self.arrange_drag[0]
             self.arrange_drag = None
@@ -319,7 +331,7 @@ class App:
             uid = int(key.split(":")[1])
             u = b.by_id(uid)
             if u is not None and u.fighting:
-                self.selected = self.selected ^ {uid}   # Kachel: Gruppe kommt zur Auswahl dazu (oder geht heraus)
+                self.selected = set() if self.selected == {uid} else {uid}
             self.menu_open = False
         elif key == "menue":
             self.menu_open = not self.menu_open
@@ -440,6 +452,13 @@ class App:
 
     # ------------------------------------------------------------ Takt
     def tick(self, dt: float) -> None:
+        self.clock += dt
+        if self.chip_press is not None and not self.chip_press[2] and self.clock - self.chip_press[1] >= LONG_PRESS:
+            self.chip_press[2] = True              # lange gedrückt: die Gruppe kommt zur Auswahl dazu (oder geht)
+            uid = int(self.chip_press[0].split(":")[1])
+            u = self.battle.by_id(uid)
+            if u is not None and u.fighting:
+                self.selected = self.selected ^ {uid}
         if self.arranging is not None and not any(v.id == self.arranging for v in self.battle.verbaende):
             self._arrange(None)
         if self.screen == "schlacht" and not self.paused:

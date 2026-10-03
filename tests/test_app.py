@@ -178,12 +178,9 @@ def test_context_bar_shows_only_what_the_selection_can_do():
     assert hop.drill == "geschlossen" and buttons(app)["drill:geschlossen"].active
     press(app, bar(app)["formation:o"])
     assert hop.formation == "o"
-    press(app, bar(app)[f"group:{hop.id}"])                # nochmal: abwählen
     press(app, bar(app)[f"group:{cav.id}"])
-    assert app.selected == {cav.id}
     lab = labels(app)
     assert lab["angriff"] == "Sturmangriff" and "formation:keil" in lab and "formation:o" not in lab
-    press(app, bar(app)[f"group:{cav.id}"])
     press(app, bar(app)[f"group:{pelt.id}"])
     lab = labels(app)
     assert lab["angriff"] == "Plänkeln" and lab["halten"] == "Halten"
@@ -344,23 +341,24 @@ def test_formation_frames_only_in_pause_and_while_dragging(monkeypatch):
     assert seen and all(seen) and goals
 
 
-def test_tapping_chips_adds_groups_and_the_frame_selects_the_verband():
-    """Jeder Tipp auf eine Kachel nimmt die Gruppe zur Auswahl dazu (oder heraus); im Feld
-    gewählt wird nur diese eine. Aus mehreren wird ein Verband; seine Kacheln stehen
-    beisammen, die Kopfzeile wählt ihn."""
+def test_long_press_adds_groups_and_the_frame_selects_the_verband():
+    """Tippen auf eine Kachel wählt nur diese Gruppe, langes Drücken nimmt sie dazu. Aus
+    mehreren wird ein Verband; seine Kacheln stehen beisammen, die Kopfzeile wählt ihn."""
     app = make_app()
     b = app.battle
     hop, pelt, cav = b.units(Side.STADT)
     press(app, bar(app)[f"group:{hop.id}"])
     assert app.selected == {hop.id}
-    press(app, bar(app)[f"group:{cav.id}"])
+    pos = bar(app)[f"group:{cav.id}"]
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=pos))
+    app.tick(0.6)                                          # lange gedrückt
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=pos))
     assert app.selected == {hop.id, cav.id}
     press(app, bar(app)["verband"])
     (v,) = b.verbaende
     assert v.rows == [[hop.id, cav.id]] and app.selected == {hop.id, cav.id}
     keys = [k for k in bar(app) if k.startswith(("group:", "verband:"))]
     assert keys[keys.index(f"verband:{v.id}") + 1:keys.index(f"verband:{v.id}") + 3] == [f"group:{hop.id}", f"group:{cav.id}"]
-    press(app, bar(app)["alle"])                           # „Keine“
     press(app, bar(app)[f"group:{pelt.id}"])               # eine andere Gruppe
     assert app.selected == {pelt.id}
     press(app, bar(app)[f"verband:{v.id}"])                # Kopfzeile: der ganze Verband
