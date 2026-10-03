@@ -97,9 +97,12 @@ MARCH_MIN = 3.0              # Kacheln: kürzere Wege geht man wie bisher (drehe
 MARCH_DEPLOY = 1.5           # Kacheln vor dem Ziel: dort marschiert die Gruppe in Breite und Front auf
 MARCH_WHEEL = 1.2            # Kacheln/s, die der äußere Mann beim Schwenken zusätzlich läuft (Drehrate = dies / halbe Breite)
 MARCH_WHEEL_MAX = 1.6        # rad/s: schneller schwenkt auch ein kleiner Block nicht
+DETOUR_BLOCK_RATIO = 1.2     # an einer ruhenden eigenen Gruppe vorbei: als Block, wenn der Umweg höchstens so viel länger ist
+MARCH_LOOKAHEAD = 1.0        # Kacheln: so weit über einen Umwegpunkt hinaus zielt ein Block im Bogen (zum Ziel hin)
 CAVALRY_ACCEL = 2.5          # Kacheln/s²: Reiter fahren an
 CAVALRY_BRAKE = 4.0          # Kacheln/s²: Reiter bremsen vor dem Ziel
 CAVALRY_TURN_RATE = 6.0      # rad/s im Schritt; geteilt durch das Tempo darüber (Bogen wächst mit dem Tempo)
+CAVALRY_WHEEL = 3.0          # Kacheln/s, die der äußere Reiter beim Schwenken zusätzlich reitet (Drehrate = dies / halbe Breite)
 CHARGE_BRAKE = 6.0           # Kacheln/s²: der Feind bremst die Reiter beim Eindringen
 CHARGE_PENETRATION = 0.8     # Kacheln: so weit tragen die Reiter höchstens in den Feind hinein
 CHARGE_SLOW = 0.4            # Geschwindigkeit der Reiter nach dem Aufprall

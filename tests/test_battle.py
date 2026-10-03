@@ -602,13 +602,16 @@ def test_only_peltasts_of_wall_side_may_enter_the_wall():
     run(b, 22)                                             # einer nach dem anderen die Leiter hinauf
     assert b.on_wall(pelt) and not pelt.loose
     # Auf dem Wall: weiter werfen; von unten kommt niemand heran, von oben schlägt man hinunter
+    raider.loose, raider.target, raider.target_id, raider.stance = False, None, None, Stance.HALTEN
     raider.x, raider.y = pelt.x, pelt.y + 1.0
+    raider.place_men()
     assert not b._in_contact(raider, pelt)                # der Wehrgang ist erhöht
     assert b._in_contact(pelt, raider)
     rate_down, _ = b._melee_rate(pelt, raider)
     pelt_off = Lochos(99, Side.STADT, [men("peltast", 15)], pelt.x, pelt.y + 2.5)
     b.lochoi.append(pelt_off)
     raider.y = pelt_off.y + 1.0
+    raider.place_men()
     rate_ground, _ = b._melee_rate(pelt_off, raider)
     assert 0 < rate_down < rate_ground * config.WALL_MELEE_FACTOR + 1e-9
     assert b._melee_rate(raider, pelt)[0] > 0 and not b._in_contact(raider, pelt)   # er käme heran, aber nicht hinauf
@@ -1486,16 +1489,17 @@ def test_line_order_keeps_its_width_and_deploys_at_the_target():
     assert u.in_phalanx and u.facing == (1.0, 0.0) and u.width == len(u.rows[0]) and u.width > 6
 
 
-@pytest.mark.parametrize("kind", ["reiter"])
-def test_standing_group_wheels_before_it_marches(kind):
-    b, u = standing_group(kind)
+def test_standing_cavalry_turns_while_it_starts_to_ride():
+    """Reiter im Stand schwenken beim Anreiten (ein enger Bogen), statt erst auf der Stelle
+    zu drehen: anfangs fast auf der Stelle, dann ausgerichtet und unterwegs."""
+    b, u = standing_group("reiter")
     b.command_move([u], (14.0, 12.0))                                      # rechtwinklig nach Osten
     x0 = u.x
     run(b, 0.15)
     assert u.facing[0] > 0.3 and u.facing[1] < -0.3                         # mitten im Schwenk
-    assert abs(u.x - x0) < 0.05                                            # noch nicht losmarschiert
+    assert abs(u.x - x0) < 0.05                                            # noch kaum vom Fleck
     run(b, 0.5)
-    assert abs(u.facing[0] - 1.0) < 1e-6 and u.x > x0 + 0.1                # ausgerichtet und unterwegs
+    assert u.facing[0] > 0.999 and u.x > x0 + 0.1                          # ausgerichtet und unterwegs
 
 
 def test_phalanx_wheels_to_its_ordered_front_without_swapping_rows():

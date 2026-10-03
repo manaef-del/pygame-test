@@ -2202,8 +2202,12 @@ class Battle:
                     continue
             if self._rides(u):
                 self._ride(u, dt, goal, speed, d)
-            elif arc and goal == u.target:
-                self._wheel(u, dt, goal, speed, d)       # auf freiem Feld: in Marschrichtung, im Bogen
+            elif arc:
+                if goal != u.target and dist(goal, u.target) > 0.1:
+                    # Umweg um eine eigene Gruppe: ein Stück über den Umwegpunkt hinaus zielen, zum Ziel hin
+                    # (sonst schwenkt der Block an der Ecke kurz seitwärts und wieder zurück)
+                    goal = add(goal, scale(norm(sub(u.target, goal)), config.MARCH_LOOKAHEAD))
+                self._wheel(u, dt, goal, speed, dist(u.pos, goal))   # auf freiem Feld (auch um eigene herum): im Bogen
             else:
                 u.vel = 0.0
                 step = min(speed * dt, d)
@@ -2447,14 +2451,32 @@ class Battle:
         Bögen, deren Halbmesser mit dem Tempo wächst; im Stand drehen sie frei."""
         want = norm(sub(goal, u.pos))
         ang = 0.0
-        if u.vel <= 0.05 or u.heading == (0.0, 0.0):
-            if u.stance is not Stance.FLUCHT:
-                rest = self._turn_towards(u, want, dt)             # im Stand schwenken oder kehrtmachen
+        rest = 0.0
+        if (u.vel <= 0.05 or u.heading == (0.0, 0.0)) and u.stance is Stance.FLUCHT:
+            head = want                                                     # Flucht: ohne Zeremonie
+        elif config.MARCH_ARC:
+            if u.vel <= 0.05 or u.heading == (0.0, 0.0):
+                if abs(self._angle_to(u.facing, want)) > config.ABOUT_TURN:
+                    self._about_turn(u)                                 # das Ziel liegt hinten: kehrt
                 u.heading = u.facing
-                if abs(rest) > config.MOVE_TURN_TOLERANCE:
-                    u.vel = 0.0
-                    return                                          # erst wenden, dann anfahren
+            # im Bogen: anreiten und dabei schwenken; je schneller, desto weiter der Bogen,
+            # und ein breiter Block schwenkt langsamer (der äußere Reiter muss mithalten)
+            head = u.heading
+            ang = self._angle_to(head, want)
+            omega = min(config.CAVALRY_TURN_RATE / max(1.0, u.vel), config.CAVALRY_WHEEL / max(0.3, u.half_w))
+            turn = max(-omega * dt, min(omega * dt, ang))
+            rest = abs(ang - turn)
+            ang = turn
+            c, s_ = math.cos(ang), math.sin(ang)
+            head = (head[0] * c - head[1] * s_, head[0] * s_ + head[1] * c)
+        elif u.vel <= 0.05 or u.heading == (0.0, 0.0):
+            rest = self._turn_towards(u, want, dt)                 # im Stand schwenken oder kehrtmachen
+            u.heading = u.facing
+            if abs(rest) > config.MOVE_TURN_TOLERANCE:
+                u.vel = 0.0
+                return                                              # erst wenden, dann anfahren
             head = want
+            rest = 0.0
         else:
             head = u.heading
             ang = math.atan2(head[0] * want[1] - head[1] * want[0], head[0] * want[0] + head[1] * want[1])
@@ -2466,13 +2488,15 @@ class Battle:
             want_v = top                                                     # Sturm: nicht vor dem Feind bremsen
         else:
             want_v = min(top, math.sqrt(2.0 * config.CAVALRY_BRAKE * d), 3.0 * d + 0.05)   # Bremsweg, zuletzt weich auslaufen
+        if rest > 0.0 and u.vel < 1.0:
+            want_v *= max(0.25, math.cos(min(rest, math.pi / 2)))           # beim Anreiten weit seitlich: enger schwenken
         if u.vel < want_v:
             u.vel = min(want_v, u.vel + config.CAVALRY_ACCEL * dt)
         else:
             u.vel = max(want_v, u.vel - config.CAVALRY_BRAKE * dt)
         u.heading = head
-        if u.stance is not Stance.PHALANX:
-            u.facing = head
+        if u.stance is not Stance.PHALANX or u.march is not None:
+            u.facing = head                                                 # die Front in Reitrichtung
         step = u.vel * dt
         if abs(ang) < 1e-3 and dist(head, want) < 1e-3:
             step = min(step, d)
@@ -2610,17 +2634,35 @@ class Battle:
                    for e in self.lochoi for gate in open_gates):
                 return ""                         # am Tor wird gekämpft: dort hält man die Ordnung und steht an
             why = "tor"                           # durchs offene Tor (oder um ein Wallstück herum)
-        elif self.wall_clear(u.pos, u.target) and (u.idle_block or self._detour(u, u.target, idle_only=True) is not None):
+        elif self.wall_clear(u.pos, u.target) and (
+                u.idle_block or (wp := self._detour(u, u.target, idle_only=True)) is not None):
             if u.side is not Side.STADT and any(e.side is not u.side and e.fighting
                                                 and e.rect_distance(u.pos) <= config.LOOSE_ENEMY_RANGE
                                                 for e in self.lochoi):
                 return ""                         # die Gegner halten nahe am Feind die Ordnung und gehen als Block herum
+            if not u.idle_block and not u.loose and self._block_passes(u, wp):
+                return ""                         # neben der eigenen Gruppe ist Platz: als Block im Bogen herum
             why = "eigene"                        # eine ruhende eigene Gruppe steht im Weg (hinter kämpfenden steht man an)
         if why and self._field_builds.get(self.time, 0) >= self._field_budget():
             return ""                             # in diesem Takt schon genug Wegefelder gerechnet: einen Takt später auflösen
         if why and not self._way_open(u):
             return ""                             # kein Durchkommen (die eigenen kämpfen im Durchgang): als Block anstehen
         return why
+
+    def _block_passes(self, u: Lochos, wp: Point) -> bool:
+        """Kommt die Gruppe als Block um die eigene Gruppe herum, die im Weg ruht (über den
+        Umweg ``wp`` neben ihr, ohne Wall, Haus oder Kartenrand), und ist der Umweg klein?
+        Nur mit dem Marsch im Bogen; sonst löst sie sich wie bisher auf."""
+        if not config.MARCH_ARC or u.target is None:
+            return False
+        if not self.inside(*wp) or self.is_blocked(wp[0], wp[1], u):
+            return False
+        straight = dist(u.pos, u.target)
+        if dist(u.pos, wp) + dist(wp, u.target) > config.DETOUR_BLOCK_RATIO * straight:
+            return False                          # großer Umweg: Mann für Mann vorbei ist kürzer
+        r = self._block_width(u)
+        return (self.path_clear(u.pos, wp, u) and self.path_clear(wp, u.target, u)
+                and self._wide_clear(u.pos, wp, r) and self._wide_clear(wp, u.target, r))
 
     def _way_open(self, u: Lochos) -> bool:
         """Gibt es für die Männer einen Weg zur Zielaufstellung (um stehende eigene Gruppen herum)?"""

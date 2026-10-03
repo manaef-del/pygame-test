@@ -240,7 +240,9 @@ def test_hold_and_merge_close_a_dissolved_group_where_its_men_are():
 
 def test_enemies_dissolve_around_their_own_unless_switched_off(monkeypatch):
     """Die Gegner lösen sich wie die Spielergruppen auf, um an einem ruhenden eigenen
-    Haufen vorbeizukommen; mit abgeschaltetem LOOSE_AI gehen sie als Block herum."""
+    Haufen vorbeizukommen; mit abgeschaltetem LOOSE_AI gehen sie als Block herum.
+    (Ein kleiner Umweg ginge auch als Block: hier ausgeschaltet.)"""
+    monkeypatch.setattr(config, "DETOUR_BLOCK_RATIO", 1.0)
     def setup():
         b = Battle(Scenario("t", "t", "", role="verteidigung", enemy_kind="raeuber", enemy_default=32, enemy_min=32,
                             enemy_max=32, houses=((2, 17),), raider_spawns=(RaiderSpawn(8.0, 5.0), RaiderSpawn(8.0, 8.0))),
@@ -412,3 +414,33 @@ def test_dissolving_waits_a_step_when_the_field_budget_is_spent():
     b.time += DT
     b._update_loose(r)
     assert r.loose and r.loose_why == "tor"
+
+
+def test_small_detour_around_own_group_stays_a_block():
+    """Steht eine eigene Gruppe nur am Rand des Weges, geht ein Block im Bogen an ihr
+    vorbei, statt sich aufzulösen; die Front zeigt dabei in Marschrichtung."""
+    b, line, block = line_and_block(block_at=(11.5, 13.5))
+    b.command_move([block], (4.0, 4.0))                    # schräg an der Linie vorbei
+    went_loose = False
+    facings = []
+    for _ in range(int(14 / DT)):
+        b.update(DT)
+        went_loose = went_loose or block.loose
+        closest = min(dist(m.pos, n.pos) for m in block.all_men() for n in line.all_men())
+        assert closest >= 2 * config.MAN_RADIUS - 1e-6
+        facings.append(block.facing)
+    assert not went_loose
+    assert dist(block.pos, (4.0, 4.0)) < 0.3
+    assert all(f[1] <= 0.05 for f in facings)               # kein Ausschlag zurück nach Süden an der Ecke
+
+
+def test_big_detour_still_goes_man_by_man():
+    """Steht die eigene Gruppe quer vor dem Weg, wäre der Umweg als Block groß: Dann löst
+    sich die Gruppe auf und geht Mann für Mann vorbei (wie bisher)."""
+    b, line, block = line_and_block()
+    b.command_move([block], (8.0, 6.0))
+    went_loose = False
+    for _ in range(int(3 / DT)):
+        b.update(DT)
+        went_loose = went_loose or block.loose
+    assert went_loose

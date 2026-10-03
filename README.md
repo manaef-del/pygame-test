@@ -68,9 +68,14 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Liegt das Ziel weit seitlich, marschiert sie langsamer und schwenkt
   enger; liegt es hinter ihr, macht sie kehrt. Eine aufgezogene Linie
   behält unterwegs ihre bisherige Breite und marschiert erst anderthalb
-  Kacheln vor dem Ziel in die neue Breite und Front auf. Kurze Wege, Reiter,
-  Angriffe, Flucht und Umwege um Wall, Tor und Häuser gehen wie zuvor:
-  erst schwenken, dann geradeaus.
+  Kacheln vor dem Ziel in die neue Breite und Front auf. Reiter traben
+  ebenso im Bogen an, statt erst auf der Stelle zu wenden, und reiten mit der
+  Front voraus; im Galopp behalten sie ihren Schwung und weiten Bogen. Steht
+  eine ruhende eigene Gruppe nur am Rand des Weges (der Umweg ist höchstens
+  ein Fünftel länger), geht eine Gruppe als Block im Bogen an ihr vorbei;
+  steht sie quer davor, löst sich die Gruppe auf und geht Mann für Mann
+  vorbei. Kurze Wege, Angriffe, Flucht und Umwege um Wall, Tor und Häuser
+  gehen wie zuvor: erst schwenken, dann geradeaus.
 - **Das Rechteck sagt, wo jeder stehen soll; den Weg sucht jeder selbst.**
   Auf freiem Feld marschiert eine Gruppe als Block. Muss sie über den
   Wall, durchs offene Tor oder an einer ruhenden eigenen Gruppe vorbei,
