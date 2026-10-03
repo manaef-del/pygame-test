@@ -51,6 +51,11 @@ wandert nach unten.
     Siedlung gegen Peltasten.
 11. **Reiter verfolgen.** Ein Modus für Reiter, der selbstständig
     Fliehende und ungeordnete Gruppen jagt (nie eine Phalanxfront).
+12. **Breiter Block streift Nachbarn im Bogen.** Tippt man eine breite
+    Phalanx in die Lücke zwischen zwei eigenen Gruppen, schwenkt sie im
+    Bogen, streift dabei mit der Flanke die Nachbargruppe, wartet 2 s und
+    geht dann aufgelöst hin (6,7 s statt etwa 2 s). Der Umweg um eigene
+    Gruppen müsste die Breite im Bogen mitrechnen.
 
 ## Zurückgestellt
 
@@ -66,6 +71,11 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Drehtempo und Gassen** (3. Oktober 2026): Eine Gruppe schwenkt im
+  Stand so schnell, wie ihr äußerer Mann den Bogen geht; Reiter wenden auf
+  der Stelle langsamer. Die Phalanx zieht als schmale Kolonne durch
+  Gassen von einer Kachel, statt sich aufzulösen (docs/ki-simulation.md,
+  Lauf 32).
 - **Modi der Hopliten und Verbände** (3. Oktober 2026): Locker, Phalanx
   und Sturm (ein Modus „Geschlossen“ war zu nah an der Phalanx und entfiel); die Phalanx wird an Tor und Gasse schmaler statt
   sich aufzulösen. Keine gemischten Gruppen mehr: Mehrere Gruppen bilden
