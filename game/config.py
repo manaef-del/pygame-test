@@ -134,6 +134,7 @@ SKIRMISH_NEAR = 1.6          # Kacheln: näher lassen Peltasten den Feind nicht 
 SKIRMISH_FAR = 0.4           # Kacheln unter der Wurfweite, auf die sie herangehen
 HITRUN_DISTANCE = 3.0        # Kacheln, auf die sich Reiter nach dem Stoß absetzen
 HITRUN_TIME = 5.0            # Sekunden, längstens
+HUNT_RANGE = 8.0             # Kacheln: so weit sucht sich eine jagende Reitergruppe Fliehende und Ungeordnete
 
 # Handgemenge: Binden und Lösen
 MAN_BIND_REACH = 0.7         # Kacheln zum nächsten feindlichen Mann, bis zu denen ein Mann im Handgemenge steht

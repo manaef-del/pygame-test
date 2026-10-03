@@ -235,6 +235,7 @@ class Lochos:
     pace: float | None = None         # im Verband: so schnell wie die langsamste Gruppe (bis zum nächsten Befehl)
     free_attack: bool = False         # im freien Angriff (Sturm, Plänkeln, Sturmangriff)
     stormed: bool = False             # ... und schon im Handgemenge gewesen
+    hunt_home: tuple[float, float] | None = None   # Reiter auf der Jagd: hierher kehren sie zurück, wenn nichts zu jagen ist
     stay_loose: bool = False          # nach einem Stau aufgelöst: erst an den Plätzen wieder Block
     stay_since: float = 0.0
     straggled_at: tuple[float, float] | None = None   # Ziel, für das schon einmal wegen Nachzüglern aufgelöst wurde

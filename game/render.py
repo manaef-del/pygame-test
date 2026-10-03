@@ -657,6 +657,8 @@ class Renderer:
             items.append(("angriff", "Angriff" if mixed else ATTACK_LABEL.get(arm, "Angriff"), 1.6, False,
                           "je Gattung" if mixed else None))
             items.append(("halten", "Halten", 1.6, False, None))
+            if arm == "reiter" and not mixed:
+                items.append(("jagen", "Jagen", 1.2, all(u.mode == "jagen" for u in sel), "Fliehende"))
         if len(sel) >= 2:
             items.append(("verband", "Verband", 1.3, False, "bilden"))
         elif battle.verband_of(sel[0]) is not None:

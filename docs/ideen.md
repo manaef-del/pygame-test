@@ -37,8 +37,6 @@ wandert nach unten.
 10. **Verbände für die Gegner-KI.** Die KI bildet noch keine Verbände und
     wechselt keine Modi; denkbar wäre etwa eine lockere Ordnung der
     Siedlung gegen Peltasten.
-11. **Reiter verfolgen.** Ein Modus für Reiter, der selbstständig
-    Fliehende und ungeordnete Gruppen jagt (nie eine Phalanxfront).
 ## Zurückgestellt
 
 Das Spiel soll einfach bleiben und Spaß machen; die Flucht wirkt schon
@@ -59,6 +57,9 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Reiter jagen** (3. Oktober 2026): Knopf „Jagen“ (Taste J) für Reiter.
+  Sie jagen Fliehende und Ungeordnete bis acht Kacheln weit, nie eine
+  geschlossene Phalanx, und kehren dann an ihren Platz zurück.
 - **Vorhalten und Streuung beim Fernkampf** (3. Oktober 2026): Werfer und
   Ecktürme zielen auf die künftige Stelle, die Speere streuen mit
   Entfernung und Vorhalt, getroffen wird, wer am Einschlag steht.

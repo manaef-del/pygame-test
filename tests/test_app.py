@@ -178,9 +178,13 @@ def test_context_bar_shows_only_what_the_selection_can_do():
     assert hop.drill == "locker" and buttons(app)["drill:locker"].active
     press(app, bar(app)["formation:o"])
     assert hop.formation == "o"
+    assert "jagen" not in lab                              # jagen können nur Reiter
     press(app, bar(app)[f"group:{cav.id}"])
     lab = labels(app)
     assert lab["angriff"] == "Sturmangriff" and "formation:keil" in lab and "formation:o" not in lab
+    assert lab["jagen"] == "Jagen" and not buttons(app)["jagen"].active
+    press(app, bar(app)["jagen"])
+    assert cav.mode == "jagen" and buttons(app)["jagen"].active
     press(app, bar(app)[f"group:{pelt.id}"])
     lab = labels(app)
     assert lab["angriff"] == "Plänkeln" and lab["halten"] == "Halten"

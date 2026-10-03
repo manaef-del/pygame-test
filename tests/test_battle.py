@@ -2196,6 +2196,69 @@ def test_javelins_lead_a_running_man_and_miss_one_who_stops(monkeypatch):
     assert throw(False) == 0.0                                          # stehen geblieben: daneben
 
 
+def hunt_field():
+    """Reiter des Spielers in der Mitte, die Räuber weit weg und still."""
+    b = Battle(raid(16, (2.0, 2.0)), random.Random(2), army=army_of(GroupSpec("R", [Tier("reiter", 16)])))
+    b._ai_raiders = lambda: None
+    b._check_outcome = lambda: None
+    b.alarm = False
+    (cav,) = b.units(Side.STADT)
+    cav.x, cav.y, cav.facing = 8.0, 12.0, (0.0, -1.0)
+    cav.place_men()
+    for r in b.units(Side.FEIND):
+        r.x, r.y, r.target, r.stance = 1.0, 1.0, None, Stance.HALTEN
+        r.place_men()
+    return b, cav
+
+
+def test_hunting_cavalry_rides_down_fleeing_foes_and_rides_back():
+    b, cav = hunt_field()
+    prey = b.units(Side.FEIND)[0]
+    prey.x, prey.y = 9.0, 7.0
+    prey.place_men()
+    prey.stance, prey.target = Stance.FLUCHT, (9.0, 7.0)              # flieht, steht aber noch auf dem Feld
+    assert b.command_hunt([cav]) == 1 and cav.mode == "jagen"
+    men0 = prey.men
+    for _ in range(int(6 / DT)):
+        prey.stance, prey.target = Stance.FLUCHT, (9.0, 7.0)
+        b.update(DT)
+    assert prey.men < men0                                             # eingeholt und niedergeritten
+    for r in b.units(Side.FEIND):                                     # nun ist nichts mehr zu jagen
+        r.x, r.y = 1.0, 1.0
+        r.place_men()
+        r.stance, r.target = Stance.HALTEN, None
+    run(b, 12)
+    assert math.dist(cav.pos, (8.0, 12.0)) < 1.0 and cav.mode == "jagen"   # zurück an seinem Platz, weiter auf der Lauer
+
+
+def test_hunting_cavalry_never_charges_a_closed_phalanx():
+    b, cav = hunt_field()
+    wall = b._spawn(Side.FEIND, arrange(men("schwer", 16), 8), 8.0, 9.0, "Phalanx")
+    wall.facing = (0.0, 1.0)
+    wall.place_men()
+    wall.stance, wall.in_line, wall.target = Stance.PHALANX, True, wall.pos
+    b.command_hunt([cav])
+    run(b, 5)
+    assert not cav.engaged and wall.men == 16 and math.dist(cav.pos, (8.0, 12.0)) < 0.6
+    wall.in_line = False                                               # ungeordnet: nun lohnt der Stoß
+    wall.stance = Stance.HALTEN
+    for _ in range(int(5 / DT)):
+        b.update(DT)
+        wall.in_line = False
+        if cav.engaged:
+            break
+    assert cav.engaged or cav.target_id == wall.id
+
+
+def test_only_cavalry_hunts():
+    b = Battle(raid(16, (8.0, 3.0)), random.Random(0))
+    hop, pelt, cav = b.units(Side.STADT)
+    assert b.command_hunt([hop, pelt]) == 0 and hop.mode == "" and pelt.mode == ""
+    assert b.command_hunt([hop, pelt, cav]) == 1 and cav.mode == "jagen"
+    b.command_move([cav], (8.0, 10.0))
+    assert cav.mode == ""                                              # ein neuer Befehl beendet die Jagd
+
+
 def test_drill_command_forms_up_in_place_and_only_for_hoplites():
     b = Battle(raid(16, (8.0, 3.0)), random.Random(0))
     b._ai_raiders = lambda: None

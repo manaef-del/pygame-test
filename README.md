@@ -338,6 +338,13 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Ziel rollen sie aus statt stehen zu bleiben. Beim Aufprall trägt der
   Schwung sie bis zu knapp eine Kachel in die feindliche Formation
   hinein, erst dort kommen sie zum Stehen.
+- **Jagen (Reiter, Taste J):** Reiter auf der Jagd suchen sich selbst
+  fliehende und ungeordnete Gegner bis acht Kacheln weit, stoßen zu und
+  setzen sich ab, wie im Sturmangriff. Eine geschlossene Phalanx greifen
+  sie nie an, auch nicht, wenn sie auf dem Weg zu einer anderen Beute
+  im Weg stünde. Ist nichts zu jagen, reiten sie an ihren Platz zurück
+  (im Verband an ihren Platz dort) und lauern weiter, bis ein anderer
+  Befehl kommt.
 - **Sturmangriff der Reiter:** Berittene, die mit mindestens zwei Kacheln
   Anlauf auf eine Gruppe treffen, prallen auf: Die vordersten Männer
   werden weggestoßen (leichte weiter als schwere, das Gewicht sind ihre

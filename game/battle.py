@@ -2334,8 +2334,8 @@ class Battle:
         for v in self.verbaende:
             for uid in v.members():
                 u = self.by_id(uid)
-                if u is None or not u.fighting or not u.free_attack:
-                    continue
+                if u is None or not u.fighting or not u.free_attack or u.mode == "jagen":
+                    continue                                # Jäger kehren selbst an ihren Platz zurück
                 if u.engaged:
                     u.stormed = True
                     continue
@@ -2513,6 +2513,68 @@ class Battle:
         u.build_kind = "ram"
         self.events.append("Die Räuber bauen einen Rammbock")
 
+    def command_hunt(self, units: list[Lochos] | None) -> int:
+        """Reiter jagen: Sie suchen sich selbstständig fliehende und ungeordnete Gegner in
+        der Nähe, stoßen zu und setzen sich ab; eine geschlossene Phalanx greifen sie nie an.
+        Ist nichts zu jagen, kehren sie an ihren Platz zurück (im Verband an ihren Platz
+        dort) und warten. Andere Gattungen jagen nicht."""
+        self.alarm = False
+        n = 0
+        for u in self._selection(units):
+            if u.arm() != "reiter" or not u.mounted_men():
+                continue
+            self._wake(u)
+            u.free_attack = False
+            u.in_line = False
+            u.stance = Stance.ANGRIFF
+            u.mode = "jagen"
+            u.target_id, u.target, u.march = None, None, None
+            u.hitrun_until = -1.0
+            u.hunt_home = u.pos
+            n += 1
+        if n:
+            self.events.append("Reiter jagen")
+        return n
+
+    def _prey(self, u: Lochos, foes: list[Lochos]) -> list[Lochos]:
+        """Was jagende Reiter angreifen: Fliehende und ungeordnete Gegner in Reichweite, die
+        sie erreichen, ohne an einer Phalanx vorbei zu müssen; nie eine geschlossene Phalanx."""
+        out = []
+        for f in foes:
+            if not f.alive or f.withdrawn or not self.inside(f.x, f.y):
+                continue
+            if self._formed(f) and f.stance is not Stance.FLUCHT:
+                continue
+            if f.rect_distance(u.pos) > config.HUNT_RANGE or not self._reachable_level(u, f):
+                continue
+            if self._formation_in_the_way(u, f, foes):
+                continue
+            out.append(f)
+        return out
+
+    def _hunt_home(self, u: Lochos) -> Point | None:
+        v = self.verband_of(u) if self.verbaende else None
+        slot = v.slots.get(u.id) if v is not None else None
+        if isinstance(slot, LinePlan):
+            return slot.center
+        if slot is not None:
+            return slot[0]
+        return u.hunt_home
+
+    def _hunt(self, u: Lochos, foes: list[Lochos]) -> None:
+        """Eine Reitergruppe auf der Jagd (siehe ``command_hunt``)."""
+        prey = self._prey(u, foes)
+        if u.target_id is not None and all(f.id != u.target_id for f in prey):
+            u.target_id = None                              # das Ziel ist entkommen oder hat sich geschlossen
+        if prey:
+            self._hit_and_run(u, prey)
+            return
+        if u.hitrun_until > self.time:
+            return                                          # setzt sich noch ab
+        u.target_id = None
+        home = self._hunt_home(u)
+        u.target = home if home is not None and dist(u.pos, home) > 0.5 else None
+
     def _ai_defenders(self) -> None:
         self.brain.think(self)
 
@@ -2524,6 +2586,9 @@ class Battle:
                 continue
             if u.mode == "sturm":
                 self._hit_and_run(u, fighting or foes)
+                continue
+            if u.mode == "jagen":
+                self._hunt(u, foes)
                 continue
             target = self.by_id(u.target_id) if u.target_id is not None else None
             if target is None or not target.alive or not self.inside(target.x, target.y) or (

@@ -138,6 +138,8 @@ class App:
             self.command("drill:locker")
         elif key == pygame.K_p:
             self.command("drill:phalanx")
+        elif key == pygame.K_j:
+            self.command("jagen")
         elif key == pygame.K_SPACE:
             self.command("pause")
         elif key == pygame.K_r:
@@ -333,6 +335,11 @@ class App:
             self.menu_open = False
         elif key == "menue":
             self.menu_open = not self.menu_open
+        elif key == "jagen" and b.outcome is None:
+            sel = self._selection()
+            if not b.command_hunt(sel):
+                b.events.append("Jagen können nur Reiter")
+            self.paused = False
         elif key in ("angriff", "halten", "formation") or key.startswith(("formation:", "drill:")):
             if b.outcome is not None:
                 return
