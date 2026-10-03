@@ -202,6 +202,7 @@ DRILL_SPACING = {"locker": (1.7, 1.4), "phalanx": (1.0, 1.0)}   # Abstand in der
 DRILL_SPEED = {"locker": 1.15, "phalanx": 1.0}
 DRILL_TURN = {"locker": 1.0, "phalanx": 1.0}                    # Schwenken und Kehrt
 DRILL_LOOSE_MISSILE = 0.85    # locker: weniger Schaden je Treffer (die weiten Abstände lassen ohnehin Speere ins Leere gehen)
+NARROW_ARMS = ("locker", "peltasten", "reiter")   # außer der Phalanx werden auch diese an Tor und Gasse zur Kolonne
 DRILL_NARROW = True           # die Phalanx löst sich an Tor und Gasse nicht auf, sie wird schmaler
 JAM_TIME = 2.0                # Sekunden: so lange kommt ein Block mit Ziel nicht vom Fleck, dann löst er sich auf
 STRAGGLER_DIST = 0.4          # Kacheln: so weit von seinem Platz gilt ein Mann als hängengeblieben

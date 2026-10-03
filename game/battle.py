@@ -3373,10 +3373,14 @@ class Battle:
             if self.ring:
                 levels = {self._wall_level(m.pos) for m in u.all_men()} | {centre_level}
                 levels.discard("tor")             # der Tordurchgang ist keine Wallseite
-                if on_route or "wall" in levels or (len(levels) > 1 and not self._keeps_order(u)):
+                if on_route or "wall" in levels or (len(levels) > 1 and not self._narrows(u)):
                     return "wall"                 # (eine Phalanx, die als Block durchs Tor zieht, steht kurz auf beiden Seiten)
             elif on_route or any(self._wall_level(m.pos) != centre_level for m in u.all_men()):
-                return "wall"                     # der Weg führt über den Wall, oder Männer stehen noch drüben oder oben
+                levels = {self._wall_level(m.pos) for m in u.all_men()} | {centre_level}
+                levels.discard("tor")
+                if on_route or "wall" in levels or not self._narrows(u) or len(levels) > 2:
+                    return "wall"                 # der Weg führt über den Wall, oder Männer stehen noch drüben oder oben
+                # (eine Kolonne, die durchs Tor zieht, steht kurz auf beiden Seiten: kein Grund, sich aufzulösen)
         if (u.target is None or u.engine is not None or u.building is not None or u.stance is Stance.FLUCHT
                 or u.engaged or self.on_wall(u) or (self._rides(u) and u.target_id is not None)):
             return ""
@@ -3416,11 +3420,10 @@ class Battle:
             why = "eigene"                        # eine ruhende eigene Gruppe steht im Weg (hinter kämpfenden steht man an)
         if not why and self._narrow_way(u):
             why = "enge"                          # der Block passt nicht durch die Gasse: Mann für Mann statt großem Umweg
-        if why in ("tor", "eigene", "enge") and self._keeps_order(u):
-            # die Phalanx bleibt zusammen: um eigene Gruppen als Block herum,
-            # durch Tor und Gasse schmaler und tiefer statt Mann für Mann
-            if why == "eigene" or self._narrow_column(u, why):
-                return ""
+        if why == "eigene" and self._keeps_order(u):
+            return ""                             # die Phalanx bleibt zusammen: um eigene Gruppen als Block herum
+        if why in ("tor", "enge") and self._narrows(u) and self._narrow_column(u, why):
+            return ""                             # durch Tor und Gasse schmaler und tiefer statt Mann für Mann
         if why and self._field_builds.get(self.time, 0) >= self._field_budget():
             return ""                             # in diesem Takt schon genug Wegefelder gerechnet: einen Takt später auflösen
         if why and not self._way_open(u):
@@ -3504,6 +3507,17 @@ class Battle:
         """Hält die Gruppe auf dem Marsch ihre Ordnung (eine Phalanx in Linie)?"""
         return (config.DRILL_NARROW and not u.loose and u.formation == "linie" and u.stance is not Stance.FLUCHT
                 and u.drill_kind() == "phalanx")
+
+    def _narrows(self, u: Lochos) -> bool:
+        """Wird die Gruppe vor Tor und Gasse schmaler und schiebt sich als Kolonne hindurch,
+        statt sich aufzulösen? Die Phalanx immer; lockere Hopliten und (je nach Einstellung)
+        andere Gattungen in Linie ebenso."""
+        if self._keeps_order(u):
+            return True
+        if not config.DRILL_NARROW or u.loose or u.formation != "linie" or u.stance is Stance.FLUCHT:
+            return False
+        arm = "locker" if u.drill_kind() == "locker" else u.arm()
+        return arm in config.NARROW_ARMS
 
     def _narrow_column(self, u: Lochos, why: str) -> bool:
         """Vor Tor oder Gasse schmaler werden, so dass die Front hindurchpasst (die Reihen
@@ -4066,7 +4080,14 @@ class Battle:
         if man.rest_slot is None or dist(slot, man.rest_slot) > 0.05 or d < man.rest_best - 0.03:
             man.rest_slot, man.rest_best, man.rest_since = slot, d, self.time   # neuer Platz oder näher gekommen
             return False
-        return settled and d <= config.MAN_REST_DIST and self.time - man.rest_since >= config.MAN_REST_TIME
+        if not (settled and d <= config.MAN_REST_DIST and self.time - man.rest_since >= config.MAN_REST_TIME):
+            return False
+        k = min(1.0, 0.05 / max(d, 1e-6))
+        step = (man.x + (slot[0] - man.x) * k, man.y + (slot[1] - man.y) * k)
+        if self._crowding(man, man.pos, step, u.id) is None:
+            man.rest_since = self.time                    # der Weg ist wieder frei: weiter an den Platz
+            return False
+        return True
 
     def _move_loose(self, u: Lochos, dt: float, walker: bool) -> None:
         """Aufgelöst: jeder Mann geht für sich an seinen Platz in der Zielaufstellung.

@@ -318,9 +318,8 @@ def test_houses_are_obstacles_and_a_phalanx_takes_the_street_to_the_agora():
 def test_a_wide_block_goes_round_houses_it_does_not_fit_between(monkeypatch, narrow):
     """Zwischen zwei Häusern mit einer Kachel Lücke passt keine breite Front. Ohne die
     Regel für Gassen geht der Block außen herum, statt sich hindurchzuquetschen; mit ihr
-    (der Umweg ist viel länger) geht er hindurch: eine Phalanx wird dazu schmaler und
-    tiefer, ein lockerer Haufen löst sich auf und geht Mann für Mann. Eine Gruppe mit zwei
-    Mann Front geht ohnehin als Block hindurch."""
+    (der Umweg ist viel länger) geht er hindurch: Phalanx wie lockere Hopliten werden dazu
+    schmaler und tiefer. Eine Gruppe mit zwei Mann Front geht ohnehin als Block hindurch."""
     from game.scenarios import OFFENE_SIEDLUNG
     from dataclasses import replace
     monkeypatch.setattr(config, "NARROW_LOOSE", narrow)
@@ -352,10 +351,9 @@ def test_a_wide_block_goes_round_houses_it_does_not_fit_between(monkeypatch, nar
         assert all(b.cell(m.x, m.y) not in b.house_cells for m in hop.all_men())
         went_between = bool(xs) and all(8.0 <= x <= 9.0 for x in xs)
         assert went_between == through, (width, drill, xs[:3])
-        loose_through = narrow and width == 14 and drill == "locker"
-        assert ("enge" in why) == loose_through                     # nur der lockere Haufen Mann für Mann
-        if narrow and width == 14 and drill == "phalanx":
-            assert not hop.loose and max(widths) <= 6               # die Phalanx als schmale Kolonne
+        assert "enge" not in why                                    # niemand löst sich dafür auf
+        if narrow and width == 14:
+            assert not hop.loose and max(widths) <= 6               # Phalanx wie lockere Hopliten: als schmale Kolonne
 
 
 def test_room_in_a_lane_is_measured_from_the_house_walls():

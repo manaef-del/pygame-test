@@ -178,6 +178,13 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   eigenen Gruppe rückt man höchstens Schulter an Schulter. Wer jemanden
   im Weg hat, geht schräg an ihm vorbei; nur stürmende Reiter drängen
   Fußvolk beiseite, solange ihr Schwung sie in den Feind trägt.
+- **Als Kolonne durch Tor und Gasse.** Nicht nur die Phalanx: Auch
+  lockere Hopliten, Peltasten und Reiter in Linie werden vor einem Tor
+  oder einer engen Gasse schmaler und tiefer, ziehen als Kolonne hindurch
+  und marschieren dahinter wieder in voller Breite auf, statt sich
+  aufzulösen. Wer klettern darf (Peltasten), gilt im Tordurchgang nicht
+  als „über den Wall“. Nur wenn nicht einmal eine Front von zwei Mann
+  passt, geht es Mann für Mann.
 - **Häuser und Gerät sind Hindernisse.** Niemand läuft durch ein Haus,
   durch einen aufgestellten Belagerungsturm (außer wer über ihn auf den
   Wall will) oder durch einen liegenden Rammbock. Eine Gruppe sucht sich
@@ -281,8 +288,9 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   (Tasten L, P, A).
   - *Locker*: weite Abstände (1,7-fach in der Reihe), 15 % schneller,
     ohne Phalanxbonus; Wurfspeere gehen öfter zwischen den Männern ins
-    Leere, und wer getroffen wird, deckt sich mit dem Schild. An Tor, Gasse und
-    eigenen Gruppen löst sich die Gruppe auf und geht Mann für Mann. Auf
+    Leere, und wer getroffen wird, deckt sich mit dem Schild. Vor Tor und
+    Gasse wird sie wie die Phalanx schmaler und zieht als Kolonne hindurch;
+    an eigenen Gruppen löst sie sich auf und geht Mann für Mann. Auf
     kurzen Wegen (bis fünf Kacheln), für die sie als Block erst schwenken
     müsste (zur Seite, zurück, mit neuer Front), stellt sie sich Mann für
     Mann um: Jeder geht gerade an seinen neuen Platz, die Front bleibt

@@ -201,7 +201,8 @@ def test_near_target_behind_the_wall_is_the_gathering_place_itself():
 
 
 def test_gate_line_streams_through_and_forms():
-    """Durchs offene Tor gehen die Männer einzeln und stellen sich drüben in die befohlene Linie."""
+    """Auch lockere Hopliten ziehen als schmale Kolonne durchs offene Tor (keiner bleibt
+    links und rechts hängen) und stellen sich drüben in die befohlene Linie."""
     b = Battle(SIEDLUNG_WALL, random.Random(1), ai="einfach", doctrine="spiegel", enemy_count=12)
     for i, e in enumerate(b.units(Side.FEIND)):
         e.x, e.y = 1.5 + i * 0.1, 0.8 + i * 0.1
@@ -217,10 +218,13 @@ def test_gate_line_streams_through_and_forms():
     b.alarm = False
     b.command_line([hop], (5.0, 4.5), (11.0, 4.5))
     went_loose = False
+    narrowest = hop.width
     for _ in range(int(15 / DT)):
         b.update(DT)
         went_loose = went_loose or hop.loose
-    assert went_loose
+        narrowest = min(narrowest, hop.width)
+    assert not went_loose and narrowest < hop.width
+    assert all(dist(m.pos, p) < 0.4 for m, p in hop.slots())         # alle drüben an ihren Plätzen
     b.command_drill([hop], "phalanx")
     for _ in range(int(2 / DT)):
         b.update(DT)

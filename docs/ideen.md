@@ -58,6 +58,12 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Kolonne durchs Tor für alle** (3. Oktober 2026): Lockere Hopliten,
+  Peltasten und Reiter ziehen wie die Phalanx schmaler durch Tor und Gasse.
+  Vorher blieben lockere Hopliten und Peltasten beim Zurück durchs Tor
+  hängen (Palisade herein, Festung zurück: nie fertig). Jetzt kommen in
+  allen 24 Tor-Fällen alle an, niemand löst sich auf. Peltasten auf der
+  Palisade hinaus: 7,7 s → 3,8 s.
 - **Zappeln an Wall, Tor und Häusern** (3. Oktober 2026): Zehn Schwellen,
   an denen Gruppen hin und her kippten, haben Spiel bekommen (README, „Kein
   Zappeln an Schwellen“). Gemessen wurde je 2 s, wie weit sich eine Gruppe
