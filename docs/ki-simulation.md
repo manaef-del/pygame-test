@@ -1,5 +1,45 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 31 (3. Oktober 2026): Modi der Hopliten und Verbände
+
+Neu seit Lauf 30 (README, „Modi der Hopliten“ und „Verbände“):
+
+- **Modi:** Hopliten sind locker oder in Phalanx, dazu kommt der Sturm. Die
+  Phalanx wird an Tor und Gasse schmaler, statt sich aufzulösen. Ein
+  dritter Modus „Geschlossen“ wurde gebaut, gemessen und danach wieder
+  entfernt; er war zu nah an der Phalanx.
+- **Verbände statt gemischter Gruppen:** Eine gemischte Gruppe der
+  Aufstellung wird in der Schlacht je Gattung eine Gruppe, zusammen ein
+  Verband.
+
+Die Taktiken der Simulation benutzen weder Modi noch Verbände. Gemessen
+wurde, ob sich dadurch etwas verschiebt.
+
+Zwölf Seeds (Festung im Angriff acht), Lauf 30 → 31:
+
+| Szenario | Taktik | Siege | Häuser verloren |
+|---|---|---|---|
+| offen | alle sieben | genau wie Lauf 30 | genau wie Lauf 30 |
+| palisade | tor_halten | 0 → 0 | 8,0 → 8,0 |
+| palisade | tor_reserve | 6 → 9 | 5,1 → 4,2 |
+| palisade | tor_leiter | 10 → 11 | 1,8 → 1,6 |
+| palisade | passiv | 9 → 9 | 5,2 → 5,2 |
+| horde | vorruecken, angriff | 10, 12 → 10, 12 | – |
+| angriff_offen | alle | 1, 0, 0 → 1, 0, 0 | – |
+| angriff_wall | beide | 0 → 0 | – |
+| festung | tore | 0 → 0 | 6,8 → 5,7 |
+| festung | passiv | 0 → 0 | 4,5 → 5,5 |
+| festung_angriff | rammbock, turm | 8/8, 0/8 → 8/8, 0/8 | – |
+
+Im offenen Feld ist alles gleich, Schlacht für Schlacht. An der Palisade
+gewinnt „tor_reserve“ 3 Siege dazu. Dort zieht die Phalanx jetzt als Block
+durchs Tor, statt sich aufzulösen. Alles Übrige liegt im Rahmen der
+Schwankung.
+
+Lauf 31 lief auf dem Stand vor den Bewegungskorrekturen danach (Häuser
+meiden, Stau auflösen, Nachzügler, Peltasten treten beiseite); deren
+Messung folgt als Lauf 32.
+
 ## Lauf 30 (3. Oktober 2026): Umweg-Flackern behoben
 
 Ein Haufen, der um eine eigene Gruppe herum wollte, schaltete an der
