@@ -216,12 +216,14 @@ class Lochos:
     dest: tuple[float, float] | None = None          # Mitte der Zielaufstellung, solange aufgelöst
     dest_facing: tuple[float, float] | None = None   # ihre Front
     idle_block: bool = False          # im letzten Schritt von einer ruhenden eigenen Gruppe aufgehalten
+    blocked_by: int | None = None     # die eigene Gruppe, hinter der man zuletzt anstand
     over_wall: bool = False           # aufgelöst, um über den Wall zu steigen (für die Meldungen)
     via: tuple | None = None          # (Übergang, Ziel): zu diesem Ziel über diesen Turm oder diese Leiter, nicht durchs Tor
     flee_x: float | None = None       # wohin (x) die Flucht führt, beim Beginn der Flucht festgelegt
     muster: tuple | None = None       # (Mitte, Front, halbe Ausdehnung x/y) des Sammelplatzes hinter dem Wall, bis die Gruppe sich dort geschlossen hat
     muster_since: float = -1.0        # seit wann alle Männer drüben sind und nur noch gesammelt wird
     detour_side: float = 0.0          # Seite (+1/-1 quer zum Weg), auf der der Block um eigene Gruppen herumgeht; 0 = frei
+    detour_on: bool = False           # wich im letzten Schritt einer eigenen Gruppe aus
     detour_until: float = -1.0        # bis dahin bleibt die Seite gemerkt, auch wenn gerade nichts im Weg steht
     file: bool = False                # auf dem Wehrgang: eine Reihe längs der Palisade
     formation: str = "linie"          # "linie", "o" (Kreis) oder "keil" (Reiter)

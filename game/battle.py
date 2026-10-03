@@ -2411,7 +2411,9 @@ class Battle:
                 dx, dy = norm(sub(goal, u.pos))
                 side = 1.0 if (fp[0] - u.x) * -dy + (fp[1] - u.y) * dx > 0 else -1.0
         sticky = config.DETOUR_STICKY
-        plan = self._detour_plan(u, goal, side=side, hyst=config.DETOUR_HYST if sticky and side else 0.0)
+        # Spiel an der Schwelle: Wer schon ausweicht, gilt erst mit mehr Abstand als vorbei
+        plan = self._detour_plan(u, goal, side=side, hyst=config.DETOUR_HYST if sticky and u.detour_on else 0.0)
+        u.detour_on = plan is not None
         if plan is None:
             if not sticky or self.time > u.detour_until:
                 u.detour_side = 0.0                       # frei: beim nächsten Hindernis wird neu gewählt
@@ -2479,7 +2481,11 @@ class Battle:
         direction = norm(sub(goal, u.pos))
         px, py = -direction[1], direction[0]
 
+        steady = config.DETOUR_STICKY and u.stance is not Stance.PHALANX
+
         def extent(g: Lochos) -> float:
+            if g is u and steady:
+                return u.half_w                           # wer marschiert, dreht die Front in den Weg: nicht vom Schwenk abhängig
             return self._extent(g, px, py)
 
         best: tuple[float, Point] | None = None
@@ -2501,13 +2507,15 @@ class Battle:
             if abs(off) >= clear + hyst:
                 continue                                  # geht knapp vorbei
             if along > d - o.radius and (u.target_id is not None
-                                         or self._gap_at(u, goal, o, u.face_to or u.facing) < config.SEPARATION):
+                                         or self._gap_at(u, goal, o, u.face_to or (direction if steady else u.facing))
+                                         < config.SEPARATION):
                 continue                                  # das Ziel liegt bei ihr: Ankunft, oder dahinter kämpft man (anstehen)
             if best is None or along < best[0]:
                 s_ = side if side else (1.0 if off < 0 else -1.0)   # vorgegeben, sonst die Seite, die dem Weg näher liegt
-                wide = clear + hyst                       # so weit hinaus, dass man dort auch als vorbei gilt
+                wide = clear + 2.0 * hyst                 # so weit hinaus, dass man dort sicher als vorbei gilt
                 wp = (o.x + px * s_ * wide, o.y + py * s_ * wide)
-                if along < self._extent(o, *direction) + self._extent(u, *direction) + config.DETOUR_MARGIN:
+                depth_u = u.half_d if steady else self._extent(u, *direction)
+                if along < self._extent(o, *direction) + depth_u + config.DETOUR_MARGIN:
                     # liegt man schon an ihr an: erst seitlich heraus, dann vorbei (nicht über ihre Ecke)
                     lateral = off + s_ * wide
                     wp = (u.x + px * lateral, u.y + py * lateral)
@@ -3732,6 +3740,8 @@ class Battle:
                 continue
             if o.waiting and u.target is not None and dist(o.pos, u.target) >= dist(u.pos, u.target):
                 continue                                  # ein Wartender hinter uns hält uns nicht auf (sonst warten alle aufeinander)
+            if o.waiting and o.blocked_by == u.id and self._gives_way(o, u):
+                continue                                  # sie wartet auf uns: wer nicht angreift (etwa zurückweicht), geht zuerst
             if dist(o.pos, pos) > o.radius + u.radius or self._passable(o):
                 continue
             if not self._standing(o):
@@ -3741,6 +3751,7 @@ class Battle:
             if not self._idle(o):
                 # hinter einer kämpfenden oder wartenden: anstehen, nicht tiefer hinein (seitlich vorbei geht)
                 if dist(pos, o.pos) < dist(u.pos, o.pos) - 0.3 * step:
+                    u.blocked_by = o.id
                     return True
                 continue
             if self._passable(u):
@@ -3756,9 +3767,19 @@ class Battle:
                 return True
         return False
 
+    @staticmethod
+    def _gives_way(o: Lochos, u: Lochos) -> bool:
+        """Warten ``o`` und ``u`` aufeinander, gibt ``o`` den Weg frei: wenn ``u`` keinen
+        Feind angreift (sich etwa zurückzieht) und ``o`` schon, sonst die mit der größeren
+        Nummer. So löst sich jede gegenseitige Blockade in genau einer Richtung."""
+        if (u.target_id is None) != (o.target_id is None):
+            return u.target_id is None
+        return u.id < o.id
+
     def _step(self, u: Lochos, delta: Point, through: bool = False) -> None:
         nx, ny = u.x + delta[0], u.y + delta[1]
         u.idle_block = False
+        u.blocked_by = None
         if not through and self._walled_off(u, u.pos, (nx, ny), self._barriers(u)):
             return
         if not through and self._own_in_the_way(u, (nx, ny)):
