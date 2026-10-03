@@ -205,6 +205,7 @@ class Battle:
         self._block_ways: dict = {}
         self._narrow_cache: dict = {}
         self._ring_friends: dict = {}                                  # Gruppe -> Gruppen, deren Ringe in ihrem stehen
+        self._group_map: dict = {}                                     # Gruppen-id -> Gruppe, je Schritt neu
         self._pass_choice: dict = {}                                   # Gruppe -> (Ziel, als Block um eigene herum?)
         self._steps_cache: dict = {}                                   # Wehrgang: Schritte von einem Wallstück aus
         self._wall_route: dict = {}                                    # Gruppe -> (Ziel, über die Leitern schneller?)
@@ -1449,7 +1450,42 @@ class Battle:
             u.in_line = False
             u.target_id = None
             u.target = self._free_spot((px + off, py), u)
+            if self._cut_off(u, u.target):
+                if self.is_walker(u):
+                    u.target = self._wall_spot_near(u.target)       # hinab geht es nur nach innen: oben stehen bleiben
+                    self.events.append(f"{u.name}: kein Weg hinab nach draußen, auf den Wehrgang darüber")
+                else:
+                    self.events.append(f"{u.name}: das Tor ist zu, sie warten davor")
         self.events.append(f"{len(sel)} Gruppe(n) unterwegs")
+
+    def _cut_off(self, u: Lochos, p: Point) -> bool:
+        """Liegt ``p`` jenseits des Walls, und kommt die Gruppe nicht hinüber? Alle Tore
+        zu, kein Turm für sie, und die Leitern führen nur zur Innenseite hinab."""
+        if not self.blocked or any(not g.closed for g in self.gates):
+            return False
+        here, there = self._wall_level(u.pos), self._wall_level(p)
+        if here == there or {here, there} & {"wall", "tor"}:
+            return False
+        if not self.is_walker(u):
+            return True
+        if self.crossings and u.side is not self.wall_side():
+            return False                                    # über den eigenen Turm von außen hinein
+        if self.ring:
+            return there != "innen"
+        for lc in self.ladders:
+            for side in (-1, 1):
+                ground = (lc[0], lc[1] + side)
+                if self.ladder_ok(lc, ground) and self._wall_level((ground[0] + 0.5, ground[1] + 0.5)) == there:
+                    return False
+        return True
+
+    def _wall_spot_near(self, p: Point) -> Point:
+        """Die Mitte des Wallstücks (Wehrgang), das ``p`` am nächsten liegt."""
+        cells = [c for c in self.blocked if c not in self._gate_of]
+        if not cells:
+            return p
+        c = min(cells, key=lambda c: (c[0] + 0.5 - p[0]) ** 2 + (c[1] + 0.5 - p[1]) ** 2)
+        return (c[0] + 0.5, c[1] + 0.5)
 
     def command_attack_target(self, units: list[Lochos] | None, enemy: Lochos) -> None:
         self.alarm = False
@@ -3055,6 +3091,8 @@ class Battle:
         if not u.loose:
             if why:
                 self._dissolve(u, why)
+            elif self._stragglers(u):
+                self._dissolve(u, "eigene")           # Männer hängen hinter eigenen Gruppen: jeder sucht sich den Weg
             else:
                 self._widen_again(u)
             return
@@ -3138,6 +3176,28 @@ class Battle:
         if why and not self._way_open(u):
             return ""                             # kein Durchkommen (die eigenen kämpfen im Durchgang): als Block anstehen
         return why
+
+    def _stragglers(self, u: Lochos) -> bool:
+        """Die Gruppe steht schon am Ziel, aber ein guter Teil ihrer Männer kommt seit einer
+        Weile nicht an seinen Platz (etwa hinter eigenen Gruppen, die dazwischen stehen)?"""
+        if (u.target is None or u.target_id is not None or u.engaged or u.stance not in (Stance.PHALANX, Stance.HALTEN)
+                or u.in_line or self.on_wall(u) or u.building is not None or dist(u.pos, u.target) > 0.2
+                or u.countermarch_until > self.time
+                or any(e.side is not u.side and e.alive and e.rect_distance(u.pos) <= config.LOOSE_ENEMY_RANGE
+                       for e in self.lochoi)):
+            u.lag_since = -1.0                            # (nahe am Feind bleibt man im Block)
+            return False
+        far = sum(1 for m, p in u.slots() if dist(m.pos, p) > config.STRAGGLER_DIST)
+        if far < config.STRAGGLER_SHARE * u.men:
+            u.lag_since = -1.0
+            return False
+        if u.lag_since < 0.0:
+            u.lag_since = self.time
+            return False
+        if self.time - u.lag_since < config.STRAGGLER_TIME:
+            return False
+        u.lag_since = -1.0
+        return self._field_builds.get(self.time, 0) < self._field_budget()
 
     def _keeps_order(self, u: Lochos) -> bool:
         """Hält die Gruppe auf dem Marsch ihre Ordnung (Phalanx oder Schildwall in Linie)?"""
@@ -3621,6 +3681,7 @@ class Battle:
         self._man_grid = {}
         self._man_group = {}
         self._man_side = {}
+        self._group_map = {u.id: u for u in self.lochoi if u.alive}
         for u in self.lochoi:
             if u.alive:
                 for m in u.all_men():
@@ -3989,6 +4050,9 @@ class Battle:
         dicht steht, darf sich entfernen."""
         cx, cy = self._grid_cell(*b)
         friends = self._ring_friends.get(own) if self._ring_friends else None
+        mover = self._group_map.get(own)
+        side = self._man_side.get(id(man)) if mover is not None and mover.loose else None   # nur wer aufgelöst geht
+        inside: dict[int, bool] = {}                      # eigene Gruppen, in deren Block er gerade steckt
         near: list[tuple[Man, bool, float, float]] = []
         nearest = {True: float("inf"), False: float("inf")}   # wie dicht er jetzt schon steht: eigene / fremde
         for gx in (cx - 1, cx, cx + 1):
@@ -3998,6 +4062,17 @@ class Battle:
                         continue
                     if friends and uid in friends and uid != own:
                         continue                          # Ring im Ring desselben Verbands: man tritt aneinander vorbei
+                    if uid != own and side is not None and self._man_side.get(id(o)) is side:
+                        hit = inside.get(uid)
+                        if hit is None:
+                            g = self._group_map.get(uid)
+                            hit = False
+                            if g is not None and not g.loose and g.formation == "linie":
+                                along, forward = g.local(man.pos)    # tief im Block, nicht nur an seinem Rand
+                                hit = abs(along) < g.half_w - 0.12 and abs(forward) < g.half_d - 0.12
+                            inside[uid] = hit
+                        if hit:
+                            continue                      # in einem eigenen Block eingeschlossen: durch seine Reihen hinaus
                     mine = uid == own
                     da = math.hypot(a[0] - o.x, a[1] - o.y)
                     nearest[mine] = min(nearest[mine], da)

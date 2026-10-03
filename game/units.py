@@ -233,6 +233,7 @@ class Lochos:
     pace: float | None = None         # im Verband: so schnell wie die langsamste Gruppe (bis zum nächsten Befehl)
     free_attack: bool = False         # im freien Angriff (Sturm, Plänkeln, Sturmangriff)
     stormed: bool = False             # ... und schon im Handgemenge gewesen
+    lag_since: float = -1.0           # seit wann die Gruppe am Ziel steht, ihre Männer aber nicht an ihre Plätze kommen
     _hoplite_key: tuple | None = field(default=None, repr=False, compare=False)
     _hoplite_led: bool = field(default=False, repr=False, compare=False)
     hitrun_until: float = -1.0        # Reiter: bis dahin wird vom Feind abgesetzt

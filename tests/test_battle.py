@@ -2239,3 +2239,46 @@ def test_verband_member_returns_after_its_storm():
     assert not hop.free_attack and hop.target == home and hop.stance is Stance.PHALANX
     b.command_move([cav], (12.0, 12.0))
     assert b.verband_of(cav) is v
+
+
+def test_men_trapped_in_an_own_block_slip_out_to_their_places():
+    """Stellt sich ein Verband um (die Peltasten nach vorn), können einzelne Männer in den
+    Blöcken der anderen eingeschlossen werden: Sie schlüpfen durch deren Reihen hinaus, und
+    wer am Ziel steht, aber nicht an seine Plätze kommt, löst sich auf und sucht den Weg."""
+    scn = Scenario("t", "t", "", role="verteidigung", enemy_kind="raeuber", enemy_default=4, enemy_min=4,
+                   enemy_max=4, houses=(), raider_spawns=(RaiderSpawn(1.0, 1.0),), cols=24, rows=24, deploy_y=12.0)
+    b = Battle(scn, random.Random(1))
+    b._ai_raiders = lambda: None
+    b._check_outcome = lambda: None
+    b.alarm = False
+    for r in b.units(Side.FEIND):
+        r.withdrawn = True
+    hop, pelt, cav = b.units(Side.STADT)
+    v = b.command_verband([hop, pelt, cav])
+    run(b, 5)
+    b.command_verband_formation(v, "o")
+    run(b, 5)
+    b.command_verband_formation(v, "linie")
+    run(b, 5)
+    b.set_verband_rows(v, [[pelt.id], [cav.id, hop.id]])
+    run(b, 20)
+    assert all(u.in_line and not u.loose for u in (hop, pelt, cav))
+
+
+def test_peltasts_stay_on_the_wall_when_there_is_no_way_down_outside():
+    """Die Leitern führen nur zur Innenseite: Ist das Tor zu, steigen Peltasten, die nach
+    draußen sollen, auf den Wehrgang darüber, statt endlos auf und ab zu klettern;
+    Hopliten warten am Tor."""
+    b = Battle(PALISADE, random.Random(1))
+    b._ai_raiders = lambda: None
+    b._check_outcome = lambda: None
+    b.alarm = False
+    for r in b.units(Side.FEIND):
+        r.withdrawn = True
+    hop, pelt, cav = b.units(Side.STADT)
+    b.command_move([pelt], (8.0, 4.0))
+    assert any("kein Weg hinab" in e for e in b.events)
+    run(b, 12)
+    assert b.on_wall(pelt) and not pelt.loose
+    b.command_move([hop], (8.0, 4.0))
+    assert any("das Tor ist zu" in e for e in b.events)
