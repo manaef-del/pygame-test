@@ -1,5 +1,48 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 27 und 28 (3. Oktober 2026): Reiter im Bogen, Block um eigene, Gassen
+
+Lauf 27: Reiter traben aus dem Stand im Bogen an und reiten mit der Front
+voraus. Eine ruhende eigene Gruppe am Rand des Weges umgeht ein Block im
+Bogen, wenn der Umweg höchstens ein Fünftel länger ist; sonst geht er wie
+bisher Mann für Mann vorbei. Lauf 28: Passt ein Block nicht durch eine
+Gasse zwischen Häusern und wäre der Weg außen herum mehr als 1,4-mal so lang
+wie für einzelne Männer, geht er Mann für Mann hindurch. Reiter traben
+durch enge Wendungen, statt im Galopp eine Schleife zu ziehen. Beispiel aus
+der Festung: Reiter brauchten für 4,9 Kacheln Luftlinie zwischen den
+Häusern 10,8 Kacheln Weg und 4,4 s, jetzt 6,7 Kacheln und 2,1 s.
+
+Zwölf Seeds (Festung im Angriff acht), Lauf 26 → 27 → 28:
+
+| Szenario | Taktik | Siege | Häuser verloren |
+|---|---|---|---|
+| offen | linie | 4 → 3 → 3 | 7,7 → 7,8 → 7,8 |
+| offen | schlachtordnung | 9 → 8 → 8 | 5,9 → 4,2 → 4,2 |
+| offen | linie_reiter | 9 → 4 → 5 | 5,5 → 6,8 → 6,6 |
+| offen | linie_aktiv | 12 → 12 → 10 | 1,8 → 1,2 → 3,6 |
+| offen | linie_tief | 8 → 12 → 10 | 6,7 → 2,2 → 3,1 |
+| offen | passiv | 5 → 5 → 5 | 7,6 → 7,6 → 7,6 |
+| offen | angriff | 10 → 11 → 11 | 6,0 → 6,3 → 6,3 |
+| palisade | tor_halten | 0 → 2 → 2 | 8,0 → 7,8 → 7,8 |
+| palisade | tor_reserve | 8 → 5 → 6 | 4,5 → 6,1 → 5,8 |
+| palisade | tor_leiter | 12 → 12 → 12 | 0,3 → 0,5 → 0,5 |
+| palisade | passiv | 7 → 4 → 4 | 5,4 → 6,9 → 6,9 |
+| horde | vorruecken | 12 → 12 → 12 | – |
+| horde | angriff | 10 → 12 → 12 | – |
+| angriff_offen | phalanxstoss | 0 → 1 → 1 | – |
+| angriff_offen | vorruecken, angriff | 0 → 0 → 0 | – |
+| angriff_wall | beide | 0 → 0 → 0 | – |
+| festung | tore | 1 → 1 → 1 | 3,4 → 7,6 → 6,6 |
+| festung | passiv | 0 → 0 → 1 | 4,1 → 5,5 → 5,1 |
+| festung_angriff | rammbock | 7/8 → 6/8 → 6/8 | – |
+| festung_angriff | turm | 0/8 → 0/8 → 0/8 | – |
+
+Auf den alten Karten verschiebt sich vieles um ein bis vier Siege in beide
+Richtungen. Deutlich sind: Die Taktik mit aktiven Reitern („linie_reiter“)
+fällt von 9 auf 4 bis 5 Siege, „passiv“ hinter der Palisade von 7 auf 4. In
+der Festung plündert das Heer mehr Häuser (3,4 → 6,6 bis 7,6), weil es als
+Block um die eigenen Gruppen herum- und durch die Gassen schneller vorankommt.
+
 ## Lauf 26 (3. Oktober 2026): Marsch im Bogen
 
 Auf längeren Wegen über freies Feld läuft Fußvolk in seiner Blickrichtung
