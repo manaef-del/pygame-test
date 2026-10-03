@@ -42,8 +42,10 @@ wandert nach unten.
    mit Merk-Seite „linie_aktiv“ 0 statt 9 Siege von 12 (Lauf 24). Erst
    zusammen mit einer Balance-Runde angehen.
 5. **Festung: Turm allein reicht nicht.** Über einen Belagerungsturm allein
-   kommt kein Angriff hinein (0 von 8): Die Männer steigen einzeln, im Feuer
-   der Ecktürme. Vielleicht deckt ein angesetzter Turm gegen die Ecktürme,
+   kommt kaum ein Angriff hinein (0 bis 1 von 8): Die Männer steigen einzeln,
+   im Feuer der Ecktürme. Dazu greift die Turm-Taktik der Simulation die
+   fliehenden Reste an der Agora nicht an, sodass die Schlacht bis zur
+   Zeitgrenze läuft (Lauf 29). Vielleicht deckt ein angesetzter Turm gegen die Ecktürme,
    oder er lässt mehr Männer zugleich durch.
 6. **Festung im Angriff zu leicht?** Mit dem Rammbock gewinnt man immer
    (8 von 8) gegen eine Besatzung von 40. Bildete die Besatzung gegen

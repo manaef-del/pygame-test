@@ -1,5 +1,69 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 29 (3. Oktober 2026): Hauptmann, Kontermarsch, Wehrgang, Wegwahl nach Zeit
+
+Neu seit Lauf 28 (README, „Hauptmann und Kontermarsch“, „Wehrgang“ und
+„Marsch im Bogen“):
+
+- Jede Gruppe hat einen Hauptmann in der Mitte. Fällt er, rückt der
+  nächste nach. Er bringt keine Boni.
+- Hopliten machen außerhalb des Nahkampfs eine Kehrtwendung als
+  Kontermarsch. Jede Rotte dreht in sich, die Reihenfolge der Glieder
+  bleibt, und das braucht Zeit (0,6 s + 0,3 s je weiteres Glied). Im
+  Nahkampf und bei Reitern bleibt der sofortige Tausch.
+- Auf dem Wehrgang stehen die Männer dicht in vier Rotten je Feld. Feinde
+  schlüpfen nicht mehr aneinander vorbei, Hopliten dürfen auf die Mauer.
+  Die Reserve der Besatzung steigt am bedrohten Turm auf den Wehrgang.
+  Leiter runter und woanders wieder hoch nimmt eine Gruppe nur, wenn das
+  samt Kletterzeit schneller ist als der Weg oben entlang.
+- Die Wegwahl richtet sich nach der Zeit: als Block außen herum oder kurz
+  auflösen, Mann für Mann durch und neu aufstellen (mit Zeit fürs Ordnen
+  und fürs Gedränge in der Gasse). Das ersetzt die festen Faktoren 1,2 und
+  1,4 aus Lauf 27 und 28.
+
+Zwölf Seeds (Festung im Angriff acht), Lauf 28 → 29:
+
+| Szenario | Taktik | Siege | Häuser verloren |
+|---|---|---|---|
+| offen | linie | 3 → 4 | 7,8 → 7,6 |
+| offen | schlachtordnung | 8 → 10 | 4,2 → 4,7 |
+| offen | linie_reiter | 5 → 8 | 6,6 → 5,2 |
+| offen | linie_aktiv | 10 → 11 | 3,6 → 2,7 |
+| offen | linie_tief | 10 → 10 | 3,1 → 4,0 |
+| offen | passiv | 5 → 2 | 7,6 → 7,8 |
+| offen | angriff | 11 → 12 | 6,3 → 6,4 |
+| palisade | tor_halten | 2 → 1 | 7,8 → 7,8 |
+| palisade | tor_reserve | 6 → 5 | 5,8 → 5,4 |
+| palisade | tor_leiter | 12 → 9 | 0,5 → 2,8 |
+| palisade | passiv | 4 → 5 | 6,9 → 6,2 |
+| horde | vorruecken | 12 → 12 | – |
+| horde | angriff | 12 → 11 | – |
+| angriff_offen | phalanxstoss | 1 → 1 | – |
+| angriff_offen | vorruecken, angriff | 0 → 0 | – |
+| angriff_wall | beide | 0 → 0 | – |
+| festung | tore | 1 → 1 | 6,6 → 7,1 |
+| festung | passiv | 1 → 1 | 5,1 → 3,8 |
+| festung_angriff | rammbock | 6/8 → 8/8 | – |
+| festung_angriff | turm | 0/8 → 1/8 | – |
+
+Was sich bewegt:
+
+- Im offenen Feld gewinnt der Spieler etwas öfter: Schlachtordnung 10,
+  aktive Reiter 8. Vermutlich, weil die Gruppen mit der
+  Wegwahl nach Zeit seltener an eigenen Haufen hängen bleiben.
+- „passiv“ fällt auf 2 Siege. Wer nur steht, profitiert nicht davon.
+- „tor_leiter“ hinter der Palisade fällt von 12 auf 9 Siege, und es gehen
+  mehr Häuser verloren (0,5 → 2,8). Die Räuber auf dem Wehrgang stehen
+  jetzt dicht und lassen sich nicht mehr umlaufen, also hält die Leiter
+  schlechter.
+- Gegen die Festung im Angriff hält der Rammbock wieder 8/8. Die dichten
+  Rotten auf dem Wehrgang und die Reserve am Turm helfen dem Spieler als
+  Verteidiger.
+- Die Turm-Taktik der Simulation läuft meist bis zur Zeitgrenze (279 s).
+  Sie greift die fliehenden Reste der Besatzung an der Agora nicht an, und
+  deshalb endet die Schlacht nicht. Das ist eine Schwäche des Skripts,
+  nicht des Spiels.
+
 ## Lauf 27 und 28 (3. Oktober 2026): Reiter im Bogen, Block um eigene, Gassen
 
 Lauf 27: Reiter traben aus dem Stand im Bogen an und reiten mit der Front
