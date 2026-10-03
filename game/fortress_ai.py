@@ -378,7 +378,10 @@ class FortressBrain(Brain):
         if u.stance is Stance.PLAENKELN:
             u.stance = Stance.HALTEN
             u.target = None
-        foe = self.pick_target(b, u, [f for f in foes if f.rect_distance(u.pos) <= 8.0])
+        # wer schon einen Verteidiger angreift, lässt erst mit etwas mehr Abstand von ihm ab (sonst
+        # wechselt eine Gruppe an der Schwelle jeden Augenblick zwischen ihm und den Häusern)
+        foe = self.pick_target(b, u, [f for f in foes if f.rect_distance(u.pos) <= config.FORT_SEEK_RANGE
+                                      + (config.AI_TARGET_HYST if f.id == u.target_id else 0.0)])
         if foe is not None:
             self._engage(b, u, foe)
             return

@@ -91,6 +91,9 @@ class Man:
     show_dy: float = 0.0
     flash: float = 0.0    # nur fürs Bild: so lange (Sekunden) blitzt er nach einem Treffer noch auf
     hurt: float = 0.0     # nur fürs Bild: Schaden seit dem letzten Aufblitzen
+    rest_slot: tuple[float, float] | None = None   # sein Platz, als er zuletzt näher kam ...
+    rest_best: float = 0.0                          # ... wie nah er ihm da war ...
+    rest_since: float = 0.0                         # ... und seit wann er nicht näher kommt (dann bleibt er stehen)
     vx: float = 0.0       # geschätzte Geschwindigkeit (Kacheln je Sekunde): danach zielen Werfer vor
     vy: float = 0.0
 
@@ -194,6 +197,7 @@ class Lochos:
     waiting: bool = False             # steht hinter einer eigenen Gruppe an, die kämpft oder steht
     leaving: bool = False             # flieht vom Feld, statt sich zu sammeln (aussichtslos)
     target_checked: tuple | None = None   # Ziel, das schon auf eigene ruhende Gruppen geprüft wurde
+    target_cleared: tuple | None = None   # (befohlenes Ziel, wohin es verrückt wurde): kommt derselbe Befehl wieder, gilt dasselbe
     disengage_until: float = -1.0     # bis dahin gilt die Gruppe als vom Feind gelöst (verwundbar)
     runup: float = 0.0                # Reiter: Anlauf seit dem letzten Halt oder Kontakt (Kacheln)
     vel: float = 0.0                  # Reiter: augenblickliches Tempo (Kacheln/s), Schwung
@@ -227,6 +231,7 @@ class Lochos:
     detour_side: float = 0.0          # Seite (+1/-1 quer zum Weg), auf der der Block um eigene Gruppen herumgeht; 0 = frei
     detour_on: bool = False           # wich im letzten Schritt einer eigenen Gruppe aus
     detour_until: float = -1.0        # bis dahin bleibt die Seite gemerkt, auch wenn gerade nichts im Weg steht
+    detour_wp: tuple[float, float] | None = None   # der zuletzt genommene Umwegpunkt (gilt noch kurz, auch wenn frei scheint)
     file: bool = False                # auf dem Wehrgang: eine Reihe längs der Palisade
     formation: str = "linie"          # "linie", "o" (Kreis) oder "keil" (Reiter)
     mode: str = ""                    # freier Angriff je Waffengattung: "", "sturm" (Reiter: Stoß und Lösen)
@@ -238,6 +243,7 @@ class Lochos:
     hunt_home: tuple[float, float] | None = None   # Reiter auf der Jagd: hierher kehren sie zurück, wenn nichts zu jagen ist
     stay_loose: bool = False          # nach einem Stau aufgelöst: erst an den Plätzen wieder Block
     stay_since: float = 0.0
+    centre_level: str | None = None   # aufgelöst: auf welcher Wallseite die Gruppe zählt (wechselt erst bei klarer Mehrheit)
     shifted_to: tuple[float, float] | None = None     # Ziel, zu dem sich die lockere Gruppe schon Mann für Mann umgestellt hat
     straggled_at: tuple[float, float] | None = None   # Ziel, für das schon einmal wegen Nachzüglern aufgelöst wurde
     jam_since: float = -1.0           # seit wann der Block mit Ziel nicht vom Fleck kommt

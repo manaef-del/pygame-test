@@ -98,6 +98,24 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   andere will hinein), lässt die angreifende die zurückweichende vorbei.
   Gegen einen Kreis sucht die KI keine Flanke, die es nicht gibt, sondern
   greift an.
+- **Kein Zappeln an Schwellen.** Überall, wo eine Entscheidung an einer
+  Schwelle hin und her kippen konnte, gibt es jetzt Spiel:
+  - Eine aufgelöste Gruppe zählt erst als drüben, wenn auf der anderen
+    Wallseite 1,5-mal so viele Männer stehen.
+  - Die eingedrungene Armee lässt von einem angegriffenen Verteidiger erst
+    in 9,5 statt 8 Kacheln ab.
+  - Ein gerade genommener Umweg gilt für eine wartende Gruppe noch kurz
+    weiter.
+  - Derselbe Befehl auf einen besetzten Platz wird jedes Mal auf dieselbe
+    Seite verrückt.
+  - Ein kurzes Stück (bis 0,8 Kacheln, kein Angriff) rückt eine Gruppe,
+    ohne sich umzudrehen.
+  - Reiter halten an dem Haus an, das sie plündern, statt darum zu kreisen.
+  - Streift der gerade Weg eine Wallecke, geht es schräg vom Wall weg statt
+    zum Eckpunkt hinter der Gruppe.
+  - Fliehende wenden höchstens 6 rad/s.
+  - Ein Mann, der seinem Platz eine Sekunde lang nicht näherkommt, während
+    seine Gruppe steht, bleibt stehen, statt endlos auszuweichen.
 - **Hauptmann und Kontermarsch.** Jede Gruppe hat einen Hauptmann (weißer
   Ring) auf dem mittleren Platz der mittleren Reihe; an ihm richtet sich die
   Gruppe beim Marsch aus. Fällt er, übernimmt der Mann, der dem Platz am

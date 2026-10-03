@@ -1526,6 +1526,62 @@ def test_loose_hoplites_shift_man_by_man_keeping_their_front(by_line):
     assert not turned and u.facing == (0.0, -1.0)
 
 
+def test_short_correction_backwards_steps_without_turning():
+    """Ein kurzes Stück zurück (kein Angriff): Die Gruppe rückt, ohne kehrtzumachen; sonst
+    dreht sie sich an ihrem Platz, wenn sie hin und her geschoben wird, jedes Mal ganz um."""
+    b, u = standing_group("mittel")
+    b.command_move([u], (8.0, 12.5))                                       # eine halbe Kachel hinter sich
+    for _ in range(int(2 / DT)):
+        b.update(DT)
+        assert u.facing == (0.0, -1.0)
+    assert abs(u.y - 12.5) < 0.1
+
+
+def test_riders_halt_at_the_house_they_loot_instead_of_circling():
+    """Reiter, die ein Haus plündern sollen, halten davor an; sie kreisen nicht um das Haus,
+    in das sie nicht hineinkommen."""
+    b = Battle(raid(16, (2.0, 2.0), houses=((8, 8),)), random.Random(1),
+               army=army_of(GroupSpec("R", [Tier("reiter", 12)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    b._check_outcome = lambda: None
+    b.alarm = False
+    cav = b.units(Side.STADT)[0]
+    cav.x, cav.y, cav.facing = 8.5, 12.0, (0.0, -1.0)
+    cav.place_men()
+    cav.stance, cav.target = Stance.RAUB, (8.5, 8.5)                      # mitten im Haus
+    run(b, 5)
+    turned = 0.0
+    last = cav.facing
+    for _ in range(int(3 / DT)):
+        b.update(DT)
+        turned += abs(math.atan2(last[0] * cav.facing[1] - last[1] * cav.facing[0],
+                                 last[0] * cav.facing[0] + last[1] * cav.facing[1]))
+        last = cav.facing
+    assert cav.vel == 0.0 and turned < 0.2 and cav.rect_distance((8.5, 8.5)) <= config.LOOT_RANGE
+
+
+def test_a_loose_group_changes_wall_side_only_with_a_clear_majority():
+    """Steigt eine aufgelöste Gruppe über den Wall, zählt sie erst als drüben, wenn dort
+    klar mehr Männer stehen; bei halb und halb springt ihr Ort nicht hin und her."""
+    b = Battle(PALISADE, random.Random(1))
+    u = next(g for g in b.units(Side.FEIND))
+    men = u.all_men()
+    gx, gy = b.gate.center
+    u.loose = True
+    u.centre_level = None
+    half = len(men) // 2
+    for i, m in enumerate(men):
+        m.x, m.y = (2.5 + 0.1 * (i % 8), 6.0) if i <= half else (2.5 + 0.1 * (i % 8), 11.0)
+    first = b._wall_level(b._loose_centre(u))                            # die Mehrheit draußen
+    for i, m in enumerate(men):
+        if i == half:                                                    # einer mehr drinnen: knapp
+            m.y = 11.0
+    assert b._wall_level(b._loose_centre(u)) == first
+    for i, m in enumerate(men):
+        m.y = 11.0 if i % 4 else 6.0                                     # drei Viertel drinnen
+    assert b._wall_level(b._loose_centre(u)) != first
+
+
 def test_foot_marches_in_an_arc_with_its_front_ahead():
     """Fußvolk auf längerem Weg: Es läuft in seiner Blickrichtung an und schwenkt im Marsch
     zum Ziel (ein Bogen), statt erst auf der Stelle zu drehen; die Front zeigt dabei in

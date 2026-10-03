@@ -1061,6 +1061,9 @@ class Battle:
             else:
                 there = here
         if here == there:
+            nudge = self._off_the_wall(pos, target, here)
+            if nudge is not None:
+                return nudge, False
             return self._around_ring(pos, target, here), False
         gates = [g for g in self.gates if not g.closed]
         if gates:
@@ -1088,6 +1091,21 @@ class Battle:
         if self.wall_clear(pos, wait):
             return wait, False
         return self._around_ring(pos, wait, here), False
+
+    def _off_the_wall(self, pos: Point, target: Point, level: str) -> Point | None:
+        """Streift der gerade Weg nur eine Ecke des Walls (die Gruppe steht dicht daran), geht es
+        schräg vom Wall weg weiter statt über den nächsten Eckpunkt, der hinter ihr liegen kann:
+        sonst kehrte sie an der Schwelle frei/verdeckt jeden Augenblick um."""
+        agora = self.scenario.agora
+        if agora is None or level not in ("innen", "aussen"):
+            return None
+        inward = norm(sub(agora, pos)) if level == "innen" else norm(sub(pos, agora))
+        ahead = norm(sub(target, pos))
+        for k in (0.3, 0.6):
+            wp = (pos[0] + inward[0] * k + ahead[0] * 0.4, pos[1] + inward[1] * k + ahead[1] * 0.4)
+            if self.wall_clear(pos, wp) and self.wall_clear(wp, target):
+                return wp
+        return None
 
     def _ring_nodes(self, level: str) -> list[Point]:
         """Umwegpunkte um die Ecken des Sechsecks: außen etwas vor jeder Ecke, innen etwas davor."""
@@ -2802,6 +2820,10 @@ class Battle:
                     continue
                 u.ride_in = 0.0
                 stop_at = 0.0 if target is not None else config.ENGAGE_RANGE
+            if (final and u.target_id is None and self.cell(*u.target) in self.house_cells
+                    and u.rect_distance(u.target) <= 0.9 * config.LOOT_RANGE):
+                u.vel = 0.0                              # am Haus angekommen (hinein geht es nicht): halten statt kreisen
+                continue
             if d <= max(config.ARRIVE_EPS, stop_at):
                 u.vel = 0.0
                 if u.stance is Stance.PHALANX and final and d <= config.ARRIVE_EPS + 0.02:
@@ -2835,8 +2857,12 @@ class Battle:
                 u.vel = 0.0
                 step = min(speed * dt, d)
                 direction = norm(sub(goal, u.pos))
-                if u.stance is Stance.FLUCHT or self.on_wall(u):
-                    u.facing = direction                            # Flucht und Wehrgang: ohne Zeremonie
+                if self.on_wall(u):
+                    u.facing = direction                            # Wehrgang: ohne Zeremonie
+                elif u.stance is Stance.FLUCHT:
+                    u.facing = self._rotated_towards(u.facing, direction, config.FLEE_TURN_RATE * dt)   # ohne Zeremonie, aber ohne Zucken
+                elif final and u.target_id is None and d <= config.SHUFFLE_DIST:
+                    pass                                            # ein kurzes Stück: rücken, ohne sich umzudrehen
                 elif u.stance is not Stance.PHALANX:
                     if abs(self._turn_towards(u, direction, dt)) > config.MOVE_TURN_TOLERANCE:
                         continue                                    # erst schwenken, dann marschieren
@@ -2966,8 +2992,16 @@ class Battle:
         sticky = config.DETOUR_STICKY
         # Spiel an der Schwelle: Wer schon ausweicht, gilt erst mit mehr Abstand als vorbei
         plan = self._detour_plan(u, goal, side=side, hyst=config.DETOUR_HYST if sticky and u.detour_on else 0.0)
+        wp_ = u.detour_wp
+        if (plan is None and sticky and u.detour_on and wp_ is not None and self.time <= u.detour_until
+                and (u.waiting or self._rides(u) and u.vel <= 0.5) and dist(u.pos, wp_) > 0.3
+                and (wp_[0] - u.x) * (goal[0] - u.x) + (wp_[1] - u.y) * (goal[1] - u.y) > 0.0):
+            # eben noch ausgewichen, jetzt scheint es frei (die andere Gruppe wartet gerade nicht): den Umweg
+            # noch kurz halten, sonst wendet eine stehende Gruppe jeden Augenblick zwischen beiden Wegen hin und her
+            return u.detour_wp
         u.detour_on = plan is not None
         if plan is None:
+            u.detour_wp = None
             if not sticky or self.time > u.detour_until:
                 u.detour_side = 0.0                       # frei: beim nächsten Hindernis wird neu gewählt
             return goal
@@ -2976,7 +3010,9 @@ class Battle:
         wp, u.detour_side = plan                          # die Seite bleibt, bis man vorbei ist (kein Hin und Her)
         u.detour_until = self.time + config.DETOUR_MEMORY # und noch kurz danach, falls gleich die nächste Gruppe kommt
         if not self.inside(*wp) or self.is_blocked(*wp) or not self.path_clear(u.pos, wp, u):
+            u.detour_wp = None
             return goal                                   # kein begehbarer Umweg (Palisade, Tor): dahinter anstehen
+        u.detour_wp = wp
         return wp
 
     def _free_outline(self, u: Lochos, foe: Lochos) -> list[Point] | None:
@@ -3181,6 +3217,18 @@ class Battle:
             rate = min(rate, config.TURN_OUTER_PACE * max(0.3, u.speed) / max(0.3, u.half_w))
         return rate * config.DRILL_TURN.get(u.drill_kind(), 1.0)
 
+    @staticmethod
+    def _rotated_towards(facing: Point, want: Point, limit: float) -> Point:
+        """``facing`` höchstens um ``limit`` (rad) zu ``want`` gedreht."""
+        if facing == (0.0, 0.0):
+            return want
+        ang = math.atan2(facing[0] * want[1] - facing[1] * want[0], facing[0] * want[0] + facing[1] * want[1])
+        if abs(ang) <= limit:
+            return want
+        a = math.copysign(limit, ang)
+        c, s_ = math.cos(a), math.sin(a)
+        return (facing[0] * c - facing[1] * s_, facing[0] * s_ + facing[1] * c)
+
     def _turn_towards(self, u: Lochos, want: Point, dt: float, about: bool = True) -> float:
         """Im Stand wenden: Die Front dreht sich mit begrenzter Rate, die Männer
         schwenken auf ihren Plätzen mit. Liegt das Ziel hinter der Gruppe, macht
@@ -3260,7 +3308,13 @@ class Battle:
         if (u.target is not None and u.target_id is None and not u.loose and u.stance is not Stance.FLUCHT
                 and not u.in_phalanx and u.building is None and u.target != u.target_checked
                 and not self._verband_ring(u)):
-            u.target = self._clear_of_own(u, u.target)   # besetzter Platz: daneben halten (einmal je Befehl)
+            asked = u.target
+            hit = u.target_cleared
+            if hit is not None and dist(hit[0], asked) < 0.05:
+                u.target = hit[1]                         # derselbe Befehl noch einmal: dieselbe Seite (sonst kehrt sie um)
+            else:
+                u.target = self._clear_of_own(u, asked)   # besetzter Platz: daneben halten (einmal je Befehl)
+                u.target_cleared = (asked, u.target)
             u.target_checked = u.target
         why = self._loose_reason(u)
         if not u.loose:
@@ -3364,9 +3418,10 @@ class Battle:
     def _loose_shift(self, u: Lochos) -> bool:
         """Stellt sich eine lockere Gruppe Mann für Mann um? Auf kurzem Weg (ohne Wall und Tor
         dazwischen), wenn sie dafür als Block erst schwenken müsste: Das Ziel liegt seitlich oder
-        hinter ihr, oder sie soll mit anderer Front stehen. Einmal je Ziel."""
+        hinter ihr, oder sie soll mit anderer Front stehen. Einmal je Ziel, wenn es befohlen wird."""
         if u.loose or u.drill_kind() != "locker" or u.target is None or u.shifted_to == u.target:
             return False
+        u.shifted_to = u.target                   # einmal je Ziel entschieden, beim Befehl (nicht unterwegs)
         d = dist(u.pos, u.target)
         if d < 0.3 or d > config.LOOSE_SHIFT_MAX:
             return False
@@ -3625,7 +3680,8 @@ class Battle:
                 f = u.muster[1]
             elif u.face_to is not None:
                 f = u.face_to
-            elif u.loose_why == "wall" and self._wall_level(c) != self._wall_level(t) and dist(t, c) > 0.3:
+            elif u.loose_why == "wall" and (u.centre_level or self._wall_level(c)) != self._wall_level(t) and dist(t, c) > 0.3:
+                # (die Seite mit Spiel an der Schwelle: der Schwerpunkt allein liegt oft genau auf der Wallkante)
                 if self.ring:
                     f = norm(sub(t, c))                   # über den Wall: die Front zum Ziel
                 else:
@@ -3856,7 +3912,8 @@ class Battle:
 
     def _loose_centre(self, u: Lochos) -> Point:
         """Wo die aufgelöste Gruppe ist: im Schwerpunkt der Männer auf der Wallseite,
-        auf der die meisten stehen. Liegt er auf keinem begehbaren Fleck dieser Seite
+        auf der die meisten stehen (gewechselt wird erst, wenn drüben klar mehr stehen, sonst
+        spränge sie bei halb und halb hin und her). Liegt er auf keinem begehbaren Fleck dieser Seite
         oder in einer anderen Gruppe (die Männer gehen links und rechts an ihr vorbei),
         beim Mann, der der bisherigen Mitte am nächsten steht."""
         men = u.all_men()
@@ -3867,6 +3924,10 @@ class Battle:
             for m in men:
                 levels.setdefault(self._wall_level(m.pos), []).append(m)
             level, men = max(levels.items(), key=lambda kv: len(kv[1]))
+            keep = u.centre_level
+            if keep in levels and keep != level and config.LOOSE_LEVEL_SWITCH * len(levels[keep]) >= len(men):
+                level, men = keep, levels[keep]       # erst bei klarer Mehrheit drüben zählt die Gruppe als drüben
+            u.centre_level = level
         else:
             level = None
         c = (sum(m.x for m in men) / len(men), sum(m.y for m in men) / len(men))
@@ -3966,6 +4027,8 @@ class Battle:
                 continue
             assault = self._assault_slots(u)
             u.assault_slots = [slot for _, slot in assault] if assault is not None else []
+            settled = (assault is None and u.vel <= 0.05 and not u.engaged and not u.waiting
+                       and (u.target is None or dist(u.pos, u.target) <= config.ARRIVE_EPS + 0.05))
             for man, slot in (assault if assault is not None else u.slots()):
                 d = dist(man.pos, slot)
                 if assault is not None:               # um den Gegner herum: dicht an seinen Umriss, nie hinein
@@ -3977,10 +4040,21 @@ class Battle:
                     if self._crowding(man, man.pos, slot, u.id) is None and self._man_can_step(u, man, man.pos, slot, walker):
                         man.x, man.y = slot
                     continue
+                if self._resting(u, man, slot, d, settled):
+                    continue                          # kommt nicht näher: stehen bleiben statt hin und her
                 speed = max(u.speed, man.speed) * config.MAN_CATCHUP
                 if not self._man_step(u, man, slot, speed * dt, walker, slide=False):
                     goal, _ = self.route_from(u, man.pos, slot)     # Umweg (Tor), statt an der Palisade zu kriechen
                     self._man_step(u, man, goal, speed * dt, walker)
+
+    def _resting(self, u: Lochos, man: Man, slot: Point, d: float, settled: bool) -> bool:
+        """Bleibt ``man`` stehen? Die Gruppe steht, er ist nahe an seinem Platz, kommt ihm aber
+        seit ``MAN_REST_TIME`` nicht näher (andere stehen im Weg, am Kartenrand ist es eng):
+        Dann wartet er, statt jeden Augenblick seitlich auszuweichen und zurückzukommen."""
+        if man.rest_slot is None or dist(slot, man.rest_slot) > 0.05 or d < man.rest_best - 0.03:
+            man.rest_slot, man.rest_best, man.rest_since = slot, d, self.time   # neuer Platz oder näher gekommen
+            return False
+        return settled and d <= config.MAN_REST_DIST and self.time - man.rest_since >= config.MAN_REST_TIME
 
     def _move_loose(self, u: Lochos, dt: float, walker: bool) -> None:
         """Aufgelöst: jeder Mann geht für sich an seinen Platz in der Zielaufstellung.
