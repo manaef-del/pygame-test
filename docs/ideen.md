@@ -69,7 +69,7 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 - **Modi der Hopliten und Verbände** (3. Oktober 2026): Locker, Phalanx,
   Geschlossen und Sturm; die Phalanx wird an Tor und Gasse schmaler statt
   sich aufzulösen. Keine gemischten Gruppen mehr: Mehrere Gruppen bilden
-  einen Verband, per Langdrücken gewählt, mit Rahmen in der Seitenleiste
+  einen Verband, Kachel für Kachel gewählt, mit Rahmen in der Seitenleiste
   und einer Tafel zum Anordnen (docs/ki-simulation.md, Lauf 31). Damit ist
   auch „Mehrere Gruppen wählen“ erledigt.
 - **Umweg-Flackern** (3. Oktober 2026): Hysterese an der Schwelle, gemerkte

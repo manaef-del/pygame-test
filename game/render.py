@@ -761,7 +761,7 @@ class Renderer:
             elif battle.alarm:
                 hint = "Gruppe wählen und aufstellen, Los startet die Schlacht"
             else:
-                hint = "Gruppe wählen: Kachel antippen, lange drücken wählt dazu"
+                hint = "Gruppen wählen: Kacheln rechts antippen (oder eine Gruppe im Feld)"
             img = self.small.render(hint, True, config.COLOR_TEXT_DIM)
             s.blit(img, img.get_rect(center=(config.WIDTH // 2, y2 + h2 // 2)))
 
