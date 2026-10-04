@@ -502,11 +502,13 @@ zwischen den Gattungen. Ins Feld zieht, was eingeteilt ist. Das Spiel
 läuft mit halber Geschwindigkeit (`TIME_SCALE`).
 
 Oben im Aufstellungsmenü wählt man **Verteidigung** oder **Angriff**,
-darunter den **Schauplatz**: Offene Siedlung, Räuberhorde oder Festung.
-Zusammen ergeben sie eines von sechs Szenarien.
+darunter den **Schauplatz**: Räuberlager, Offene Siedlung, Räuberhorde oder
+Festung. Zusammen ergeben sie eines von acht Szenarien.
 
 | Szenario | Lage |
 |----------|------|
+| Verteidigung: Räuberüberfall | Der Anfang einer Kolonie (kleine Karte, 16 × 18): etwa 13 Wehrfähige, nur leichte Hopliten und Peltasten (6 bis 20 Mann), gegen 18 Räuber in drei Haufen, die über die sechs Häuser des jungen Dorfs herfallen |
+| Angriff: Räuberlager | Dieselbe kleine Truppe greift das Lager der Räuber an: sechs Hütten, um die 18 Räuber lagern. Gewonnen ist, wenn alle Räuber geschlagen und alle Hütten niedergebrannt sind. Eine Hütte brennt, wenn eigene Männer fünf Sekunden daneben stehen und kein Räuber in anderthalb Kacheln Nähe ist |
 | Verteidigung: Offene Siedlung | Die Stadt der Festung ohne Wall. Räuberhaufen von Norden, zwei umgehen die Linie an den Flanken. Bei großer Zahl größere Haufen, mit einem Fünftel Peltasten |
 | Angriff: Offene Siedlung | Dieselbe Stadt; sie stellt eine eigene Truppe, passend zur Mischung des Spielers (siehe Gegner-KI), vor ihren südlichen Häusern. Hopliten und Peltasten halten, Reiter greifen an |
 | Verteidigung: Räuberhorde | Eine Räuberhorde stürmt gleich zu Beginn von Norden heran, auf offenem Feld; man hat den Anmarsch (rund 20 Kacheln) Zeit, sich aufzustellen |

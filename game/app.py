@@ -16,7 +16,7 @@ import pygame
 
 from . import config
 from .ai import Memory
-from .army import OWN_DEFAULT, OWN_MAX, OWN_MIN, Army, default_army, scaled_army
+from .army import OWN_DEFAULT, OWN_MAX, OWN_MIN, Army, GroupSpec, Tier, default_army, scaled_army
 from .battle import Battle
 from .render import Renderer
 from .scenarios import SCENARIOS, Scenario
@@ -55,6 +55,7 @@ class App:
         self.menu_slider: tuple[int, pygame.Rect] | None = None
         self.enemy_counts: dict[str, int] = {s.key: s.enemy_default for s in scenarios}
         self.own_count = OWN_DEFAULT
+        self.troops: dict[bool, tuple] = {}                 # klein/groß -> (Truppe, Vorlage, Stärke), die gerade nicht gilt
         self.fingers: dict[int, tuple[float, float]] = {}   # aufliegende Finger (für das Verschieben)
         self.panning = False                                 # zwei Finger liegen auf: kein Tippen, kein Ziehen
         self.pinch_from: tuple | None = None                 # (Abstand, Mitte) der zwei Finger beim letzten Schritt
@@ -74,7 +75,7 @@ class App:
         self.drag_start = self.drag_now = None
         self._arrange(None)
         scn = self.scenarios[self.scenario_index]
-        army = copy.deepcopy(self.army) if self.army.total_men() else scaled_army(default_army(), self.own_count)
+        army = copy.deepcopy(self.army) if self.army.total_men() else scaled_army(self._preset(scn), self.own_count)
         return Battle(scn, rng, army=army, enemy_count=self.enemy_counts[scn.key], memory=self.memory)
 
     # ---------------------------------------------------------- Eingabe
@@ -239,7 +240,9 @@ class App:
             self.enemy_counts[scn.key] = scn.enemy_min + round(frac * (scn.enemy_max - scn.enemy_min))
             return
         if tier == -2:
-            self.own_count = OWN_MIN + round(frac * (OWN_MAX - OWN_MIN))
+            scn = self.scenarios[self.scenario_index]
+            lo, hi = scn.own_min or OWN_MIN, scn.own_max or OWN_MAX
+            self.own_count = lo + round(frac * (hi - lo))
             self.army = scaled_army(self.template, self.own_count)   # die Blöcke skalieren mit
             return
         if tier >= len(self.army.groups[self.menu_group].tiers):
@@ -477,10 +480,12 @@ class App:
             a.delete_group(self.menu_group)
             self.menu_group = min(self.menu_group, len(a.groups) - 1)
         elif key == "preset":
-            self.army = scaled_army(default_army(), self.own_count)
+            self.army = scaled_army(self._preset(self.scenarios[self.scenario_index]), self.own_count)
             self.menu_group = 0
         elif key == "scenario":
-            self.scenario_index = (self.scenario_index + 1) % len(self.scenarios)
+            nxt = (self.scenario_index + 1) % len(self.scenarios)
+            self._switch_troops(self.scenarios[self.scenario_index], self.scenarios[nxt])
+            self.scenario_index = nxt
         elif key.startswith("role:"):
             self._pick_scenario(key.split(":")[1], self.scenarios[self.scenario_index].where)
         elif key.startswith("place:"):
@@ -501,9 +506,40 @@ class App:
             a.move_tier(self.menu_group, int(key.split(":")[1]), +1)
         elif key.startswith("kind:"):
             _, tier, kind = key.split(":")
-            a.set_kind(self.menu_group, int(tier), kind)
+            allowed = self.scenarios[self.scenario_index].own_kinds
+            if not allowed or kind in allowed:
+                a.set_kind(self.menu_group, int(tier), kind)
+        allowed = self.scenarios[self.scenario_index].own_kinds
+        if allowed:                                       # neue Gruppen und Reihen nur aus erlaubten Gattungen
+            for g in self.army.groups:
+                for t in g.tiers:
+                    if t.kind not in allowed:
+                        t.kind = allowed[0]
         if key not in ("prev", "next", "scenario", "start") and not key.startswith(("groupsel:", "role:", "place:")):
             self._remember()
+
+    @staticmethod
+    def _preset(scn) -> Army:
+        """Die Vorgabe-Truppe: im Räuberlager leichte Hopliten (mit dem Anführer) und Peltasten."""
+        if scn.own_kinds:
+            return Army(groups=[GroupSpec("Hopliten", [Tier("leicht", 8)], leader=True),
+                                GroupSpec("Peltasten", [Tier("peltast", 5)])], total=13)
+        return default_army()
+
+    def _switch_troops(self, old, new) -> None:
+        """Wechselt man zwischen dem kleinen Räuberlager und den großen Szenarien, gilt die
+        jeweils andere Truppe; die bisherige wird gemerkt."""
+        small_old, small_new = bool(old.own_kinds), bool(new.own_kinds)
+        if small_old == small_new:
+            return
+        self.troops[small_old] = (self.army, self.template, self.own_count)
+        if small_new in self.troops:
+            self.army, self.template, self.own_count = self.troops.pop(small_new)
+        else:
+            self.own_count = new.own_default or OWN_DEFAULT
+            self.army = scaled_army(self._preset(new), self.own_count)
+            self.template = copy.deepcopy(self.army)
+        self.menu_group = 0
 
     def _pick_scenario(self, side: str, where: str) -> None:
         """Rolle (oben) und Schauplatz (unten) wählen das Szenario; gibt es den Schauplatz in
@@ -511,6 +547,7 @@ class App:
         match = [i for i, s in enumerate(self.scenarios) if s.side == side and s.where == where]
         match = match or [i for i, s in enumerate(self.scenarios) if s.side == side]
         if match:
+            self._switch_troops(self.scenarios[self.scenario_index], self.scenarios[match[0]])
             self.scenario_index = match[0]
 
     # ------------------------------------------------------------ Takt

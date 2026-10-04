@@ -53,6 +53,12 @@ class Scenario:
     place: str = ""                            # Schauplatz im Menü: "siedlung", "horde" oder "festung"
     menu_role: str = ""                        # Rolle im Menü, wenn sie von ``role`` abweicht
     horde_charges: bool = False                # die Horde stürmt sofort los (statt im Lager zu warten)
+    camp: bool = False                         # die Häuser sind ein Räuberlager: zerstören gehört zum Sieg
+    raider_group: int = 0                      # Größe der Räuberhaufen (0: nach der Gegnerzahl)
+    own_kinds: tuple[str, ...] = ()            # erlaubte eigene Gattungen (leer: alle)
+    own_default: int = 0                       # eigene Stärke zu Beginn (0: wie die großen Szenarien)
+    own_min: int = 0
+    own_max: int = 0
 
     @property
     def where(self) -> str:
@@ -256,6 +262,38 @@ HORDE_STURM = Scenario(
     raider_spawns=HORDE, deploy_y=FORT_ROWS - 2.5, cols=FORT_COLS, rows=FORT_ROWS, place="horde",
 )
 
-PLACES: tuple[tuple[str, str], ...] = (("siedlung", "Offene Siedlung"), ("horde", "Räuberhorde"), ("festung", "Festung"))
+# ------------------------------------------------- Räuberlager (Anfang)
+# Der Anfang einer Kolonie: zehn bis fünfzehn Wehrfähige, nur leichte Hopliten und
+# Peltasten, gegen fünfzehn bis zwanzig Räuber, auf der kleinen Karte (16 × 18).
+SMALL_KINDS = ("leicht", "peltast")
+VILLAGE_HOUSES = ((4, 13), (5, 13), (10, 13), (11, 13), (7, 15), (8, 15))
+RAIDS_VILLAGE = (
+    RaiderSpawn(4.5, -1.0), RaiderSpawn(8.5, -1.5), RaiderSpawn(12.5, -1.0),
+    RaiderSpawn(0.8, -1.0, waypoints=((0.8, 11.5),)), RaiderSpawn(15.2, -1.0, waypoints=((15.2, 11.5),)),
+    RaiderSpawn(8.0, -4.0),
+)
+CAMP_HUTS = ((3, 2), (6, 1), (9, 1), (12, 2), (5, 4), (10, 4))
+CAMP_RAIDERS = (RaiderSpawn(4.5, 3.2), RaiderSpawn(11.0, 3.2), RaiderSpawn(7.8, 5.6), RaiderSpawn(7.8, 2.6))
 
-SCENARIOS: tuple[Scenario, ...] = (OFFENE_SIEDLUNG, SIEDLUNG_ANGRIFF, HORDE_STURM, RAEUBERHORDE, FESTUNG, FESTUNG_ANGRIFF)
+RAEUBERUEBERFALL = Scenario(
+    key="ueberfall", name="Verteidigung: Räuberüberfall",
+    hint="Räuber fallen über das junge Dorf her. Halte sie von den sechs Häusern fern.",
+    role="verteidigung", enemy_kind="raeuber", enemy_default=18, enemy_min=8, enemy_max=30,
+    houses=VILLAGE_HOUSES, raider_spawns=RAIDS_VILLAGE, agora=(8.0, 17.0), deploy_y=10.5, place="lager",
+    own_kinds=SMALL_KINDS, own_default=13, own_min=6, own_max=20, raider_group=6,
+)
+
+RAEUBERLAGER = Scenario(
+    key="lager", name="Angriff: Räuberlager",
+    hint="Das Lager der Räuber im Norden: Zerstöre die sechs Hütten (daneben stehen bleiben) "
+         "und schlage alle Räuber.",
+    role="angriff", enemy_kind="raeuber", enemy_default=18, enemy_min=8, enemy_max=30,
+    houses=CAMP_HUTS, raider_spawns=CAMP_RAIDERS, deploy_y=15.5, place="lager", camp=True,
+    own_kinds=SMALL_KINDS, own_default=13, own_min=6, own_max=20, raider_group=6,
+)
+
+PLACES: tuple[tuple[str, str], ...] = (("lager", "Räuberlager"), ("siedlung", "Offene Siedlung"),
+                                       ("horde", "Räuberhorde"), ("festung", "Festung"))
+
+SCENARIOS: tuple[Scenario, ...] = (OFFENE_SIEDLUNG, SIEDLUNG_ANGRIFF, HORDE_STURM, RAEUBERHORDE, FESTUNG, FESTUNG_ANGRIFF,
+                                   RAEUBERUEBERFALL, RAEUBERLAGER)

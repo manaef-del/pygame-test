@@ -199,6 +199,34 @@ def _finish_off(b: Battle) -> None:
         b.command_attack([u for u in b.units(Side.STADT, fighting_only=True) if u.stance is not Stance.ANGRIFF])
 
 
+# ---------------------------------------------------------- Räuberlager
+def t_lager_sturm(b: Battle) -> dict:
+    """Angriff aufs Räuberlager: in Linie heran, angreifen, und wer keinen Gegner mehr
+    hat, steckt die nächste Hütte an (daneben stehen bleiben)."""
+    hop, pelt, cav = groups(b)
+
+    def burn(b: Battle):
+        foes = b.units(Side.FEIND, fighting_only=True)
+        huts = [h for h in b.houses if not h.looted]
+        for u in b.units(Side.STADT, fighting_only=True):
+            if u.engaged or (u.stance is Stance.ANGRIFF and u.target_id is not None):
+                continue
+            if foes and min(f.rect_distance(u.pos) for f in foes) < 6.0:
+                b.command_attack([u])
+            elif huts:
+                h = min(huts, key=lambda h: dist(h.center, u.pos))
+                if dist(h.center, u.pos) > 0.6:
+                    b.command_move([u], (h.cx + 0.5, h.cy + 1.4))
+    plan = {
+        0: lambda b: (b.command_line(hop, _at(b, -2.0, -3.0), _at(b, 2.0, -3.0)),
+                      b.command_line(pelt, _at(b, -1.5, -2.2), _at(b, 1.5, -2.2))),
+        12: lambda b: b.command_attack(None),
+    }
+    for t in range(16, 290, 4):
+        plan[t] = burn
+    return plan
+
+
 # ---------------------------------------------------------------- Festung
 def _behind(b: Battle, g, depth: float = 2.2) -> tuple[tuple[float, float], tuple[float, float]]:
     """Linie hinter (innen) oder vor (außen, depth < 0) einem Tor, quer zum Durchgang."""
@@ -321,6 +349,8 @@ TACTICS = {
     "siedlung_angriff": {"phalanxstoss": t_phalanxstoss, "vorruecken": t_vorruecken, "angriff": t_angriff},
     "horde": {"vorruecken": t_vorruecken, "angriff": t_angriff},
     "horde_sturm": {"linie_tief": t_linie_tief, "linie_aktiv": t_linie_aktiv, "angriff": t_angriff},
+    "ueberfall": {"linie": t_linie, "linie_aktiv": t_linie_aktiv, "passiv": t_passiv, "angriff": t_angriff},
+    "lager": {"sturm": t_lager_sturm},
     "festung": {"tore": t_festung_tore, "passiv": t_passiv},
     "festung_angriff": {"rammbock": t_festung_angriff_ram, "turm": t_festung_angriff_turm},
 }
@@ -342,7 +372,11 @@ def _guard_empty_selection(b: Battle) -> None:
 
 def play(scenario, tactic, seed: int, ai: str, memory: Memory | None = None, enemy_count=None, army: str = "standard",
          doctrine: str | None = None) -> dict:
-    b = Battle(scenario, random.Random(seed), ai=ai, memory=memory, enemy_count=enemy_count, army=ARMIES[army](),
+    troop = ARMIES[army]()
+    if scenario.own_kinds:                         # Räuberlager: die kleine Anfangstruppe
+        from game.app import App
+        troop = App._preset(scenario)
+    b = Battle(scenario, random.Random(seed), ai=ai, memory=memory, enemy_count=enemy_count, army=troop,
                doctrine=doctrine)
     _guard_empty_selection(b)
     schedule = TACTICS[scenario.key][tactic](b)

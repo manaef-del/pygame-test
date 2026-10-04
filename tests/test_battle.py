@@ -2218,3 +2218,54 @@ def test_men_keep_their_dodging_side_when_neighbours_swap_places():
     men = sum(u.men for u in us)
     assert flips / men < 0.3, flips / men
     assert t < 8.0                                        # und alle sind bald an ihren Plätzen
+
+
+# ------------------------------------------------------------- Räuberlager (Anfang)
+def test_the_beginning_is_small_light_troops_against_a_few_raiders():
+    """Das Räuberlager ist der Anfang einer Kolonie: kleine Karte, 13 Mann aus leichten
+    Hopliten und Peltasten gegen 18 Räuber in drei Haufen; sechs Häuser oder Hütten."""
+    from game.app import App
+    from game.scenarios import RAEUBERLAGER, RAEUBERUEBERFALL
+    for scn in (RAEUBERUEBERFALL, RAEUBERLAGER):
+        assert (scn.cols, scn.rows) == (config.COLS, config.ROWS) and len(scn.houses) == 6
+        army = App._preset(scn)
+        b = Battle(scn, random.Random(1), army=army)
+        kinds = {m.kind.key for u in b.units(Side.STADT) for m in u.all_men()}
+        assert kinds <= {"leicht", "peltast"} and 13 <= b.men(Side.STADT) <= 15
+        assert [u.men for u in b.units(Side.FEIND)] == [6, 6, 6]
+
+
+def test_raider_huts_burn_only_without_raiders_beside_them():
+    from game.app import App
+    from game.scenarios import RAEUBERLAGER
+    b = Battle(RAEUBERLAGER, random.Random(1), army=App._preset(RAEUBERLAGER))
+    b._ai_raiders = lambda: None
+    b.alarm = False
+    hop = b.units(Side.STADT)[0]
+    hut = b.houses[0]
+    hop.x, hop.y = hut.cx + 0.5, hut.cy + 1.3
+    hop.place_men()
+    raider = b.units(Side.FEIND)[0]
+    raider.x, raider.y = hut.cx + 0.5, hut.cy - 0.6     # ein Räuber steht an der Hütte
+    raider.place_men()
+    b._burn_huts(config.CAMP_BURN_TIME + 1)
+    assert not hut.looted
+    raider.x, raider.y = 14.0, 1.0                        # er ist fort
+    raider.place_men()
+    b._burn_huts(config.CAMP_BURN_TIME + 0.1)
+    assert hut.looted and b.houses_intact() == 5
+
+
+def test_the_camp_is_won_only_when_raiders_are_gone_and_huts_burnt():
+    from game.app import App
+    from game.scenarios import RAEUBERLAGER
+    b = Battle(RAEUBERLAGER, random.Random(1), army=App._preset(RAEUBERLAGER))
+    b.alarm = False
+    for e in b.units(Side.FEIND):
+        e.withdrawn = True                                # alle Räuber sind fort ...
+    b._check_outcome()
+    assert b.outcome is None                              # ... aber die Hütten stehen noch
+    for h in b.houses:
+        h.looted = True
+    b._check_outcome()
+    assert b.outcome == "sieg"

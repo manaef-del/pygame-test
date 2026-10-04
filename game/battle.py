@@ -294,11 +294,13 @@ class Battle:
         """Räuber in Haufen, bei großer Zahl größere; etwa ein Fünftel Peltasten in der zweiten Reihe."""
         remaining = max(0, self.enemy_count)
         group_size = max(RAIDER_GROUP, min(32, round(self.enemy_count / 8)))
+        if self.scenario.raider_group:
+            group_size = self.scenario.raider_group            # Räuberlager: kleine Haufen
         spawns = list(self.scenario.raider_spawns)
         i = 0
         while remaining > 0 and spawns:
             n = min(group_size, remaining)
-            if 0 < remaining - n < 8:
+            if 0 < remaining - n < min(8, group_size // 2 + 1):
                 n = remaining
             spawn = spawns[i % len(spawns)]
             extra = 2.5 * (i // len(spawns))          # weitere Wellen weiter außen
@@ -2368,6 +2370,8 @@ class Battle:
         self._engines(dt)
         if not self.attacking:
             self._loot(dt)
+        elif self.scenario.camp:
+            self._burn_huts(dt)
         self._morale(dt)
         self._check_withdraw()
         self._check_outcome()
@@ -5227,6 +5231,25 @@ class Battle:
                     self.events.append(f"Haus ({h.cx},{h.cy}) geplündert")
                 break
 
+    def _burn_huts(self, dt: float) -> None:
+        """Räuberlager: Eine Hütte brennt nieder, wenn eigene Männer daneben stehen und kein
+        Räuber in der Nähe ist (wer kämpft, zündet nichts an)."""
+        foes = [m for u in self.units(Side.FEIND, fighting_only=True) for m in u.all_men()]
+        for u in self.units(Side.STADT, fighting_only=True):
+            if u.engaged:
+                continue
+            for h in self.houses:
+                if h.looted or u.rect_distance(h.center) > config.LOOT_RANGE:
+                    continue
+                if any(dist(m.pos, h.center) <= config.CAMP_GUARD_RANGE for m in foes):
+                    continue                          # ein Räuber steht dabei: erst ihn vertreiben
+                h.progress += dt
+                if h.progress >= config.CAMP_BURN_TIME:
+                    h.looted = True
+                    left = self.houses_intact()
+                    self.events.append(f"Hütte niedergebrannt, noch {left}" if left else "Das Räuberlager ist zerstört")
+                break
+
     # -- Moral -------------------------------------------------------------
     # ------------------------------------------------------------ Sammeln
     @property
@@ -5402,6 +5425,8 @@ class Battle:
         if not self.attacking and self.houses_intact() == 0:
             self.outcome = "niederlage"
             self.events.append("Die Siedlung ist geplündert")
+        elif enemy_gone and self.scenario.camp and self.houses_intact() > 0:
+            pass                                          # die Räuber sind fort, ihre Hütten stehen noch: anzünden
         elif enemy_gone:
             self.outcome = "sieg"
             self.events.append("Der Überfall ist abgewehrt" if not self.attacking else "Der Feind ist geschlagen")

@@ -467,6 +467,8 @@ class Renderer:
         text = f"Stadt {r['stadt_start'] - r['stadt_gefallen']}   Feind {r['feind_start'] - r['feind_gefallen']}   "
         if not battle.attacking:
             text += f"Häuser {r['haeuser_intakt']}/{r['haeuser']}   "
+        elif battle.scenario.camp:
+            text += f"Hütten {r['haeuser_intakt']}/{r['haeuser']}   "
         if battle.ring:
             shut = sum(1 for g in battle.gates if g.closed)
             text += f"Tore {shut}/{len(battle.gates)} zu   "
@@ -939,9 +941,10 @@ class Renderer:
             on = scenario.side == side
             self._menu_button(f"role:{side}", label, pygame.Rect(gap + k * (half + gap), 6, half, 34),
                               config.COLOR_BUTTON_ACTIVE if on else None)
-        # Vorrat: ein gemeinsamer Topf für alle Gattungen
+        # Vorrat: ein gemeinsamer Topf für alle Gattungen (im Räuberlager nur leichte Hopliten und Peltasten)
+        kinds = scenario.own_kinds or PLAYER_TYPES
         y, x = 48, 8
-        for key in PLAYER_TYPES:
+        for key in kinds:
             kind = UNIT_TYPES[key]
             pygame.draw.circle(s, kind.color, (x + 6, y + 8), 5)
             txt = self.small.render(f"{army.used(key)} {kind.short}", True, config.COLOR_TEXT)
@@ -956,7 +959,7 @@ class Renderer:
         own_label = f"Eigene Truppe: {own_count} Mann"
         enemy_label = ("Räuber" if scenario.enemy_kind == "raeuber" else "Feind (wie deine Truppe)") + f": {enemy_count} Mann"
         for key, label, value, lo, hi, color in (
-            (-2, own_label, own_count, OWN_MIN, OWN_MAX, config.COLOR_CITY),
+            (-2, own_label, own_count, scenario.own_min or OWN_MIN, scenario.own_max or OWN_MAX, config.COLOR_CITY),
             (-1, enemy_label, enemy_count, scenario.enemy_min, scenario.enemy_max, config.COLOR_ENEMY),
         ):
             s.blit(self.small.render(label, True, config.COLOR_TEXT), (gap + 2, y))
@@ -970,7 +973,7 @@ class Renderer:
 
         # Schauplatz: Offene Siedlung, Räuberhorde, Festung
         y += 2
-        third = (W - 4 * gap) // 3
+        third = (W - (len(PLACES) + 1) * gap) // len(PLACES)
         for k, (where, label) in enumerate(PLACES):
             on = scenario.where == where
             self._menu_button(f"place:{where}", label, pygame.Rect(gap + k * (third + gap), y, third, 32),
@@ -1008,7 +1011,7 @@ class Renderer:
             label = "Vorn" if i == 0 else ("Hinten" if i == len(g.tiers) - 1 else f"Reihe {i + 1}")
             s.blit(self.small.render(label, True, config.COLOR_TEXT_DIM), (gap + 8, y + 6))
             # Typwahl: fünf Farbpunkte
-            for k, key in enumerate(PLAYER_TYPES):
+            for k, key in enumerate(kinds):
                 cx, cy = gap + 18 + k * 26, y + 44
                 pygame.draw.circle(s, UNIT_TYPES[key].color, (cx, cy), 8)
                 if key == tier.kind:
@@ -1059,7 +1062,7 @@ class Renderer:
     def _menu_button(self, key: str, label: str, rect: pygame.Rect, color=None) -> None:
         s = self.surface
         pygame.draw.rect(s, color or config.COLOR_BUTTON, rect, border_radius=6)
-        font = self.font if len(label) < 18 else self.small
+        font = self.font if len(label) < 18 and self.font.size(label)[0] <= rect.w - 8 else self.small
         img = font.render(label, True, config.COLOR_TEXT)
         s.blit(img, img.get_rect(center=rect.center))
         self.menu_buttons.append(Button(key, label, rect, color))

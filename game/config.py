@@ -316,6 +316,8 @@ AI_RESERVE_MAX = 35.0        # Sekunden: spätestens so lange nach Beginn geht a
 # Plünderung
 LOOT_TIME = 4.0              # Sekunden je Haus
 LOOT_RANGE = 0.8
+CAMP_BURN_TIME = 5.0         # Sekunden: so lange stehen eigene Männer an einer Räuberhütte, bis sie brennt
+CAMP_GUARD_RANGE = 1.5       # Kacheln: steht ein Räuber so nah an der Hütte, brennt sie nicht
 ENEMY_WITHDRAW_FRACTION = 0.3  # Räuber ziehen ab, wenn weniger Männer übrig
 
 # --- Farben ---------------------------------------------------------------

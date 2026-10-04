@@ -527,3 +527,26 @@ def test_menu_picks_role_on_top_and_place_below():
     assert pick("role:verteidigung") == "festung"
     assert pick("place:siedlung") == "siedlung"
     app.draw()
+
+
+def test_the_raider_camp_offers_only_light_hoplites_and_peltasts():
+    """Im Räuberlager gibt es nur leichte Hopliten und Peltasten, 6 bis 20 Mann; die große
+    Truppe bleibt für die anderen Szenarien gemerkt."""
+    pygame.init()
+    app = App(Renderer(pygame.Surface((config.WIDTH, config.HEIGHT))), seed=1)
+    big = [g.name for g in app.army.groups]
+    app.menu_command("place:lager")
+    assert app.scenarios[app.scenario_index].key == "ueberfall" and app.own_count == 13
+    app.draw()
+    kinds = {b.key.split(":")[2] for b in app.renderer.menu_buttons if b.key.startswith("kind:")}
+    assert kinds == {"leicht", "peltast"}
+    app.menu_command("kind:0:schwer")                       # nicht erlaubt: bleibt
+    assert app.army.groups[0].tiers[0].kind == "leicht"
+    app.menu_command("add")
+    assert all(t.kind in ("leicht", "peltast") for g in app.army.groups for t in g.tiers)
+    app.menu_command("role:angriff")
+    assert app.scenarios[app.scenario_index].key == "lager"
+    app.menu_command("place:siedlung")
+    assert [g.name for g in app.army.groups] == big         # die große Truppe ist wieder da
+    app.menu_command("place:lager")
+    assert len(app.army.groups) == 3                         # und die kleine mit der dazugelegten Gruppe
