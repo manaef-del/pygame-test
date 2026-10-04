@@ -60,7 +60,10 @@ und die Räuberwege um die Häuser. Das ist Arbeit für die Balance.
 
 Nach Lauf 32 kamen noch Änderungen an der Bewegung der Gegner dazu
 (README, „Kein Zappeln an Schwellen“). Sie verschieben die Schlachten
-wieder; vor der Balance wird neu gemessen.
+wieder; vor der Balance wird neu gemessen. Ebenso zwei Korrekturen am
+Umweg und am Weichen eigener Gruppen (README, „Kein großer Bogen um die
+Nachbarn“). Sie gelten nur für Märsche an einen Platz und befohlene Gruppen
+des Spielers, nicht für Angriffe; die Szenariotests sind unverändert.
 
 ## Lauf 31 (3. Oktober 2026): Modi der Hopliten und Verbände
 

@@ -65,6 +65,22 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Großer Bogen um die eigenen Nachbarn** (4. Oktober 2026): Stand ein
+  Block (im Handgemenge auch lockere Hopliten) fast auf einer eigenen Gruppe
+  und lag sein Ziel auf der anderen Seite, galt sie trotzdem als „im Weg“.
+  Er lief dann drei Kacheln seitlich hinaus und im Bogen zurück. Jetzt steht
+  sie nur im Weg, wenn der gerade Weg um mindestens 0,3 Kacheln näher an sie
+  heranführt. Dazu kam ein zweiter Fehler: Lag ein Ziel zu dicht an einer
+  stehenden eigenen Gruppe, lief die Gruppe hin und wurde zurückgeschoben,
+  jeden Takt aufs Neue, und kam nie in Ordnung. Jetzt nimmt sie den Platz,
+  auf den sie geschoben wurde (nur befohlene Gruppen des Spielers, nicht im
+  Verband). Die neue Umwegregel gilt nur für Märsche an einen Platz, nicht
+  für Angriffe. Gemessen wurden 120 zufällige Befehle an lockere Hopliten
+  nahe am Feind, am Schwerpunkt der Männer. Gezählt sind nur die Fälle ohne
+  Flucht, alt 42 und neu 39. Der schlimmste Fall wich vorher 2,6 Kacheln
+  vom geraden Weg ab, jetzt 1,2. Der Rest kommt daher, dass sein Ziel auf
+  den eigenen Reitern lag und daneben verlegt wurde. Alle anderen Fälle
+  bleiben unter 0,7 Kacheln.
 - **Teilen, Zoomen, Befehlshaber vorn, Gruppenkacheln** (4. Oktober 2026):
   - Eine Gruppe lässt sich in zwei Hälften teilen (links/rechts, je mit
     voller Tiefe).

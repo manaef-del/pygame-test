@@ -121,6 +121,14 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
     seine Gruppe steht, bleibt stehen, statt endlos auszuweichen.
   - Steht eine Gruppe geschlossen, rückt ein Mann, der weniger als eine
     Zehntelkachel neben seinem Platz steht, nicht mehr nach.
+  - Muss eine angekommene Gruppe einer eigenen Nachbarin weichen (das Ziel
+    lag zu dicht an ihr), nimmt sie den neuen Platz als Posten, statt jeden
+    Takt hinzulaufen und zurückgeschoben zu werden.
+- **Kein großer Bogen um die Nachbarn.** Eine eigene Gruppe steht nur dann
+  im Weg, wenn der gerade Weg wirklich näher an sie heranführt. Steht ein
+  Block dicht neben ihr (etwa nachdem er sich wieder geschlossen hat oder im
+  Handgemenge) und liegt das Ziel auf der anderen Seite, geht er gerade los,
+  statt drei Kacheln seitlich hinaus und im großen Bogen zurück zu laufen.
 - **Ruhiges Bild.** Die Männer werden an einer geglätteten Stelle
   gezeichnet. Geglättet wird nur ihre Lage innerhalb der Gruppe (entlang
   und quer zur Front, über 0,15 s), nicht Marsch und Schwenk der Gruppe.

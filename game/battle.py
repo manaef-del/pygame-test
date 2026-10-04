@@ -3263,6 +3263,8 @@ class Battle:
             off = ox * px + oy * py
             if abs(off) >= clear + hyst:
                 continue                                  # geht knapp vorbei
+            if u.target_id is None and abs(off) > along and math.hypot(ox, oy) - abs(off) < config.DETOUR_DEPTH:
+                continue                                  # sie steht neben uns, der gerade Weg führt von ihr weg (kein Bogen um sie)
             if along > d - o.radius and (u.target_id is not None
                                          or self._gap_at(u, goal, o, u.face_to or (direction if steady else u.facing))
                                          < config.SEPARATION):
@@ -4943,6 +4945,13 @@ class Battle:
                     self._step(a, scale(direction, -push))
                 if move_b:
                     self._step(b, scale(direction, push))
+                if a.side is b.side and config.SEPARATE_NEW_POST:
+                    # eine befohlene Gruppe, die an einer eigenen angekommen ist und weichen muss, nimmt den
+                    # neuen Platz als Posten (sonst läuft sie wieder hin und wird zurückgeschoben, ohne Ende)
+                    for g, moved in ((a, move_a), (b, move_b)):
+                        if (moved and g.side is Side.STADT and g.stance is Stance.PHALANX and g.target is not None
+                                and g.target_id is None and self.verband_of(g) is None):
+                            g.target = g.pos
 
     # -- Kampf -------------------------------------------------------------
     def _combat(self, dt: float) -> None:

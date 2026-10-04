@@ -8,7 +8,7 @@ import pytest
 from game import config
 from game.army import OWN_DEFAULT, Army, GroupSpec, Tier, default_army, scaled_army
 from game.battle import Battle
-from game.geometry import arc, snap4
+from game.geometry import arc, dist, snap4
 from game.scenarios import (OFFENE_SIEDLUNG, PALISADE, RAEUBERHORDE, SIEDLUNG_OFFEN, SIEDLUNG_WALL,
                             RaiderSpawn, Scenario)
 from game.units import UNIT_TYPES, Lochos, Man, Side, Stance, arrange
@@ -2608,3 +2608,72 @@ def test_a_jammed_block_dissolves_and_finds_its_way():
     b._own_in_the_way = lambda u, p: True          # festgefahren
     run(b, 3.5)
     assert hop.loose and hop.stay_loose
+
+
+def _seg_off(p, a, b) -> float:
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    t = max(0.0, min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / max(1e-9, dx * dx + dy * dy)))
+    return math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy))
+
+
+def _hop_pelt_cav() -> tuple[Battle, Lochos, Lochos, Lochos]:
+    scn = Scenario("t", "t", "", role="verteidigung", enemy_kind="raeuber", enemy_default=4, enemy_min=4,
+                   enemy_max=4, houses=(), raider_spawns=(RaiderSpawn(1.0, 1.0),), cols=24, rows=24, deploy_y=12.0)
+    army = army_of(GroupSpec("H", [Tier("schwer", 14), Tier("mittel", 13), Tier("leicht", 13)]),
+                   GroupSpec("P", [Tier("peltast", 15)]), GroupSpec("R", [Tier("reiter", 20)]))
+    b = Battle(scn, random.Random(1), army=army, ai="einfach")
+    b._ai_raiders = lambda: None
+    b._check_outcome = lambda: None
+    b.alarm = False
+    for e in b.units(Side.FEIND):
+        e.withdrawn = True
+    hop, pelt, cav = b.units(Side.STADT)
+    hop.drill = "locker"
+    b.command_line([pelt], (9.3, 12.0), (10.6, 12.0))
+    b.command_line([cav], (10.8, 12.0), (12.1, 12.0))
+    return b, hop, pelt, cav
+
+
+def test_block_right_beside_own_group_walks_straight_off():
+    """Steht ein Block (etwa nach dem Schließen) fast auf einer eigenen Gruppe und liegt sein Ziel
+    auf der anderen Seite, führt der gerade Weg sofort von ihr weg: kein Umweg drei Kacheln
+    seitlich hinaus und im großen Bogen zurück, er geht gerade los. (Ein Block, der seine
+    Ordnung hält: im Handgemenge auch die lockeren Hopliten.)"""
+    b, hop, pelt, cav = _hop_pelt_cav()
+    hop.drill = "phalanx"
+    b.command_line([hop], (12.0, 15.0), (14.0, 15.0))
+    run(b, 8)
+    hop.x, hop.y = cav.x, cav.y + 0.37                # dicht an den Reitern (so schließt eine aufgelöste Gruppe)
+    hop.facing = (-0.69, -0.73)
+    hop.place_men()
+    goal = (cav.x + 2.55, cav.y - 0.6)                # schräg vorbei an ihnen, auf der anderen Seite
+    b.command_move([hop], goal)
+    assert b._detour_plan(hop, goal) is None
+    start, worst, t = hop.pos, 0.0, 0.0
+    while dist(hop.pos, goal) > 0.1 and t < 10:
+        b.update(DT)
+        t += DT
+        worst = max(worst, _seg_off(hop.pos, start, goal))
+    assert dist(hop.pos, goal) <= 0.1, (hop.pos, t)
+    assert worst < 0.2 and t < 4.5, (worst, t)
+
+
+def test_line_next_to_own_group_settles_instead_of_being_pushed_back_forever():
+    """Liegt das befohlene Ziel so dicht an einer stehenden eigenen Gruppe, dass die Gruppen
+    auseinandergedrückt werden, nimmt die Weichende den neuen Platz als Posten: Sie steht
+    still und in Ordnung, statt jeden Takt hinzulaufen und zurückgeschoben zu werden."""
+    b, hop, pelt, cav = _hop_pelt_cav()
+    b.command_line([hop], (12.44, 15.30), (14.71, 14.51))
+    run(b, 8)
+    tx, ty = hop.x + math.cos(4.33) * 5.27, hop.y + math.sin(4.33) * 5.27
+    g = (math.cos(4.11) * 1.5, math.sin(4.11) * 1.5)
+    b.command_line([hop], (tx - g[0], ty - g[1]), (tx + g[0], ty + g[1]))
+    run(b, 10)
+    assert hop.in_line
+    path, last = 0.0, hop.pos
+    for _ in range(int(1.0 / DT)):
+        b.update(DT)
+        path += dist(last, hop.pos)
+        last = hop.pos
+    assert path < 0.05, path
+    assert b._gap(hop, cav) >= 0.0
