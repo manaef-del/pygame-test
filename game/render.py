@@ -316,17 +316,11 @@ class Renderer:
         post = 3 if t >= 24 else 2
         for cx, cy in battle.blocked:
             x, y = px((cx, cy))
-            if battle.ring:
-                # geschlossener Wall: jede Kachel voll, Pfähle als dunkle Striche, so wirkt er durchgehend
-                pygame.draw.rect(s, config.COLOR_PALISADE, pygame.Rect(x, y, t + 1, t + 1))
-                for i in range(2):
-                    xi = x + t // 4 + i * t // 2
-                    pygame.draw.line(s, (90, 60, 30), (xi, y + t // 6), (xi, y + t - t // 6), max(1, post - 1))
-                continue
-            pygame.draw.rect(s, config.COLOR_PALISADE, pygame.Rect(x, y + t // 3, t, t // 3))
-            for i in range(3):
-                xi = x + t // 6 + i * t // 3
-                pygame.draw.line(s, (90, 60, 30), (xi, y + t // 7), (xi, y + t - t // 7), post)
+            # geschlossener Wall: jede Kachel voll, Pfähle als dunkle Striche, so wirkt er durchgehend
+            pygame.draw.rect(s, config.COLOR_PALISADE, pygame.Rect(x, y, t + 1, t + 1))
+            for i in range(2):
+                xi = x + t // 4 + i * t // 2
+                pygame.draw.line(s, (90, 60, 30), (xi, y + t // 6), (xi, y + t - t // 6), max(1, post - 1))
         for cx, cy in set(battle.ladders) | set(battle.crossings):
             x, y = px((cx, cy))
             rails = (x + 3 * t // 10, x + t - 3 * t // 10)
@@ -371,17 +365,6 @@ class Renderer:
                 pygame.draw.circle(s, config.COLOR_TOWER, (x, y), r)
                 pygame.draw.circle(s, (90, 60, 30), (x, y), r, 2)
                 pygame.draw.circle(s, color, (x, y), max(2, r // 3))
-        elif battle.gate is not None:
-            gx, gy = battle.gate.center
-            half = len(battle.gate.cells) / 2
-            a, b = px((gx - half, gy)), px((gx + half, gy))
-            rect = pygame.Rect(a[0], a[1] - 6, b[0] - a[0], 12)
-            if battle.gate.closed:
-                pygame.draw.rect(s, config.COLOR_GATE_CLOSED, rect, border_radius=3)
-                frac = battle.gate.hp / battle.gate.hp_max
-                pygame.draw.rect(s, config.COLOR_FIRE, pygame.Rect(rect.x, rect.bottom + 2, int(rect.w * frac), 3))
-            else:
-                pygame.draw.rect(s, config.COLOR_GATE, rect, 2)
 
     def _draw_houses(self, battle: Battle) -> None:
         s = self.surface
@@ -486,8 +469,6 @@ class Renderer:
         if battle.ring:
             shut = sum(1 for g in battle.gates if g.closed)
             text += f"Tore {shut}/{len(battle.gates)} zu   "
-        elif battle.gate is not None:
-            text += f"Tor {int(100 * battle.gate.hp / battle.gate.hp_max)}%   " if battle.gate.closed else "Tor offen   "
         text += f"{mins}:{secs:02d}"
         strip = pygame.Surface((config.MAP_W, 26), pygame.SRCALPHA)
         strip.fill((0, 0, 0, 120))
@@ -698,7 +679,7 @@ class Renderer:
                     items.append((f"formation:{name}", FORMATION_NAMES[name].replace("-Stellung", ""), 0.9,
                                   all(u.formation == name for u in sel), None))
         if engines:
-            gate_open = battle.gate is not None and not battle.gate.closed
+            gate_open = all(not g.closed for g in battle.gates)     # alle Tore offen: kein Rammbock mehr
             for key, kind, name in (("rammbock", "ram", "Rammbock"), ("turm", "tower", "Turm")):
                 carrying = any(u.engine == kind for u in sel)
                 building = any(u.build_kind == kind for u in sel)

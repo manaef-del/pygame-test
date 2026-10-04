@@ -1,8 +1,9 @@
-"""Szenarien: Verteidigung der eigenen Siedlung und Angriffe.
+"""Szenarien: Verteidigung und Angriff, alle auf der großen Karte.
 
-Bei der Verteidigung kommen Räuber von Norden und plündern. Beim Angriff
-steht der Gegner im Norden: eine Räuberhorde oder eine Siedlung mit
-derselben Truppenmischung wie die eigene, ohne oder mit Wall. Die
+Die offene Siedlung ist die Stadt der Festung ohne Wall: Verteidigt man sie,
+kommen Räuber von Norden und plündern; greift man sie an, stellt sie dieselbe
+Truppenmischung wie die eigene. Die Räuberhorde lagert im Norden. Die Festung
+hat einen sechseckigen Wall mit drei Toren, Leitern und Wehrtürmen. Die
 Gegnerstärke wird vor der Schlacht eingestellt.
 """
 
@@ -35,9 +36,8 @@ class Scenario:
     enemy_min: int
     enemy_max: int
     houses: tuple[Cell, ...] = ()
-    palisade: tuple[Cell, ...] = ()
-    gate: Cell | None = None
-    gate_closed: bool = False                  # muss aufgebrochen werden
+    palisade: tuple[Cell, ...] = ()            # Wallstücke (ohne Tore)
+    gate_closed: bool = False                  # die Tore müssen aufgebrochen werden
     wall_side: str | None = None               # wer den Wehrgang nutzen darf: "stadt"/"feind"
     ladders: tuple[Cell, ...] = ()             # Wallstücke mit Leiter: nur dort hinauf und hinunter
     raider_spawns: tuple[RaiderSpawn, ...] = ()
@@ -49,45 +49,8 @@ class Scenario:
     rows: int = config.ROWS
     gates: tuple[tuple[tuple[Cell, ...], Cell], ...] = ()   # weitere Tore: (Kacheln, Richtung nach außen)
     corner_towers: tuple[Cell, ...] = ()       # Wehrtürme auf dem Wall, die Speere werfen
-    ring: tuple[Point, ...] = ()               # Ecken eines geschlossenen Walls (Festung), sonst gerade Palisade
+    ring: tuple[Point, ...] = ()               # Ecken des geschlossenen Walls (Festung); leer: kein Wall
 
-
-# Zwei Häuserblöcke zu je zwei mal zwei, dazwischen eine breite Gasse zur Agora (Häuser sind Hindernisse)
-HOUSES_SOUTH = ((4, 13), (5, 13), (4, 14), (5, 14), (10, 13), (11, 13), (10, 14), (11, 14))
-HOUSES_NORTH = ((4, 1), (5, 1), (4, 2), (5, 2), (10, 1), (11, 1), (10, 2), (11, 2))
-AGORA_SOUTH = (8.0, 17.0)       # hinter den Häusern
-AGORA_NORTH = (8.0, 2.5)        # mitten in der Siedlung, zwischen den Häuserreihen (dahinter liegt die Kopfleiste)
-
-
-def _palisade_row(row: int, gate_cols: tuple[int, ...]) -> tuple[Cell, ...]:
-    return tuple((c, row) for c in range(config.COLS) if c not in gate_cols)
-
-
-RAIDS_GATE = tuple(
-    RaiderSpawn(x, y, waypoints=((7.5, 6.0),))
-    for x, y in (
-        (3.5, -1.0), (5.5, -2.0), (7.5, -1.0), (9.5, -2.0), (11.5, -1.0),
-        (4.5, -3.5), (7.5, -4.0), (10.5, -3.5), (6.0, -6.0), (9.0, -6.0),
-        (3.0, -7.5), (12.0, -7.5), (5.0, -9.0), (10.0, -9.0),
-    )
-)
-
-PALISADE = Scenario(
-    key="palisade", name="Verteidigung: Palisade",
-    hint="Das Tor ist zu; die Räuber bauen Rammbock und Turm. Peltasten über die Leitern auf den Wehrgang, Hopliten hinters Tor, Reserve gegen den Turm.",
-    role="verteidigung", enemy_kind="raeuber", enemy_default=128, enemy_min=32, enemy_max=224,
-    houses=HOUSES_SOUTH, palisade=_palisade_row(8, gate_cols=(7, 8)), gate=(7, 8), gate_closed=True,
-    wall_side="stadt", ladders=((2, 8), (13, 8)), raider_spawns=RAIDS_GATE, agora=AGORA_SOUTH,
-)
-
-SIEDLUNG_WALL = Scenario(
-    key="angriff_wall", name="Angriff: Siedlung mit Wall",
-    hint="Das Tor ist zu. Wähle eine Gruppe und lass sie Rammbock oder Turm bauen; dann Tor oder Wall antippen.",
-    role="angriff", enemy_kind="spiegel", enemy_default=75, enemy_min=20, enemy_max=150,
-    houses=HOUSES_NORTH, palisade=_palisade_row(7, gate_cols=(7, 8)), gate=(7, 7), gate_closed=True,
-    wall_side="feind", ladders=((2, 7), (13, 7)), deploy_y=15.5, enemy_deploy_y=4.9, ram_available=True,
-    agora=AGORA_NORTH,
-)
 
 # ------------------------------------------------------------------ Festung
 FORT_COLS, FORT_ROWS = 2 * config.COLS, 2 * config.ROWS      # viermal so groß

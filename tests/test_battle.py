@@ -9,7 +9,7 @@ from game import config
 from game.army import OWN_DEFAULT, Army, GroupSpec, Tier, default_army, scaled_army
 from game.battle import Battle
 from game.geometry import arc, dist, snap4
-from game.scenarios import PALISADE, SIEDLUNG_WALL, RaiderSpawn, Scenario
+from game.scenarios import RaiderSpawn, Scenario
 from kleine_karten import KLEIN_ANGRIFF, KLEIN_HORDE, KLEIN_OFFEN
 from game.units import UNIT_TYPES, Lochos, Man, Side, Stance, arrange
 
@@ -328,35 +328,6 @@ def test_unopposed_raiders_loot_every_house():
     assert b.houses_intact() == 0
 
 
-def test_phalanx_behind_palisade_beats_larger_force():
-    """Phalanx in zwei Gliedern hinter dem Tor, Peltasten auf dem Wehrgang, Reiter als
-    Reserve: Steht ein Turm, decken die Reiter den Fuß der nächsten Leiter; die Phalanx
-    hält das Tor. (Über acht Startwerte gewinnt das 6-mal; seit der Anführer vorn in der
-    Mitte steht, einmal weniger als vorher. Startwert 3 gewinnt mit beiden Aufstellungen.)"""
-    b = Battle(PALISADE, random.Random(3), enemy_count=112)
-    hop, pelt, cav = b.units(Side.STADT)
-    b.command_line([hop], (6.5, 9.5), (9.5, 9.5))       # Hopliten hinter dem Tor, kurz und tief
-    b.command_move([pelt], (3.5, 8.5))                 # Peltasten auf den Wehrgang
-    b.command_move([cav], (13.0, 12.5))                # Reiter in Reserve
-    covered = False
-    for i in range(int(300 / DT)):
-        b.update(DT)
-        if b.outcome:
-            break
-        if i % 150 == 0 and b.crossings and not covered and cav.fighting:   # alle fünf Sekunden schaut der Spieler hin
-            # ein Turm steht: die Reiter an den Fuß der nächsten Leiter, Front zum Wall
-            cx = next(iter(b.crossings))[0] + 0.5
-            lx, ly = min(b.ladders, key=lambda c: abs(c[0] + 0.5 - cx))
-            b.command_line([cav], (lx + 0.5 - 1.5, ly + 1.7), (lx + 0.5 + 1.5, ly + 1.7))
-            covered = True
-    r = b.report()
-    assert r["ausgang"] == "sieg", r
-    assert r["feind_start"] >= 1.3 * r["stadt_start"]
-    assert r["stadt_gefallen"] <= 0.4 * r["stadt_start"], r   # die Räuber kommen auch über einen Turm
-    assert r["feind_gefallen"] >= 0.4 * r["feind_start"], r
-    assert r["haeuser_intakt"] >= 1                            # ohne Reserve plündern die Eingesickerten
-
-
 def test_open_settlement_phalanx_then_pursuit_wins():
     """Kurze, tiefe Linie, Peltasten dahinter, Reiter am Flügel: Alle vier Sekunden
     schaut der Spieler hin, die Reiter fassen, wer der Phalanx in Flanke oder Rücken
@@ -416,30 +387,6 @@ def test_weak_army_loses_houses():
 
 
 # ------------------------------------------------------------ Routing
-def test_route_goes_through_the_gate():
-    b = Battle(PALISADE, random.Random(1))
-    raider = b.units(Side.FEIND)[0]
-    raider.x, raider.y = 2.5, 6.5
-    assert not b.path_clear(raider.pos, (2.5, 12.5))
-    goal, final = b.route(raider, (2.5, 12.5))
-    assert final is False and goal[1] < b.gate_center[1] - 1.5      # Tor zu: davor warten
-    b.gate.closed = False
-    goal, final = b.route(raider, (2.5, 12.5))
-    assert final is False and abs(goal[0] - b.gate_center[0]) < 1e-6  # Tor offen: hindurch
-
-
-def test_nobody_enters_palisade_tiles():
-    b = Battle(PALISADE, random.Random(3))
-    b.command_attack()
-    for _ in range(int(120 / DT)):
-        b.update(DT)
-        for u in b.lochoi:
-            if u.alive and b.inside(u.x, u.y):
-                assert not b.is_blocked(u.x, u.y, u), (u.name, u.x, u.y)
-        if b.outcome:
-            break
-
-
 def test_deterministic_with_seed():
     a = Battle(KLEIN_OFFEN, random.Random(7))
     c = Battle(KLEIN_OFFEN, random.Random(7))
@@ -493,140 +440,6 @@ def test_settlement_defenders_hold_but_cavalry_charges():
     assert enemy["Reiter"].stance is Stance.ANGRIFF
 
 
-def test_closed_gate_blocks_and_ram_opens_it():
-    b = Battle(SIEDLUNG_WALL, random.Random(1), doctrine="spiegel")
-    hop, pelt, cav = b.units(Side.STADT)
-    gx, gy = b.gate.center
-    assert b.gate.closed and b.is_blocked(gx, gy, hop)
-    assert not b.path_clear((gx, gy + 3), (gx, gy - 3), hop)
-    assert b.command_ram_gate([hop]) == 0                # ohne Rammbock
-    assert b.command_build([hop], "ram") == 1
-    assert hop.build_kind == "ram" and hop.building == 0.0
-    assert b.command_build([hop], "ram") == 0             # baut schon
-    run(b, config.RAM_BUILD_TIME + 1)
-    assert hop.engine == "ram" and hop.building is None
-    assert hop.speed < UNIT_TYPES["schwer"].speed
-    assert b.command_ram_gate([hop]) == 1
-    run(b, 60)
-    assert not b.gate.closed and b.gate.hp == 0.0
-    assert not b.is_blocked(gx, gy, hop)
-    assert any("aufgebrochen" in e for e in b.events)
-    assert hop.engine is None and hop.speed == UNIT_TYPES["schwer"].speed   # Rammbock bleibt liegen
-    assert len(b.debris) == 1
-    assert abs(hop.x - gx) >= 1.2                                            # ist zur Seite getreten
-
-
-def test_each_group_builds_its_own_engine():
-    b = Battle(SIEDLUNG_WALL, random.Random(1), doctrine="spiegel")
-    hop, pelt, cav = b.units(Side.STADT)
-    assert b.command_build([hop, cav], "ram") == 2
-    run(b, config.RAM_BUILD_TIME + 1)
-    assert hop.engine == "ram" and cav.engine == "ram" and pelt.engine is None
-
-
-def test_siege_tower_opens_a_crossing():
-    b = Battle(SIEDLUNG_WALL, random.Random(1), ai="einfach", doctrine="spiegel")   # Mechanik, nicht Gegnerverhalten
-    hop, pelt, cav = b.units(Side.STADT)
-    assert b.command_tower_wall([cav], (13, 7)) == 0      # ohne Turm
-    assert b.command_build([cav], "tower") == 1
-    run(b, config.TOWER_BUILD_TIME + 1)
-    assert cav.engine == "tower"
-    assert b.command_tower_wall([cav], (13, 7)) == 1
-    for _ in range(int(40 / DT)):
-        b.update(DT)
-        if b.crossings:
-            break
-    assert (13, 7) in b.crossings
-    assert cav.engine is None                             # Turm steht jetzt am Wall
-    assert len(b.towers) == 1 and abs(b.towers[0][0] - 13.5) < 1e-6 and b.towers[0][1] > 7.5
-    run(b, 25)                                            # ein Mann nach dem anderen hinauf
-    assert cav.fighting and b.on_wall(cav)                # Reiter stehen oben auf dem Wehrgang
-    assert b.is_walker(hop) and (13, 7) in b.ladders_for(hop)   # Turm ist ein Aufstieg für alle Angreifer
-    assert not b.can_step(cav, (13.5, 7.5), (13.5, 6.4)) or (13, 7) in b.ladders_for(cav)
-    assert not b.can_step(cav, (10.5, 7.5), (10.5, 6.4))  # mitten auf dem Wall geht es nicht hinunter
-    b.command_move([cav], (12.0, 3.0))                    # drüben: Abstieg nur über eine Leiter
-    run(b, 35)
-    assert cav.fighting and not b.on_wall(cav) and cav.y < 4.0
-
-
-def test_losing_the_engine_group_loses_the_engine():
-    b = Battle(SIEDLUNG_WALL, random.Random(1), doctrine="spiegel")
-    hop = b.units(Side.STADT)[0]
-    b.command_build([hop], "ram")
-    run(b, config.RAM_BUILD_TIME + 1)
-    assert hop.engine == "ram"
-    hop.morale = 0.0
-    b._morale(DT)
-    assert hop.stance is Stance.FLUCHT and hop.engine is None
-
-
-def test_raiders_build_a_ram_against_the_closed_gate():
-    b = Battle(PALISADE, random.Random(1))
-    assert b.gate.closed
-    hop, pelt, cav = b.units(Side.STADT)
-    b.command_line([hop], (5.5, 9.5), (10.5, 9.5))
-    opened_at = None
-    for _ in range(int(120 / DT)):
-        b.update(DT)
-        if opened_at is None and not b.gate.closed:
-            opened_at = b.time
-        if b.outcome:
-            break
-    assert any("Räuber bauen einen Rammbock" in e for e in b.events)
-    assert opened_at is not None and 10 < opened_at < 60
-
-
-def test_peltasts_throw_over_the_wall_only_from_the_walkway():
-    b = Battle(PALISADE, random.Random(1))
-    hop, pelt, cav = b.units(Side.STADT)
-    raider = b.units(Side.FEIND)[0]
-    raider.x, raider.y = 8.0, 6.5                          # nördlich der Palisade (Reihe 8)
-    pelt.x, pelt.y = 8.0, 9.6                              # südlich, am Boden
-    assert not b.throw_clear(pelt, raider)
-    pelt.x, pelt.y = 8.5, 8.5                              # auf dem Wehrgang: Torlücke ist bei 7/8, also 3.5
-    pelt.x = 3.5
-    raider.x = 3.5
-    pelt.place_men()                                       # die Gruppe ist, wo ihre Männer sind
-    assert b.on_wall(pelt) and b.throw_clear(pelt, raider)
-    b.command_hold([pelt])
-    b._ai_raiders = lambda: None
-    run(b, 0.2)
-    assert any(pr.target_id == raider.id for pr in b.projectiles)
-
-
-def test_only_peltasts_of_wall_side_may_enter_the_wall():
-    b = Battle(PALISADE, random.Random(1))
-    hop, pelt, cav = b.units(Side.STADT)
-    wall_tile = (3.5, 8.5)
-    assert not b.is_blocked(*wall_tile, pelt)
-    assert b.is_blocked(*wall_tile, hop)
-    raider = b.units(Side.FEIND)[0]
-    assert b.is_blocked(*wall_tile, raider)
-    b.command_move([pelt], wall_tile)
-    run(b, 22)                                             # einer nach dem anderen die Leiter hinauf
-    assert b.on_wall(pelt) and not pelt.loose
-    # Auf dem Wall: weiter werfen; von unten kommt niemand heran, von oben schlägt man hinunter
-    raider.loose, raider.target, raider.target_id, raider.stance = False, None, None, Stance.HALTEN
-    raider.x, raider.y = pelt.x, pelt.y + 1.0
-    raider.place_men()
-    assert not b._in_contact(raider, pelt)                # der Wehrgang ist erhöht
-    assert b._in_contact(pelt, raider)
-    rate_down, _ = b._melee_rate(pelt, raider)
-    pelt_off = Lochos(99, Side.STADT, [men("peltast", 15)], pelt.x, pelt.y + 2.5)
-    b.lochoi.append(pelt_off)
-    raider.y = pelt_off.y + 1.0
-    raider.place_men()
-    rate_ground, _ = b._melee_rate(pelt_off, raider)
-    assert 0 < rate_down < rate_ground * config.WALL_MELEE_FACTOR + 1e-9
-    assert b._melee_rate(raider, pelt)[0] > 0 and not b._in_contact(raider, pelt)   # er käme heran, aber nicht hinauf
-
-
-def test_enemy_peltasts_start_on_the_wall():
-    b = Battle(SIEDLUNG_WALL, random.Random(1), doctrine="spiegel")
-    pelt = next(u for u in b.units(Side.FEIND) if u.name == "Peltasten")
-    assert b.on_wall(pelt)
-
-
 def test_attack_outcomes():
     b = Battle(KLEIN_HORDE, random.Random(1), enemy_count=16)
     b.command_attack()
@@ -639,232 +452,7 @@ def test_attack_outcomes():
 
 
 # ------------------------------------------------------------- Leitern
-def test_wall_is_entered_and_left_only_by_ladder():
-    b = Battle(PALISADE, random.Random(1))
-    hop, pelt, cav = b.units(Side.STADT)
-    raider = b.units(Side.FEIND)[0]
-    assert b.ladders == {(2, 8), (13, 8)}
-    # Direkt von unten auf ein Wallstück ohne Leiter: nein; an der Leiter: ja
-    assert not b.can_step(pelt, (5.5, 9.4), (5.5, 8.6))
-    assert b.can_step(pelt, (2.5, 9.4), (2.5, 8.6))
-    assert not b.can_step(hop, (2.5, 9.4), (2.5, 8.6))
-    assert not b.can_step(raider, (2.5, 7.6), (2.5, 8.4))
-    # Oben entlang, auch über das Torhaus
-    pelt.x, pelt.y = 6.5, 8.5
-    assert b.on_wall(pelt) and b.can_step(pelt, (6.5, 8.5), (7.5, 8.5))
-    assert b.is_blocked(7.5, 8.5, hop) and b.is_blocked(7.5, 8.5, raider)
-    # Herunter nur an der Leiter
-    assert not b.can_step(pelt, (6.5, 8.5), (6.5, 9.4))
-    pelt.x = 13.5
-    assert b.can_step(pelt, (13.5, 8.5), (13.5, 9.4))
 
-
-def test_peltasts_route_over_ladders():
-    b = Battle(PALISADE, random.Random(1))
-    b._volleys = lambda dt: None                            # keine Speere, kein Nahkampfwechsel
-    b._ai_raiders = lambda: None                            # kein Rammbock: das Torhaus bleibt begehbar
-    hop, pelt, cav = b.units(Side.STADT)
-    goal, final = b.route(pelt, (5.5, 8.5))
-    assert final is False and goal[0] == 2.5 and goal[1] >= 8.5   # erst zur Leiter (bzw. an ihren Fuß)
-    b.command_move([pelt], (5.5, 8.5))
-    run(b, 24)
-    assert b.on_wall(pelt) and abs(pelt.x - 5.5) < 0.3
-    b.command_move([pelt], (10.5, 8.5))                    # oben über das Tor
-    run(b, 6)
-    assert b.on_wall(pelt) and abs(pelt.x - 10.5) < 0.3
-    b.command_move([pelt], (12.0, 11.0))                   # hinunter über die rechte Leiter
-    run(b, 24)
-    assert not b.on_wall(pelt) and abs(pelt.x - 12.0) < 0.3
-    # Am Boden führt der Weg nach Norden nur durchs Tor, nicht durch die Palisade
-    goal, final = b.route(pelt, (12.0, 5.0))
-    assert final is False
-
-
-# ------------------------------------------------------- Einzelne Männer
-def test_men_flow_through_the_gate_individually():
-    b = Battle(SIEDLUNG_WALL, random.Random(1), ai="einfach", doctrine="spiegel")
-    b._ai_defenders = lambda: None                            # Mechanik, nicht Gegnerverhalten
-    hop, pelt, cav = b.units(Side.STADT)
-    b.gate.closed = False
-    b.gate.hp = 0.0
-    b.command_move([hop], (8.0, 3.5))
-    through = False
-    for _ in range(int(30 / DT)):
-        b.update(DT)
-        for m in hop.all_men():
-            assert b.cell(m.x, m.y) not in b.blocked            # niemand steckt in der Palisade
-        if all(m.y < 7.0 for m in hop.all_men()):
-            through = True                                      # alle sind hindurch (bevor die Linie drüben sie bricht)
-            break
-    assert through
-
-
-def test_cavalry_dismounts_for_siege_work_and_before_ladders():
-    b = Battle(SIEDLUNG_WALL, random.Random(1), doctrine="spiegel")
-    hop, pelt, cav = b.units(Side.STADT)
-    assert cav.speed == UNIT_TYPES["reiter"].speed
-    b.command_build([cav], "tower")
-    assert cav.mounted_men() == [] and len(b.horses) == 1 and b.horses[0][2] == 20
-    assert cav.speed == pytest.approx(config.DISMOUNTED_SPEED)
-    assert cav.cavalry_share() == 0.0                           # kein Reiterbonus mehr
-    run(b, config.TOWER_BUILD_TIME + 1)
-    assert cav.speed == pytest.approx(config.DISMOUNTED_SPEED * config.TOWER_SPEED_FACTOR)
-
-
-def test_tower_is_one_way_up_from_outside():
-    b = Battle(SIEDLUNG_WALL, random.Random(1), doctrine="spiegel")
-    hop, pelt, cav = b.units(Side.STADT)
-    b.crossings.add((12, 7))
-    assert b.can_step(hop, (12.5, 8.6), (12.5, 7.5))            # von außen hinauf
-    assert b.can_step(hop, (12.5, 7.5), (12.5, 8.6))            # außen wieder hinunter
-    assert not b.can_step(hop, (12.5, 7.5), (12.5, 6.4))        # nach innen nur über Leitern
-    assert b.can_step(hop, (13.5, 7.5), (13.5, 6.4))
-    assert (12, 7) not in b.ladders_for(hop, (12.5, 7.5), (12.0, 3.0))
-    assert (12, 7) in b.ladders_for(hop, (12.5, 7.5), (12.0, 12.0))
-
-
-# ------------------------------------------------- Überqueren und Aufsitzen
-def test_crossing_dissolves_formation_and_reforms_inside():
-    b = Battle(SIEDLUNG_WALL, random.Random(1), ai="einfach", doctrine="spiegel")
-    hop, pelt, cav = b.units(Side.STADT)
-    enemy_pelt = next(u for u in b.units(Side.FEIND) if u.name == "Peltasten")
-    b.crossings.add((12, 7))
-    b.update(DT)
-    assert not enemy_pelt.loose                              # wer oben steht und bleibt, ist formiert
-    b.command_line([hop], (5.0, 13.0), (11.0, 13.0))
-    run(b, 6)
-    assert hop.in_line
-    b.command_move([hop], (10.0, 3.5))
-    seen_loose, max_up = False, 0
-    for _ in range(int(150 / DT)):
-        b.update(DT)
-        if hop.loose:
-            seen_loose = True
-            assert hop.stance is Stance.HALTEN and not hop.in_phalanx
-        max_up = max(max_up, sum(1 for m in hop.all_men() if b.is_wall_cell(b.cell(m.x, m.y), True)))
-        for m in hop.all_men():
-            assert b.cell(m.x, m.y) not in b.blocked or b.is_wall_cell(b.cell(m.x, m.y), True)
-        if seen_loose and not hop.loose and hop.target is None:
-            break
-    assert seen_loose and max_up >= 1                        # Mann für Mann über den Wehrgang
-    assert not hop.loose and all(m.y < 6.5 for m in hop.all_men())
-    assert any("neu gebildet" in e for e in b.events)
-
-
-def test_no_phalanx_bonus_on_the_wall():
-    b = Battle(PALISADE, random.Random(1))
-    hop, pelt, cav = b.units(Side.STADT)
-    raider = b.units(Side.FEIND)[0]
-    pelt.x, pelt.y = 5.5, 8.5
-    pelt.stance, pelt.in_line = Stance.PHALANX, True
-    raider.x, raider.y = 5.5, 7.6
-    assert b.on_wall(pelt) and pelt.in_phalanx
-    assert b._formed(pelt) is False
-    mod, _ = b._defense_mod(raider, pelt)
-    assert mod == 1.0
-
-
-def test_dismounted_cavalry_remounts_at_their_horses():
-    b = Battle(SIEDLUNG_WALL, random.Random(1), doctrine="spiegel")
-    hop, pelt, cav = b.units(Side.STADT)
-    b.command_build([cav], "ram")
-    assert cav.mounted_men() == []
-    run(b, config.RAM_BUILD_TIME + 1)
-    assert cav.engine == "ram"
-    hx, hy, n = b.horses[0]
-    b.command_move([cav], (hx, hy))                           # mit Gerät: kein Aufsitzen
-    run(b, 12)
-    assert cav.engine == "ram" and cav.mounted_men() == []
-    cav.engine = None                                          # Rammbock abgelegt
-    b.command_move([cav], (hx + 2.0, hy))
-    run(b, 4)
-    b.command_move([cav], (hx, hy))
-    run(b, 6)
-    assert len(cav.mounted_men()) == cav.men and cav.speed == UNIT_TYPES["reiter"].speed
-    assert b.horses == []
-
-
-def test_walkway_gap_is_crossed_via_ladders():
-    b = Battle(PALISADE, random.Random(1), ai="einfach")
-    b._ai_raiders = lambda: None
-    b._volleys = lambda dt: None
-    hop, pelt, cav = b.units(Side.STADT)
-    b.command_move([pelt], (4.5, 8.5))
-    run(b, 20)
-    assert b.on_wall(pelt) and not pelt.loose
-    b.gate.hp = 0.0
-    b.gate.closed = False                                  # Tor offen: Lücke im Wehrgang
-    goal, final = b.route(pelt, (11.5, 8.5))
-    assert not final and goal == (2.5, 8.5)                # erst zur westlichen Leiter hinunter
-    b.command_move([pelt], (11.5, 8.5))
-    run(b, 45)
-    assert b.on_wall(pelt) and abs(pelt.x - 11.5) < 0.4 and not pelt.loose
-    assert all(b.cell(m.x, m.y)[0] >= 9 for m in pelt.all_men())
-
-
-def test_men_cannot_walk_through_an_enemy_phalanx():
-    b = Battle(PALISADE, random.Random(1), ai="einfach")
-    b._ai_raiders = lambda: None
-    hop, pelt, cav = b.units(Side.STADT)
-    b.command_line([hop], (0.0, 10.2), (4.5, 10.2))       # Phalanx vom Kartenrand bis unter die Leiter, Front Nord
-    b.command_move([pelt, cav], (12.0, 14.0))
-    run(b, 8)
-    assert hop.in_phalanx
-    b.crossings.add((1, 8))                                # ein Turm steht am Wall
-    raider = b.units(Side.FEIND)[0]
-    raider.x, raider.y = 1.5, 6.0
-    raider.place_men()
-    raider.stance = Stance.RAUB
-    raider.target = (2.5, 13.5)                            # ein Haus hinter der Phalanx
-    b._ai_raiders = lambda: None
-    start = raider.men
-    for _ in range(int(60 / DT)):
-        b.update(DT)
-        for m in raider.all_men():
-            assert hop.rect_distance(m.pos) > 0.0 or hop.men == 0          # niemand steht in der Formation
-        assert hop.rect_distance(raider.pos) > 0.0
-        if not raider.alive:
-            break
-    assert raider.men < start                              # die Phalanx hat sie empfangen
-
-
-def test_climbing_is_a_dense_column():
-    b = Battle(PALISADE, random.Random(1), ai="einfach")
-    b._ai_raiders = lambda: None
-    hop, pelt, cav = b.units(Side.STADT)
-    b.command_move([pelt], (3.5, 8.5))
-    run(b, 12)
-    assert b.on_wall(pelt) and not pelt.loose              # 15 Mann in unter zwölf Sekunden oben
-
-
-def test_climbing_men_take_their_places_instead_of_one_point():
-    b = Battle(PALISADE, random.Random(1), ai="einfach")
-    b._ai_raiders = lambda: None
-    b._volleys = lambda dt: None
-    hop, pelt, cav = b.units(Side.STADT)
-    b.command_move([pelt], (4.5, 8.5))
-    spread_up = 0.0
-    for _ in range(int(20 / DT)):
-        b.update(DT)
-        up = [m for m in pelt.all_men() if b.is_wall_cell(b.cell(m.x, m.y), True)]
-        if len(up) >= 6:
-            spread_up = max(spread_up, max(m.x for m in up) - min(m.x for m in up))
-    assert spread_up >= 0.6                                # schon beim Klettern in einer Reihe längs des Walls
-    assert b.on_wall(pelt) and pelt.file
-    xs = [m.x for m in pelt.all_men()]
-    assert max(xs) - min(xs) >= 1.5 and all(abs(m.y - 8.5) < 0.2 for m in pelt.all_men())
-    b.command_move([pelt], (4.5, 11.0))                    # hinunter: sofort in die Aufstellung
-    spread_down = 0.0
-    for _ in range(int(25 / DT)):
-        b.update(DT)
-        down = [m for m in pelt.all_men() if m.y > 9.6]
-        if 4 <= len(down) < pelt.men:
-            spread_down = max(spread_down, max(m.x for m in down) - min(m.x for m in down))
-    assert spread_down >= 0.4                              # die ersten unten stehen schon verteilt
-    assert not pelt.loose and not pelt.file
-
-
-# --------------------------------------------------------- Handgemenge
 def melee_pair():
     """Eine Phalanx (Front Nord) mit Peltasten dahinter, ein Räuberhaufen dicht vor der Front."""
     scn = raid(16, (8.0, 3.0))
@@ -958,31 +546,6 @@ def test_a_felt_hit_flashes_and_the_fallen_leave_a_mark():
     run(b, config.FALLEN_MARK_TIME + 0.5)
     assert not any(p == pos for p, _ in b.fallen_marks)
     assert victim.flash == 0.0 or victim not in raider.all_men()
-
-
-def test_the_palisade_covers_the_walkway_against_spears_from_outside():
-    """Wer auf dem Wehrgang steht, ist gegen Speere von außen gedeckt; von innen
-    (der Seite der Häuser) oder unten auf dem Boden nicht."""
-    from game.battle import Projectile
-    b = Battle(PALISADE, random.Random(1))
-    target = next(u for u in b.units(Side.STADT) if u.name == "Peltasten")   # wer auf den Wehrgang darf (ohne Hoplitenschild)
-    man = target.all_men()[0]
-
-    def hit(at, origin):
-        man.x, man.y = at
-        man.hp = man.kind.hp
-        b.projectiles = [Projectile(origin[0], origin[1], man.x, man.y, target.id, 0.2, 0.0, 0.1, man)]
-        for u in b.lochoi:                                # nur der eine Speer zählt
-            u.volley_timer = 99.0
-        b._volleys(0.2)
-        return man.kind.hp - man.hp
-
-    walkway = (3.5, 8.5)
-    outside, inside = (3.5, 6.0), (3.5, 11.0)
-    full = hit(walkway, inside)
-    assert full > 0.0
-    assert hit(walkway, outside) == pytest.approx(config.WALL_COVER_FACTOR * full)
-    assert hit((3.5, 9.5), outside) == pytest.approx(hit((3.5, 9.5), inside))       # unten am Boden: keine Deckung
 
 
 def test_engaged_groups_move_slowly():
@@ -1563,28 +1126,6 @@ def test_riders_halt_at_the_house_they_loot_instead_of_circling():
     assert cav.vel == 0.0 and turned < 0.2 and cav.rect_distance((8.5, 8.5)) <= config.LOOT_RANGE
 
 
-def test_a_loose_group_changes_wall_side_only_with_a_clear_majority():
-    """Steigt eine aufgelöste Gruppe über den Wall, zählt sie erst als drüben, wenn dort
-    klar mehr Männer stehen; bei halb und halb springt ihr Ort nicht hin und her."""
-    b = Battle(PALISADE, random.Random(1))
-    u = next(g for g in b.units(Side.FEIND))
-    men = u.all_men()
-    gx, gy = b.gate.center
-    u.loose = True
-    u.centre_level = None
-    half = len(men) // 2
-    for i, m in enumerate(men):
-        m.x, m.y = (2.5 + 0.1 * (i % 8), 6.0) if i <= half else (2.5 + 0.1 * (i % 8), 11.0)
-    first = b._wall_level(b._loose_centre(u))                            # die Mehrheit draußen
-    for i, m in enumerate(men):
-        if i == half:                                                    # einer mehr drinnen: knapp
-            m.y = 11.0
-    assert b._wall_level(b._loose_centre(u)) == first
-    for i, m in enumerate(men):
-        m.y = 11.0 if i % 4 else 6.0                                     # drei Viertel drinnen
-    assert b._wall_level(b._loose_centre(u)) != first
-
-
 def test_men_are_drawn_smoothed_within_their_group_but_never_behind_the_march():
     """Nur fürs Bild: Ein Mann, der in seiner Gruppe hin und her zittert, wird ruhig gezeichnet;
     marschiert die Gruppe, hängt sein Bild nicht nach."""
@@ -2046,31 +1587,6 @@ def one_ring_group(b: Battle) -> Lochos:
             u.rows = []
     b.lochoi = [u for u in b.lochoi if u.rows]
     return keep
-
-
-def test_groups_queue_behind_their_own_fighting_group():
-    """Greifen mehrere eigene Gruppen denselben Feind durch eine Enge an, fährt keine
-    in die vordere hinein: Wer nicht mehr an den Feind kommt, wartet im Block dahinter."""
-    b = Battle(PALISADE, random.Random(1))
-    g = one_ring_group(b)
-    b.command_formation([g], "o")
-    gx, gy = b.gate.center
-    b.command_ring([g], (gx, gy + 2.2), 1.2)
-    b.gate.hp = 0.0
-    b.gate.closed = False
-    run(b, 20)                                                               # das Gedränge am Tor sortiert sich
-    raiders = [u for u in b.units(Side.FEIND, fighting_only=True) if not u.loose]
-    fighting = [u for u in raiders if u.engaged]
-    waiting = [u for u in raiders if not u.engaged and u.waiting]
-    assert fighting and waiting, (len(fighting), len(waiting))
-    for w in waiting:
-        assert w.on_slots(config.SLOT_TOLERANCE + 0.1, 0.6), w.name                  # die Wartenden stehen (weitgehend) im Block
-        assert all(b._gap(w, f) >= 0.0 for f in fighting)
-    men = [(m, u.id) for u in b.lochoi if u.alive for m in u.all_men()]
-    for j, (a, ua) in enumerate(men):
-        for c, uc in men[j + 1:]:
-            if ua != uc:
-                assert dist_of_pt(a.pos, c.pos) >= 2 * config.MAN_RADIUS - 1e-6
 
 
 def test_hoplites_pass_through_their_own_peltasts_in_loose_order():
@@ -2564,25 +2080,6 @@ def test_men_trapped_in_an_own_block_slip_out_to_their_places():
     assert all(u.in_line and not u.loose for u in (hop, pelt, cav))
 
 
-def test_peltasts_stay_on_the_wall_when_there_is_no_way_down_outside():
-    """Die Leitern führen nur zur Innenseite: Ist das Tor zu, steigen Peltasten, die nach
-    draußen sollen, auf den Wehrgang darüber, statt endlos auf und ab zu klettern;
-    Hopliten warten am Tor."""
-    b = Battle(PALISADE, random.Random(1))
-    b._ai_raiders = lambda: None
-    b._check_outcome = lambda: None
-    b.alarm = False
-    for r in b.units(Side.FEIND):
-        r.withdrawn = True
-    hop, pelt, cav = b.units(Side.STADT)
-    b.command_move([pelt], (8.0, 4.0))
-    assert any("kein Weg hinab" in e for e in b.events)
-    run(b, 12)
-    assert b.on_wall(pelt) and not pelt.loose
-    b.command_move([hop], (8.0, 4.0))
-    assert any("das Tor ist zu" in e for e in b.events)
-
-
 def test_a_group_sent_next_to_a_house_moves_clear_of_it():
     """Liegt das angetippte Ziel so nah an einem Haus, dass Plätze im Haus lägen, rückt die
     Gruppe daneben: Alle Männer finden ihren Platz, keiner steht daneben herum."""
@@ -2678,23 +2175,3 @@ def test_line_next_to_own_group_settles_instead_of_being_pushed_back_forever():
     assert path < 0.05, path
     assert b._gap(hop, cav) >= 0.0
 
-
-def test_defenders_follow_over_the_enemy_tower():
-    """Ein aufgestellter Belagerungsturm dient beiden Seiten: Die Verteidiger steigen über
-    ihre Leiter auf den Wall und über den Turm nach draußen, etwa um Fliehenden
-    nachzusetzen (das Tor bleibt zu). Reiter bleiben unten."""
-    b = Battle(PALISADE, random.Random(1), ai="einfach")
-    b._ai_raiders = lambda: None
-    b._check_outcome = lambda: None
-    b.alarm = False
-    for e in b.units(Side.FEIND):
-        e.withdrawn = True
-    hop, pelt, cav = b.units(Side.STADT)
-    assert not b.is_walker(hop)
-    b.crossings.add((1, 8))                                # ein Turm der Räuber steht am Wall
-    assert b.is_walker(hop) and not b.is_walker(cav)
-    assert b.can_step(hop, (1.5, 7.5), (1.5, 6.4))         # über den Turm hinab nach draußen
-    b.command_move([hop], (3.0, 4.0))
-    run(b, 40)
-    assert hop.target is None and not hop.loose
-    assert all(m.y < 7.5 for m in hop.all_men())

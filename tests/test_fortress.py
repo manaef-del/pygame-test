@@ -10,7 +10,7 @@ from game import config
 from game.app import App
 from game.battle import Battle
 from game.render import Renderer
-from game.scenarios import FESTUNG, FESTUNG_ANGRIFF, PALISADE, SCENARIOS
+from game.scenarios import FESTUNG, FESTUNG_ANGRIFF, SCENARIOS
 from game.units import Man, Side, Stance, UNIT_TYPES, arrange
 from kleine_karten import KLEIN_OFFEN
 
@@ -488,14 +488,10 @@ def test_nobody_slips_past_an_enemy_on_the_walkway():
 
 
 def test_fortress_hoplites_may_climb_the_wall():
-    """In der Festung steigt jede Fußgruppe der Wallseite auf den Wehrgang, Reiter nicht; an der
-    Palisade nur reine Peltasten."""
+    """In der Festung steigt jede Fußgruppe der Wallseite auf den Wehrgang, Reiter nicht."""
     b = Battle(FESTUNG, random.Random(1))
     by = {u.arm(): u for u in b.units(Side.STADT)}
     assert b.is_walker(by["hopliten"]) and b.is_walker(by["peltasten"]) and not b.is_walker(by["reiter"])
-    p = Battle(PALISADE, random.Random(1))
-    hop = next(u for u in p.units(Side.STADT) if u.arm() == "hopliten")
-    assert not p.is_walker(hop)
     garrison = Battle(FESTUNG_ANGRIFF, random.Random(1))
     assert all(garrison.is_walker(u) for u in garrison.units(Side.FEIND) if u.arm() != "reiter")
 

@@ -4,12 +4,11 @@ Drei Stufen:
 
 1. Lagebericht (``Report``): alle halbe Sekunde wird gelesen, wo die Phalanx
    des Spielers steht und wohin sie schaut, welche Gruppen ungedeckt sind
-   (Peltasten ohne Hopliten davor, abgesessene Reiter, aufgelöste Formation),
-   ob das Tor offen ist und wo ein Turm steht.
+   (Peltasten ohne Hopliten davor, abgesessene Reiter, aufgelöste Formation).
 2. Pläne (``Brain._choose_plan``): Die Gegnerseite wählt aus wenigen benannten
    Plänen nach Punktzahl: frontal, umgehen (West/Ost), zermürben mit Speeren,
-   Tor rammen, Turm an den Wall, belagern; die Siedlung: halten oder
-   vorrücken. Alle paar Sekunden wird neu bewertet. Jede Gruppe setzt den
+   binden und umfassen, in den Rücken fallen; die Siedlung: halten oder
+   vorrücken. (Die Festung führt ``fortress_ai``.) Alle paar Sekunden wird neu bewertet. Jede Gruppe setzt den
    Plan für sich um: schwache Ziele zuerst, Phalanxfronten werden umlaufen.
 3. Gedächtnis (``Memory``): Was in früheren Schlachten Verluste gekostet hat,
    wird beim nächsten Mal schwächer gewichtet. Innerhalb der Schlacht weicht
@@ -28,7 +27,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from . import config
-from .geometry import arc, dist, norm, scale, sub
+from .geometry import arc, dist, norm, sub
 from .units import Lochos, Side, Stance
 
 if TYPE_CHECKING:
@@ -43,9 +42,6 @@ PLAN_NAMES = {
     "zermuerben": "Zermürben mit Speeren",
     "flankieren": "Binden und Umfassen",
     "ruecken": "Umgehen und in den Rücken fallen",
-    "tor": "Tor rammen",
-    "turm": "Rammbock und Turm",
-    "belagern": "Belagern",
     "halten": "Stellung halten",
     "vorruecken": "Vorrücken",
     "lagern": "Lagern",
@@ -115,10 +111,7 @@ class Report:
     room_east: float
     foes_west: int
     foes_east: int
-    gate_guarded: bool                 # Phalanx dicht hinter dem Tor
     own_ammo: int
-    foe_wall_ammo: int                 # Speere der Spieler-Peltasten auf dem Wehrgang
-    threat_x: float | None             # Wallszenario: wo der Angriff ansetzt
 
     @property
     def ratio(self) -> float:
@@ -158,14 +151,9 @@ class Brain:
         self.next_plan = 0.0
         self.report: Report | None = None
         self.state: dict[int, GroupState] = {}
-        self.storm = False               # belagern/tor: losgeschlagen
-        self.breach_time: float | None = None
         self.exhausted = False           # zermürben verbraucht
         self.plan_start: tuple[int, int] = (0, 0)   # Gefallene (eigen, Feind) zu Planbeginn
-        self.tower_id: int | None = None
-        self.tower_cell: tuple[int, int] | None = None
         self.finished = False
-        self.gate_was_closed: bool | None = None
         self.front_was_blocked: bool | None = None
         self.roles: dict[int, str] = {}          # flankieren: "binden" oder "flanke" je Gruppe
         self.flank_target: int | None = None
@@ -229,8 +217,6 @@ class Brain:
         if own:
             cx = sum(u.x for u in own) / len(own)
             cy = sum(u.y for u in own) / len(own)
-        elif b.gate is not None:
-            cx, cy = b.gate.center
         else:
             cx, cy = b.cols / 2, 0.0
         exposed = {u.id for u in foes if self._exposed(b, u, foes)}
@@ -242,21 +228,12 @@ class Brain:
         line_y = sum(p.y for p in blocking) / len(blocking) if blocking else None
         room_west = min((p.x - p.half_w for p in blocking), default=b.cols / 2)
         room_east = min((b.cols - (p.x + p.half_w) for p in blocking), default=b.cols / 2)
-        gate_guarded = False
-        if b.gate is not None:
-            gx, gy = b.gate.center
-            inner = 1.0 if b.wall_side() is Side.STADT else -1.0
-            gate_guarded = any(
-                (p.y - gy) * inner > 0 and dist(p.pos, (gx, gy)) <= config.AI_GATE_GUARD_RANGE for p in phalanxes
-            )
         return Report(
             time=b.time, foes=foes, phalanxes=phalanxes, exposed=exposed,
             own_strength=strength(own), foe_strength=strength(foes),
             front_blocked=bool(blocking), line_y=line_y, room_west=room_west, room_east=room_east,
             foes_west=sum(1 for u in foes if u.x < b.cols / 2), foes_east=sum(1 for u in foes if u.x >= b.cols / 2),
-            gate_guarded=gate_guarded, own_ammo=sum(u.ammo() for u in own),
-            foe_wall_ammo=sum(u.ammo() for u in foes if b.on_wall(u)),
-            threat_x=self._threat_x(b, foes),
+            own_ammo=sum(u.ammo() for u in own),
         )
 
     def _exposed(self, b: "Battle", u: Lochos, foes: list[Lochos]) -> bool:
@@ -272,23 +249,6 @@ class Brain:
             return True
         return False
 
-    def _threat_x(self, b: "Battle", foes: list[Lochos]) -> float | None:
-        if not b.blocked:
-            return None
-        for u in foes:
-            if u.engine == "tower" and u.tower_cell is not None:
-                return u.tower_cell[0] + 0.5
-        if b.crossings:
-            return sum(c[0] + 0.5 for c in b.crossings) / len(b.crossings)
-        if b.gate is not None and any(u.engine == "ram" for u in foes):
-            return b.gate.center[0]
-        wall_y = next(iter(b.blocked))[1] + 0.5
-        near = [u for u in foes if abs(u.y - wall_y) <= config.AI_WALL_WATCH]
-        if near:
-            return min(near, key=lambda u: abs(u.y - wall_y)).x
-        return None
-
-    # -- Ziele und Wege ------------------------------------------------------
     def target_value(self, b: "Battle", u: Lochos, foe: Lochos) -> float:
         """Wie lohnend ist ein Ziel: schwache Ziele hoch, Phalanxfront niedrig."""
         r = self.report
@@ -576,15 +536,9 @@ class Brain:
     def _choose_plan(self, b: "Battle") -> None:
         r = self.report
         assert r is not None
-        gate_closed = b.gate is not None and b.gate.closed
-        breached = self.gate_was_closed and not gate_closed
-        self.gate_was_closed = gate_closed
-        if breached:
-            self.breach_time = b.time
-            self.storm = False
         front_changed = self.front_was_blocked is not None and r.front_blocked != self.front_was_blocked
         self.front_was_blocked = r.front_blocked
-        due = self.plan is None or b.time >= self.next_plan or breached or front_changed
+        due = self.plan is None or b.time >= self.next_plan or front_changed
         if self.plan == "zermuerben" and not self.exhausted:
             if r.own_ammo == 0 or b.time >= self.plan_since + config.AI_HARASS_TIME:
                 self.exhausted = True
@@ -592,11 +546,6 @@ class Brain:
         if self.plan in ("flankieren", "ruecken"):
             target = b.by_id(self.flank_target) if self.flank_target is not None else None
             if target is None or not target.fighting or not formed(target) and not target.engaged:
-                due = True
-        if self.plan == "belagern" and not self.storm:
-            if not r.gate_guarded or b.time >= self.plan_since + config.AI_SIEGE_PATIENCE:
-                self.storm = True
-                b.events.append("Die Räuber stürmen das Tor")
                 due = True
         if not due:
             return
@@ -622,7 +571,6 @@ class Brain:
         groups = b.units(Side.FEIND, fighting_only=True)
         if b.scenario.enemy_kind != "raeuber":
             s["halten"] = 1.0
-            wall_shut = bool(b.blocked) and b.gate is not None and b.gate.closed and not b.crossings
             pelted = any(
                 f.share(lambda m: m.kind.ranged) >= 0.5 and f.ammo() > 0
                 and any(f.rect_distance(o.pos) <= config.JAVELIN_RANGE + 0.5 for o in groups if formed(o))
@@ -633,21 +581,10 @@ class Brain:
                 v += 0.6
             if pelted:
                 v += 0.5
-            if wall_shut:
-                v -= 1.0
             s["vorruecken"] = v
             return s
         if b.attacking and not b.horde_awake:
             s["lagern"] = 1.0
-            return s
-        if b.gate is not None and b.gate.closed:
-            s["tor"] = 1.0
-            if len(groups) >= 2 and b.blocked:
-                s["turm"] = 1.2 if (r.gate_guarded or r.foe_wall_ammo > 0) else 0.8
-            return s
-        if b.gate is not None and r.gate_guarded and not self.storm and self.breach_time is not None:
-            s["belagern"] = 1.2                     # vor dem bewachten Tor warten, über den Turm einsickern
-            s["frontal"] = 0.9                      # durch die enge Torlücke zählt Übermacht nicht
             return s
         s["frontal"] = 1.0 + (0.8 if r.ratio >= 1.5 else 0.0) - (0.9 if r.front_blocked else 0.0)
         if r.front_blocked:
@@ -675,7 +612,7 @@ class Brain:
             side_x = 0.8 if plan == "umgehen_west" else b.cols - 0.8
             forward = 1.0 if not b.attacking else -1.0      # Räuber kommen von Norden, die Horde liegt im Norden
             for u in b.units(Side.FEIND, fighting_only=True):
-                if self._st(u).retreat_until > b.time or u is self._ram_unit_if(b) or self._is_reserve(u):
+                if self._st(u).retreat_until > b.time or self._is_reserve(u):
                     continue
                 before = r.line_y - forward * 2.0
                 behind = r.line_y + forward * 2.0
@@ -683,11 +620,9 @@ class Brain:
                 u.waypoints = [(side_x, first_y), (side_x, behind)]
                 u.stance = Stance.HALTEN
                 u.target_id = None
-        elif plan == "turm":
-            self._assign_tower(b, r)
         elif plan in ("flankieren", "ruecken"):
             self._assign_flank_roles(b, r)
-        if plan in ("frontal", "zermuerben", "belagern", "tor", "flankieren", "ruecken"):
+        if plan in ("frontal", "zermuerben", "flankieren", "ruecken"):
             for u in b.units(Side.FEIND, fighting_only=True):
                 u.waypoints = []
 
@@ -739,7 +674,7 @@ class Brain:
         if target is None:
             return
         groups = [g for g in b.units(Side.FEIND, fighting_only=True)
-                  if not b.on_wall(g) and g is not self._ram_unit_if(b) and not self._is_reserve(g)]
+                  if not b.on_wall(g) and not self._is_reserve(g)]
         if len(groups) < 2:
             return
         need = config.AI_PIN_SHARE * strength([target])
@@ -798,65 +733,6 @@ class Brain:
         return True
 
     # -- Räuber und Horde -----------------------------------------------------
-    def _ram_unit_if(self, b: "Battle") -> Lochos | None:
-        if b.gate is None or not b.gate.closed or b.enemy_ram_id is None:
-            return None
-        return b.by_id(b.enemy_ram_id)
-
-    def _assign_tower(self, b: "Battle", r: Report) -> None:
-        if b.gate is None or not b.blocked:
-            return
-        wall_y = b.gate.cells[0][1]
-        west = r.foes_west <= r.foes_east
-        cell = (1, wall_y) if west else (b.cols - 2, wall_y)
-        if cell in b.ladders or cell not in b.blocked:
-            cell = (0, wall_y) if west else (b.cols - 1, wall_y)
-        ram = self._ram_unit_if(b)
-        cands = [u for u in b.units(Side.FEIND, fighting_only=True)
-                 if u is not ram and not b.on_wall(u) and not self._is_reserve(u)]
-        if not cands:
-            return
-        u = min(cands, key=lambda g: dist(g.pos, (cell[0] + 0.5, cell[1] + 0.5)))
-        self.tower_id = u.id
-        self.tower_cell = cell
-        u.waypoints = []
-
-    def _drive_tower(self, b: "Battle", u: Lochos) -> None:
-        cell = self.tower_cell
-        assert cell is not None
-        cx, cy = cell[0] + 0.5, cell[1] + 0.5
-        outside = -1.0 if b.wall_side() is Side.STADT else 1.0     # Räuber stehen nördlich der Palisade
-        if cell in b.crossings:
-            return
-        if u.engine == "tower":
-            u.stance = Stance.HALTEN
-            u.target_id = None
-            u.tower_cell = cell
-            u.target = (cx, cy + outside * (0.5 + u.half_d + 0.3))
-            u.face_to = (0.0, -outside)
-            return
-        if u.building is not None:
-            u.target = None
-            return
-        spot = (cx, cy + outside * config.AI_TOWER_BUILD_DISTANCE)
-        if dist(u.pos, spot) > 0.6:
-            self._go(b, u, spot)
-            return
-        u.building = 0.0
-        u.build_kind = "tower"
-        u.target = None
-        b.events.append("Die Räuber bauen einen Belagerungsturm")
-
-    def _rally_spot(self, b: "Battle", u: Lochos, r: Report) -> Point:
-        gx, gy = b.gate.center
-        outside = -1.0 if b.wall_side() is Side.STADT else 1.0
-        far = config.ENEMY_RALLY_DISTANCE
-        if r.foe_wall_ammo > 0:
-            far = config.JAVELIN_RANGE + config.WALL_RANGE_BONUS + 0.8       # außer Reichweite des Wehrgangs
-        far += 0.6 * ((u.id // 5) % 3)
-        spread = ((u.id % 5) - 2) * 1.3
-        return (gx + spread, gy + outside * far)
-
     def _orders_raiders(self, b: "Battle") -> None:
         r = self.report
         assert r is not None
@@ -871,73 +747,13 @@ class Brain:
                 for u in own:
                     u.stance = Stance.HALTEN
                 return
-        ram = b._raider_ram_unit()
-        tower = b.by_id(self.tower_id) if self.tower_id is not None else None
-        if tower is not None and (not tower.fighting or tower is ram):
-            tower = None
-            self.tower_id = None
-        if tower is None and self.tower_cell is not None:
-            # ein fertiger (oder halb gebauter) Turm wird an den Wall gefahren, gleich unter welchem Plan
-            built = [u for u in own if u.engine == "tower" or (u.building is not None and u.build_kind == "tower")]
-            if built:
-                tower = built[0]
-                self.tower_id = tower.id
-        if self.plan == "turm" and tower is None and self.tower_cell not in b.crossings:
-            self._assign_tower(b, r)
-            tower = b.by_id(self.tower_id) if self.tower_id is not None else None
-        gate_open = b.gate is not None and not b.gate.closed
-        gathering = (
-            self.plan == "tor" and gate_open and self.breach_time is not None
-            and b.time < self.breach_time + config.AI_GATHER_TIME
-        )
         self._pick_reserve(b, own)
         for u in own:
-            if self._holds_reserve(b, u, r, busy=u is ram or u is tower):
+            if self._holds_reserve(b, u, r):
                 continue
             if self._retreating(b, u) or self._busy(b, u):
                 continue
-            if u is ram:
-                b._drive_raider_ram(u)
-                continue
-            if u is tower and self.tower_cell is not None and self.tower_cell not in b.crossings:
-                self._drive_tower(b, u)
-                continue
-            if b.gate is not None and not b.up(u) and (
-                (b.gate.closed and self.plan in ("tor", "turm")) or (self.plan == "belagern" and not self.storm) or gathering
-            ):
-                inside = self._inside_wall(b, u)
-                if not inside:
-                    foe = self._nearby_foe(b, u, config.ENGAGE_RANGE + 0.3)
-                    if foe is not None:
-                        self._attack(b, u, foe)
-                    elif not self._via_tower(b, u):
-                        self._go(b, u, self._rally_spot(b, u, r))
-                    continue
             self._fight_or_move(b, u, r)
-
-    def _via_tower(self, b: "Battle", u: Lochos) -> bool:
-        """Steht ein Turm, sickern wartende Gruppen darüber ein statt vor dem Tor zu stehen:
-        Ziel ist ein Fleck hinter dem Wall am Turm; den Weg über Turm und Leiter sucht
-        sich jeder Mann selbst."""
-        if not b.crossings or u.engine is not None or u.building is not None:
-            return False
-        cell = min(b.crossings, key=lambda c: dist(u.pos, (c[0] + 0.5, c[1] + 0.5)))
-        u.stance = Stance.HALTEN
-        u.in_line = False
-        u.target_id = None
-        u.target = b._free_spot((cell[0] + 0.5, cell[1] + 0.5 + b._inner_dir() * config.AI_TOWER_LANDING), u)
-        u.via = ((cell[0] + 0.5, cell[1] + 0.5), u.target)      # über den Turm, nicht durchs bewachte Tor
-        return True
-
-    def _inside_wall(self, b: "Battle", u: Lochos) -> bool:
-        """Jenseits des Walls oder schon oben auf dem Wehrgang (oder gerade beim
-        Übersteigen: dann gilt die Gruppe als oben)."""
-        if b.gate is None:
-            return True
-        if b.up(u):
-            return True
-        gy = b.gate.center[1]
-        return (u.y > gy) == (b.wall_side() is Side.STADT)
 
     def _nearby_foe(self, b: "Battle", u: Lochos, reach: float) -> Lochos | None:
         r = self.report
@@ -1043,16 +859,8 @@ class Brain:
         r = self.report
         assert r is not None
         own = b.units(Side.FEIND, fighting_only=True)
-        wall = bool(b.blocked)
-        wall_y = next(iter(b.blocked))[1] + 0.5 if wall else None
-        gate_open = b.gate is not None and not b.gate.closed
-        inside = [f for f in r.foes if wall and self._foe_inside(b, f)]
         lines = [u for u in own if u.share(lambda m: m.kind.hoplite) >= 0.5 or (
             u.share(lambda m: m.kind.ranged) < 0.5 and u.share(lambda m: m.kind.cavalry) < 0.5)]
-        cover_id: int | None = None
-        if wall and r.threat_x is not None and lines:
-            cover = min(lines, key=lambda u: abs(u.x - r.threat_x))
-            cover_id = cover.id
         self._pick_reserve(b, own)
         for u in own:
             if self._holds_reserve(b, u, r):
@@ -1069,31 +877,14 @@ class Brain:
                 u.target_id = None
                 u.target = None
             if cav:
-                self._settlement_cavalry(b, u, r, gate_open, wall)
+                self._settlement_cavalry(b, u, r)
             elif pelt:
-                self._settlement_peltasts(b, u, r, lines, wall_y)
+                self._settlement_peltasts(b, u, r, lines)
             else:
-                self._settlement_line(b, u, r, inside, cover_id, wall_y)
+                self._settlement_line(b, u, r)
 
-    def _foe_inside(self, b: "Battle", f: Lochos) -> bool:
-        if b.gate is None:
-            return True
-        gy = b.gate.center[1]
-        return f.y < gy and not b.on_wall(f)
-
-    def _settlement_cavalry(self, b: "Battle", u: Lochos, r: Report, gate_open: bool, wall: bool) -> None:
-        cands = []
-        for f in r.foes:
-            if b.on_wall(f):
-                continue
-            d = f.rect_distance(u.pos)
-            if d > config.CAVALRY_TRIGGER + 1.5:
-                continue
-            if wall and not self._foe_inside(b, f) and not gate_open:
-                continue
-            if not b.wall_clear(u.pos, f.pos):
-                continue
-            cands.append(f)
+    def _settlement_cavalry(self, b: "Battle", u: Lochos, r: Report) -> None:
+        cands = [f for f in r.foes if f.rect_distance(u.pos) <= config.CAVALRY_TRIGGER + 1.5]
         own = b.units(Side.FEIND, fighting_only=True)
 
         def value(f: Lochos) -> float:
@@ -1115,17 +906,8 @@ class Brain:
             u.stance = Stance.HALTEN
             u.target_id = None
 
-    def _settlement_peltasts(self, b: "Battle", u: Lochos, r: Report, lines: list[Lochos], wall_y) -> None:
-        if wall_y is not None and b.on_wall(u):
-            if r.threat_x is None:
-                return
-            spread = 1.2 * ((u.id % 3) - 1)
-            x = min(max(r.threat_x + spread, 1.5), b.cols - 1.5)
-            if abs(u.x - x) > 0.8:
-                self._go(b, u, (x, wall_y))
-            return
-        foes = [f for f in r.foes if not b.on_wall(f) and (wall_y is None or self._foe_inside(b, f))]
-        if self._skirmish(b, u, foes):
+    def _settlement_peltasts(self, b: "Battle", u: Lochos, r: Report, lines: list[Lochos]) -> None:
+        if self._skirmish(b, u, r.foes):
             return
         if u.stance is Stance.PLAENKELN:
             u.stance = Stance.HALTEN
@@ -1137,24 +919,9 @@ class Brain:
             if dist(u.pos, spot) > 0.6:
                 self._go(b, u, spot)
 
-    def _settlement_line(self, b: "Battle", u: Lochos, r: Report, inside: list[Lochos],
-                         cover_id: int | None, wall_y) -> None:
-        if inside:
-            foe = self.pick_target(b, u, [f for f in inside if dist(f.pos, u.pos) <= config.AI_SORTIE_RANGE])
-            if foe is not None:
-                self._engage(b, u, foe)
-                return
-        if wall_y is not None and u.id == cover_id and r.threat_x is not None:
-            spot = (r.threat_x, wall_y - 1.7)
-            if dist(u.pos, spot) > 0.7 and not (b.gate is not None and abs(r.threat_x - b.gate.center[0]) < 1.0
-                                                and dist(u.pos, spot) < 2.0):
-                self._go(b, u, spot, Stance.PHALANX)
-                u.face_to = (0.0, 1.0)
-                return
+    def _settlement_line(self, b: "Battle", u: Lochos, r: Report) -> None:
         if self.plan == "vorruecken" and r.foes:
             foe = min(r.foes, key=lambda f: dist(f.pos, u.pos))
-            if b.on_wall(foe):
-                return
             direction = norm(sub(foe.pos, u.pos))
             stop = foe.half_d + u.half_d + config.CONTACT_GAP      # Schild an Schild, nicht davor stehen bleiben
             spot = (foe.x - direction[0] * stop, foe.y - direction[1] * stop)
@@ -1164,7 +931,7 @@ class Brain:
                 u.facing = direction
             return
         # halten: die Front zum nächsten Gegner drehen, wenn er in Flanke oder Rücken kommt
-        near = [f for f in r.foes if dist(f.pos, u.pos) <= config.AI_REFACE_RANGE and not b.on_wall(f)]
+        near = [f for f in r.foes if dist(f.pos, u.pos) <= config.AI_REFACE_RANGE]
         if near and u.stance is Stance.PHALANX:
             foe = min(near, key=lambda f: dist(f.pos, u.pos))
             if b.arc_of(u, foe.pos) != "front" and u.face_to is None:
@@ -1195,13 +962,9 @@ class LegacyBrain:
 
     def _raiders(self, b: "Battle") -> None:
         defenders = b.units(Side.STADT, fighting_only=True)
-        ram_unit = b._raider_ram_unit()
         for u in b.units(Side.FEIND):
             if u.stance is Stance.FLUCHT:
                 u.target = b.flee_target(u)
-                continue
-            if u is ram_unit:
-                b._drive_raider_ram(u)
                 continue
             foe, d = b._nearest(u, defenders)
             if foe is not None and foe.rect_distance(u.pos) <= config.SEEK_RANGE and not b.on_wall(foe):

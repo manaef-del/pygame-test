@@ -6,7 +6,7 @@ from game import config
 from game.ai import Brain, Memory, PLAN_NAMES, formed, rear_route
 from game.army import Army, GroupSpec, Tier
 from game.battle import Battle
-from game.scenarios import PALISADE, SIEDLUNG_WALL, RaiderSpawn, Scenario
+from game.scenarios import RaiderSpawn, Scenario
 from kleine_karten import KLEIN_ANGRIFF, KLEIN_HORDE, KLEIN_OFFEN
 from game.units import UNIT_TYPES, Lochos, Man, Side, Stance
 
@@ -136,60 +136,6 @@ def test_harassing_raiders_keep_their_distance_until_the_javelins_are_gone():
     assert hop.men >= 26                                                 # die Phalanx wurde nicht gestürmt
 
 
-def test_raiders_build_a_tower_when_the_gate_is_guarded():
-    b = Battle(PALISADE, random.Random(1))
-    hop, pelt, cav = b.units(Side.STADT)
-    b.command_line([hop], (5.5, 9.6), (10.5, 9.6))
-    b.command_move([pelt], (3.5, 8.5))
-    b.command_move([cav], (13.0, 12.5))
-    run(b, 5)
-    assert b.brain.plan == "turm"
-    assert any("bauen einen Belagerungsturm" in e for e in b.events)
-    assert any("bauen einen Rammbock" in e for e in b.events)
-    crossed = None
-    for _ in range(int(60 / DT)):
-        b.update(DT)
-        if b.crossings:
-            crossed = b.time
-            break
-    assert crossed is not None and 12 < crossed < 50
-    cell = next(iter(b.crossings))
-    assert cell in b.blocked and cell[0] in (0, 1, 14, 15)          # am Rand, fern vom Tor
-    over = False
-    for _ in range(int(45 / DT)):                        # die Peltasten auf dem Wehrgang halten den Ausstieg (kein Vorbeischlüpfen)
-        b.update(DT)
-        over = any(m.y > 8.9 for u in b.units(Side.FEIND, fighting_only=True) for m in u.all_men())
-        if over:
-            break
-    assert over                                                                                   # Männer drüben
-
-
-def test_raiders_besiege_a_guarded_breach_then_storm():
-    b = Battle(PALISADE, random.Random(1), enemy_count=96)
-    hop, pelt, cav = b.units(Side.STADT)
-    b.command_line([hop], (5.5, 9.6), (10.5, 9.6))
-    b.command_move([pelt], (3.5, 8.5))
-    b.command_move([cav], (13.0, 12.5))
-    b.brain.memory.gains = {"palisade": {"turm": [-1.0] * 5, "frontal": [-1.0] * 5}}
-    for _ in range(int(80 / DT)):
-        b.update(DT)
-        if not b.gate.closed:
-            break
-    assert not b.gate.closed
-    run(b, 3)
-    assert b.brain.plan == "belagern"
-    gx, gy = b.gate.center
-    outside = [u for u in b.units(Side.FEIND, fighting_only=True) if u.y < gy and not u.engine]
-    assert outside and all(dist_to_gate(u, b) >= config.ENEMY_RALLY_DISTANCE - 0.5 for u in outside)
-    run(b, config.AI_SIEGE_PATIENCE + 5)
-    assert b.brain.storm and any("stürmen das Tor" in e for e in b.events)
-
-
-def dist_to_gate(u: Lochos, b: Battle) -> float:
-    gx, gy = b.gate.center
-    return ((u.x - gx) ** 2 + (u.y - gy) ** 2) ** 0.5
-
-
 def test_horde_sleeps_then_picks_a_plan():
     b = Battle(KLEIN_HORDE, random.Random(1))
     b.command_hold()
@@ -234,20 +180,6 @@ def test_settlement_line_turns_its_front_towards_a_flank_attack():
     assert any("drehen die Front" in e for e in b.events)
 
 
-def test_wall_defenders_shift_towards_the_siege_tower():
-    b = Battle(SIEDLUNG_WALL, random.Random(1), doctrine="spiegel")
-    hop, pelt, cav = b.units(Side.STADT)
-    enemy = {u.name: u for u in b.units(Side.FEIND)}
-    b.command_build([cav], "tower")
-    b.command_move([hop, pelt], (8.0, 13.0))
-    run(b, config.TOWER_BUILD_TIME + 1)
-    b.command_tower_wall([cav], (13, 7))
-    run(b, 8)
-    assert enemy["Hopliten"].x > 11.0                            # Hopliten decken das Wallstück von innen
-    assert enemy["Peltasten"].x > 11.0 and b.on_wall(enemy["Peltasten"])
-
-
-# ------------------------------------------------------------ Gedächtnis
 def test_memory_weights_plans_by_past_gains(tmp_path):
     m = Memory(path=str(tmp_path / "ki.json"))
     assert m.weight("klein_offen", "frontal") == 1.0

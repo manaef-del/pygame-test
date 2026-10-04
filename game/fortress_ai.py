@@ -57,6 +57,7 @@ class FortressBrain(Brain):
         self.wall_cell: tuple[int, int] | None = None
         self.gate_guard: dict[int, int] = {}          # Verteidigung: Gruppe -> Tor
         self.announced: set[str] = set()
+        self.breach_time: float | None = None         # wann das erste Tor fiel (danach stürmt das Heer gesammelt)
 
     def plan_name(self) -> str:
         return FORT_PLANS.get(self.plan or "", "")

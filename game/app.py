@@ -342,7 +342,7 @@ class App:
             return
         if not self.selected:
             return
-        gate = b.gate_near(p) if b.ring else (b.gate if b.gate is not None and b.gate_at(p) else None)
+        gate = b.gate_near(p)
         if gate is not None and gate.closed:
             b.command_ram_gate(self._selection(), gate)
             return

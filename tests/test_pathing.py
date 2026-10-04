@@ -2,13 +2,12 @@
 
 import random
 
-import pytest
 
 from game import config, pathing
 from game.army import Army, GroupSpec, Tier
 from game.battle import Battle
 from game.geometry import dist
-from game.scenarios import SIEDLUNG_WALL, RaiderSpawn, Scenario
+from game.scenarios import FESTUNG_ANGRIFF, RaiderSpawn, Scenario
 from game.units import Side, Stance
 
 DT = 1 / 30
@@ -142,38 +141,34 @@ def test_dissolved_group_is_where_its_men_are():
 
 # ------------------------------------------------------------ Über den Wall
 def tower_battle() -> tuple[Battle, object]:
-    b = Battle(SIEDLUNG_WALL, random.Random(1), ai="einfach", doctrine="spiegel", enemy_count=12)
-    for i, e in enumerate(b.units(Side.FEIND)):
-        e.x, e.y = 1.5 + i * 0.1, 0.8 + i * 0.1
-        e.target = None
-        e.stance = Stance.HALTEN
-        e.place_men()
-    b._ai_defenders = lambda: None
+    """Festung im Angriff: Hopliten vor der Südkante (Wallreihe 26, Leitern innen auf 13
+    und 18), ein Belagerungsturm steht an (11, 26); die Besatzung ist fort."""
+    b = Battle(FESTUNG_ANGRIFF, random.Random(1), doctrine="spiegel")
+    b.brain.think = lambda b: None
+    b._tower_fire = lambda dt: None
+    b._check_outcome = lambda: None
     b._volleys = lambda dt: None
-    hop = b.units(Side.STADT)[0]
-    b.command_build([hop], "tower")
-    run(b, config.TOWER_BUILD_TIME + 1)
-    b.command_tower_wall([hop], (9, 7))
-    for _ in range(int(40 / DT)):
-        b.update(DT)
-        if b.crossings:
-            break
+    b.alarm = False
+    for e in b.units(Side.FEIND):
+        e.withdrawn = True
+    hop = next(u for u in b.units(Side.STADT) if u.arm() == "hopliten")
+    b.crossings.add((11, 26))
+    b._foot[(11, 26)] = b._ground_step((11, 26), "aussen")
+    hop.x, hop.y, hop.facing = 11.5, 28.6, (0.0, -1.0)
+    hop.place_men()
     return b, hop
 
 
 def test_over_the_wall_men_gather_behind_it_then_march_as_a_block():
-    """Über den Turm: Drüben sammeln sich die Männer am Fuß der Leiter, über die sie
-    hinabsteigen, und die Gruppe schließt sich dort, ohne zu springen; dann marschiert
-    sie als Block zum Ziel, und dabei verlässt niemand seinen Platz."""
+    """Über den Turm: Drinnen sammeln sich die Männer, die Gruppe schließt sich; dann
+    marschiert sie als Block zum Ziel, und dabei verlässt niemand seinen Platz."""
     b, hop = tower_battle()
-    b.command_move([hop], (7.0, 5.5))
-    muster = None
+    b.command_move([hop], (15.5, 22.5))
+    goal = hop.target                                      # (zwischen den Häusern zurechtgerückt)
     closed_at = None
     left_slots = 0
     for _ in range(int(60 / DT)):
         was_loose = hop.loose
-        if hop.muster is not None:
-            muster = hop.muster[0]
         b.update(DT)
         if was_loose and not hop.loose and closed_at is None:
             closed_at = hop.pos
@@ -181,83 +176,21 @@ def test_over_the_wall_men_gather_behind_it_then_march_as_a_block():
             left_slots = max(left_slots, sum(1 for m, p in hop.slots() if dist(m.pos, p) > 0.3))
         if closed_at is not None and hop.target is None:
             break
-    assert muster is not None and abs(muster[0] - 13.5) < 0.3 and muster[1] < 7.0   # an der Leiter (13, 7), drüben
-    assert closed_at is not None and dist(closed_at, muster) < 0.05                  # dort geschlossen, kein Sprung
-    assert not hop.loose and dist(hop.pos, (7.0, 5.5)) < 0.15                        # als Block am Ziel
+    assert closed_at is not None and b._wall_level(closed_at) == "innen"             # drinnen geschlossen
+    assert not hop.loose and dist(hop.pos, goal) < 0.15                              # als Block am Ziel
     assert left_slots <= (1 - config.SLOT_SHARE) * hop.men, left_slots            # höchstens die Nachzügler, die nachrücken
     assert any("neu gebildet" in e for e in b.events)
 
 
-def test_near_target_behind_the_wall_is_the_gathering_place_itself():
-    """Liegt das Ziel gleich hinter dem Wall, sammelt man sich dort und nirgends sonst."""
+def test_near_target_behind_the_wall_is_reached():
+    """Liegt das Ziel gleich hinter dem Wall, kommt die Gruppe dort an und schließt sich."""
     b, hop = tower_battle()
-    b.command_move([hop], (12.5, 5.6))                     # nahe der Leiter (13, 7)
+    b.command_move([hop], (12.5, 24.4))                    # nahe der Leiter (13, 26)
     for _ in range(int(40 / DT)):
         b.update(DT)
-        assert hop.muster is None
         if not hop.loose and hop.target is None:
             break
-    assert dist(hop.pos, (12.5, 5.6)) < 0.15 and hop.facing == (0.0, -1.0)
-
-
-def test_gate_line_streams_through_and_forms():
-    """Auch lockere Hopliten ziehen als schmale Kolonne durchs offene Tor (keiner bleibt
-    links und rechts hängen) und stellen sich drüben in die befohlene Linie."""
-    b = Battle(SIEDLUNG_WALL, random.Random(1), ai="einfach", doctrine="spiegel", enemy_count=12)
-    for i, e in enumerate(b.units(Side.FEIND)):
-        e.x, e.y = 1.5 + i * 0.1, 0.8 + i * 0.1
-        e.target = None
-        e.stance = Stance.HALTEN
-        e.place_men()
-    b._ai_defenders = lambda: None
-    b._volleys = lambda dt: None
-    b.gate.closed = False
-    b.gate.hp = 0
-    hop = b.units(Side.STADT)[0]
-    hop.drill = "locker"
-    b.alarm = False
-    b.command_line([hop], (5.0, 4.5), (11.0, 4.5))
-    went_loose = False
-    narrowest = hop.width
-    for _ in range(int(15 / DT)):
-        b.update(DT)
-        went_loose = went_loose or hop.loose
-        narrowest = min(narrowest, hop.width)
-    assert not went_loose and narrowest < hop.width
-    assert all(dist(m.pos, p) < 0.4 for m, p in hop.slots())         # alle drüben an ihren Plätzen
-    b.command_drill([hop], "phalanx")
-    for _ in range(int(2 / DT)):
-        b.update(DT)
-    assert not hop.loose and hop.in_phalanx and dist(hop.pos, (8.0, 4.5)) < 0.1
-
-
-def test_phalanx_narrows_through_the_gate_and_widens_behind():
-    """Eine Phalanx löst sich am offenen Tor nicht auf: Sie wird schmaler und tiefer,
-    zieht als Block hindurch und marschiert dahinter wieder in voller Breite auf."""
-    b = Battle(SIEDLUNG_WALL, random.Random(1), ai="einfach", doctrine="spiegel", enemy_count=12)
-    for i, e in enumerate(b.units(Side.FEIND)):
-        e.x, e.y = 1.5 + i * 0.1, 0.8 + i * 0.1
-        e.target = None
-        e.stance = Stance.HALTEN
-        e.place_men()
-    b._ai_defenders = lambda: None
-    b._volleys = lambda dt: None
-    b.gate.closed = False
-    b.gate.hp = 0
-    hop = b.units(Side.STADT)[0]
-    assert hop.drill == "phalanx"
-    b.alarm = False
-    b.command_line([hop], (5.0, 4.5), (11.0, 4.5))
-    plan_width = b.line[0].width
-    narrowest = hop.width
-    for _ in range(int(20 / DT)):
-        b.update(DT)
-        assert not hop.loose                                         # nie Mann für Mann
-        narrowest = min(narrowest, hop.width)
-        if hop.full_width is not None:
-            assert hop.half_w <= b.gate.half_len                     # die Front passt durchs Tor
-    assert narrowest < plan_width                                    # im Tor schmaler
-    assert hop.width == plan_width and hop.in_phalanx and dist(hop.pos, (8.0, 4.5)) < 0.1
+    assert not hop.loose and dist(hop.pos, (12.5, 24.4)) < 0.15
 
 
 def test_hold_and_verband_close_a_dissolved_group_where_its_men_are():
@@ -391,68 +324,6 @@ def test_attacker_waits_when_the_enemy_outline_is_full(monkeypatch):
     for _ in range(int(2 / DT)):
         b.update(DT)
     assert r6.waiting and dist(start, r6.pos) < 0.2
-
-
-def test_enemies_pass_an_open_gate_man_by_man():
-    """Ist das Tor offen und kein Feind davor, löst sich ein Räuberhaufen auf und geht
-    Mann für Mann hindurch; mit abgeschaltetem LOOSE_AI geht er als Block."""
-    from game.scenarios import PALISADE
-
-    def setup():
-        b = Battle(PALISADE, random.Random(1))
-        b._ai_raiders = lambda: None
-        b.alarm = False
-        b.gate.hp = 0.0
-        b.gate.closed = False
-        for u in b.units(Side.STADT):
-            u.x, u.y = 14.5, 16.0                 # die Verteidiger weit weg vom Tor
-            u.place_men()
-        r = b.units(Side.FEIND)[0]
-        gx, gy = b.gate.center
-        r.x, r.y = gx + 2.0, gy - 2.5
-        r.place_men()
-        r.stance = Stance.RAUB
-        r.target_id = None
-        r.target = (gx, gy + 4.0)
-        return b, r
-    b, r = setup()
-    b._update_loose(r)
-    assert r.loose and r.loose_why == "tor"
-    config_off = config.LOOSE_AI
-    try:
-        config.LOOSE_AI = False
-        b, r = setup()
-        b._update_loose(r)
-        assert not r.loose
-    finally:
-        config.LOOSE_AI = config_off
-
-
-def test_dissolving_waits_a_step_when_the_field_budget_is_spent():
-    """Sind in diesem Takt schon genug Wegefelder gerechnet, löst sich eine Gruppe erst
-    im nächsten auf (gegen Ruckeln, wenn viele zugleich ans Tor kommen)."""
-    from game.scenarios import PALISADE
-    b = Battle(PALISADE, random.Random(1))
-    b._ai_raiders = lambda: None
-    b.alarm = False
-    b.gate.hp = 0.0
-    b.gate.closed = False
-    for u in b.units(Side.STADT):
-        u.x, u.y = 14.5, 16.0
-        u.place_men()
-    r = b.units(Side.FEIND)[0]
-    gx, gy = b.gate.center
-    r.x, r.y = gx + 2.0, gy - 2.5
-    r.place_men()
-    r.stance = Stance.RAUB
-    r.target_id = None
-    r.target = (gx, gy + 4.0)
-    b._field_builds = {b.time: b._field_budget()}
-    b._update_loose(r)
-    assert not r.loose
-    b.time += DT
-    b._update_loose(r)
-    assert r.loose and r.loose_why == "tor"
 
 
 def test_small_detour_around_own_group_stays_a_block():
