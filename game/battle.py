@@ -550,12 +550,15 @@ class Battle:
 
     def is_walker(self, u: Lochos) -> bool:
         """Wer den Wehrgang betreten darf: von der Wallseite reine Peltasten über die Leitern
-        (in der Festung jede Fußgruppe), Angreifer über einen aufgestellten Turm."""
+        (in der Festung jede Fußgruppe), Angreifer über einen aufgestellten Turm. Steht ein
+        Turm, ist er für beide Seiten da: Dann darf auch das Fußvolk der Wallseite hinauf,
+        etwa um Fliehenden über den Wall nachzusetzen."""
         if u.side is self.wall_side():
+            men = u.men
+            foot = men > 0 and 2 * len(u.mounted_men()) < men and u.engine is None
             if self.ring and config.FORT_FOOT_ON_WALL:
-                men = u.men
-                return men > 0 and 2 * len(u.mounted_men()) < men and u.engine is None   # Festung: alles Fußvolk
-            return u.wall_capable()
+                return foot                       # Festung: alles Fußvolk
+            return u.wall_capable() or (bool(self.crossings) and foot)
         if not self.crossings:
             return False
         if self.ring and 2 * len(u.mounted_men()) >= u.men:
@@ -563,8 +566,8 @@ class Battle:
         return True
 
     def ladders_for(self, u: Lochos, pos: Point | None = None, target: Point | None = None) -> set[tuple[int, int]]:
-        """Auf- und Abstiege: Leitern für alle Läufer; der Turm nur für Angreifer
-        und nur zwischen Wehrgang und Außenseite."""
+        """Auf- und Abstiege: Leitern und Turm für alle Läufer beider Seiten; die Leitern
+        zwischen Wehrgang und Innenseite, der Turm zwischen Wehrgang und Außenseite."""
         outside_south = self.wall_side() is Side.FEIND
         ground = target if (pos is not None and self.is_wall_cell(self.cell(*pos), True)) else pos
         if ground is not None and self.is_wall_cell(self.cell(*ground), True):
@@ -574,13 +577,13 @@ class Battle:
             level = self._wall_level(ground) if ground is not None else None
             if level is None or level == "innen":
                 out |= self.ladders                # Leitern stehen innen
-            if u.side is not self.wall_side() and (level is None or level == "aussen"):
+            if level is None or level == "aussen":
                 out |= self.crossings              # der Turm steht außen
             return out
         for c in self.ladders:                     # Leitern stehen innen
             if ground is None or (ground[1] > c[1] + 0.5) != outside_south:
                 out.add(c)
-        if u.side is self.wall_side() or not self.crossings:
+        if not self.crossings:
             return out
         for c in self.crossings:                   # der Turm steht außen
             if ground is None or (ground[1] > c[1] + 0.5) == outside_south:
@@ -641,7 +644,7 @@ class Battle:
         wall_cell, ground_cell = (ca, cb) if wa else (cb, ca)
         if wall_cell in self.ladders and self.ladder_ok(wall_cell, ground_cell):
             return True
-        if wall_cell in self.crossings and u.side is not self.wall_side():
+        if wall_cell in self.crossings:
             return self.tower_ok(wall_cell, ground_cell)   # Turm: nur an der Außenseite des Walls (dort steht er)
         return False
 
@@ -747,7 +750,7 @@ class Battle:
                 return True
             if q in self._tower_cells:
                 who = climber or unit
-                if not (who is not None and who.side is not self.wall_side() and self.is_walker(who)):
+                if not (who is not None and self.crossings and self.is_walker(who)):
                     return True               # in den Turm steigt nur, wer über ihn auf den Wall will
         walker = unit is not None and self.is_walker(unit)
         if c in self.blocked:
@@ -1515,8 +1518,8 @@ class Battle:
             return False
         if not self.is_walker(u):
             return True
-        if self.crossings and u.side is not self.wall_side():
-            return False                                    # über den eigenen Turm von außen hinein
+        if self.crossings:
+            return False                                    # über einen aufgestellten Turm (beide Seiten)
         if self.ring:
             return there != "innen"
         for lc in self.ladders:
@@ -4738,7 +4741,7 @@ class Battle:
         wall_cell, ground_cell = (ca, cb) if wa else (cb, ca)
         if wall_cell in self.ladders and self.ladder_ok(wall_cell, ground_cell):
             return self._climb(wall_cell)
-        if wall_cell in self.crossings and u.side is not self.wall_side():
+        if wall_cell in self.crossings:
             return self.tower_ok(wall_cell, ground_cell) and self._climb(wall_cell)
         return False
 

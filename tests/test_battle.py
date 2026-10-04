@@ -2677,3 +2677,24 @@ def test_line_next_to_own_group_settles_instead_of_being_pushed_back_forever():
         last = hop.pos
     assert path < 0.05, path
     assert b._gap(hop, cav) >= 0.0
+
+
+def test_defenders_follow_over_the_enemy_tower():
+    """Ein aufgestellter Belagerungsturm dient beiden Seiten: Die Verteidiger steigen über
+    ihre Leiter auf den Wall und über den Turm nach draußen, etwa um Fliehenden
+    nachzusetzen (das Tor bleibt zu). Reiter bleiben unten."""
+    b = Battle(PALISADE, random.Random(1), ai="einfach")
+    b._ai_raiders = lambda: None
+    b._check_outcome = lambda: None
+    b.alarm = False
+    for e in b.units(Side.FEIND):
+        e.withdrawn = True
+    hop, pelt, cav = b.units(Side.STADT)
+    assert not b.is_walker(hop)
+    b.crossings.add((1, 8))                                # ein Turm der Räuber steht am Wall
+    assert b.is_walker(hop) and not b.is_walker(cav)
+    assert b.can_step(hop, (1.5, 7.5), (1.5, 6.4))         # über den Turm hinab nach draußen
+    b.command_move([hop], (3.0, 4.0))
+    run(b, 40)
+    assert hop.target is None and not hop.loose
+    assert all(m.y < 7.5 for m in hop.all_men())

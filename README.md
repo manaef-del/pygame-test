@@ -554,7 +554,10 @@ kommt, geht Mann für Mann: Beim Überqueren löst sich die Formation auf,
 jeder steigt selbst am Turm hinauf, läuft über den Wehrgang und klettert
 an einer Leiter hinunter; drinnen sammelt sich die Gruppe wieder. Auf
 dem Wehrgang gibt es keinen Phalanxbonus, dort kämpft Mann gegen Mann.
-Über den Turm geht es nur zurück nach außen. Leitern und Türme lassen
+Über den Turm geht es nur zurück nach außen. Ein aufgestellter Turm dient
+beiden Seiten: Steht er am Wall, darf auch das Fußvolk der Verteidiger über
+die Leitern hinauf und über den Turm nach draußen, etwa um fliehenden
+Feinden nachzusetzen (Reiter bleiben unten). Leitern und Türme lassen
 etwa drei Männer pro Sekunde durch, eine dichte Kolonne; die Gruppe
 wartet auf ihre Nachzügler und die Nachzügler nehmen denselben Weg wie
 die Gruppe, wer warten muss, stellt sich vor der Leiter an. Solange eine
@@ -724,7 +727,7 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 | Linie, Kreis, Keil / F | Formation der gewählten Gruppe setzen (F schaltet weiter) |
 | Rammbock, Turm / B, T | gewählte Gruppen bauen das Gerät; erneut drücken: ablegen oder Bau abbrechen (nur beim Angriff mit Wall) |
 | Alle / Keine | alle Gruppen wählen oder Auswahl aufheben |
-| Pause / Leertaste | anhalten, bei Alarm: losgehen; erst in der Pause erscheinen die Formationsrechtecke, und jede Gruppe, die noch unterwegs ist, zeigt ihr Ziel als Rechteck mit Front und Weg |
+| Pause / Leertaste / kurz mit drei Fingern tippen | anhalten und weiter, bei Alarm: losgehen; Befehle heben die Pause nicht auf, so lassen sich in Ruhe mehreren Gruppen Befehle geben, erst „Weiter“ lässt die Zeit laufen; in der Pause erscheinen die Formationsrechtecke, und jede Gruppe, die noch unterwegs ist, zeigt ihr Ziel als Rechteck mit Front und Weg |
 | Menü, dann Neu / R (zweimal) | Szenario neu starten |
 | Menü, dann Aufstellung / M | zurück ins Aufstellungsmenü |
 | Karte / Nah, Z | große Karte: zwischen Übersicht und Nahansicht umschalten; hineingezoomt: zurück zur ganzen Ansicht |

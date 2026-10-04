@@ -65,6 +65,16 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Pause für Befehle, drei Finger, Türme für beide** (4. Oktober 2026):
+  - Befehle heben die Pause nicht mehr auf; erst „Weiter“ lässt die Zeit
+    laufen. So bekommen mehrere Gruppen in Ruhe ihre Befehle.
+  - Ein kurzer Tipp mit drei Fingern (unter einer halben Sekunde, ohne zu
+    wischen) schaltet die Pause an und aus.
+  - Ein am Wall aufgestellter Belagerungsturm dient beiden Seiten: Das
+    Fußvolk der Verteidiger darf dann über die Leitern hinauf und über den
+    Turm nach draußen, um Fliehenden nachzusetzen. Leitern konnten die
+    Angreifer schon vorher hinab. Die Szenariotests sind unverändert, eine
+    eigene Balance-Messung steht aus.
 - **Großer Bogen um die eigenen Nachbarn** (4. Oktober 2026): Stand ein
   Block (im Handgemenge auch lockere Hopliten) fast auf einer eigenen Gruppe
   und lag sein Ziel auf der anderen Seite, galt sie trotzdem als „im Weg“.

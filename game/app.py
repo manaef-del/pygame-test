@@ -24,6 +24,8 @@ from .units import Side
 
 DRAG_MIN = 0.4  # Kacheln: kürzer ist ein Tipp, kein Bereich
 LONG_PRESS = 0.45  # Sekunden: so lange auf einer Gruppenkachel, und sie kommt zur Auswahl dazu
+TRI_TAP_TIME = 0.5  # Sekunden: so kurz liegen drei Finger auf, und die Pause schaltet um
+TRI_TAP_SLOP = 0.04  # Anteil der Bildschirmbreite: so weit darf ein Finger dabei rutschen
 
 
 def to_tiles(pos: tuple[int, int]) -> tuple[float, float]:
@@ -55,6 +57,7 @@ class App:
         self.fingers: dict[int, tuple[float, float]] = {}   # aufliegende Finger (für das Verschieben)
         self.panning = False                                 # zwei Finger liegen auf: kein Tippen, kein Ziehen
         self.pinch_from: tuple | None = None                 # (Abstand, Mitte) der zwei Finger beim letzten Schritt
+        self.tri_tap: tuple | None = None                    # (seit wann, Startpunkte) dreier Finger: Tippen schaltet die Pause
         self.pan_from: tuple[int, int] | None = None         # rechte Maustaste: verschieben am Rechner
         self.clock = 0.0                                     # Echtzeit seit dem Start (für langes Drücken)
         self.chip_press: list | None = None                  # [Taste, seit wann, schon erledigt] auf einer Gruppenkachel
@@ -126,11 +129,21 @@ class App:
                 self.panning = True
                 self.drag_start = self.drag_now = None
                 self.pinch_from = self._pinch()
+            if len(self.fingers) == 3 and self.screen == "schlacht":
+                self.tri_tap = (self.clock, dict(self.fingers))   # drei Finger: vielleicht ein Tipp auf die Pause
+            elif len(self.fingers) > 3:
+                self.tri_tap = None
         elif event.type == pygame.FINGERMOTION:
             if event.finger_id in self.fingers:
                 self.fingers[event.finger_id] = (event.x, event.y)
+            if self.tri_tap is not None:
+                start = self.tri_tap[1].get(event.finger_id)
+                if start is not None and math.hypot(event.x - start[0], event.y - start[1]) > TRI_TAP_SLOP:
+                    self.tri_tap = None                      # gewischt, nicht getippt
             now = self._pinch()
-            if self.panning and now is not None and self.pinch_from is not None:
+            if len(self.fingers) >= 3:
+                self.pinch_from = now                        # drei Finger: weder zoomen noch verschieben
+            elif self.panning and now is not None and self.pinch_from is not None:
                 cam = self.renderer.camera
                 (d0, m0), (d1, m1) = self.pinch_from, now
                 if d0 > 1.0 and d1 > 1.0:
@@ -142,6 +155,9 @@ class App:
             self.pinch_from = self._pinch()
             if not self.fingers:
                 self.panning = False
+                if self.tri_tap is not None and self.clock - self.tri_tap[0] <= TRI_TAP_TIME:
+                    self.command("pause")                    # kurz mit drei Fingern getippt: Pause an oder aus
+                self.tri_tap = None
 
     def _key(self, key: int) -> None:
         if key == pygame.K_ESCAPE:
@@ -303,7 +319,6 @@ class App:
         v = self.battle.selected_verband(self.selected)
         if v is not None:
             self.battle.command_verband_line(v, start, end)
-            self.paused = False
             return
         rings = [u for u in sel if u.formation == "o"] if sel else []
         if rings:
@@ -313,7 +328,6 @@ class App:
                 self.battle.command_line(rest, start, end)
         else:
             self.battle.command_line(sel, start, end)
-        self.paused = False
 
     def _tap(self, p: tuple[float, float]) -> None:
         """Tipp: eigene Gruppe wählen, Räuber angreifen, sonst hinlaufen."""
@@ -330,12 +344,10 @@ class App:
         gate = b.gate_near(p) if b.ring else (b.gate if b.gate is not None and b.gate_at(p) else None)
         if gate is not None and gate.closed:
             b.command_ram_gate(self._selection(), gate)
-            self.paused = False
             return
         cell = b.cell(*p)
         if cell in b.blocked and cell not in b.crossings and b.scenario.ram_available:
             b.command_tower_wall(self._selection(), cell)
-            self.paused = False
             return
         foe = b.unit_at(p, Side.FEIND)
         v = b.selected_verband(self.selected)
@@ -345,7 +357,6 @@ class App:
             b.command_verband_move(v, p)            # der Verband marschiert, die Ordnung bleibt
         else:
             b.command_move(self._selection(), p)
-        self.paused = False
 
     def _selection(self):
         if not self.selected:
@@ -379,7 +390,6 @@ class App:
             sel = self._selection()
             if not b.command_hunt(sel):
                 b.events.append("Jagen können nur Reiter")
-            self.paused = False
         elif key in ("angriff", "halten", "formation") or key.startswith(("formation:", "drill:")):
             if b.outcome is not None:
                 return
@@ -388,10 +398,8 @@ class App:
                 b.events.append("Erst eine Gruppe wählen")
             elif key == "angriff":
                 self.selected = {g.id for g in b.command_attack(sel)}   # geteilte Gruppen bleiben gewählt
-                self.paused = False
             elif key == "halten":
                 b.command_hold(sel)
-                self.paused = False
             elif key.startswith("formation:"):
                 b.command_formation(sel, key.split(":")[1])
             elif key.startswith("drill:"):
@@ -411,7 +419,6 @@ class App:
             v = b.command_verband(self._selection())
             if v is not None:
                 self.selected = {uid for uid in v.members()}
-                self.paused = False
         elif key == "aufloesen" and b.outcome is None:
             v = b.selected_verband(self.selected)
             if v is not None and v.id == self.arranging:
@@ -426,14 +433,13 @@ class App:
             v = b.selected_verband(self.selected)
             if v is not None:
                 b.command_verband_formation(v, key.split(":")[1])
-                self.paused = False
         elif key in ("rammbock", "turm") and b.outcome is None:
             kind = "ram" if key == "rammbock" else "tower"
             sel = self._selection()
             if sel and any(u.engine == kind or u.build_kind == kind for u in sel):
                 b.command_drop(sel, kind)          # erneut drücken: ablegen oder Bau abbrechen
-            elif sel and b.command_build(sel, kind):
-                self.paused = False
+            elif sel:
+                b.command_build(sel, kind)
         elif key == "ansicht":
             self.renderer.camera.toggle()
         elif key == "alle":

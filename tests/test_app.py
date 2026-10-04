@@ -446,3 +446,41 @@ def test_arranging_a_verband_by_dragging_its_icons():
     assert app.arranging is None
     press(app, bar(app)["aufloesen"])
     assert b.verbaende == []
+
+
+def test_pause_holds_through_orders_and_three_fingers_toggle_it():
+    """In der Pause lassen sich mehreren Gruppen nacheinander Befehle geben; erst „Weiter“
+    (oder ein kurzer Tipp mit drei Fingern) lässt die Schlacht weiterlaufen."""
+    app = make_app()
+    b = app.battle
+    hop, pelt, cav = b.units(Side.STADT)
+    app.command("pause")                                   # Alarm vorbei: los
+    app.command("pause")
+    assert app.paused
+    app.selected = {hop.id}
+    app.command("halten")
+    app._tap((6.0, 12.0))
+    app.selected = {pelt.id}
+    a, z = (int(8.0 * config.TILE), int(12.0 * config.TILE)), (int(10.0 * config.TILE), int(12.0 * config.TILE))
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=a))
+    app.handle_event(pygame.event.Event(pygame.MOUSEMOTION, pos=z, rel=(0, 0), buttons=(1, 0, 0)))
+    app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=z))
+    assert app.paused and pelt.target is not None and hop.target is not None
+    t = b.time
+    app.tick(0.1)
+    assert b.time == t                                     # die Zeit steht
+    finger = lambda kind, fid, x, y: app.handle_event(pygame.event.Event(       # noqa: E731
+        kind, touch_id=0, finger_id=fid, x=x, y=y, dx=0.0, dy=0.0))
+    for fid, x in ((1, 0.3), (2, 0.4), (3, 0.5)):
+        finger(pygame.FINGERDOWN, fid, x, 0.4)
+    app.tick(0.1)
+    for fid, x in ((1, 0.3), (2, 0.4), (3, 0.5)):
+        finger(pygame.FINGERUP, fid, x, 0.4)
+    assert not app.paused and app.renderer.camera.zoom == 1.0
+    for fid, x in ((1, 0.3), (2, 0.4), (3, 0.5)):          # langsam gewischt: keine Umschaltung
+        finger(pygame.FINGERDOWN, fid, x, 0.4)
+    for fid, x in ((1, 0.3), (2, 0.4), (3, 0.5)):
+        finger(pygame.FINGERMOTION, fid, x, 0.6)
+    for fid, x in ((1, 0.3), (2, 0.4), (3, 0.5)):
+        finger(pygame.FINGERUP, fid, x, 0.6)
+    assert not app.paused
