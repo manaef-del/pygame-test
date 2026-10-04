@@ -307,6 +307,7 @@ AI_RING_ODDS = 1.5           # so vielfach in Unterzahl (Nachbarn zählen mit), 
 AI_BRACE_HOLD = 2.0          # Sekunden nicht mehr umzingelt in Unterzahl: der Kreis geht zurück in die Linie
 AI_BRACE_MIN_MEN = 8         # kleinere Gruppen bilden keinen Kreis
 AI_RESERVE = True            # die KI hält eine Gruppe als Reserve zurück
+AI_RESERVE_FLANK = True      # die freigegebene Reserve geht um die Front der Phalanx in deren Rücken
 AI_RESERVE_MIN_GROUPS = 3    # ab so vielen Gruppen hält die KI eine zurück
 AI_RESERVE_DISTANCE = 3.5    # Kacheln hinter der eigenen Hauptmacht wartet die Reserve
 AI_RESERVE_REACH = 7.0       # Kacheln: ein ungedeckter oder fliehender Gegner so nah ruft die Reserve

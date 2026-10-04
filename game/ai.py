@@ -163,6 +163,7 @@ class Brain:
         self.reserve_held = False
         self.reserve_home: Point | None = None    # wo die Reserve der Horde im Lager wartet
         self.reserve_since = 0.0
+        self.reserve_flank: int | None = None     # die freigegebene Reserve geht um diese Phalanx herum
 
     # -- Takt ---------------------------------------------------------------
     def think(self, b: "Battle") -> None:
@@ -378,7 +379,12 @@ class Brain:
         if why:
             self.reserve_held = False
             who = "Die Räuber" if b.scenario.enemy_kind == "raeuber" else "Die Siedlung"
-            b.events.append(f"{who} werfen ihre Reserve in den Kampf ({why})")
+            front = self._blocking_phalanx(b, r) if config.AI_RESERVE_FLANK and why not in ("Feind nah", "Gerät") else None
+            if front is not None and formed(front) and b.arc_of(front, u.pos) == "front" and not u.engaged:
+                self.reserve_flank = front.id               # nicht frontal hinein: um die Flanke in den Rücken
+                b.events.append(f"{who} werfen ihre Reserve in den Kampf ({why}), um die Flanke herum")
+            else:
+                b.events.append(f"{who} werfen ihre Reserve in den Kampf ({why})")
             return False
         if b.attacking or b.scenario.enemy_kind != "raeuber" or not others:
             spot = self.reserve_home or u.pos
@@ -398,6 +404,39 @@ class Brain:
                 u.stance = Stance.HALTEN
                 u.target_id = None
         return True
+
+    def _reserve_flanks(self, b: "Battle", u: Lochos) -> bool:
+        """Die freigegebene Reserve läuft um die Front der Phalanx herum und fällt ihr in
+        den Rücken (oder die Flanke). Steht sie dort, im Handgemenge oder ist die Phalanx
+        keine mehr, kämpft sie wie alle."""
+        if self.reserve_flank is None or u.id != self.reserve_id:
+            return False
+        target = b.by_id(self.reserve_flank)
+        if target is None or not target.fighting or not formed(target) or u.engaged or not self._reachable(b, u, target):
+            self.reserve_flank = None
+            return False
+        wp = rear_route(b, u, target)
+        if wp is None and b.arc_of(target, u.pos) == "front":
+            wp = self._beside_flank(b, u, target)       # kein gerader Weg: die Wegsuche führt hin
+        if wp is None:
+            self.reserve_flank = None
+            self._attack(b, u, target)                      # im Rücken: hinein
+            return True
+        self._go(b, u, wp)
+        return True
+
+    @staticmethod
+    def _beside_flank(b: "Battle", u: Lochos, foe: Lochos) -> Point | None:
+        """Ein freier Punkt neben der näheren Flanke, vor der Front gesehen auf Höhe der
+        ersten Reihe; ``None``, wenn beide Seiten zu sind."""
+        along, forward = foe.local(u.pos)
+        outer = foe.half_w + config.AI_FLANK_MARGIN
+        for sgn in ((1.0, -1.0) if along >= 0 else (-1.0, 1.0)):
+            p = local_to_world(foe, sgn * outer, foe.half_d + 0.8)
+            p = (min(max(p[0], 0.5), b.cols - 0.5), min(max(p[1], 0.5), b.rows - 0.5))
+            if not b.is_blocked(p[0], p[1], u):
+                return p
+        return None
 
     def _reserve_call(self, b: "Battle", u: Lochos, r: Report, others: list[Lochos], busy: bool) -> str:
         """Warum die Reserve jetzt kommt (leer: sie wartet weiter)."""
@@ -749,7 +788,7 @@ class Brain:
                 return
         self._pick_reserve(b, own)
         for u in own:
-            if self._holds_reserve(b, u, r):
+            if self._holds_reserve(b, u, r) or self._reserve_flanks(b, u):
                 continue
             if self._retreating(b, u) or self._busy(b, u):
                 continue
@@ -863,7 +902,7 @@ class Brain:
             u.share(lambda m: m.kind.ranged) < 0.5 and u.share(lambda m: m.kind.cavalry) < 0.5)]
         self._pick_reserve(b, own)
         for u in own:
-            if self._holds_reserve(b, u, r):
+            if self._holds_reserve(b, u, r) or self._reserve_flanks(b, u):
                 continue
             if self._retreating(b, u) or self._busy(b, u):
                 continue

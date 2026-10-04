@@ -630,3 +630,26 @@ def test_a_charging_horde_does_not_wait_in_its_camp():
     now = sum(u.y for u in b.units(Side.FEIND)) / len(b.units(Side.FEIND))
     assert now > start + 4.0                                  # auf die eigene Truppe im Süden zu
     assert b.brain.plan != "lagern"
+
+
+def test_released_reserve_goes_round_the_front_into_the_rear():
+    """Wird die Reserve gerufen und steht vor ihr eine geschlossene Phalanx, läuft sie nicht
+    frontal hinein, sondern um die Flanke und fällt der Phalanx in Flanke oder Rücken."""
+    b, hop, pelt, cav = reserve_battle()
+    run(b, 3)
+    assert b.brain.reserve_held and hop.in_phalanx
+    reserve = b.by_id(b.brain.reserve_id)
+    b.brain.reserve_since = b.time - config.AI_RESERVE_MAX
+    run(b, 0.6)
+    assert not b.brain.reserve_held and b.brain.reserve_flank == hop.id
+    assert any("um die Flanke herum" in e for e in b.events)
+    hit_from = None
+    for _ in range(int(40 / DT)):
+        b.update(DT)
+        if reserve.engaged and hop.id in reserve.contacts and hit_from is None:
+            hit_from = b.arc_of(hop, reserve.pos)
+        assert not (b.brain.reserve_flank is not None and reserve.stance is Stance.ANGRIFF
+                    and b.arc_of(hop, reserve.pos) == "front")       # unterwegs kein Angriff auf die Front
+        if hit_from is not None or not reserve.fighting:
+            break
+    assert hit_from in ("flank", "rear"), hit_from
