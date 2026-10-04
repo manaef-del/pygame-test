@@ -481,6 +481,10 @@ class App:
             self.menu_group = 0
         elif key == "scenario":
             self.scenario_index = (self.scenario_index + 1) % len(self.scenarios)
+        elif key.startswith("role:"):
+            self._pick_scenario(key.split(":")[1], self.scenarios[self.scenario_index].where)
+        elif key.startswith("place:"):
+            self._pick_scenario(self.scenarios[self.scenario_index].side, key.split(":")[1])
         elif key == "start":
             if a.valid():
                 self.screen = "schlacht"
@@ -498,8 +502,16 @@ class App:
         elif key.startswith("kind:"):
             _, tier, kind = key.split(":")
             a.set_kind(self.menu_group, int(tier), kind)
-        if key not in ("prev", "next", "scenario", "start") and not key.startswith("groupsel:"):
+        if key not in ("prev", "next", "scenario", "start") and not key.startswith(("groupsel:", "role:", "place:")):
             self._remember()
+
+    def _pick_scenario(self, side: str, where: str) -> None:
+        """Rolle (oben) und Schauplatz (unten) wählen das Szenario; gibt es den Schauplatz in
+        dieser Rolle nicht, den ersten der Rolle."""
+        match = [i for i, s in enumerate(self.scenarios) if s.side == side and s.where == where]
+        match = match or [i for i, s in enumerate(self.scenarios) if s.side == side]
+        if match:
+            self.scenario_index = match[0]
 
     # ------------------------------------------------------------ Takt
     def tick(self, dt: float) -> None:

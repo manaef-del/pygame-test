@@ -50,6 +50,19 @@ class Scenario:
     gates: tuple[tuple[tuple[Cell, ...], Cell], ...] = ()   # weitere Tore: (Kacheln, Richtung nach außen)
     corner_towers: tuple[Cell, ...] = ()       # Wehrtürme auf dem Wall, die Speere werfen
     ring: tuple[Point, ...] = ()               # Ecken des geschlossenen Walls (Festung); leer: kein Wall
+    place: str = ""                            # Schauplatz im Menü: "siedlung", "horde" oder "festung"
+    menu_role: str = ""                        # Rolle im Menü, wenn sie von ``role`` abweicht
+    horde_charges: bool = False                # die Horde stürmt sofort los (statt im Lager zu warten)
+
+    @property
+    def where(self) -> str:
+        """Der Schauplatz (im Menü unten wählbar)."""
+        return self.place or self.key
+
+    @property
+    def side(self) -> str:
+        """Die Rolle des Spielers im Menü (oben wählbar): "verteidigung" oder "angriff"."""
+        return self.menu_role or self.role
 
 
 # ------------------------------------------------------------------ Festung
@@ -174,6 +187,7 @@ FESTUNG = Scenario(
     houses=FORT["houses"], palisade=FORT["palisade"], gate_closed=True, wall_side="stadt",
     ladders=FORT["ladders"], raider_spawns=FORT_ARMY, deploy_y=FORT_CENTRE[1] + 1.5, agora=FORT_CENTRE,
     cols=FORT_COLS, rows=FORT_ROWS, gates=FORT["gates"], corner_towers=FORT["towers"], ring=FORT["poly"],
+    place="festung",
 )
 
 FESTUNG_ANGRIFF = Scenario(
@@ -184,6 +198,7 @@ FESTUNG_ANGRIFF = Scenario(
     houses=FORT["houses"], palisade=FORT["palisade"], gate_closed=True, wall_side="feind",
     ladders=FORT["ladders"], deploy_y=FORT_ROWS - 3.0, ram_available=True, agora=FORT_CENTRE,
     cols=FORT_COLS, rows=FORT_ROWS, gates=FORT["gates"], corner_towers=FORT["towers"], ring=FORT["poly"],
+    place="festung",
 )
 
 # ------------------------------------------------------- offene Siedlung
@@ -205,7 +220,7 @@ OFFENE_SIEDLUNG = Scenario(
          "Zwei Finger verschieben die Karte.",
     role="verteidigung", enemy_kind="raeuber", enemy_default=128, enemy_min=32, enemy_max=300,
     houses=TOWN_HOUSES, raider_spawns=RAIDS_TOWN, agora=FORT_CENTRE, deploy_y=TOWN_TOP - 2.0,
-    cols=FORT_COLS, rows=FORT_ROWS,
+    cols=FORT_COLS, rows=FORT_ROWS, place="siedlung",
 )
 
 SIEDLUNG_ANGRIFF = Scenario(
@@ -214,7 +229,7 @@ SIEDLUNG_ANGRIFF = Scenario(
          "Zwei Finger verschieben die Karte.",
     role="angriff", enemy_kind="spiegel", enemy_default=75, enemy_min=20, enemy_max=150,
     houses=TOWN_HOUSES, deploy_y=FORT_ROWS - 2.0, enemy_deploy_y=TOWN_BOTTOM + 1.5, agora=FORT_CENTRE,
-    cols=FORT_COLS, rows=FORT_ROWS,
+    cols=FORT_COLS, rows=FORT_ROWS, place="siedlung",
 )
 
 # Die Horde lagert im Norden einer Karte so groß wie die Festung
@@ -228,7 +243,19 @@ RAEUBERHORDE = Scenario(
     key="horde", name="Angriff: Räuberhorde",
     hint="Die Horde lagert im Norden. Sie greift an, sobald du ihr nahe kommst. Zwei Finger verschieben die Karte.",
     role="angriff", enemy_kind="raeuber", enemy_default=96, enemy_min=16, enemy_max=300,
-    raider_spawns=HORDE, deploy_y=FORT_ROWS - 2.5, cols=FORT_COLS, rows=FORT_ROWS,
+    raider_spawns=HORDE, deploy_y=FORT_ROWS - 2.5, cols=FORT_COLS, rows=FORT_ROWS, place="horde",
 )
 
-SCENARIOS: tuple[Scenario, ...] = (OFFENE_SIEDLUNG, SIEDLUNG_ANGRIFF, RAEUBERHORDE, FESTUNG, FESTUNG_ANGRIFF)
+# Dieselbe Horde auf offenem Feld, aber sie wartet nicht: Sie stürmt gleich auf die eigene Truppe los.
+# (Für die Schlacht ist das ein Kampf auf offenem Feld wie beim Angriff auf das Lager.)
+HORDE_STURM = Scenario(
+    key="horde_sturm", name="Verteidigung: Räuberhorde",
+    hint="Eine Räuberhorde stürmt von Norden heran. Stell dich auf, bevor sie da ist. Zwei Finger verschieben die Karte.",
+    role="angriff", menu_role="verteidigung", horde_charges=True,
+    enemy_kind="raeuber", enemy_default=96, enemy_min=16, enemy_max=300,
+    raider_spawns=HORDE, deploy_y=FORT_ROWS - 2.5, cols=FORT_COLS, rows=FORT_ROWS, place="horde",
+)
+
+PLACES: tuple[tuple[str, str], ...] = (("siedlung", "Offene Siedlung"), ("horde", "Räuberhorde"), ("festung", "Festung"))
+
+SCENARIOS: tuple[Scenario, ...] = (OFFENE_SIEDLUNG, SIEDLUNG_ANGRIFF, HORDE_STURM, RAEUBERHORDE, FESTUNG, FESTUNG_ANGRIFF)

@@ -87,7 +87,9 @@ def test_fortress_map_is_four_times_as_big_and_closed():
 def test_all_maps_are_fortress_sized_and_only_the_fortress_has_a_wall():
     """Fünf Szenarien, alle auf der großen Karte; nur die Festung hat einen Wall (die offene
     Siedlung ist ihre Stadt ohne Wall)."""
-    assert [s.key for s in SCENARIOS] == ["siedlung", "siedlung_angriff", "horde", "festung", "festung_angriff"]
+    assert [s.key for s in SCENARIOS] == ["siedlung", "siedlung_angriff", "horde_sturm", "horde", "festung", "festung_angriff"]
+    assert {(s.side, s.where) for s in SCENARIOS} == {(r, w) for r in ("verteidigung", "angriff")
+                                                       for w in ("siedlung", "horde", "festung")}
     town = set(FESTUNG.houses)
     for s in SCENARIOS:
         b = Battle(s, random.Random(1))

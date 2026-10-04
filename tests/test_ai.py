@@ -616,3 +616,17 @@ def test_no_reserve_with_few_groups_or_when_switched_off(monkeypatch):
     b, *_ = reserve_battle()
     run(b, 1)
     assert not b.brain.reserve_held
+
+
+def test_a_charging_horde_does_not_wait_in_its_camp():
+    """Verteidigung gegen die Räuberhorde: Sie stürmt gleich los, statt zu lagern."""
+    from game.scenarios import HORDE_STURM
+    b = Battle(HORDE_STURM, random.Random(1))
+    assert b.horde_awake
+    start = sum(u.y for u in b.units(Side.FEIND)) / len(b.units(Side.FEIND))
+    b.command_hold(None)
+    for _ in range(int(8 / DT)):
+        b.update(DT)
+    now = sum(u.y for u in b.units(Side.FEIND)) / len(b.units(Side.FEIND))
+    assert now > start + 4.0                                  # auf die eigene Truppe im Süden zu
+    assert b.brain.plan != "lagern"

@@ -498,10 +498,15 @@ verhältnismäßig; danach kann man die Zahlen einzeln verschieben, auch
 zwischen den Gattungen. Ins Feld zieht, was eingeteilt ist. Das Spiel
 läuft mit halber Geschwindigkeit (`TIME_SCALE`).
 
+Oben im Aufstellungsmenü wählt man **Verteidigung** oder **Angriff**,
+darunter den **Schauplatz**: Offene Siedlung, Räuberhorde oder Festung.
+Zusammen ergeben sie eines von sechs Szenarien.
+
 | Szenario | Lage |
 |----------|------|
 | Verteidigung: Offene Siedlung | Die Stadt der Festung ohne Wall. Räuberhaufen von Norden, zwei umgehen die Linie an den Flanken. Bei großer Zahl größere Haufen, mit einem Fünftel Peltasten |
 | Angriff: Offene Siedlung | Dieselbe Stadt; sie stellt eine eigene Truppe, passend zur Mischung des Spielers (siehe Gegner-KI), vor ihren südlichen Häusern. Hopliten und Peltasten halten, Reiter greifen an |
+| Verteidigung: Räuberhorde | Eine Räuberhorde stürmt gleich zu Beginn von Norden heran, auf offenem Feld; man hat den Anmarsch (rund 20 Kacheln) Zeit, sich aufzustellen |
 | Angriff: Räuberhorde | Die Horde lagert im Norden und stürmt, sobald man ihr nahe kommt |
 | Verteidigung: Festung | Ein Heer aus Hopliten, Peltasten und Reitern, doppelt so stark wie die eigene Truppe, belagert die sechseckige Festung |
 | Angriff: Festung | Dieselbe Festung, man selbst belagert sie; die Besatzung ist etwa halb so stark wie die eigene Truppe |

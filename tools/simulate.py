@@ -320,6 +320,7 @@ TACTICS = {
     "siedlung": {"linie": t_linie, "schlachtordnung": t_schlachtordnung, "linie_reiter": t_linie_reiter_aktiv, "linie_aktiv": t_linie_aktiv, "linie_tief": t_linie_tief, "passiv": t_passiv, "angriff": t_angriff},
     "siedlung_angriff": {"phalanxstoss": t_phalanxstoss, "vorruecken": t_vorruecken, "angriff": t_angriff},
     "horde": {"vorruecken": t_vorruecken, "angriff": t_angriff},
+    "horde_sturm": {"linie_tief": t_linie_tief, "linie_aktiv": t_linie_aktiv, "angriff": t_angriff},
     "festung": {"tore": t_festung_tore, "passiv": t_passiv},
     "festung_angriff": {"rammbock": t_festung_angriff_ram, "turm": t_festung_angriff_turm},
 }

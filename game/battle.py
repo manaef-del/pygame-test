@@ -237,6 +237,9 @@ class Battle:
         else:
             self._spawn_mirror()
         self.men_start = {side: self.men(side) for side in Side}
+        if s.horde_charges:
+            self.horde_awake = True                       # die Horde wartet nicht im Lager: sie stürmt gleich
+            self.events.append("Eine Räuberhorde stürmt heran")
         self.leaders = [(m, u.side, u.name) for u in self.lochoi for m in u.all_men() if m.leader]
         if self.ring:
             from .fortress_ai import FortressBrain

@@ -10,6 +10,7 @@ from . import config
 from .geometry import dist
 from .army import MAX_TIERS, OWN_MAX, OWN_MIN, Army, arm_of
 from .battle import Battle
+from .scenarios import PLACES
 from .units import FORMATION_NAMES, PLAYER_TYPES, UNIT_TYPES, Lochos, Side, Stance
 
 T = config.TILE                 # Kachelgröße in Pixeln in der aktuellen Ansicht (Übersicht: kleiner)
@@ -932,7 +933,12 @@ class Renderer:
         W = config.WIDTH
         gap = 6
 
-        self._center_text(self.big, "Aufstellung", config.COLOR_TEXT, 24)
+        # oben: Verteidigung oder Angriff
+        half = (W - 3 * gap) // 2
+        for k, (side, label) in enumerate((("verteidigung", "Verteidigung"), ("angriff", "Angriff"))):
+            on = scenario.side == side
+            self._menu_button(f"role:{side}", label, pygame.Rect(gap + k * (half + gap), 6, half, 34),
+                              config.COLOR_BUTTON_ACTIVE if on else None)
         # Vorrat: ein gemeinsamer Topf für alle Gattungen
         y, x = 48, 8
         for key in PLAYER_TYPES:
@@ -962,9 +968,13 @@ class Renderer:
             self.menu_sliders.append((key, track))
             y += 24
 
-        # Szenario
+        # Schauplatz: Offene Siedlung, Räuberhorde, Festung
         y += 2
-        self._menu_button("scenario", f"Szenario: {scenario.name}", pygame.Rect(gap, y, W - 2 * gap, 32))
+        third = (W - 4 * gap) // 3
+        for k, (where, label) in enumerate(PLACES):
+            on = scenario.where == where
+            self._menu_button(f"place:{where}", label, pygame.Rect(gap + k * (third + gap), y, third, 32),
+                              config.COLOR_BUTTON_ACTIVE if on else None)
         y += 36
 
         # Gruppenwahl: eine Kachel je Gruppe (Sinnbild und Mannzahl), antippen wählt

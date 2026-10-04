@@ -509,3 +509,21 @@ def test_pause_holds_through_orders_and_three_fingers_toggle_it():
     for fid, x in ((1, 0.3), (2, 0.4), (3, 0.5)):
         finger(pygame.FINGERUP, fid, x, 0.6)
     assert not app.paused
+
+
+def test_menu_picks_role_on_top_and_place_below():
+    """Oben wählt man Verteidigung oder Angriff, darunter den Schauplatz (Offene Siedlung,
+    Räuberhorde, Festung); zusammen ergeben sie das Szenario."""
+    pygame.init()
+    app = App(Renderer(pygame.Surface((config.WIDTH, config.HEIGHT))), seed=1)
+    app.draw()
+    keys = {b.key for b in app.renderer.menu_buttons}
+    assert {"role:verteidigung", "role:angriff", "place:siedlung", "place:horde", "place:festung"} <= keys
+    pick = lambda key: (app.menu_command(key), app.scenarios[app.scenario_index].key)[1]   # noqa: E731
+    assert app.scenarios[app.scenario_index].key == "siedlung"
+    assert pick("place:horde") == "horde_sturm"              # die Horde greift an
+    assert pick("role:angriff") == "horde"                    # man greift die Horde an
+    assert pick("place:festung") == "festung_angriff"
+    assert pick("role:verteidigung") == "festung"
+    assert pick("place:siedlung") == "siedlung"
+    app.draw()

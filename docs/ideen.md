@@ -67,6 +67,11 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Menü: Rolle oben, Schauplatz unten** (4. Oktober 2026): Oben wählt man
+  Verteidigung oder Angriff, darunter Offene Siedlung, Räuberhorde oder
+  Festung. Neu ist die Verteidigung gegen eine Räuberhorde, die gleich zu
+  Beginn heranstürmt (der Angriff auf ihr Lager bleibt). Zwei Probeläufe:
+  „linie_aktiv“ und „angriff“ gewinnen je 2 von 2.
 - **Szenarien aufgeräumt** (4. Oktober 2026): Palisade, Siedlung mit Wall,
   die kleine offene Siedlung und die Siedlung ohne Wall sind fort. Neu ist
   die offene Siedlung, die Stadt der Festung ohne Wall, zum Verteidigen und
