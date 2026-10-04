@@ -1,5 +1,65 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 33 (4. Oktober 2026): neue Szenarien
+
+Neu seit Lauf 32:
+
+- Fünf Szenarien, alle auf der großen Karte (32 × 36): Verteidigung und
+  Angriff der offenen Siedlung (die Stadt der Festung ohne Wall),
+  Räuberhorde (viermal so groß), Festung in beiden Richtungen. Palisade und
+  Siedlung mit Wall sind fort.
+- Bewegung: Zittern, Kolonne durchs Tor, Befehlshaber vorn, kein großer
+  Bogen um eigene Nachbarn, Türme für beide Seiten.
+- Festung: Eine Gruppe ganz oben auf dem Wehrgang schließt sich dort; über
+  die Leitern wird die richtige Leiter hinab angesteuert.
+- Die Taktiken der Simulation stehen relativ zur Kartenmitte und zur
+  eigenen Aufstellung (gleiche Formen wie bisher, nur verschoben).
+
+Gegner-KI „klug“, sechs Seeds (Festung vier). Die offenen Karten sind neu,
+die Zahlen also nicht mit Lauf 32 vergleichbar; zum Vergleich steht die
+alte kleine Karte daneben (Lauf 32, zwölf Seeds).
+
+| Szenario | Taktik | Siege | Verlust Stadt | Verlust Feind | Häuser verloren (von 30) | Lauf 32 (klein) |
+|---|---|---|---|---|---|---|
+| siedlung | linie | 0/6 | 100 % | 56 % | 27,3 | 3/12 |
+| siedlung | schlachtordnung | 6/6 | 57 % | 65 % | 17,5 | 0/12 |
+| siedlung | linie_reiter | 6/6 | 18 % | 49 % | 0,3 | 2/12 |
+| siedlung | linie_aktiv | 2/6 | 98 % | 65 % | 27,2 | 1/12 |
+| siedlung | linie_tief | 6/6 | 30 % | 47 % | 2,7 | 12/12 |
+| siedlung | passiv | 4/6 | 73 % | 72 % | 26,2 | 2/12 |
+| siedlung | angriff | 6/6 | 30 % | 58 % | 11,0 | 1/12 |
+| siedlung_angriff | phalanxstoss | 1/6 | 81 % | 48 % | – | 3/12 |
+| siedlung_angriff | vorruecken | 0/6 | 53 % | 11 % | – | 0/12 |
+| siedlung_angriff | angriff | 0/6 | 46 % | 12 % | – | 0/12 |
+| horde | vorruecken | 6/6 | 31 % | 71 % | – | 7/12 |
+| horde | angriff | 6/6 | 19 % | 26 % | – | 12/12 |
+| festung | tore | 0/4 | 100 % | 39 % | 3,0 | 0/12 |
+| festung | passiv | 0/4 | 100 % | 41 % | 4,5 | 1/12 |
+| festung_angriff | rammbock | 4/4 | 46 % | 100 % | – | 8/8 |
+| festung_angriff | turm | 2/4 | 66 % | 79 % | – | 0/8 |
+
+**Offene Siedlung, Verteidigung.** Auf der großen Karte ist mehr Platz an
+den Flanken; die Räuber umgehen eine dünne Linie („linie“, „linie_aktiv“)
+und plündern fast alle Häuser. Wer seine Reiter jagen lässt oder tief
+steht, gewinnt fast ohne Hausverlust. Der Gegner wählt fast immer
+„In den Rücken fallen“ und „Binden und Umfassen“.
+
+**Offene Siedlung, Angriff.** Weiter schwer: Die Siedlung hält, die eigene
+Truppe flieht nach 40 bis 90 Sekunden (Vorrücken, Angriff), nur der
+Phalanxstoß gewinnt einmal.
+
+**Horde.** Auf der großen Karte gewinnt man immer; der lange Anmarsch
+(rund 20 Kacheln) gibt Zeit, sich zu ordnen.
+
+**Festung.** Die Verteidigung gegen das doppelt so starke Heer verliert mit
+beiden einfachen Taktiken. Im Angriff gewinnt der Turm jetzt zwei von vier
+(Lauf 32: keinmal): Wer über den Turm kommt und oben steht, schließt sich
+dort und kämpft geordnet, statt aufgelöst stehen zu bleiben.
+
+Für die Balance: Verteidigung der offenen Siedlung mit dünner Linie, Angriff
+auf die offene Siedlung und Verteidigung der Festung sind zu schwer; die Horde
+ist zu leicht.
+
 ## Lauf 32 (3. Oktober 2026): Bewegung, Drehtempo, Gassen, Fernkampf, Jagen
 
 Neu seit Lauf 31:

@@ -14,16 +14,18 @@ wandert nach unten.
    Moralverlust trotz Agora), sollen Angreifer Reserven gezielt um die
    eigene Front herum an den Feind schicken können, oder brauchen die
    Räuber andere Werte?
-0b. **Räuber über den Turm (Lauf 15, 16).** Seit jeder Mann seinen Weg
-   selbst sucht, kamen die Räuber einzeln über den Turm und verteilten sich.
-   Mit dem Sammelplatz hinter dem Wall (Lauf 16) gehen sie drüben wieder als
-   Block weiter; „Leiter decken“ gewinnt 10 von 12 (vor Lauf 15: 12),
-   „Tor halten“ 5 von 12 (vorher 0), der Abnahmetest „Phalanx hinter der
-   Palisade“ 6 von 8 Startwerten (vorher 8). Wer passiv stehen bleibt,
-   verliert weiterhin alle Häuser (0 von 12, vorher 10). Dabei fiel auf,
-   dass die Räuber-KI vor der Palisade zwischen „Umgehen“ (um ein Ende, das
-   es dort nicht gibt) und „Frontal“ hin und her schwankt, wenn die Schlacht
-   lange dauert.
+0b. **Phalanx hinter Mauern (Abnahme L9).** Der Abnahmetest „eine Phalanx
+   hinter der Palisade schlägt eine deutlich größere Übermacht“ ist mit der
+   Palisade entfallen. An der Festung gibt es ihn noch nicht: Gegen ein
+   doppelt so starkes Heer gewinnt die Verteidigung mit den einfachen
+   Taktiken der Simulation selten (Lauf 33). Zu klären: eine Festungsfassung
+   des Tests mit einer passenden Übermacht, oder die Verteidigung stärken.
+0c. **Festung: offenes Tor teilt den Wehrgang.** Liegt zwischen zwei
+   Wallstücken ein offenes Tor und ist der Weg über die Leitern schneller als
+   außen herum, bleibt eine Gruppe oben an der ersten Leiter hängen: Die
+   Männer finden den Weg hinab, quer und wieder hinauf nicht. Das gab es schon
+   vor dem Umbau; an der Palisade ging es. Der übliche Weg auf dem Wehrgang
+   (ganz herum) funktioniert.
 5. **Festung: Turm allein reicht nicht.** Über einen Belagerungsturm allein
    kommt kaum ein Angriff hinein (0 bis 1 von 8): Die Männer steigen einzeln,
    im Feuer der Ecktürme. Dazu greift die Turm-Taktik der Simulation die
@@ -65,6 +67,17 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Szenarien aufgeräumt** (4. Oktober 2026): Palisade, Siedlung mit Wall,
+  die kleine offene Siedlung und die Siedlung ohne Wall sind fort. Neu ist
+  die offene Siedlung, die Stadt der Festung ohne Wall, zum Verteidigen und
+  zum Angreifen; die Räuberhorde ist viermal so groß. Alle fünf Szenarien
+  liegen auf der großen Karte. Der Festungswall ist der einzige Wall, der
+  Code der geraden Palisade (innen Süd, außen Nord, ein Tor) und die
+  Räuberpläne gegen sie (Tor rammen, Turm, Belagern) sind entfernt. Die
+  Wall-Tests prüfen jetzt die Festung. Dabei behoben: Eine Gruppe ganz oben
+  auf dem Wehrgang der Festung schließt sich jetzt (sie blieb aufgelöst),
+  und ist der Weg über die Leitern schneller, steuert sie die Leiter hinab
+  an (statt die am Ziel und dann außen herum).
 - **Pause für Befehle, drei Finger, Türme für beide** (4. Oktober 2026):
   - Befehle heben die Pause nicht mehr auf; erst „Weiter“ lässt die Zeit
     laufen. So bekommen mehrere Gruppen in Ruhe ihre Befehle.

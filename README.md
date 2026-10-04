@@ -153,7 +153,7 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Wall, durchs offene Tor oder an einer ruhenden eigenen Gruppe vorbei,
   löst sie sich auf (ohne Rechteck gezeichnet): Die Zielaufstellung steht
   dann fest, Mitte und Front, und jeder Mann sucht sich seinen eigenen Weg
-  zu seinem Platz darin, über ein Wegefeld um Palisade und stehende eigene
+  zu seinem Platz darin, über ein Wegefeld um Wall und stehende eigene
   Gruppen herum, über Turm und Leiter (dort stellt man sich an). Die Männer
   gehen im Tempo der Gruppe, wer zurückliegt, holt auf. Die Gruppe ist
   währenddessen dort, wo ihre Männer sind; sie schließt sich wieder, sobald
@@ -479,14 +479,16 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Bleiben von ihnen weniger als drei Zehntel übrig (gezählt wird, wer
   kämpft oder sich noch sammeln kann), geben sie auf und ziehen ab. Eine
   angegriffene Siedlung zieht nie ab.
-- **Palisade mit Tor:** der einzige Durchgang. Wegfindung leitet durchs Tor.
+- **Wall mit Toren** (nur die Festung): Die Wege führen durch ein offenes
+  Tor oder über Leiter und Turm.
 - **Gegner-KI** (siehe unten): Der Gegner liest die Aufstellung, wählt
   einen Plan, greift schwache Ziele an, umgeht Phalanxfronten und lernt
   über Schlachten hinweg.
 
-Abnahme aus dem Konzept (L9), als Tests umgesetzt: *Ein Überfall auf eine
-unbefestigte Stadt tut weh. Eine Phalanx hinter Mauern gewinnt gegen eine
-deutlich größere Übermacht.*
+Abnahme aus dem Konzept (L9): *Ein Überfall auf eine unbefestigte Stadt tut
+weh* (als Test umgesetzt). *Eine Phalanx hinter Mauern gewinnt gegen eine
+deutlich größere Übermacht*: Der Test dazu stand an der Palisade und ist mit
+ihr entfallen; an der Festung fehlt er noch (siehe `docs/ideen.md`).
 
 ## Szenarien
 
@@ -498,13 +500,16 @@ läuft mit halber Geschwindigkeit (`TIME_SCALE`).
 
 | Szenario | Lage |
 |----------|------|
-| Verteidigung: Offene Siedlung | Räuberhaufen von Norden, zwei umgehen die Linie. Bei großer Zahl größere Haufen, mit einem Fünftel Peltasten |
-| Verteidigung: Palisade | Das Tor ist zu, die Räuber bauen Rammbock und Turm. Eigene Peltastengruppen dürfen auf den Wehrgang |
+| Verteidigung: Offene Siedlung | Die Stadt der Festung ohne Wall. Räuberhaufen von Norden, zwei umgehen die Linie an den Flanken. Bei großer Zahl größere Haufen, mit einem Fünftel Peltasten |
+| Angriff: Offene Siedlung | Dieselbe Stadt; sie stellt eine eigene Truppe, passend zur Mischung des Spielers (siehe Gegner-KI), vor ihren südlichen Häusern. Hopliten und Peltasten halten, Reiter greifen an |
 | Angriff: Räuberhorde | Die Horde lagert im Norden und stürmt, sobald man ihr nahe kommt |
-| Angriff: Siedlung ohne Wall | Die Siedlung stellt eine eigene Truppe, passend zur Mischung des Spielers (siehe Gegner-KI). Hopliten und Peltasten halten, Reiter greifen an |
-| Angriff: Siedlung mit Wall | Wie oben, hinter einer Palisade mit verschlossenem Tor. Peltasten des Gegners stehen auf dem Wehrgang |
-| Verteidigung: Festung | Große Karte (viermal so groß). Ein Heer aus Hopliten, Peltasten und Reitern, doppelt so stark wie die eigene Truppe, belagert die sechseckige Festung |
+| Verteidigung: Festung | Ein Heer aus Hopliten, Peltasten und Reitern, doppelt so stark wie die eigene Truppe, belagert die sechseckige Festung |
 | Angriff: Festung | Dieselbe Festung, man selbst belagert sie; die Besatzung ist etwa halb so stark wie die eigene Truppe |
+
+Alle Karten sind gleich groß (32 × 36 Kacheln, viermal so groß wie die
+früheren kleinen Karten); große Karten beginnen in der Übersicht. Die
+Festung hat als einzige einen Wall; Palisade und Siedlung mit Wall gibt es
+nicht mehr, ihr Wall ist der Festungswall.
 
 **Festung:** In der Mitte der großen Karte liegt die Agora, um sie
 dreißig Häuser in Blöcken; von jedem Tor führt eine breite Gasse zur
@@ -530,22 +535,23 @@ zuerst), schickt eine Phalanx, vor deren Tor niemand steht, an die
 bedrohte Stelle, schickt die Peltasten auf den Wehrgang dorthin, wo der
 Angriff ansetzt, und hält die Reiter auf der Agora für Eingedrungene.
 
-**Wehrgang:** Eine reine Peltastengruppe der Wallseite darf auf die
-Palisade, aber nur über die Leitern hinauf und hinunter (helle Sprossen
-auf der Palisade). Oben läuft sie entlang, auch über das Torhaus. Über
-die Palisade wirft nur, wer oben steht, dafür eine Kachel weiter.
+**Wehrgang:** Jede Fußgruppe der Wallseite darf auf den Wall, aber nur
+über die Leitern hinauf und hinunter (helle Sprossen auf dem Wall). Oben
+läuft sie entlang, auch über das Torhaus, und steht sie ganz oben, schließt
+sie sich dort wieder. Über den Wall wirft nur, wer oben steht, dafür eine
+Kachel weiter.
 Der Wehrgang ist erhöht: Wer unten steht, kommt an die Männer oben nicht
 heran und ist mit ihnen auch nicht im Handgemenge; von oben schlägt man
 hinunter, mit einem Drittel der Wirkung. Nach oben helfen nur Speere,
-Leitern oder ein Turm. Gegen Speere von außen deckt die Palisade die
+Leitern oder ein Turm. Gegen Speere von außen deckt der Wall die
 Männer auf dem Wehrgang: Sie nehmen davon nur knapp ein Drittel des
 Schadens. Wer von innen (der Seite der Häuser) oder vom Wall selbst
 wirft, trifft sie voll.
 
-**Belagerungsgerät:** Beim Angriff auf die Siedlung mit Wall ist das Tor
+**Belagerungsgerät:** Beim Angriff auf die Festung sind die Tore
 verschlossen. Jede gewählte Gruppe kann ein Gerät bauen:
 „Rammbock“ (acht Sekunden) oder „Turm“ (zwölf Sekunden). Mit Rammbock
-das Tor antippen: die Gruppe geht hin und bricht es auf; nach dem
+ein Tor antippen: die Gruppe geht hin und bricht es auf; nach dem
 Durchbruch bleibt der Rammbock liegen und die Gruppe tritt zur Seite,
 damit der Durchgang frei ist. Mit Turm ein
 Wallstück antippen: die Gruppe rollt hin, setzt den Turm an, und nach
@@ -569,7 +575,7 @@ läuft unten hinüber und drüben wieder hinauf. Durch eine feindliche
 Formation läuft niemand hindurch, weder eine Gruppe noch ein einzelner
 Mann; wer von der Leiter in eine Phalanx kommt, muss sie durchkämpfen
 oder außen herum. Der Kartenrand ist keine Umgehung. Fällt eine Gruppe oder flieht sie, ist ihr Gerät verloren. Bei
-der Verteidigung mit Palisade bauen die Räuber selbst Rammbock und Turm.
+der Verteidigung der Festung baut das Heer selbst Rammböcke und einen Turm.
 
 ## Gegner-KI
 
@@ -580,14 +586,14 @@ und jeder Wechsel erscheint als Ereignis.
 **Stufe 1, Lage lesen.** Alle halbe Sekunde entsteht ein Lagebericht: Wo
 stehen die Phalangen des Spielers und wohin schauen sie, welche Gruppen
 sind ungedeckt (Peltasten ohne Hopliten in der Nähe, abgesessene Reiter,
-eine aufgelöste Formation), ist das Tor bewacht, wo setzt ein Turm an.
+eine aufgelöste Formation).
 Daraus wählt jede Gruppe ihr Ziel: ungedeckte Gruppen sind lohnend, die
 Front einer Phalanx nicht. Wer vor einer Front steht, läuft um sie herum
 und greift die Flanke an. Im Handgemenge wird nicht mehr umgeplant.
 
 **Stufe 2, Pläne.** Die Gegnerseite wählt aus benannten Plänen den mit
 der höchsten Punktzahl und bewertet alle zwölf Sekunden neu, sofort bei
-einem Durchbruch oder wenn eine Front auftaucht oder verschwindet:
+einem Durchbruch (Festung) oder wenn eine Front auftaucht oder verschwindet:
 
 | Plan | Wer | Wann |
 |---|---|---|
@@ -596,9 +602,7 @@ einem Durchbruch oder wenn eine Front auftaucht oder verschwindet:
 | Zermürben | Räuber, Horde | eine Phalanx sperrt und die Räuber haben noch Speere: außerhalb des Nahkampfs stehen und werfen, dann stürmen |
 | Binden und Umfassen | Räuber, Horde | eine Phalanx sperrt, mindestens zwei Gruppen und leichte Überlegenheit: ein Teil (etwa 70 % der Phalanxstärke, Fußvolk) stellt sich vor die Front und wartet, der Rest (Reiter zuerst) läuft um die Flanke; sobald jemand an der Flanke steht, greifen die Bindenden an, spätestens nach zwölf Sekunden |
 | Umgehen und in den Rücken fallen | Räuber, Horde | wie Binden und Umfassen, aber die Umfassenden laufen ganz herum: neben die Flanke, hinter die Ecke, hinter die Mitte, und greifen von hinten an (dort trifft es am härtesten); nur wenn hinter der Phalanx mindestens zwei Kacheln Platz sind, bevorzugt mit Reitern, die den weiten Weg schnell gehen; die Bindenden greifen an, sobald jemand im Rücken steht |
-| Tor rammen / Rammbock und Turm | Räuber vor der Palisade | Tor zu; mit Wehrgang-Peltasten oder bewachtem Tor zusätzlich ein Turm am Rand, fern vom Tor |
-| Belagern | Räuber nach dem Durchbruch | eine Phalanx bewacht das Tor: außer Wurfweite warten, über den Turm einsickern, nach 40 s oder sobald die Wache weg ist stürmen |
-| Stellung halten | Siedlung | Grundplan: Linie hält, dreht die Front zu Flankenangriffen, Hopliten decken das Wallstück, an dem ein Turm ansetzt, Wehrgang-Peltasten laufen zum Angriffspunkt, Peltasten am Boden plänkeln (siehe unten), Reiter greifen nur ungedeckte oder allein stehende Gruppen an, oder eine Phalanx, die von der eigenen Linie gebunden ist, und dann um die Front herum in Flanke oder Rücken |
+| Stellung halten | Siedlung | Grundplan: Linie hält, dreht die Front zu Flankenangriffen, Peltasten plänkeln (siehe unten), Reiter greifen nur ungedeckte oder allein stehende Gruppen an, oder eine Phalanx, die von der eigenen Linie gebunden ist, und dann um die Front herum in Flanke oder Rücken |
 | Vorrücken | Siedlung | Übermacht in der Nähe oder Beschuss durch Peltasten: die Linie rückt in Formation vor |
 
 **Plänkeln der KI.** Eine Peltastengruppe der Gegnerseite mit Speeren,

@@ -1,7 +1,7 @@
 """Kopflose Schlachten mit gescripteten Spielertaktiken gegen die Gegner-KI.
 
     python3 tools/simulate.py                 # alle Szenarien, beide KIs, 5 Seeds
-    python3 tools/simulate.py --seeds 20 --ai klug --scenario palisade --tactic tor_halten
+    python3 tools/simulate.py --seeds 20 --ai klug --scenario siedlung --tactic linie_aktiv
     python3 tools/simulate.py --lernen 8      # dieselbe Taktik achtmal mit Gedächtnis
 
 Jede Taktik ist eine kleine Funktion, die zu festen Zeitpunkten Befehle gibt,
@@ -73,19 +73,24 @@ ARMIES = {
 # ---------------------------------------------------------------- Taktiken
 # Jede Taktik: dict Zeitpunkt -> Funktion(battle). Zeit 0 = erster Befehl.
 
+def _at(b: Battle, dx: float, dy: float) -> tuple[float, float]:
+    """Kartenstelle relativ zur Mitte der Karte (x) und zur eigenen Aufstellung (y)."""
+    return (b.cols / 2 + dx, b.scenario.deploy_y + dy)
+
+
 def t_linie(b: Battle) -> dict:
     """Verteidigung offen: Phalanx quer, Peltasten dahinter, Reiter in Reserve."""
     hop, pelt, cav = groups(b)
     return {
-        0: lambda b: (b.command_line(hop, (4.0, 10.5), (12.0, 10.5)),
-                      b.command_line(pelt, (5.0, 11.6), (11.0, 11.6)),
-                      b.command_move(cav, (13.5, 12.5))),
+        0: lambda b: (b.command_line(hop, _at(b, -4.0, 0.0), _at(b, 4.0, 0.0)),
+                      b.command_line(pelt, _at(b, -3.0, 1.1), _at(b, 3.0, 1.1)),
+                      b.command_move(cav, _at(b, 5.5, 2.0))),
     }
 
 
 def t_schlachtordnung(b: Battle) -> dict:
     """Wie Linie, aber mit einem Zug für alle: Peltasten dahinter, Reiter am rechten Flügel."""
-    return {0: lambda b: b.command_line(None, (4.0, 10.5), (12.0, 10.5))}
+    return {0: lambda b: b.command_line(None, _at(b, -4.0, 0.0), _at(b, 4.0, 0.0))}
 
 
 def t_linie_reiter_aktiv(b: Battle) -> dict:
@@ -143,9 +148,9 @@ def t_linie_tief(b: Battle) -> dict:
     Einer-Reihe, Peltasten dahinter, Reiter als Flankenschutz wie bei linie_aktiv."""
     hop, pelt, cav = groups(b)
     plan = t_linie_aktiv(b)
-    plan[0] = lambda b: (b.command_line(hop, (6.5, 10.5), (9.5, 10.5)),
-                         b.command_line(pelt, (6.5, 11.4), (9.5, 11.4)),
-                         b.command_move(cav, (12.0, 11.5)))
+    plan[0] = lambda b: (b.command_line(hop, _at(b, -1.5, 0.0), _at(b, 1.5, 0.0)),
+                         b.command_line(pelt, _at(b, -1.5, 0.9), _at(b, 1.5, 0.9)),
+                         b.command_move(cav, _at(b, 4.0, 1.0)))
     return plan
 
 
@@ -157,79 +162,16 @@ def t_angriff(b: Battle) -> dict:
     return {0: lambda b: b.command_attack(None)}
 
 
-def t_tor_halten(b: Battle) -> dict:
-    """Verteidigung Palisade: Peltasten auf den Wall, Hopliten hinters Tor."""
-    hop, pelt, cav = groups(b)
-    return {
-        0: lambda b: (b.command_line(hop, (5.5, 9.6), (10.5, 9.6)),
-                      b.command_move(pelt, (3.5, 8.5)),
-                      b.command_move(cav, (13.0, 12.5))),
-    }
-
-
-def t_tor_halten_reserve(b: Battle) -> dict:
-    """Wie Tor halten, die Reiter jagen alle 15 s eingedrungene Gruppen."""
-    plan = t_tor_halten(b)
-    hop, pelt, cav = groups(b)
-
-    def hunt(b: Battle):
-        if not cav or b.gate is None:
-            return
-        inside = [f for f in b.units(Side.FEIND, fighting_only=True) if f.y > b.gate.center[1] + 0.5 and not b.on_wall(f)]
-        if inside:
-            b.command_attack_target(cav, min(inside, key=lambda f: f.men))
-    for t in range(20, 240, 15):
-        plan[t] = hunt
-    return plan
-
-
-def t_tor_leiter(b: Battle) -> dict:
-    """Wie Tor halten, aber sobald ein Turm steht, stellt sich die Phalanx an den Fuß
-    der nächsten Leiter (Front zum Wall); die Reiter jagen, was trotzdem durchkommt."""
-    plan = t_tor_halten(b)
-    hop, pelt, cav = groups(b)
-    state = {"covered": False}
-
-    def react(b: Battle):
-        if b.crossings and not state["covered"] and hop and hop[0].fighting:
-            cx = next(iter(b.crossings))[0] + 0.5
-            lx, ly = min(b.ladders, key=lambda c: abs(c[0] + 0.5 - cx))
-            b.command_line(hop, (lx + 0.5 - 2.2, ly + 1.7), (lx + 0.5 + 2.2, ly + 1.7))
-            state["covered"] = True
-        if not cav or not cav[0].fighting or b.gate is None:
-            return
-        line = hop[0] if hop else None
-        inside = [f for f in b.units(Side.FEIND, fighting_only=True) if f.y > b.gate.center[1] + 0.5 and not b.on_wall(f)
-                  and (line is None or line.rect_distance(f.pos) > 1.5)]
-        if inside:
-            b.command_attack_target(cav, min(inside, key=lambda f: f.rect_distance(cav[0].pos)))
-    for t in range(5, 240, 5):
-        plan[t] = react
-    return plan
-
-
 def t_vorruecken(b: Battle) -> dict:
     """Angriff: Linie bilden, vorrücken, dann Angriff."""
     hop, pelt, cav = groups(b)
     return {
-        0: lambda b: (b.command_line(hop, (4.0, 12.0), (12.0, 12.0)),
-                      b.command_line(pelt, (5.0, 13.0), (11.0, 13.0)),
-                      b.command_move(cav, (13.5, 13.5))),
-        20: lambda b: (b.command_line(hop, (4.0, 8.5), (12.0, 8.5)),
-                       b.command_line(pelt, (5.0, 9.6), (11.0, 9.6))),
+        0: lambda b: (b.command_line(hop, _at(b, -4.0, -3.5), _at(b, 4.0, -3.5)),
+                      b.command_line(pelt, _at(b, -3.0, -2.5), _at(b, 3.0, -2.5)),
+                      b.command_move(cav, _at(b, 5.5, -2.0))),
+        20: lambda b: (b.command_line(hop, _at(b, -4.0, -7.0), _at(b, 4.0, -7.0)),
+                       b.command_line(pelt, _at(b, -3.0, -5.9), _at(b, 3.0, -5.9))),
         45: lambda b: b.command_attack(None),
-    }
-
-
-def t_belagerung(b: Battle) -> dict:
-    """Angriff Wall: Hopliten bauen den Rammbock, Reiter den Turm."""
-    hop, pelt, cav = groups(b)
-    return {
-        0: lambda b: (b.command_build(hop, "ram"), b.command_build(cav, "tower"),
-                      b.command_move(pelt, (8.0, 13.0))),
-        config.RAM_BUILD_TIME + 2: lambda b: b.command_ram_gate(hop),
-        config.TOWER_BUILD_TIME + 2: lambda b: b.command_tower_wall(cav, (13, 7)),
-        40: lambda b: b.command_attack(None),
     }
 
 
@@ -237,12 +179,13 @@ def t_phalanxstoss(b: Battle) -> dict:
     """Angriff offen: in Formation bis vor die feindliche Linie, dann Phalanx gegen Phalanx."""
     hop, pelt, cav = groups(b)
     foe_y = min((u.y for u in b.units(Side.FEIND)), default=5.0) + 0.5
+    cx = b.cols / 2
     return {
-        0: lambda b: (b.command_line(hop, (4.0, 12.0), (12.0, 12.0)),
-                      b.command_line(pelt, (5.0, 13.0), (11.0, 13.0)),
-                      b.command_move(cav, (13.5, 13.5))),
-        20: lambda b: (b.command_line(hop, (4.5, foe_y + 1.4), (11.5, foe_y + 1.4)),
-                       b.command_line(pelt, (5.0, foe_y + 2.5), (11.0, foe_y + 2.5))),
+        0: lambda b: (b.command_line(hop, _at(b, -4.0, -3.5), _at(b, 4.0, -3.5)),
+                      b.command_line(pelt, _at(b, -3.0, -2.5), _at(b, 3.0, -2.5)),
+                      b.command_move(cav, _at(b, 5.5, -2.0))),
+        20: lambda b: (b.command_line(hop, (cx - 3.5, foe_y + 1.4), (cx + 3.5, foe_y + 1.4)),
+                       b.command_line(pelt, (cx - 3.0, foe_y + 2.5), (cx + 3.0, foe_y + 2.5))),
         60: lambda b: b.command_attack(cav),
         **{t: _finish_off for t in range(70, 290, 10)},
     }
@@ -254,28 +197,6 @@ def _finish_off(b: Battle) -> None:
     foes = b.units(Side.FEIND, fighting_only=True)
     if foes and not any(f.in_phalanx and f.men >= 20 for f in foes):
         b.command_attack([u for u in b.units(Side.STADT, fighting_only=True) if u.stance is not Stance.ANGRIFF])
-
-
-def t_tor_phalanx(b: Battle) -> dict:
-    """Angriff Wall: Rammbock ans Tor, danach in Formation durchs Tor, Peltasten hinterher."""
-    hop, pelt, cav = groups(b)
-    plan = {
-        0: lambda b: (b.command_build(hop, "ram"), b.command_move(pelt, (8.0, 11.0)), b.command_move(cav, (8.0, 12.5))),
-        config.RAM_BUILD_TIME + 2: lambda b: b.command_ram_gate(hop),
-    }
-
-    done = []
-
-    def through(b: Battle):
-        if b.gate is not None and not b.gate.closed and not done:
-            done.append(True)
-            gx, gy = b.gate.center
-            b.command_line(hop, (gx - 2.5, gy - 1.6), (gx + 2.5, gy - 1.6))
-            b.command_line(pelt, (gx - 1.5, gy - 0.6), (gx + 1.5, gy - 0.6))
-    for t in range(12, 90, 2):
-        plan[t] = through
-    plan[120] = lambda b: b.command_attack(None)
-    return plan
 
 
 # ---------------------------------------------------------------- Festung
@@ -396,11 +317,9 @@ def t_festung_angriff_turm(b: Battle) -> dict:
 
 
 TACTICS = {
-    "offen": {"linie": t_linie, "schlachtordnung": t_schlachtordnung, "linie_reiter": t_linie_reiter_aktiv, "linie_aktiv": t_linie_aktiv, "linie_tief": t_linie_tief, "passiv": t_passiv, "angriff": t_angriff},
-    "palisade": {"tor_halten": t_tor_halten, "tor_reserve": t_tor_halten_reserve, "tor_leiter": t_tor_leiter, "passiv": t_passiv},
+    "siedlung": {"linie": t_linie, "schlachtordnung": t_schlachtordnung, "linie_reiter": t_linie_reiter_aktiv, "linie_aktiv": t_linie_aktiv, "linie_tief": t_linie_tief, "passiv": t_passiv, "angriff": t_angriff},
+    "siedlung_angriff": {"phalanxstoss": t_phalanxstoss, "vorruecken": t_vorruecken, "angriff": t_angriff},
     "horde": {"vorruecken": t_vorruecken, "angriff": t_angriff},
-    "angriff_offen": {"phalanxstoss": t_phalanxstoss, "vorruecken": t_vorruecken, "angriff": t_angriff},
-    "angriff_wall": {"tor_phalanx": t_tor_phalanx, "belagerung": t_belagerung},
     "festung": {"tore": t_festung_tore, "passiv": t_passiv},
     "festung_angriff": {"rammbock": t_festung_angriff_ram, "turm": t_festung_angriff_turm},
 }
@@ -480,7 +399,7 @@ def main() -> None:
     started = time.time()
     if args.matrix:
         from game.doctrine import DOCTRINES
-        pairs = [("angriff_offen", "phalanxstoss"), ("angriff_wall", "tor_phalanx")]
+        pairs = [("siedlung_angriff", "phalanxstoss"), ("festung_angriff", "rammbock")]
         print("| Spieler | Szenario | Gegner | Siege Spieler | Verlust Spieler | Verlust Siedlung | Dauer |")
         print("|---|---|---|---|---|---|---|")
         for army in ARMIES:
@@ -496,7 +415,7 @@ def main() -> None:
         print(f"\n{time.time() - started:.0f} s Rechenzeit", file=sys.stderr)
         return
     if args.lernen:
-        scn = next(s for s in SCENARIOS if s.key == (args.scenario or "offen"))
+        scn = next(s for s in SCENARIOS if s.key == (args.scenario or "siedlung"))
         tactic = args.tactic or next(iter(TACTICS[scn.key]))
         mem = Memory()
         print(f"## Lernen: {scn.key} / {tactic}, {args.lernen} Schlachten hintereinander\n")
