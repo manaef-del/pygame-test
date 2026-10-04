@@ -305,9 +305,6 @@ class App:
         self.drag_start = self.drag_now = None
         cam = self.renderer.camera
         tap = abs(end[0] - start[0]) < DRAG_MIN / cam.zoom and abs(end[1] - start[1]) < DRAG_MIN / cam.zoom
-        if tap and cam.overview:
-            cam.zoom_to(end)                       # Übersicht: Tippen zoomt dorthin
-            return
         if self.battle.outcome is not None:
             return
         if tap:

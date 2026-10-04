@@ -255,18 +255,23 @@ def fortress_app() -> App:
     return app
 
 
-def test_fortress_starts_in_overview_and_a_tap_zooms_in():
+def test_fortress_starts_in_overview_and_a_tap_does_not_zoom():
+    """Die große Karte beginnt in der Übersicht. Ein Tipp zoomt nicht (das tun zwei Finger
+    oder der Knopf), er wirkt wie in der Nahansicht: Er wählt eine Gruppe."""
     app = fortress_app()
     cam = app.renderer.camera
     assert cam.big and cam.overview
     assert cam.to_tiles((config.MAP_W, config.MAP_H)) == pytest.approx((app.battle.cols, app.battle.rows))
-    pos = (config.MAP_W // 4, config.MAP_H // 2)
-    want = cam.to_tiles(pos)
+    hop = next(u for u in app.battle.units(Side.STADT) if u.arm() == "hopliten")
+    t = config.TILE * cam.zoom
+    pos = (int((hop.x - cam.ox) * t), int((hop.y - cam.oy) * t))
+    zoom = cam.zoom
     app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=pos))
     app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=pos))
+    assert cam.overview and cam.zoom == zoom
+    assert app.selected == {hop.id}
+    app.command("ansicht")
     assert not cam.overview
-    w, h = cam.span()
-    assert cam.ox <= want[0] <= cam.ox + w and cam.oy <= want[1] <= cam.oy + h
     app.command("ansicht")
     assert cam.overview
 

@@ -704,12 +704,11 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
   und deckt sie sonst ab, damit auf dem Handy kein Fehlgriff die
   Schlacht neu startet; ein Tipp daneben schließt es wieder.
 - **Große Karte (Festung):** Sie beginnt in der Übersicht, die ganze
-  Karte halb so groß. Ein Tipp auf die Karte zoomt in die Nahansicht
-  (Maßstab wie auf den kleinen Karten), mit der Stelle in der Mitte; dort
-  verschieben **zwei Finger** die Ansicht. Der Knopf unter „Menü“
-  schaltet zwischen „Karte“ (Übersicht) und „Nah“ um. In der Übersicht
-  wählt man Gruppen über die Kacheln rechts; Fronten aufziehen geht in
-  beiden Ansichten.
+  Karte halb so groß. Gezoomt wird mit **zwei Fingern** (auseinander:
+  näher, zusammen: weiter weg); zwei Finger verschieben auch die Ansicht.
+  Der Knopf unter „Menü“ schaltet zwischen „Karte“ (Übersicht) und „Nah“
+  um. Ein Tipp zoomt nicht: Er wählt, schickt und greift an wie in der
+  Nahansicht, in jeder Ansicht.
 
 | Eingabe | Aktion |
 |---------|--------|
@@ -737,7 +736,6 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 | Karte / Nah, Z | große Karte: zwischen Übersicht und Nahansicht umschalten; hineingezoomt: zurück zur ganzen Ansicht |
 | Teilen / D | gewählte Gruppe in zwei Hälften teilen |
 | Vereinen / E | gewählte Gruppen derselben Gattung zu einer vereinen |
-| Tippen in der Übersicht | große Karte: dorthin zoomen |
 | Zwei Finger ziehen (am Rechner: rechte Maustaste, Pfeiltasten) | große Karte: Nahansicht verschieben |
 
 Das Spiel beginnt im **Alarm** und wartet auf den ersten Befehl.

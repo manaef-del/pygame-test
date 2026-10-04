@@ -26,7 +26,7 @@ def px(p: tuple[float, float]) -> tuple[int, int]:
 class Camera:
     """Was von der Karte zu sehen ist: Maßstab (1 = Nahansicht, kleiner = Übersicht, bis
     ``MAX_ZOOM`` hineingezoomt) und die linke obere Ecke in Kacheln. Mit zwei Fingern
-    (oder dem Mausrad) zoomt man stufenlos; große Karten wechseln per Knopf oder Tipp
+    (oder dem Mausrad) zoomt man stufenlos; große Karten wechseln per Knopf
     zwischen Übersicht (alles) und Nahansicht."""
 
     def __init__(self) -> None:
