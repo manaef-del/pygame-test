@@ -359,8 +359,8 @@ def test_attacker_keeps_its_detour_side_instead_of_dithering():
     """Ein Haufen, der hinter eigenen kämpfenden Gruppen an einen Kreis will, wählt
     eine Seite und bleibt dabei: er wechselt sie nicht hin und her und kommt voran
     oder wartet geordnet (Umweg-Flackern, docs/ideen.md)."""
-    from game.scenarios import OFFENE_SIEDLUNG
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1), army=ring_army())
+    from kleine_karten import KLEIN_OFFEN
+    b = Battle(KLEIN_OFFEN, random.Random(1), army=ring_army())
     (g,) = b.units(Side.STADT)
     b.command_formation([g], "o")
     b.command_ring([g], (7.5, 9.5), 1.0)
@@ -379,8 +379,8 @@ def test_attacker_keeps_its_detour_side_instead_of_dithering():
 def test_attacker_waits_when_the_enemy_outline_is_full(monkeypatch):
     """Ist am ganzen Umriss des Gegners kein Platz mehr frei, wartet der Block hinter
     den eigenen Gruppen, statt herumzulaufen."""
-    from game.scenarios import OFFENE_SIEDLUNG
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1), army=ring_army())
+    from kleine_karten import KLEIN_OFFEN
+    b = Battle(KLEIN_OFFEN, random.Random(1), army=ring_army())
     (g,) = b.units(Side.STADT)
     b.command_formation([g], "o")
     b.command_ring([g], (7.5, 9.5), 1.0)

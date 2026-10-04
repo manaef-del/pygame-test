@@ -1,6 +1,7 @@
 """Integrationstests: Schleife, Menü, Eingabe und Zeichnen laufen headless."""
 
 import asyncio
+import math
 
 import pygame
 import pytest
@@ -8,7 +9,12 @@ import pytest
 from game import config
 from game.app import App, run, to_tiles
 from game.render import Renderer
+from game.scenarios import FESTUNG, FESTUNG_ANGRIFF
 from game.units import UNIT_TYPES, Side, Stance
+from kleine_karten import KLEIN_ANGRIFF, KLEIN_HORDE, KLEIN_OFFEN
+
+# Die kleinen Testkarten passen ganz auf den Bildschirm: Bildpunkt = Kachel × TILE
+TEST_SCENARIOS = (KLEIN_OFFEN, KLEIN_ANGRIFF, KLEIN_HORDE, FESTUNG, FESTUNG_ANGRIFF)
 
 UNIT_TYPES_SPEED_SCHWER = UNIT_TYPES["schwer"].speed
 
@@ -16,7 +22,7 @@ UNIT_TYPES_SPEED_SCHWER = UNIT_TYPES["schwer"].speed
 def make_app(start_in_battle: bool = True) -> App:
     pygame.init()
     surface = pygame.Surface((config.WIDTH, config.HEIGHT))
-    return App(Renderer(surface), seed=1, start_in_battle=start_in_battle)
+    return App(Renderer(surface), seed=1, start_in_battle=start_in_battle, scenarios=TEST_SCENARIOS)
 
 
 def press(app: App, pos) -> None:
@@ -24,8 +30,15 @@ def press(app: App, pos) -> None:
     app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=pos))
 
 
+def screen_of(app: App, p) -> tuple[int, int]:
+    """Bildpunkt einer Kartenstelle bei der aktuellen Kamera."""
+    cam = app.renderer.camera
+    t = config.TILE * cam.zoom
+    return (int((p[0] - cam.ox) * t), int((p[1] - cam.oy) * t))
+
+
 def pos_of(app: App, unit) -> tuple[int, int]:
-    return (int(unit.x * config.TILE), int(unit.y * config.TILE))
+    return screen_of(app, unit.pos)
 
 
 def bar(app: App) -> dict[str, tuple[int, int]]:
@@ -277,10 +290,9 @@ def test_enemy_slider_and_time_scale():
     app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(track.right, track.centery)))
     app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=(track.right, track.centery)))
     key = app.battle.scenario.key
-    from game.scenarios import SCENARIOS
-    assert app.enemy_counts[key] == SCENARIOS[0].enemy_max
+    assert app.enemy_counts[key] == TEST_SCENARIOS[0].enemy_max
     app.menu_command("start")
-    assert app.battle.men(Side.FEIND) == SCENARIOS[0].enemy_max
+    assert app.battle.men(Side.FEIND) == TEST_SCENARIOS[0].enemy_max
     app.command("alle")
     app.command("halten")
     app.tick(1.0)
@@ -293,26 +305,37 @@ def test_engine_buttons_gate_and_wall_taps():
         app.menu_command("scenario")
     app.menu_command("start")
     b = app.battle
-    assert b.scenario.key == "angriff_wall"
-    hop, pelt, cav = b.units(Side.STADT)
+    assert b.scenario.key == "festung_angriff"
+    app.draw()                                        # die Kamera kennt die große Karte erst nach dem Zeichnen
+    cam = app.renderer.camera
+    hop = next(u for u in b.units(Side.STADT) if u.arm() == "hopliten")
+    cav = next(u for u in b.units(Side.STADT) if u.arm() == "reiter")
+    cam.zoom_to(hop.pos)                              # Nahansicht: Tippen wählt statt zu zoomen
     assert "rammbock" not in bar(app)                 # ohne Auswahl gibt es den Knopf nicht
     press(app, pos_of(app, hop))
     assert labels(app)["rammbock"] == "Rammbock"
     press(app, bar(app)["rammbock"])
     assert hop.build_kind == "ram"
+    cam.zoom_to(cav.pos)
     press(app, pos_of(app, cav))
     press(app, bar(app)["turm"])
     assert cav.build_kind == "tower"
     for _ in range(int((config.TOWER_BUILD_TIME + 1) / config.TIME_SCALE * 30)):
         app.tick(1 / 30)
     assert hop.engine == "ram" and cav.engine == "tower"
+    gate = min(b.gates, key=lambda g: math.dist(g.center, hop.pos))
+    cam.zoom_to(hop.pos)
     press(app, pos_of(app, hop))
-    gx, gy = b.gate.center
-    press(app, (int(gx * config.TILE), int(gy * config.TILE)))
-    assert hop.target is not None and abs(hop.target[0] - gx) < 1e-6
+    cam.zoom_to(gate.center)
+    press(app, screen_of(app, gate.center))
+    assert hop.target is not None and hop.ram_gate == b.gates.index(gate)
+    wall = min((c for c in b.blocked if c not in b._gate_of and c not in b.ladders),
+               key=lambda c: math.dist((c[0] + 0.5, c[1] + 0.5), cav.pos))
+    cam.zoom_to(cav.pos)
     press(app, pos_of(app, cav))
-    press(app, (int(3.5 * config.TILE), int(7.5 * config.TILE)))
-    assert cav.tower_cell == (3, 7)
+    cam.zoom_to((wall[0] + 0.5, wall[1] + 0.5))
+    press(app, screen_of(app, (wall[0] + 0.5, wall[1] + 0.5)))
+    assert cav.tower_cell is not None and math.dist(cav.tower_cell, wall) <= 2.0
     app.draw()
 
 
@@ -322,7 +345,9 @@ def test_pressing_engine_button_again_drops_it():
         app.menu_command("scenario")
     app.menu_command("start")
     b = app.battle
-    hop, pelt, cav = b.units(Side.STADT)
+    hop = next(u for u in b.units(Side.STADT) if u.arm() == "hopliten")
+    app.draw()
+    app.renderer.camera.zoom_to(hop.pos)
     press(app, pos_of(app, hop))
     press(app, bar(app)["rammbock"])
     assert hop.build_kind == "ram"

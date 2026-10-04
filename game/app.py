@@ -19,7 +19,7 @@ from .ai import Memory
 from .army import OWN_DEFAULT, OWN_MAX, OWN_MIN, Army, default_army, scaled_army
 from .battle import Battle
 from .render import Renderer
-from .scenarios import SCENARIOS
+from .scenarios import SCENARIOS, Scenario
 from .units import Side
 
 DRAG_MIN = 0.4  # Kacheln: kürzer ist ein Tipp, kein Bereich
@@ -36,8 +36,9 @@ class App:
     """Zustand der Bedienung, getrennt von der Schleife (testbar)."""
 
     def __init__(self, renderer: Renderer, seed: int | None = None, start_in_battle: bool = False,
-                 memory: Memory | None = None) -> None:
+                 memory: Memory | None = None, scenarios: tuple[Scenario, ...] = SCENARIOS) -> None:
         self.renderer = renderer
+        self.scenarios = scenarios
         self.memory = memory or Memory()
         self.seed = seed
         self.scenario_index = 0
@@ -52,7 +53,7 @@ class App:
         self.drag_now: tuple[float, float] | None = None
         self.running = True
         self.menu_slider: tuple[int, pygame.Rect] | None = None
-        self.enemy_counts: dict[str, int] = {s.key: s.enemy_default for s in SCENARIOS}
+        self.enemy_counts: dict[str, int] = {s.key: s.enemy_default for s in scenarios}
         self.own_count = OWN_DEFAULT
         self.fingers: dict[int, tuple[float, float]] = {}   # aufliegende Finger (für das Verschieben)
         self.panning = False                                 # zwei Finger liegen auf: kein Tippen, kein Ziehen
@@ -72,7 +73,7 @@ class App:
         self.selected = set()
         self.drag_start = self.drag_now = None
         self._arrange(None)
-        scn = SCENARIOS[self.scenario_index]
+        scn = self.scenarios[self.scenario_index]
         army = copy.deepcopy(self.army) if self.army.total_men() else scaled_army(default_army(), self.own_count)
         return Battle(scn, rng, army=army, enemy_count=self.enemy_counts[scn.key], memory=self.memory)
 
@@ -234,7 +235,7 @@ class App:
         tier, rect = self.menu_slider
         frac = min(1.0, max(0.0, (pos[0] - rect.x) / rect.w))
         if tier == -1:
-            scn = SCENARIOS[self.scenario_index]
+            scn = self.scenarios[self.scenario_index]
             self.enemy_counts[scn.key] = scn.enemy_min + round(frac * (scn.enemy_max - scn.enemy_min))
             return
         if tier == -2:
@@ -482,7 +483,7 @@ class App:
             self.army = scaled_army(default_army(), self.own_count)
             self.menu_group = 0
         elif key == "scenario":
-            self.scenario_index = (self.scenario_index + 1) % len(SCENARIOS)
+            self.scenario_index = (self.scenario_index + 1) % len(self.scenarios)
         elif key == "start":
             if a.valid():
                 self.screen = "schlacht"
@@ -525,7 +526,7 @@ class App:
 
     def draw(self) -> None:
         if self.screen == "aufstellung":
-            scn = SCENARIOS[self.scenario_index]
+            scn = self.scenarios[self.scenario_index]
             self.renderer.draw_menu(self.army, self.menu_group, scn, self.enemy_counts[scn.key], self.own_count)
         else:
             self.renderer.draw(self.battle, self.drag_rect(), self.paused, self.selected, self.menu_open)

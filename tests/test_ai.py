@@ -6,7 +6,8 @@ from game import config
 from game.ai import Brain, Memory, PLAN_NAMES, formed, rear_route
 from game.army import Army, GroupSpec, Tier
 from game.battle import Battle
-from game.scenarios import OFFENE_SIEDLUNG, PALISADE, RAEUBERHORDE, SIEDLUNG_OFFEN, SIEDLUNG_WALL, RaiderSpawn, Scenario
+from game.scenarios import PALISADE, SIEDLUNG_WALL, RaiderSpawn, Scenario
+from kleine_karten import KLEIN_ANGRIFF, KLEIN_HORDE, KLEIN_OFFEN
 from game.units import UNIT_TYPES, Lochos, Man, Side, Stance
 
 DT = 1 / 30
@@ -104,7 +105,7 @@ def test_a_ring_has_no_flank_to_walk_around():
 
 # ---------------------------------------------------------------- Pläne
 def test_raiders_go_around_or_harass_a_phalanx_but_charge_an_open_settlement():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(2))
+    b = Battle(KLEIN_OFFEN, random.Random(2))
     hop, pelt, cav = b.units(Side.STADT)
     b.command_line([hop], (3.0, 10.5), (13.0, 10.5))
     b.command_line([pelt], (5.0, 11.6), (11.0, 11.6))
@@ -113,19 +114,19 @@ def test_raiders_go_around_or_harass_a_phalanx_but_charge_an_open_settlement():
     assert b.brain.plan in ("umgehen_west", "umgehen_ost", "zermuerben", "flankieren", "ruecken"), b.brain.plan
     assert any(e.startswith("Die Räuber:") for e in b.events)
 
-    b2 = Battle(OFFENE_SIEDLUNG, random.Random(2))
+    b2 = Battle(KLEIN_OFFEN, random.Random(2))
     b2.alarm = False                                       # niemand stellt eine Phalanx
     run(b2, 8)
     assert b2.brain.plan == "frontal"
 
 
 def test_harassing_raiders_keep_their_distance_until_the_javelins_are_gone():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(3), enemy_count=64)
+    b = Battle(KLEIN_OFFEN, random.Random(3), enemy_count=64)
     hop, pelt, cav = b.units(Side.STADT)
     b.command_line([hop], (3.0, 10.5), (13.0, 10.5))
     b.command_move([pelt], (8.0, 12.0))
     b.command_move([cav], (8.0, 13.0))
-    b.brain.memory.gains = {"offen": {"umgehen_west": [-1.0] * 5, "umgehen_ost": [-1.0] * 5}}   # Umgehen ist verbrannt
+    b.brain.memory.gains = {"klein_offen": {"umgehen_west": [-1.0] * 5, "umgehen_ost": [-1.0] * 5}}   # Umgehen ist verbrannt
     run(b, 8)
     assert b.brain.plan == "zermuerben"
     run(b, 12)
@@ -190,7 +191,7 @@ def dist_to_gate(u: Lochos, b: Battle) -> float:
 
 
 def test_horde_sleeps_then_picks_a_plan():
-    b = Battle(RAEUBERHORDE, random.Random(1))
+    b = Battle(KLEIN_HORDE, random.Random(1))
     b.command_hold()
     run(b, 3)
     assert b.brain.plan == "lagern" and not b.horde_awake
@@ -202,7 +203,7 @@ def test_horde_sleeps_then_picks_a_plan():
 
 # ------------------------------------------------------------- Siedlung
 def test_settlement_cavalry_ignores_the_phalanx_but_charges_exposed_peltasts():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     b.command_line([hop], (4.0, 9.5), (12.0, 9.5))
     b.command_line([pelt], (5.0, 10.6), (11.0, 10.6))
@@ -221,7 +222,7 @@ def test_settlement_cavalry_ignores_the_phalanx_but_charges_exposed_peltasts():
 
 
 def test_settlement_line_turns_its_front_towards_a_flank_attack():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     enemy = {u.name: u for u in b.units(Side.FEIND)}
     line = enemy["Hopliten"]
@@ -249,12 +250,12 @@ def test_wall_defenders_shift_towards_the_siege_tower():
 # ------------------------------------------------------------ Gedächtnis
 def test_memory_weights_plans_by_past_gains(tmp_path):
     m = Memory(path=str(tmp_path / "ki.json"))
-    assert m.weight("offen", "frontal") == 1.0
-    m.record("offen", "frontal", -0.5)
-    m.record("offen", "frontal", -0.5)
-    assert m.weight("offen", "frontal") < 1.0
-    m.record("offen", "umgehen_west", 0.6)
-    assert m.weight("offen", "umgehen_west") > 1.0
+    assert m.weight("klein_offen", "frontal") == 1.0
+    m.record("klein_offen", "frontal", -0.5)
+    m.record("klein_offen", "frontal", -0.5)
+    assert m.weight("klein_offen", "frontal") < 1.0
+    m.record("klein_offen", "umgehen_west", 0.6)
+    assert m.weight("klein_offen", "umgehen_west") > 1.0
     loaded = Memory.load(str(tmp_path / "ki.json"))
     assert loaded.gains == m.gains
     assert Memory.load(str(tmp_path / "fehlt.json")).gains == {}
@@ -271,7 +272,7 @@ def test_battle_records_the_plan_result_into_memory():
 
 def test_memory_changes_the_chosen_plan():
     def plan_after(mem: Memory) -> str:
-        b = Battle(OFFENE_SIEDLUNG, random.Random(2), memory=mem)
+        b = Battle(KLEIN_OFFEN, random.Random(2), memory=mem)
         hop, pelt, cav = b.units(Side.STADT)
         b.command_line([hop], (3.0, 10.5), (13.0, 10.5))
         b.command_move([pelt, cav], (8.0, 12.5))
@@ -279,7 +280,7 @@ def test_memory_changes_the_chosen_plan():
         return b.brain.plan
 
     first = plan_after(Memory())
-    burnt = Memory(gains={"offen": {first: [-1.0] * 5}})
+    burnt = Memory(gains={"klein_offen": {first: [-1.0] * 5}})
     assert plan_after(burnt) != first
 
 
@@ -300,7 +301,7 @@ def test_failed_attack_on_a_phalanx_front_falls_back():
 
 
 def test_plan_names_are_german_and_shown():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(0))
+    b = Battle(KLEIN_OFFEN, random.Random(0))
     assert b.enemy_plan == ""
     b.command_hold()
     run(b, 1)
@@ -308,7 +309,7 @@ def test_plan_names_are_german_and_shown():
 
 
 def test_legacy_ai_still_available():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(0), ai="einfach")
+    b = Battle(KLEIN_OFFEN, random.Random(0), ai="einfach")
     b.command_hold()
     run(b, 2)
     assert b.enemy_plan == "" and not isinstance(b.brain, Brain)
@@ -316,12 +317,12 @@ def test_legacy_ai_still_available():
 
 
 def test_raiders_pin_the_front_and_flank_the_phalanx():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(4), enemy_count=96)
+    b = Battle(KLEIN_OFFEN, random.Random(4), enemy_count=96)
     hop, pelt, cav = b.units(Side.STADT)
     b.command_line([hop], (4.5, 10.5), (11.5, 10.5))
     b.command_move([pelt], (8.0, 12.0))
     b.command_move([cav], (8.0, 13.5))
-    b.brain.memory.gains = {"offen": {"ruecken": [-1.0] * 5}}   # der Rückenangriff ist verbrannt: Flanke
+    b.brain.memory.gains = {"klein_offen": {"ruecken": [-1.0] * 5}}   # der Rückenangriff ist verbrannt: Flanke
     run(b, 6)
     assert b.brain.plan == "flankieren", b.brain.plan
     roles = set(b.brain.roles.values())
@@ -340,12 +341,12 @@ def test_raiders_pin_the_front_and_flank_the_phalanx():
 
 
 def test_raiders_go_around_and_fall_on_the_rear():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(4), enemy_count=96)
+    b = Battle(KLEIN_OFFEN, random.Random(4), enemy_count=96)
     hop, pelt, cav = b.units(Side.STADT)
     b.command_line([hop], (4.5, 10.5), (11.5, 10.5))
     b.command_move([pelt], (8.0, 12.0))
     b.command_move([cav], (8.0, 13.5))
-    b.brain.memory.gains = {"offen": {"flankieren": [-1.0] * 5, "umgehen_west": [-1.0] * 5,
+    b.brain.memory.gains = {"klein_offen": {"flankieren": [-1.0] * 5, "umgehen_west": [-1.0] * 5,
                                       "umgehen_ost": [-1.0] * 5, "zermuerben": [-1.0] * 5}}
     run(b, 6)
     assert b.brain.plan == "ruecken", b.brain.plan
@@ -372,13 +373,13 @@ def test_settlement_splits_mixed_groups_by_arm():
     parts = split_by_arm(army)
     assert [g.name for g in parts.groups] == ["Alle", "Peltasten", "Reiter"]
     assert parts.total_men() == 42
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), army=army, enemy_count=42, doctrine="spiegel")
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), army=army, enemy_count=42, doctrine="spiegel")
     assert len(b.units(Side.FEIND)) == 3
     assert len(b.units(Side.STADT)) == 3 and len(b.verbaende) == 1   # beim Spieler: je Gattung eine Gruppe, ein Verband
 
 
 def test_settlement_cavalry_flanks_a_pinned_phalanx():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     enemy = {u.name: u for u in b.units(Side.FEIND)}
     line = enemy["Hopliten"]
@@ -412,11 +413,11 @@ def test_doctrine_classifies_the_players_army():
 def test_settlement_uses_its_own_doctrine_not_a_copy():
     from game.doctrine import DOCTRINES, enemy_army
     army = Army(groups=[GroupSpec("Alle", [Tier("schwer", 30), Tier("peltast", 15), Tier("reiter", 30)])])
-    forced = Battle(SIEDLUNG_OFFEN, random.Random(1), army=army, enemy_count=90, doctrine="schwere_phalanx")
+    forced = Battle(KLEIN_ANGRIFF, random.Random(1), army=army, enemy_count=90, doctrine="schwere_phalanx")
     assert forced.doctrine == "schwere_phalanx"
     assert forced.men(Side.FEIND) == 90 + 1          # dazu der Anführer
     assert not any(m.kind.cavalry for u in forced.units(Side.FEIND) for m in u.all_men())   # keine Reiter in der schweren Phalanx
-    mirror = Battle(SIEDLUNG_OFFEN, random.Random(1), army=army, enemy_count=90, doctrine="spiegel")
+    mirror = Battle(KLEIN_ANGRIFF, random.Random(1), army=army, enemy_count=90, doctrine="spiegel")
     assert sum(1 for u in mirror.units(Side.FEIND) for m in u.all_men() if m.kind.cavalry) == 36   # 30 von 75, auf 90 skaliert
     for name, template in DOCTRINES.items():
         scaled = enemy_army(army, 120, name)
@@ -428,7 +429,7 @@ def test_settlement_picks_a_counter_for_every_player_class():
     from game.army import default_army
     assert set(COUNTERS) == {"reiterlastig", "peltastenlastig", "ohne_reiter", "ein_block", "ausgewogen"}
     assert all(v != "spiegel" for v in COUNTERS.values())          # die Siedlung kopiert nicht mehr
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), army=default_army())
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), army=default_army())
     assert b.doctrine == choose_doctrine(default_army()) != "spiegel"
     assert any("Siedlung stellt" in e for e in b.events)
 
@@ -444,7 +445,7 @@ def test_settlement_learns_a_better_doctrine_from_memory():
         mem.record(key, choose_doctrine(army), -0.6)          # die Vorgabe hat verloren
         mem.record(key, "reiterlastig", 0.5)                  # eine andere hat gewonnen
     assert choose_doctrine(army, mem) == "reiterlastig"
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), army=army, memory=mem)
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), army=army, memory=mem)
     assert b.doctrine == "reiterlastig"
     for _ in range(12):                                     # wie ein Spieler: wer sich gesammelt hat, greift wieder an
         b.command_attack()
@@ -457,7 +458,7 @@ def test_settlement_learns_a_better_doctrine_from_memory():
 
 # ------------------------------------------------------------- Plänkeln
 def test_settlement_peltasts_skirmish_beside_their_own_line_and_hold_when_empty():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     enemy = {u.name: u for u in b.units(Side.FEIND)}
     ep, eh = enemy["Peltasten"], enemy["Hopliten"]
@@ -480,7 +481,7 @@ def test_settlement_peltasts_skirmish_beside_their_own_line_and_hold_when_empty(
 
 
 def test_ai_skirmishers_back_off_from_charging_hoplites():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     ep = {u.name: u for u in b.units(Side.FEIND)}["Peltasten"]
     b.command_line([hop], (6.0, 8.5), (10.0, 8.5))
@@ -498,7 +499,7 @@ def test_ai_skirmishers_back_off_from_charging_hoplites():
 # ------------------------------------------------------- Gegenmittel der KI
 def test_ai_peltasts_skirmish_from_the_open_right_flank():
     """Peltasten der Siedlung gehen an die schildlose rechte Seite der Phalanx und werfen von dort."""
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     ep = {u.name: u for u in b.units(Side.FEIND)}["Peltasten"]
     b.command_line([hop], (6.0, 8.5), (10.0, 8.5))               # Front nach Norden: rechts ist Osten
@@ -513,7 +514,7 @@ def test_ai_peltasts_skirmish_from_the_open_right_flank():
 
 
 def test_open_side_spot_only_against_hoplite_phalanxes():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     ep = {u.name: u for u in b.units(Side.FEIND)}["Peltasten"]
     ep.flank_throw = True
@@ -522,14 +523,14 @@ def test_open_side_spot_only_against_hoplite_phalanxes():
 
 
 def test_player_peltasts_do_not_seek_the_flank():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), doctrine="spiegel")
     assert not any(u.flank_throw for u in b.units(Side.STADT))
 
 
 def cavalry_behind_settlement(pin: bool):
     """Siedlung (Spiegel) mit ihrer Phalanx; die Reiter des Spielers stehen hinter ihr,
     auf Wunsch steht die Phalanx des Spielers dicht vor ihrer Front."""
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     eh = {u.name: u for u in b.units(Side.FEIND)}["Hopliten"]
     if pin:
@@ -576,7 +577,7 @@ def surround(b, eh, placements):
 
 
 def test_ring_only_when_outnumbered_and_surrounded():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     eh = {u.name: u for u in b.units(Side.FEIND)}["Hopliten"]   # 41 Mann bei (8; 5,5), Front nach Süden
     own = b.units(Side.FEIND, fighting_only=True)
@@ -590,7 +591,7 @@ def test_ring_only_when_outnumbered_and_surrounded():
 
 
 def test_surrounded_ai_phalanx_forms_a_ring_and_reforms_after():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     eh = {u.name: u for u in b.units(Side.FEIND)}["Hopliten"]
     facing = eh.facing

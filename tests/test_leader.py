@@ -13,7 +13,7 @@ import pytest                                                        # noqa: E40
 from game import config                                              # noqa: E402
 from game.army import Army, GroupSpec, Tier, default_army, scaled_army, split_by_arm   # noqa: E402
 from game.battle import Battle                                       # noqa: E402
-from game.scenarios import OFFENE_SIEDLUNG, SIEDLUNG_OFFEN           # noqa: E402
+from kleine_karten import KLEIN_ANGRIFF, KLEIN_OFFEN                    # noqa: E402
 from game.units import UNIT_TYPES, Lochos, Man, Side, Stance, arrange   # noqa: E402
 
 DT = 1 / 30
@@ -49,7 +49,7 @@ def test_splitting_a_mixed_group_keeps_the_leader_with_the_main_part():
 
 
 def test_battle_places_the_leader_and_the_settlement_has_one_too():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1))
+    b = Battle(KLEIN_ANGRIFF, random.Random(1))
     own = [m for u in b.units(Side.STADT) for m in u.all_men() if m.leader]
     foe = [(m, u) for u in b.units(Side.FEIND) for m in u.all_men() if m.leader]
     assert len(own) == 1 and len(foe) == 1
@@ -64,7 +64,7 @@ def group(leader: bool, x: float = 8.0) -> Lochos:
 
 
 def test_a_group_with_leader_takes_less_damage_and_flees_later():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    b = Battle(KLEIN_OFFEN, random.Random(1))
     raider = b.units(Side.FEIND)[0]
     with_leader, without = group(True), group(False, x=12.0)
     raider.x, raider.y = with_leader.x, with_leader.y - 1.0
@@ -81,7 +81,7 @@ def test_a_group_with_leader_takes_less_damage_and_flees_later():
 
 
 def test_the_fall_of_the_leader_is_reported_and_ends_the_bonus():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    b = Battle(KLEIN_OFFEN, random.Random(1))
     hop = next(u for u in b.units(Side.STADT) if u.leader_man() is not None)
     chief = hop.leader_man()
     chief.hp = 0.0

@@ -9,8 +9,8 @@ from game import config
 from game.army import OWN_DEFAULT, Army, GroupSpec, Tier, default_army, scaled_army
 from game.battle import Battle
 from game.geometry import arc, dist, snap4
-from game.scenarios import (OFFENE_SIEDLUNG, PALISADE, RAEUBERHORDE, SIEDLUNG_OFFEN, SIEDLUNG_WALL,
-                            RaiderSpawn, Scenario)
+from game.scenarios import PALISADE, SIEDLUNG_WALL, RaiderSpawn, Scenario
+from kleine_karten import KLEIN_ANGRIFF, KLEIN_HORDE, KLEIN_OFFEN
 from game.units import UNIT_TYPES, Lochos, Man, Side, Stance, arrange
 
 DT = 1 / 30
@@ -125,7 +125,7 @@ def test_tiers_build_men_in_order_and_interleave_when_stretched():
 
 
 def test_battle_deploys_army_groups():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    b = Battle(KLEIN_OFFEN, random.Random(1))
     city = b.units(Side.STADT)
     assert [u.name for u in city] == ["Hopliten", "Peltasten", "Reiter"]
     assert b.men(Side.STADT) == 75 + 1                     # die Vorgabe-Truppe und ihr Anführer
@@ -258,7 +258,7 @@ def test_routed_units_take_double_damage():
 
 # ----------------------------------------------------------- Befehle
 def test_command_move_and_attack_target_single_group():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    b = Battle(KLEIN_OFFEN, random.Random(1))
     cav = next(u for u in b.units(Side.STADT) if u.name == "Reiter")
     b.command_move([cav], (2.0, 5.0))
     assert cav.stance is Stance.HALTEN and cav.target == (2.0, 5.0)
@@ -274,7 +274,7 @@ def test_command_move_and_attack_target_single_group():
 
 
 def test_line_width_depth_and_facing_from_drag():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    b = Battle(KLEIN_OFFEN, random.Random(1))
     hop = b.units(Side.STADT)[0]
     short = b.plan_line([hop], (6.0, 10.5), (7.3, 10.5))
     long = b.plan_line([hop], (3.0, 10.5), (13.0, 10.5))
@@ -289,7 +289,7 @@ def test_line_width_depth_and_facing_from_drag():
 
 
 def test_command_line_reforms_only_selection():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    b = Battle(KLEIN_OFFEN, random.Random(1))
     hop, pelt, cav = b.units(Side.STADT)
     plans = b.command_line([hop], (3.0, 10.5), (13.0, 10.5))
     assert len(plans) == 1 and hop.width == plans[0].width and hop.depth == plans[0].depth
@@ -303,7 +303,7 @@ def test_command_line_reforms_only_selection():
 
 
 def test_unit_at_finds_group_under_tap():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    b = Battle(KLEIN_OFFEN, random.Random(1))
     u = b.units(Side.STADT)[2]
     assert b.unit_at((u.x + 0.2, u.y - 0.2), Side.STADT) is u
     assert b.unit_at((u.x, u.y), Side.FEIND) is None
@@ -311,7 +311,7 @@ def test_unit_at_finds_group_under_tap():
 
 
 def test_alarm_waits_for_first_command():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    b = Battle(KLEIN_OFFEN, random.Random(1))
     run(b, 5)
     assert b.time == 0.0
     b.command_hold()
@@ -321,7 +321,7 @@ def test_alarm_waits_for_first_command():
 
 # --------------------------------------------------------- Szenarien
 def test_unopposed_raiders_loot_every_house():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1), army=Army(groups=[]))
+    b = Battle(KLEIN_OFFEN, random.Random(1), army=Army(groups=[]))
     b.alarm = False
     run(b, 200)
     assert b.outcome == "niederlage"
@@ -367,7 +367,7 @@ def test_open_settlement_phalanx_then_pursuit_wins():
     (Über acht Startwerte gewinnt das 6-mal, seit der Anführer vorn in der Mitte steht,
     vorher 7-mal; Startwert 2 gewinnt mit beiden Aufstellungen.)"""
     from game.geometry import norm, sub
-    b = Battle(OFFENE_SIEDLUNG, random.Random(2))
+    b = Battle(KLEIN_OFFEN, random.Random(2))
     hop, pelt, cav = b.units(Side.STADT)
     b.command_line([hop], (6.5, 10.5), (9.5, 10.5))
     b.command_line([pelt], (6.5, 11.4), (9.5, 11.4))
@@ -409,7 +409,7 @@ def test_open_settlement_phalanx_then_pursuit_wins():
 def test_weak_army_loses_houses():
     """Ein kleiner Haufen hält den Überfall nicht auf."""
     small = army_of(GroupSpec("Wache", [Tier("leicht", 6)]))
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1), army=small)
+    b = Battle(KLEIN_OFFEN, random.Random(1), army=small)
     b.command_hold()
     run(b, 240)
     assert b.outcome == "niederlage"
@@ -441,8 +441,8 @@ def test_nobody_enters_palisade_tiles():
 
 
 def test_deterministic_with_seed():
-    a = Battle(OFFENE_SIEDLUNG, random.Random(7))
-    c = Battle(OFFENE_SIEDLUNG, random.Random(7))
+    a = Battle(KLEIN_OFFEN, random.Random(7))
+    c = Battle(KLEIN_OFFEN, random.Random(7))
     for b in (a, c):
         b.command_line(None, (3.0, 10.5), (13.0, 10.5))
         run(b, 60)
@@ -451,8 +451,8 @@ def test_deterministic_with_seed():
 
 # ------------------------------------------------------- Angriff & Gegnerstärke
 def test_enemy_count_sets_raider_strength():
-    small = Battle(OFFENE_SIEDLUNG, random.Random(1), enemy_count=40)
-    big = Battle(OFFENE_SIEDLUNG, random.Random(1), enemy_count=192)
+    small = Battle(KLEIN_OFFEN, random.Random(1), enemy_count=40)
+    big = Battle(KLEIN_OFFEN, random.Random(1), enemy_count=192)
     assert small.men(Side.FEIND) == 40 and big.men(Side.FEIND) == 192
     assert all(8 <= u.men <= 16 for u in small.units(Side.FEIND))
     assert all(u.men == 24 for u in big.units(Side.FEIND))          # größere Haufen bei großer Zahl
@@ -465,14 +465,14 @@ def test_mirror_army_scales_composition():
     assert mirror.total_men() == 150
     assert [g.name for g in mirror.groups] == ["Hopliten", "Peltasten", "Reiter"]
     assert mirror.groups[2].tiers[0].count == 40
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), enemy_count=50, doctrine="spiegel")
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), enemy_count=50, doctrine="spiegel")
     assert b.men(Side.FEIND) == 50 + 1          # dazu der Anführer
     assert all(u.y < 8 for u in b.units(Side.FEIND))     # Gegner im Norden
     assert all(u.y > 12 for u in b.units(Side.STADT))    # Angreifer im Süden
 
 
 def test_horde_waits_then_charges():
-    b = Battle(RAEUBERHORDE, random.Random(1))
+    b = Battle(KLEIN_HORDE, random.Random(1))
     hop = b.units(Side.STADT)[0]
     b.command_hold()
     run(b, 3)
@@ -484,7 +484,7 @@ def test_horde_waits_then_charges():
 
 
 def test_settlement_defenders_hold_but_cavalry_charges():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), doctrine="spiegel")
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), doctrine="spiegel")
     hop, pelt, cav = b.units(Side.STADT)
     b.command_move([cav], (4.5, 8.0))
     run(b, 6)
@@ -628,11 +628,11 @@ def test_enemy_peltasts_start_on_the_wall():
 
 
 def test_attack_outcomes():
-    b = Battle(RAEUBERHORDE, random.Random(1), enemy_count=16)
+    b = Battle(KLEIN_HORDE, random.Random(1), enemy_count=16)
     b.command_attack()
     run(b, 120)
     assert b.outcome == "sieg"
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1), enemy_count=150, army=army_of(GroupSpec("Wache", [Tier("leicht", 6)])))
+    b = Battle(KLEIN_ANGRIFF, random.Random(1), enemy_count=150, army=army_of(GroupSpec("Wache", [Tier("leicht", 6)])))
     b.command_attack()
     run(b, 120)
     assert b.outcome == "niederlage"
@@ -919,7 +919,7 @@ def test_jostling_is_only_a_picture():
     """Im Handgemenge drängen die Männer im Bild an ihren Gegner, die Phalanx hält
     ihre Reihen; die Schlacht rechnet dasselbe wie ohne das Bild."""
     def fight(show: bool):
-        b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+        b = Battle(KLEIN_OFFEN, random.Random(1))
         b.command_hold()
         if not show:
             b._show = lambda dt: None
@@ -1682,7 +1682,7 @@ def test_phalanx_wheels_to_its_ordered_front_without_swapping_rows():
 
 
 def test_enemy_groups_wheel_and_about_turn_like_the_player():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1), ai="einfach")
+    b = Battle(KLEIN_OFFEN, random.Random(1), ai="einfach")
     b._ai_raiders = lambda: None
     b.alarm = False
     raider = b.units(Side.FEIND)[0]
@@ -1917,7 +1917,7 @@ def test_no_two_men_ever_share_a_position():
     """Jeder Mann hat seinen Platz: Zwischen Männern verschiedener Gruppen bleiben
     immer zwei Halbmesser, auch beim Sturm, beim Umfassen und durch Fliehende
     hindurch; in der eigenen Gruppe rückt man höchstens Schulter an Schulter."""
-    b = Battle(OFFENE_SIEDLUNG, random.Random(2))
+    b = Battle(KLEIN_OFFEN, random.Random(2))
     b.command_attack()
     for i in range(int(40 / DT)):
         b.update(DT)
@@ -2102,7 +2102,7 @@ def test_hoplites_pass_through_their_own_peltasts_in_loose_order():
 def test_hoplite_shield_covers_the_left_flank():
     """Der Schild sitzt links: von rechts trifft ein Angriff die Hopliten härter als von
     links, Speere von links fangen sich im Schild; bei Räubern ist es gleich."""
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    b = Battle(KLEIN_OFFEN, random.Random(1))
     hop = b.units(Side.STADT)[0]
     hop.x, hop.y, hop.facing = 8.0, 10.0, (0.0, -1.0)            # Front nach Norden: rechts ist Osten
     hop.place_men()
@@ -2119,7 +2119,7 @@ def test_hoplite_shield_covers_the_left_flank():
 
 def test_spears_from_the_shield_side_do_less_harm():
     from game.battle import Projectile
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    b = Battle(KLEIN_OFFEN, random.Random(1))
     b.alarm = False
     hop = b.units(Side.STADT)[0]
     hop.x, hop.y, hop.facing = 8.0, 10.0, (0.0, -1.0)

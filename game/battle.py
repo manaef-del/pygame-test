@@ -357,7 +357,8 @@ class Battle:
                 u.in_line = in_line
                 x += w
 
-        place(hoplite_specs + others, y_line, 3.0, 13.0)
+        cx = self.cols / 2
+        place(hoplite_specs + others, y_line, cx - 5.0, cx + 5.0)
         if s.palisade and s.gate:
             wall_y = s.gate[1] + 0.5
             for k, g in enumerate(pelt_specs):
@@ -370,10 +371,11 @@ class Battle:
                 u.facing = (0.0, 1.0)
                 u.stance = Stance.HALTEN
         else:
-            place(pelt_specs, y_line - 1.0, 4.0, 12.0, stance=Stance.HALTEN, in_line=False)
+            place(pelt_specs, y_line - 1.0, cx - 4.0, cx + 4.0, stance=Stance.HALTEN, in_line=False)
+        wing = min(cx - 2.2, 7.0)                         # Reiter an den Flügeln (kleine Karte: am Rand)
         for k, g in enumerate(cav_specs):
             rows = arrange(g.build_men(), max(1, min(g.men(), 7)))
-            x = 2.2 if k % 2 == 0 else self.cols - 2.2
+            x = cx - wing if k % 2 == 0 else cx + wing
             u = self._spawn(Side.FEIND, rows, x, y_line - 0.8, g.name)
             u.facing = (0.0, 1.0)
             u.stance = Stance.HALTEN

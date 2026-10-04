@@ -11,7 +11,7 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 from game import config                                              # noqa: E402
 from game.battle import Battle                                       # noqa: E402
 from game.geometry import dist                                       # noqa: E402
-from game.scenarios import OFFENE_SIEDLUNG, SIEDLUNG_OFFEN           # noqa: E402
+from kleine_karten import KLEIN_ANGRIFF, KLEIN_OFFEN                    # noqa: E402
 from game.units import Side, Stance                                  # noqa: E402
 
 DT = 1 / 30
@@ -42,7 +42,7 @@ def rout(b: Battle, u, morale: float = 0.1) -> None:
 
 
 def test_routed_defenders_run_to_the_agora_and_rally_there():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    b = Battle(KLEIN_OFFEN, random.Random(1))
     quiet(b)
     hop, pelt, cav = b.units(Side.STADT)
     hop.x, hop.y = 8.0, 9.0
@@ -58,7 +58,7 @@ def test_routed_defenders_run_to_the_agora_and_rally_there():
 
 
 def test_defenders_cornered_on_the_agora_fight_to_the_last_man():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    b = Battle(KLEIN_OFFEN, random.Random(1))
     quiet(b)
     hop, pelt, cav = b.units(Side.STADT)
     ax, ay = b.agora
@@ -82,7 +82,7 @@ def test_defenders_cornered_on_the_agora_fight_to_the_last_man():
 
 
 def test_attackers_rally_at_their_own_edge():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1))
+    b = Battle(KLEIN_ANGRIFF, random.Random(1))
     quiet(b)
     hop, pelt, cav = b.units(Side.STADT)
     hop.x, hop.y = 8.0, 10.0
@@ -96,7 +96,7 @@ def test_attackers_rally_at_their_own_edge():
 
 
 def test_attackers_leave_the_field_when_the_battle_is_hopeless():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1))
+    b = Battle(KLEIN_ANGRIFF, random.Random(1))
     quiet(b)
     hop, pelt, cav = b.units(Side.STADT)
     for u in (pelt, cav):                                             # fast alles verloren ...
@@ -113,7 +113,7 @@ def test_attackers_leave_the_field_when_the_battle_is_hopeless():
 def test_the_enemy_settlement_holds_to_the_last_man():
     """Greift der Spieler eine Siedlung an, zieht sie nicht ab: Ihre Geschlagenen
     fliehen auf ihre eigene Agora, nicht vom Feld."""
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1))
+    b = Battle(KLEIN_ANGRIFF, random.Random(1))
     quiet(b)
     defenders = b.units(Side.FEIND)
     for u in defenders[1:]:
@@ -127,7 +127,7 @@ def test_the_enemy_settlement_holds_to_the_last_man():
 
 
 def test_raiders_rally_unless_they_give_up():
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    b = Battle(KLEIN_OFFEN, random.Random(1))
     quiet(b)
     raider = b.units(Side.FEIND)[0]
     raider.x, raider.y = 8.0, 6.0
@@ -142,7 +142,7 @@ def test_raiders_rally_unless_they_give_up():
 
 
 def test_attackers_chased_to_their_edge_leave_the_field():
-    b = Battle(SIEDLUNG_OFFEN, random.Random(1))
+    b = Battle(KLEIN_ANGRIFF, random.Random(1))
     quiet(b)
     hop, pelt, cav = b.units(Side.STADT)
     rx, ry = 8.0, b.rows - config.RALLY_EDGE

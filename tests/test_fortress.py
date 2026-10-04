@@ -12,6 +12,7 @@ from game.battle import Battle
 from game.render import Renderer
 from game.scenarios import FESTUNG, FESTUNG_ANGRIFF, PALISADE, SCENARIOS
 from game.units import Man, Side, Stance, UNIT_TYPES, arrange
+from kleine_karten import KLEIN_OFFEN
 
 DT = 1 / 30
 
@@ -83,11 +84,17 @@ def test_fortress_map_is_four_times_as_big_and_closed():
         assert b._wall_level(b.gate_approach(g, -1.0)) == "innen"
 
 
-def test_old_maps_keep_their_size():
+def test_all_maps_are_fortress_sized_and_only_the_fortress_has_a_wall():
+    """Fünf Szenarien, alle auf der großen Karte; nur die Festung hat einen Wall (die offene
+    Siedlung ist ihre Stadt ohne Wall)."""
+    assert [s.key for s in SCENARIOS] == ["siedlung", "siedlung_angriff", "horde", "festung", "festung_angriff"]
+    town = set(FESTUNG.houses)
     for s in SCENARIOS:
-        if not s.key.startswith("festung"):
-            b = Battle(s, random.Random(1))
-            assert (b.cols, b.rows) == (config.COLS, config.ROWS) and not b.ring
+        b = Battle(s, random.Random(1))
+        assert (b.cols, b.rows) == (2 * config.COLS, 2 * config.ROWS)
+        assert b.ring == s.key.startswith("festung") and bool(b.blocked) == b.ring
+        if s.key.startswith("siedlung"):
+            assert set(s.houses) == town and not b.gates and not b.ladders
 
 
 # ------------------------------------------------------------------ Wege
@@ -290,7 +297,8 @@ def test_old_maps_start_whole_and_zoom_with_two_fingers():
     """Kleine Karten beginnen ganz sichtbar; zwei Finger auseinander zoomen bis zur doppelten
     Größe hinein (die Stelle zwischen den Fingern bleibt), zusammen wieder hinaus."""
     pygame.init()
-    app = App(Renderer(pygame.Surface((config.WIDTH, config.HEIGHT))), seed=1, start_in_battle=True)
+    app = App(Renderer(pygame.Surface((config.WIDTH, config.HEIGHT))), seed=1, start_in_battle=True,
+              scenarios=(KLEIN_OFFEN,))
     app.draw()
     cam = app.renderer.camera
     assert not cam.big and cam.zoom == 1.0 and (cam.ox, cam.oy) == (0.0, 0.0)
@@ -343,10 +351,10 @@ def test_a_wide_block_goes_round_houses_it_does_not_fit_between(monkeypatch, nar
     Regel für Gassen geht der Block außen herum, statt sich hindurchzuquetschen; mit ihr
     (der Umweg ist viel länger) geht er hindurch: Phalanx wie lockere Hopliten werden dazu
     schmaler und tiefer. Eine Gruppe mit zwei Mann Front geht ohnehin als Block hindurch."""
-    from game.scenarios import OFFENE_SIEDLUNG
+    from kleine_karten import KLEIN_OFFEN
     from dataclasses import replace
     monkeypatch.setattr(config, "NARROW_LOOSE", narrow)
-    scn = replace(OFFENE_SIEDLUNG, houses=((7, 10), (9, 10)))      # eine Kachel Lücke bei x = 8
+    scn = replace(KLEIN_OFFEN, houses=((7, 10), (9, 10)))      # eine Kachel Lücke bei x = 8
     for width, drill, through in ((14, "phalanx", narrow), (14, "locker", narrow), (2, "phalanx", True)):
         b = quiet(Battle(scn, random.Random(1)))
         hop = b.units(Side.STADT)[0]
@@ -382,9 +390,9 @@ def test_a_wide_block_goes_round_houses_it_does_not_fit_between(monkeypatch, nar
 def test_room_in_a_lane_is_measured_from_the_house_walls():
     """Das Abstandsraster liegt auf Kachelmitten und -grenzen: In einer Gasse von einer
     Kachel ist in der Mitte eine halbe Kachel Platz, an der Hauswand keiner."""
-    from game.scenarios import OFFENE_SIEDLUNG
+    from kleine_karten import KLEIN_OFFEN
     from dataclasses import replace
-    b = quiet(Battle(replace(OFFENE_SIEDLUNG, houses=((7, 10), (9, 10))), random.Random(1)))
+    b = quiet(Battle(replace(KLEIN_OFFEN, houses=((7, 10), (9, 10))), random.Random(1)))
     assert abs(b._room_at((8.5, 10.5)) - 0.5) < 1e-6
     assert b._room_at((8.0, 10.5)) == 0.0
     assert 0.2 < b._room_at((8.25, 10.5)) <= 0.25 + 1e-6

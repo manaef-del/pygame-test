@@ -63,13 +63,6 @@ def _palisade_row(row: int, gate_cols: tuple[int, ...]) -> tuple[Cell, ...]:
     return tuple((c, row) for c in range(config.COLS) if c not in gate_cols)
 
 
-RAIDS_OPEN = (
-    RaiderSpawn(4.5, -1.0), RaiderSpawn(6.5, -2.0), RaiderSpawn(8.5, -1.0), RaiderSpawn(10.5, -2.0),
-    RaiderSpawn(12.5, -1.0), RaiderSpawn(7.5, -3.5),
-    RaiderSpawn(0.6, -1.0, waypoints=((0.7, 11.5),)), RaiderSpawn(15.4, -1.0, waypoints=((15.3, 11.5),)),
-    RaiderSpawn(5.5, -5.0), RaiderSpawn(9.5, -5.0), RaiderSpawn(3.0, -6.5), RaiderSpawn(12.0, -6.5),
-)
-
 RAIDS_GATE = tuple(
     RaiderSpawn(x, y, waypoints=((7.5, 6.0),))
     for x, y in (
@@ -79,39 +72,12 @@ RAIDS_GATE = tuple(
     )
 )
 
-HORDE = tuple(
-    RaiderSpawn(x, y)
-    for x, y in ((4.0, 3.5), (6.5, 2.5), (9.5, 2.5), (12.0, 3.5), (5.0, 5.0), (8.0, 4.5), (11.0, 5.0),
-                 (3.0, 1.5), (13.0, 1.5), (7.0, 0.8), (9.5, 6.3), (6.0, 6.3))
-)
-
-OFFENE_SIEDLUNG = Scenario(
-    key="offen", name="Verteidigung: Offene Siedlung",
-    hint="Räuber von Norden, zwei Trupps umgehen die Linie. Tippe eine Gruppe an, dann ziehe ihre Front auf.",
-    role="verteidigung", enemy_kind="raeuber", enemy_default=128, enemy_min=32, enemy_max=192,
-    houses=HOUSES_SOUTH, raider_spawns=RAIDS_OPEN, agora=AGORA_SOUTH,
-)
-
 PALISADE = Scenario(
     key="palisade", name="Verteidigung: Palisade",
     hint="Das Tor ist zu; die Räuber bauen Rammbock und Turm. Peltasten über die Leitern auf den Wehrgang, Hopliten hinters Tor, Reserve gegen den Turm.",
     role="verteidigung", enemy_kind="raeuber", enemy_default=128, enemy_min=32, enemy_max=224,
     houses=HOUSES_SOUTH, palisade=_palisade_row(8, gate_cols=(7, 8)), gate=(7, 8), gate_closed=True,
     wall_side="stadt", ladders=((2, 8), (13, 8)), raider_spawns=RAIDS_GATE, agora=AGORA_SOUTH,
-)
-
-RAEUBERHORDE = Scenario(
-    key="horde", name="Angriff: Räuberhorde",
-    hint="Die Horde lagert im Norden. Sie greift an, sobald du ihr nahe kommst.",
-    role="angriff", enemy_kind="raeuber", enemy_default=96, enemy_min=16, enemy_max=192,
-    raider_spawns=HORDE, deploy_y=15.5,
-)
-
-SIEDLUNG_OFFEN = Scenario(
-    key="angriff_offen", name="Angriff: Siedlung ohne Wall",
-    hint="Die Siedlung stellt dieselben Truppen wie du. Ihre Reiter greifen an, der Rest hält.",
-    role="angriff", enemy_kind="spiegel", enemy_default=75, enemy_min=20, enemy_max=150,
-    houses=HOUSES_NORTH, deploy_y=15.5, enemy_deploy_y=5.5, agora=AGORA_NORTH,
 )
 
 SIEDLUNG_WALL = Scenario(
@@ -257,5 +223,49 @@ FESTUNG_ANGRIFF = Scenario(
     cols=FORT_COLS, rows=FORT_ROWS, gates=FORT["gates"], corner_towers=FORT["towers"], ring=FORT["poly"],
 )
 
-SCENARIOS: tuple[Scenario, ...] = (OFFENE_SIEDLUNG, PALISADE, RAEUBERHORDE, SIEDLUNG_OFFEN, SIEDLUNG_WALL,
-                                   FESTUNG, FESTUNG_ANGRIFF)
+# ------------------------------------------------------- offene Siedlung
+# Die Stadt der Festung ohne Wall: dieselben Häuser, Gassen und die Agora, offen nach allen Seiten.
+TOWN_HOUSES = FORT["houses"]
+TOWN_TOP = min(c[1] for c in TOWN_HOUSES)              # nördlichste Häuserreihe
+TOWN_BOTTOM = max(c[1] for c in TOWN_HOUSES) + 1       # Südkante der südlichsten Häuser
+
+RAIDS_TOWN = (
+    RaiderSpawn(9.0, -1.0), RaiderSpawn(13.0, -2.0), RaiderSpawn(17.0, -1.0), RaiderSpawn(21.0, -2.0),
+    RaiderSpawn(25.0, -1.0), RaiderSpawn(15.0, -3.5),
+    RaiderSpawn(1.2, -1.0, waypoints=((1.4, 22.0),)), RaiderSpawn(30.8, -1.0, waypoints=((30.6, 22.0),)),
+    RaiderSpawn(11.0, -5.0), RaiderSpawn(19.0, -5.0), RaiderSpawn(6.0, -6.5), RaiderSpawn(24.0, -6.5),
+)
+
+OFFENE_SIEDLUNG = Scenario(
+    key="siedlung", name="Verteidigung: Offene Siedlung",
+    hint="Räuber von Norden, zwei Trupps umgehen die Linie. Tippe eine Gruppe an, dann ziehe ihre Front auf. "
+         "Zwei Finger verschieben die Karte.",
+    role="verteidigung", enemy_kind="raeuber", enemy_default=128, enemy_min=32, enemy_max=300,
+    houses=TOWN_HOUSES, raider_spawns=RAIDS_TOWN, agora=FORT_CENTRE, deploy_y=TOWN_TOP - 2.0,
+    cols=FORT_COLS, rows=FORT_ROWS,
+)
+
+SIEDLUNG_ANGRIFF = Scenario(
+    key="siedlung_angriff", name="Angriff: Offene Siedlung",
+    hint="Die Siedlung stellt dieselben Truppen wie du. Ihre Reiter greifen an, der Rest hält. "
+         "Zwei Finger verschieben die Karte.",
+    role="angriff", enemy_kind="spiegel", enemy_default=75, enemy_min=20, enemy_max=150,
+    houses=TOWN_HOUSES, deploy_y=FORT_ROWS - 2.0, enemy_deploy_y=TOWN_BOTTOM + 1.5, agora=FORT_CENTRE,
+    cols=FORT_COLS, rows=FORT_ROWS,
+)
+
+# Die Horde lagert im Norden einer Karte so groß wie die Festung
+HORDE = tuple(
+    RaiderSpawn(2.0 * x, 2.0 * y)
+    for x, y in ((4.0, 3.5), (6.5, 2.5), (9.5, 2.5), (12.0, 3.5), (5.0, 5.0), (8.0, 4.5), (11.0, 5.0),
+                 (3.0, 1.5), (13.0, 1.5), (7.0, 0.8), (9.5, 6.3), (6.0, 6.3))
+)
+
+RAEUBERHORDE = Scenario(
+    key="horde", name="Angriff: Räuberhorde",
+    hint="Die Horde lagert im Norden. Sie greift an, sobald du ihr nahe kommst. Zwei Finger verschieben die Karte.",
+    role="angriff", enemy_kind="raeuber", enemy_default=96, enemy_min=16, enemy_max=300,
+    raider_spawns=HORDE, deploy_y=FORT_ROWS - 2.5, cols=FORT_COLS, rows=FORT_ROWS,
+)
+
+SCENARIOS: tuple[Scenario, ...] = (OFFENE_SIEDLUNG, SIEDLUNG_ANGRIFF, RAEUBERHORDE, FESTUNG, FESTUNG_ANGRIFF)
