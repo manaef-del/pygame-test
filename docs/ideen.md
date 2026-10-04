@@ -20,12 +20,6 @@ wandert nach unten.
    doppelt so starkes Heer gewinnt die Verteidigung mit den einfachen
    Taktiken der Simulation selten (Lauf 33). Zu klären: eine Festungsfassung
    des Tests mit einer passenden Übermacht, oder die Verteidigung stärken.
-0c. **Festung: offenes Tor teilt den Wehrgang.** Liegt zwischen zwei
-   Wallstücken ein offenes Tor und ist der Weg über die Leitern schneller als
-   außen herum, bleibt eine Gruppe oben an der ersten Leiter hängen: Die
-   Männer finden den Weg hinab, quer und wieder hinauf nicht. Das gab es schon
-   vor dem Umbau; an der Palisade ging es. Der übliche Weg auf dem Wehrgang
-   (ganz herum) funktioniert.
 5. **Festung: Turm allein reicht nicht.** Über einen Belagerungsturm allein
    kommt kaum ein Angriff hinein (0 bis 1 von 8): Die Männer steigen einzeln,
    im Feuer der Ecktürme. Dazu greift die Turm-Taktik der Simulation die
@@ -36,13 +30,6 @@ wandert nach unten.
    (8 von 8) gegen eine Besatzung von 40. Bildete die Besatzung gegen
    Reiter schon Kreise, wenn sie vorn gebunden war, gewann man nie (Lauf 24);
    seit der Kreis nur eine Verzweiflungstat ist, wieder immer.
-13. **Ausweichen ohne Seitenwechsel, Vorfahrt.** Im Gedränge weichen
-    Männer einem Kameraden aus und wechseln dabei oft gleich die Seite (zwei
-    Drittel aller Umkehrungen). Ein erster Versuch (bei der Seite bleiben,
-    kurz warten) half beim Tauschen (−25 %), schadete beim Zusammenrücken
-    (+40 %). Besser wäre wohl eine Vorfahrt zwischen zwei Gruppen (die
-    gehende geht, die stehende macht Platz) und bei sich überschneidenden
-    Zielen versetzte Plätze und ein kurzes Warten der einen Gruppe.
 10. **Verbände für die Gegner-KI.** Die KI bildet noch keine Verbände und
     wechselt keine Modi; denkbar wäre etwa eine lockere Ordnung der
     Siedlung gegen Peltasten.
@@ -67,6 +54,25 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Ausweichen ohne Seitenwechsel** (4. Oktober 2026, #13): Fast alle
+  Seitenwechsel entstanden, weil ein Mann nach einem freien Schritt seine
+  Ausweichseite vergaß und am nächsten Mann neu wählte. Jetzt merkt er sie
+  sich eine Sekunde lang (auf der Flucht nicht, sonst rennt er immer wieder
+  gegen dasselbe Hindernis). Seitenwechsel je Mann, vorher → nachher:
+  Plätze tauschen 1,65 → 0,05, alle zugleich vor 0,85 → 0,02, zusammenrücken
+  0,62 → 0,03, einzeln nah 0,31 → 0,00. Zusammenrücken ist früher fertig
+  (11,3 → 6,1 s). Beim Tauschen gibt es etwas mehr kleine Umkehrungen (0,34 →
+  0,44 je Mann und Sekunde, im Bild 0,043 → 0,045). Ausprobiert und wieder
+  verworfen: eine Vorfahrt zwischen zwei gehenden Gruppen (der eine tritt
+  beiseite) brachte selbst Seitenwechsel; eine andere Reihenfolge beim
+  Ausweichen (erst schräg zurück) ließ Gruppen in Toren und Gassen hängen.
+- **Festung: Wehrgang mit Lücke** (4. Oktober 2026): Teilt ein offenes Tor
+  den Wehrgang und ist der Weg über die Leitern kürzer, steigt die Gruppe
+  jetzt an der einen Leiter hinab, geht unten quer und an der anderen
+  hinauf. Vorher blieb sie an der ersten Leiter hängen (sie löste sich auf
+  und schloss sich im Wechsel), und wer schon drüben wieder oben stand,
+  bekam noch die alte Antwort „hinab an der ersten Leiter“ und lief um die
+  ganze Festung. Die Entscheidung gilt jetzt je Standort.
 - **Menü: Rolle oben, Schauplatz unten** (4. Oktober 2026): Oben wählt man
   Verteidigung oder Angriff, darunter Offene Siedlung, Räuberhorde oder
   Festung. Neu ist die Verteidigung gegen eine Räuberhorde, die gleich zu

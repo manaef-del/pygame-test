@@ -163,6 +163,30 @@ def test_peltasts_route_over_ladders_and_walk_over_the_gatehouse():
     assert not b.on_wall(pelt) and dist(pelt.pos, (16.5, 11.2)) < 0.4
 
 
+def test_walkway_gap_is_crossed_via_ladders():
+    """Ist das Nordtor offen, hat der Wehrgang dort eine Lücke: Peltasten steigen an der
+    einen Leiter hinab, gehen unten quer und an der anderen wieder hinauf (statt einmal um
+    die ganze Festung), und oben schließen sie sich."""
+    b = defence()
+    b._volleys = lambda dt: None
+    hop, pelt, cav = arms(b)
+    put(pelt, 12.5, NORTH_ROW + 0.5, (0.0, -1.0))
+    assert b.on_wall(pelt)
+    north_gate_open(b)
+    goal, final = b.route(pelt, (19.5, NORTH_ROW + 0.5))
+    assert not final and abs(goal[0] - 13.5) < 0.6                # erst zur westlichen Leiter hinunter
+    b.command_move([pelt], (19.5, NORTH_ROW + 0.5))
+    lowest = 0.0
+    for _ in range(int(30 / DT)):
+        b.update(DT)
+        lowest = max(lowest, max(m.y for m in pelt.all_men()))
+        if not pelt.loose and pelt.target is None:
+            break
+    assert b.on_wall(pelt) and abs(pelt.x - 19.5) < 0.4 and not pelt.loose
+    assert all(b.cell(m.x, m.y)[0] >= 17 and b.cell(m.x, m.y)[1] == NORTH_ROW for m in pelt.all_men())
+    assert lowest < NORTH_ROW + 3.0                                # unten quer, nicht um die Festung herum
+
+
 def test_climbing_is_a_dense_column_and_men_spread_along_the_wall():
     b = defence()
     b._volleys = lambda dt: None

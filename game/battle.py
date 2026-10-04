@@ -209,7 +209,7 @@ class Battle:
         self._group_map: dict = {}                                     # Gruppen-id -> Gruppe, je Schritt neu
         self._pass_choice: dict = {}                                   # Gruppe -> (Ziel, als Block um eigene herum?)
         self._steps_cache: dict = {}                                   # Wehrgang: Schritte von einem Wallstück aus
-        self._wall_route: dict = {}                                    # Gruppe -> (Ziel, Leiter hinab, wenn über die Leitern schneller)
+        self._wall_route: dict = {}                                    # (Gruppe, Wallstück) -> (Ziel, Leiter hinab, wenn über die Leitern schneller)
         self._wall_occ: tuple | None = None                            # (Zeit, Kachel -> gesperrte Seiten) auf dem Wehrgang                                  # Gruppe -> (Ziel, Zeit, passt der Block nicht durch?)
         self.blocked = set(s.palisade)
         self.ladders = set(s.ladders)
@@ -756,7 +756,7 @@ class Battle:
             down = None
             if on and want and self._ladders_faster(u, here, there):
                 want = False              # über die Leitern ist es trotz Klettern schneller: hinab, quer, hinauf
-                down = self._wall_route[u.id][1]
+                down = self._wall_route[(u.id, here)][1]
             if on and want:
                 if self._on_walkway(pos, target):
                     return target, True
@@ -806,11 +806,12 @@ class Battle:
     def _ladders_faster(self, u: Lochos, here: tuple[int, int], there: tuple[int, int]) -> bool:
         """Festung, oben auf dem Wehrgang zu einem anderen Wallstück: oben entlang, oder über
         eine Leiter hinab, unten quer und über eine andere hinauf? Jedes Klettern kostet die
-        Zeit, bis alle Männer die Leiter hinter sich haben. Einmal je Ziel entschieden."""
+        Zeit, bis alle Männer die Leiter hinter sich haben. Einmal je Ziel und Standort entschieden
+        (ein Mann, der schon drüben wieder oben steht, geht oben weiter)."""
         if not config.WALL_LADDER_SHORTCUT or not self.ladders:
             return False
         key = (there, tuple(g.closed for g in self.gates))
-        hit = self._wall_route.get(u.id)
+        hit = self._wall_route.get((u.id, here))
         if hit is not None and hit[0] == key:
             return hit[1] is not None
         from_here, to_there = self._walkway_steps(here), self._walkway_steps(there)
@@ -828,7 +829,9 @@ class Battle:
                     if cost < best:
                         best, down = cost, a
         faster = along is not None and best < along
-        self._wall_route[u.id] = (key, down if faster else None)   # mit der Leiter, über die es hinabgeht
+        if len(self._wall_route) > 2000:
+            self._wall_route.clear()
+        self._wall_route[(u.id, here)] = (key, down if faster else None)   # mit der Leiter, über die es hinabgeht
         return faster
 
     def _wall_slots(self, u: Lochos, centre: Point) -> list[tuple[Man, Point]]:
@@ -3329,6 +3332,10 @@ class Battle:
                 goal_up = self.is_wall_cell(self.cell(*goal), True)
                 target_up = self.is_wall_cell(self.cell(*dest), True)
                 on_route = (goal_up and not target_up) or (centre_up and not (target_up and goal_up))   # oben und der Weg führt hinab
+                if centre_up and target_up and not on_route:
+                    here, there = self.cell(*u.pos), self.cell(*dest)
+                    if here != there and (not self.wall_connected(here, there) or self._ladders_faster(u, here, there)):
+                        on_route = True           # von Wehrgang zu Wehrgang über die Leitern: hinab, quer, hinauf
             levels = {self._wall_level(m.pos) for m in u.all_men()} | {self._wall_level(u.pos)}
             levels.discard("tor")                 # der Tordurchgang ist keine Wallseite
             if on_route or (len(levels) > 1 and ("wall" in levels or not self._narrows(u))):
@@ -4433,7 +4440,8 @@ class Battle:
                 continue
             if self._man_can_step(u, man, (man.x, man.y), (nx, ny), walker, through):
                 man.x, man.y = nx, ny
-                man.dodge = 0.0                          # der Weg ist frei
+                if self.time - man.dodge_at > config.DODGE_MEMORY or not self._keeps_dodge(u):
+                    man.dodge = 0.0                      # der Weg ist schon eine Weile frei: die Seite ist vergessen
                 return True
             if stick and k == 0 and self._walled_off(u, man.pos, (nx, ny), self._barrier_cache.get(u.side, [])):
                 break                                    # vor einer feindlichen Formation: nicht an ihr entlang
@@ -4456,10 +4464,14 @@ class Battle:
             ax, ay, n = -dy, dx, step
         ax, ay = ax / n, ay / n                          # weg vom Blockierer
         tx, ty = -ay, ax                                 # an ihm entlang
-        if man.dodge == 0.0:                             # eine Seite wählen und dabei bleiben, bis der Weg frei ist
+        if man.dodge == 0.0 or self.time - man.dodge_at > config.DODGE_MEMORY or not self._keeps_dodge(u):
+            # eine Seite wählen und dabei bleiben: auch über einen freien Schritt hinweg (sonst wählt er
+            # am nächsten Mann gleich die andere und pendelt links-rechts durchs Gedränge)
             along = tx * dx + ty * dy
             man.dodge = (1.0 if along > 0 else -1.0) if abs(along) > 0.2 * step else (1.0 if id(man) % 2 else -1.0)
+        man.dodge_at = self.time
         tx, ty = tx * man.dodge, ty * man.dodge
+        # erst auf der gewählten Seite (seitlich, dann schräg zurück), dann erst die andere
         for vx, vy in ((tx, ty), (-tx, -ty), (tx + ax, ty + ay), (-tx + ax, -ty + ay), (ax, ay)):
             m_ = math.hypot(vx, vy)
             nx, ny = man.x + vx / m_ * step, man.y + vy / m_ * step
@@ -4467,6 +4479,13 @@ class Battle:
                 man.x, man.y = nx, ny
                 return True
         return False
+
+    @staticmethod
+    def _keeps_dodge(u: Lochos) -> bool:
+        """Merkt sich ein Mann dieser Gruppe seine Ausweichseite? Ja, außer auf der Flucht: Wer
+        flieht, sucht sich jedes Mal neu einen Weg (sonst rennt er immer wieder gegen dasselbe
+        Hindernis am Kartenrand)."""
+        return u.stance is not Stance.FLUCHT
 
     def _man_can_step(self, u: Lochos, man: Man, a: Point, b: Point, walker: bool, through: bool = False) -> bool:
         ca, cb = self.cell(*a), self.cell(*b)

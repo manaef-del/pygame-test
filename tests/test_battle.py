@@ -486,9 +486,9 @@ def test_men_in_melee_are_bound_and_the_phalanx_cannot_turn_in_place():
     moved = [id(m) for m in hop.all_men() if id(m) in stands and dist_of_pt(m.pos, stands[id(m)]) > config.BOUND_SHUFFLE + 0.1]
     assert not moved                                      # gebundene Männer rücken höchstens nach, sie gehen nicht weg
     assert not hop.in_phalanx                             # solange Gebundene fehlen, keine Phalanx
-    b.command_line([pelt], (9.5, 10.2), (6.5, 10.2))      # die Peltasten dürfen sich umformieren
-    run(b, 6)
-    assert pelt.in_phalanx
+    b.command_line([pelt], (9.5, 12.6), (6.5, 12.6))      # die Peltasten dürfen sich umformieren (auf freiem Boden,
+    run(b, 6)                                             # nicht quer durch die gedrehte Phalanx)
+    assert pelt.in_phalanx and all(dist_of_pt(m.pos, p) < 0.2 for m, p in pelt.slots())
 
 
 def test_men_are_bound_by_enemy_men_not_by_the_enemy_rectangle():
@@ -2175,3 +2175,46 @@ def test_line_next_to_own_group_settles_instead_of_being_pushed_back_forever():
     assert path < 0.05, path
     assert b._gap(hop, cav) >= 0.0
 
+
+
+def test_men_keep_their_dodging_side_when_neighbours_swap_places():
+    """Gedränge: Tauschen Nachbargruppen die Plätze, weicht jeder Mann dem anderen auf einer
+    Seite aus und bleibt dabei, auch über einen freien Schritt hinweg; vorher wechselte er
+    im Schnitt 1,6-mal die Seite (links, rechts, links)."""
+    scn = Scenario("t", "t", "", role="verteidigung", enemy_kind="raeuber", enemy_default=4, enemy_min=4,
+                   enemy_max=4, houses=(), raider_spawns=(RaiderSpawn(1.0, 1.0),), cols=24, rows=24, deploy_y=12.0)
+    army = army_of(*[GroupSpec(n, t) for n, t in (
+        ("H1", [Tier("schwer", 14), Tier("mittel", 13), Tier("leicht", 13)]),
+        ("H2", [Tier("schwer", 14), Tier("mittel", 13), Tier("leicht", 13)]),
+        ("P1", [Tier("peltast", 15)]), ("P2", [Tier("peltast", 15)]), ("R", [Tier("reiter", 20)]))])
+    b = Battle(scn, random.Random(1), army=army, ai="einfach")
+    b._ai_raiders = lambda: None
+    b._check_outcome = lambda: None
+    b.alarm = False
+    for e in b.units(Side.FEIND):
+        e.withdrawn = True
+    us = b.units(Side.STADT)
+    x = 5.0
+    for u in us:                                          # dicht nebeneinander, Front Nord
+        b.command_line([u], (x, 12.0), (x + 2 * u.half_w - 0.16, 12.0))
+        x += 2 * u.half_w + 0.1
+    run(b, 10)
+    places = [u.pos for u in us]
+    for i, u in enumerate(us):                            # Nachbarn tauschen die Plätze
+        j = i + 1 if i % 2 == 0 and i + 1 < len(us) else (i - 1 if i % 2 else i)
+        b.command_move([u], places[j])
+    side, flips, t = {}, 0, 0.0
+    while t < 14.0:
+        b.update(DT)
+        t += DT
+        for u in us:
+            for m in u.all_men():
+                if m.dodge != 0.0:
+                    if side.get(id(m), m.dodge) != m.dodge:
+                        flips += 1
+                    side[id(m)] = m.dodge
+        if all((u.target is None or u.in_line) and not u.loose for u in us):
+            break
+    men = sum(u.men for u in us)
+    assert flips / men < 0.3, flips / men
+    assert t < 8.0                                        # und alle sind bald an ihren Plätzen

@@ -82,7 +82,8 @@ class Man:
     bound: bool = False  # im Handgemenge: steht fest, bis die Gruppe ihn wegzieht
     anchor: tuple[float, float] | None = None   # Gruppenzentrum, als er gebunden wurde
     stand: tuple[float, float] | None = None    # sein eigener Platz, als er gebunden wurde
-    dodge: float = 0.0   # Ausweichseite (+1/-1), solange jemand im Weg steht; 0 = frei
+    dodge: float = 0.0   # Ausweichseite (+1/-1); 0 = noch keine gewählt
+    dodge_at: float = -9.0   # wann er zuletzt ausgewichen ist (die Seite gilt noch eine Weile)
     wp: tuple[float, float] | None = None       # eigener Wegpunkt auf dem Weg zum Platz
     wp_until: float = -1.0                      # bis dahin gilt der Wegpunkt
     stall: float = 0.0                          # Sekunden, die er auf seinem Weg nicht vorankommt

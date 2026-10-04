@@ -121,6 +121,9 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
     seine Gruppe steht, bleibt stehen, statt endlos auszuweichen.
   - Steht eine Gruppe geschlossen, rückt ein Mann, der weniger als eine
     Zehntelkachel neben seinem Platz steht, nicht mehr nach.
+  - Wer einem Mann ausweicht, merkt sich seine Seite eine Sekunde lang,
+    auch über einen freien Schritt hinweg; so pendelt niemand links-rechts
+    durchs Gedränge (auf der Flucht wählt er jedes Mal neu).
   - Muss eine angekommene Gruppe einer eigenen Nachbarin weichen (das Ziel
     lag zu dicht an ihr), nimmt sie den neuen Platz als Posten, statt jeden
     Takt hinzulaufen und zurückgeschoben zu werden.
@@ -576,7 +579,8 @@ Gruppe aufgelöst ist, kämpfen nur die Männer, die beim Gegner sind, und
 nur sie werden getroffen. Leitern führen nur zur Innenseite des Walls.
 Ein aufgebrochenes Tor ist unten ein Durchgang und oben eine Lücke im
 Wehrgang: wer oben auf die andere Seite will, steigt an der Leiter ab,
-läuft unten hinüber und drüben wieder hinauf. Durch eine feindliche
+läuft unten hinüber und drüben wieder hinauf (auch wenn der Wehrgang außen
+herum noch zusammenhängt, aber der Weg über die Leitern kürzer ist). Durch eine feindliche
 Formation läuft niemand hindurch, weder eine Gruppe noch ein einzelner
 Mann; wer von der Leiter in eine Phalanx kommt, muss sie durchkämpfen
 oder außen herum. Der Kartenrand ist keine Umgehung. Fällt eine Gruppe oder flieht sie, ist ihr Gerät verloren. Bei
