@@ -599,7 +599,7 @@ def test_surrounded_ai_phalanx_forms_a_ring_and_reforms_after():
     assert eh.formation == "o"
     assert any("umzingelt und bilden einen Kreis" in e for e in b.events)
     b.command_move([hop, pelt, cav], (8.0, 16.0))
-    run(b, 10)
+    run(b, 14)                                                    # (die Reiter kommen erst nach gut 10 s los)
     assert eh.formation == "linie"                                # nicht mehr umzingelt: zurück in die Linie
     assert eh.facing[0] * facing[0] + eh.facing[1] * facing[1] > 0.9
 

@@ -65,6 +65,17 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Teilen, Zoomen, Befehlshaber vorn, Gruppenkacheln** (4. Oktober 2026):
+  - Eine Gruppe lässt sich in zwei Hälften teilen (links/rechts, je mit
+    voller Tiefe).
+  - Mit zwei Fingern zoomt man stufenlos bis zur doppelten Größe, auf jeder
+    Karte.
+  - Der Befehlshaber steht vorn in der Mitte; wo der Anführer mitkämpft,
+    ist er es.
+  - In der Aufstellung stehen die Gruppen als Kacheln in einer Reihe.
+
+  Der Anführer vorn in der Mitte fällt im Mittel früher: Zwei
+  Szenariotests gewinnen über acht Startwerte je einmal weniger (7 → 6).
 - **Zittern im Gedränge** (4. Oktober 2026): Die Männer werden geglättet
   gezeichnet (nur ihre Lage in der Gruppe, nicht deren Marsch), dazu eine
   Totzone am Platz für geschlossene Gruppen. Gemessen wurde, wie oft ein

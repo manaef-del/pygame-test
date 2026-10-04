@@ -160,6 +160,8 @@ class App:
             self.command("drill:phalanx")
         elif key == pygame.K_j:
             self.command("jagen")
+        elif key == pygame.K_d:
+            self.command("teilen")
         elif key == pygame.K_SPACE:
             self.command("pause")
         elif key == pygame.K_r:
@@ -358,6 +360,13 @@ class App:
             self.menu_open = False
         elif key == "menue":
             self.menu_open = not self.menu_open
+        elif key == "teilen" and b.outcome is None:
+            sel = self._selection()
+            g = b.command_split(sel[0]) if sel and len(sel) == 1 else None
+            if g is None:
+                b.events.append("Teilen: eine geschlossene Gruppe in Linie wählen")
+            else:
+                self.selected = {sel[0].id, g.id}            # beide Hälften gewählt; antippen wählt eine
         elif key == "jagen" and b.outcome is None:
             sel = self._selection()
             if not b.command_hunt(sel):
@@ -443,7 +452,9 @@ class App:
     # ------------------------------------------------------- Aufstellung
     def menu_command(self, key: str) -> None:
         a = self.army
-        if key == "prev":
+        if key.startswith("groupsel:"):
+            self.menu_group = min(int(key.split(":")[1]), len(a.groups) - 1)
+        elif key == "prev":
             self.menu_group = (self.menu_group - 1) % len(a.groups)
         elif key == "next":
             self.menu_group = (self.menu_group + 1) % len(a.groups)
@@ -475,7 +486,7 @@ class App:
         elif key.startswith("kind:"):
             _, tier, kind = key.split(":")
             a.set_kind(self.menu_group, int(tier), kind)
-        if key not in ("prev", "next", "scenario", "start"):
+        if key not in ("prev", "next", "scenario", "start") and not key.startswith("groupsel:"):
             self._remember()
 
     # ------------------------------------------------------------ Takt

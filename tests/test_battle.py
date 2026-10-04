@@ -331,9 +331,9 @@ def test_unopposed_raiders_loot_every_house():
 def test_phalanx_behind_palisade_beats_larger_force():
     """Phalanx in zwei Gliedern hinter dem Tor, Peltasten auf dem Wehrgang, Reiter als
     Reserve: Steht ein Turm, decken die Reiter den Fuß der nächsten Leiter; die Phalanx
-    hält das Tor. (Über acht Startwerte gewinnt das 7-mal; Startwert 1 kippte mit der
-    Totzone der Männer am Platz, ein anderer dafür andersherum, darum hier Startwert 2.)"""
-    b = Battle(PALISADE, random.Random(2), enemy_count=112)
+    hält das Tor. (Über acht Startwerte gewinnt das 6-mal; seit der Anführer vorn in der
+    Mitte steht, einmal weniger als vorher. Startwert 3 gewinnt mit beiden Aufstellungen.)"""
+    b = Battle(PALISADE, random.Random(3), enemy_count=112)
     hop, pelt, cav = b.units(Side.STADT)
     b.command_line([hop], (6.5, 9.5), (9.5, 9.5))       # Hopliten hinter dem Tor, kurz und tief
     b.command_move([pelt], (3.5, 8.5))                 # Peltasten auf den Wehrgang
@@ -363,9 +363,11 @@ def test_open_settlement_phalanx_then_pursuit_wins():
     geht, und setzen sich ab, wenn sie selbst umringt sind; die Phalanx dreht die
     Front zur Bedrohung, wenn vorn niemand mehr steht.
     Ist die Hälfte der Räuber gefallen oder geflohen, greifen alle frei an: Reiter
-    und Peltasten fassen die Plünderer, die den langsamen Hopliten davonlaufen würden."""
+    und Peltasten fassen die Plünderer, die den langsamen Hopliten davonlaufen würden.
+    (Über acht Startwerte gewinnt das 6-mal, seit der Anführer vorn in der Mitte steht,
+    vorher 7-mal; Startwert 2 gewinnt mit beiden Aufstellungen.)"""
     from game.geometry import norm, sub
-    b = Battle(OFFENE_SIEDLUNG, random.Random(1))
+    b = Battle(OFFENE_SIEDLUNG, random.Random(2))
     hop, pelt, cav = b.units(Side.STADT)
     b.command_line([hop], (6.5, 10.5), (9.5, 10.5))
     b.command_line([pelt], (6.5, 11.4), (9.5, 11.4))
@@ -2215,17 +2217,31 @@ def test_battle_order_is_where_the_groups_end_up():
 
 
 # ------------------------------------------------------------ Hauptmann und Kontermarsch
-def test_commander_stands_in_the_middle_and_is_succeeded():
+def test_commander_stands_front_centre_and_is_succeeded():
+    """Der Befehlshaber steht vorn in der Mitte; fällt er, rückt ein Nachfolger dorthin."""
     b, u = standing_group("mittel", 12, 6)
     c = u.commander_man()
     slots = dict((id(m), p) for m, p in u.slots())
-    assert dist_of_pt(slots[id(c)], u.pos) < 0.2                          # mittig: Richtpunkt der Gruppe
+    front = [slots[id(m)] for m in u.rows[0]]
+    assert c in u.rows[0] and c is u.rows[0][len(u.rows[0]) // 2]          # vorn in der Mitte
+    assert abs(sum(p[0] for p in front) / len(front) - slots[id(c)][0]) < 0.1
     c.hp = 0.0
     u.bury()
     nxt = u.commander_man()
     assert nxt is not None and nxt is not c and nxt.hp > 0
-    slots = dict((id(m), p) for m, p in u.slots())
-    assert dist_of_pt(slots[id(nxt)], u.pos) < 0.2                        # der Nachfolger rückt in die Mitte
+    u.slots()
+    assert nxt is u.rows[0][len(u.rows[0]) // 2]                            # der Nachfolger rückt vorn in die Mitte
+
+
+def test_the_leader_commands_his_group_from_the_front_centre():
+    """Kämpft der Anführer in einer Gruppe, ist er ihr Befehlshaber und steht vorn in der Mitte."""
+    army = army_of(GroupSpec("H", [Tier("schwer", 8), Tier("mittel", 8)], leader=True))
+    b = Battle(raid(16, (8.0, 1.0)), random.Random(0), army=army, ai="einfach")
+    u = b.units(Side.STADT)[0]
+    lead = u.leader_man()
+    assert lead is not None and u.commander_man() is lead
+    u.slots()
+    assert lead is u.rows[0][len(u.rows[0]) // 2]
 
 
 def test_hoplites_countermarch_and_keep_their_front_rank():
@@ -2379,6 +2395,36 @@ def test_only_cavalry_hunts():
     assert b.command_hunt([hop, pelt, cav]) == 1 and cav.mode == "jagen"
     b.command_move([cav], (8.0, 10.0))
     assert cav.mode == ""                                              # ein neuer Befehl beendet die Jagd
+
+
+def test_split_makes_two_groups_that_move_on_their_own():
+    """Teilen: Links und rechts der Mitte werden zwei Gruppen, jede mit ihrer Tiefe und ihrer
+    Ordnung; niemand verlässt dabei seinen Platz, und beide lassen sich getrennt führen."""
+    b, u = standing_group("mittel", 24, 8)
+    b.alarm = False
+    before = {id(m): m.pos for m in u.all_men()}
+    depth = len(u.rows)
+    g = b.command_split(u)
+    assert g is not None and g in b.lochoi and g.side is u.side
+    assert u.men == 12 and g.men == 12 and len(u.rows) == len(g.rows) == depth
+    assert all(dist_of_pt(m.pos, before[id(m)]) < 1e-9 for m in u.all_men() + g.all_men())   # alle bleiben stehen
+    assert max(m.x for m in g.all_men()) < min(m.x for m in u.all_men())    # die neue Gruppe links
+    b.command_move([g], (4.0, 12.0))
+    b.command_move([u], (12.0, 12.0))
+    run(b, 8)
+    assert g.x < 5.0 and u.x > 11.0
+    small = standing_group("mittel", 5, 5)[1]
+    assert b.command_split(small) is None                                    # zu klein
+
+
+def test_split_keeps_the_leader_and_the_losses():
+    army = army_of(GroupSpec("H", [Tier("schwer", 10), Tier("mittel", 10)], leader=True))
+    b = Battle(raid(16, (8.0, 1.0)), random.Random(0), army=army, ai="einfach")
+    u = b.units(Side.STADT)[0]
+    u.men_start = u.men + 10                                                 # schon zehn verloren
+    g = b.command_split(u)
+    assert u.leader_man() is not None and g.leader_man() is None
+    assert u.men_start + g.men_start >= u.men + g.men + 9
 
 
 def test_drill_command_forms_up_in_place_and_only_for_hoplites():

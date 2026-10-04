@@ -156,6 +156,31 @@ def test_swipe_without_selection_moves_nobody():
     assert "Erst eine Gruppe wählen" in b.events
 
 
+def test_split_button_makes_two_groups_and_selects_both():
+    app = make_app()
+    hop = app.battle.units(Side.STADT)[0]
+    press(app, bar(app)[f"group:{hop.id}"])
+    n = len(app.battle.units(Side.STADT))
+    press(app, bar(app)["teilen"])
+    assert len(app.battle.units(Side.STADT)) == n + 1 and len(app.selected) == 2   # zwei Hälften, beide gewählt
+    assert "teilen" not in bar(app)                       # zwei gewählt: nichts zu teilen
+    assert "verband" in bar(app)
+
+
+def test_setup_screen_picks_groups_by_their_tiles():
+    """In der Aufstellung steht jede Gruppe als Kachel (Sinnbild, Mannzahl) in einer Reihe;
+    antippen wählt sie zum Bearbeiten."""
+    app = make_app(start_in_battle=False)
+    app.screen = "aufstellung"
+    app.draw()
+    tiles = [b for b in app.renderer.menu_buttons if b.key.startswith("groupsel:")]
+    assert len(tiles) == len(app.army.groups) and len({b.rect.size for b in tiles}) == 1
+    assert len({b.rect.y for b in tiles}) == 1                           # alle in einer Reihe
+    assert not any(b.key in ("prev", "next") for b in app.renderer.menu_buttons)
+    press(app, tiles[2].rect.center)
+    assert app.menu_group == 2
+
+
 def test_buttons_in_bar():
     app = make_app()
     assert "angriff" not in bar(app)                      # ohne Auswahl keine Befehle
@@ -198,6 +223,7 @@ def test_context_bar_shows_only_what_the_selection_can_do():
     lab = labels(app)
     assert lab["angriff"] == "Sturmangriff" and "formation:keil" in lab and "formation:o" not in lab
     assert lab["jagen"] == "Jagen" and not buttons(app)["jagen"].active
+    assert lab["teilen"] == "Teilen"
     press(app, bar(app)["jagen"])
     assert cav.mode == "jagen" and buttons(app)["jagen"].active
     press(app, bar(app)[f"group:{pelt.id}"])

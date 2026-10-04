@@ -129,10 +129,12 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   aufgelösten Gruppen folgt das Bild dem Mann selbst, geglättet nur,
   solange er langsam ist. Die Schlacht rechnet weiter mit den wirklichen
   Stellen.
-- **Hauptmann und Kontermarsch.** Jede Gruppe hat einen Hauptmann (weißer
-  Ring) auf dem mittleren Platz der mittleren Reihe; an ihm richtet sich die
-  Gruppe beim Marsch aus. Fällt er, übernimmt der Mann, der dem Platz am
-  nächsten steht, ohne weitere Boni (anders als der Anführer). Liegt ein Ziel
+- **Befehlshaber und Kontermarsch.** Jede Gruppe hat einen Befehlshaber
+  (weißer Ring) auf dem mittleren Platz der vorderen Reihe; an ihm richtet
+  sich die Gruppe beim Marsch aus. Kämpft der Anführer in der Gruppe mit, ist
+  er ihr Befehlshaber und steht dort. Fällt der Befehlshaber, rückt der
+  Mann nach, der dem Platz am nächsten steht, ohne weitere Boni (anders als
+  der Anführer). Liegt ein Ziel
   hinter Hopliten, machen sie einen Kontermarsch: Die Front wechselt die
   Seite, aber dieselben Männer bleiben vorn, jede Rotte zieht durch sich
   selbst hindurch. Das dauert 0,6 s und 0,3 s je weiterer Reihe; solange
@@ -245,6 +247,15 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Hopliten oder sonstwo wieder einsetzen. Der Regler für die Stärke
   skaliert alle Blöcke mit. Blöcke lassen sich verschieben, entfernen
   und hinzufügen. Vorgabe: je eine Gruppe Hopliten, Peltasten und Reiter.
+  Die Gruppen stehen als gleich große Kacheln in einer Reihe (Sinnbild der
+  Gattung, Mannzahl, goldener Punkt beim Anführer); antippen wählt die
+  Gruppe zum Bearbeiten.
+- **Teilen (Taste D):** Eine gewählte Gruppe in Linie (mindestens sechs
+  Mann) teilt sich links und rechts der Mitte in zwei Gruppen; jede Reihe
+  gibt ihre linke Hälfte ab, so behalten beide Hälften Tiefe und Ordnung.
+  Niemand verlässt dabei seinen Platz; die rechte Hälfte behält Anführer
+  und Platz im Verband, die bisherigen Verluste zählen für beide weiter.
+  Danach sind beide gewählt, antippen wählt eine zum getrennten Führen.
 - **Front aufziehen:** Gruppe antippen, dann auf der Karte den Finger
   aufsetzen und eine Linie ziehen. Die Linie ist die Front, ihre Länge
   bestimmt die Breite und damit die Zahl der echten Reihen. Landen
@@ -430,8 +441,8 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Die Moral der gewählten Gruppe steht in der Statuszeile.
 - **Der Anführer** kämpft in der Gruppe mit, die man ihm in der
   Aufstellung zuteilt („Anführer zu dieser Gruppe holen“; Vorgabe: die
-  Hopliten). Er kommt zum Vorrat hinzu, steht vorn, hat die Gattung der
-  vordersten Reihe und trifft wie jeder andere, hält aber fünfmal so viel
+  Hopliten). Er kommt zum Vorrat hinzu, steht vorn in der Mitte als
+  Befehlshaber seiner Gruppe, hat die Gattung der vordersten Reihe und trifft wie jeder andere, hält aber fünfmal so viel
   aus (goldener Ring im Feld, goldener Punkt auf der Gruppenkachel).
   Solange er lebt, nimmt seine Gruppe 15 % weniger Schaden, und ihre
   Fluchtschwelle liegt um 0,1 tiefer: sie flieht später. Fällt er, steht
@@ -701,7 +712,8 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 | Pause / Leertaste | anhalten, bei Alarm: losgehen; erst in der Pause erscheinen die Formationsrechtecke, und jede Gruppe, die noch unterwegs ist, zeigt ihr Ziel als Rechteck mit Front und Weg |
 | Menü, dann Neu / R (zweimal) | Szenario neu starten |
 | Menü, dann Aufstellung / M | zurück ins Aufstellungsmenü |
-| Karte / Nah, Z | große Karte: zwischen Übersicht und Nahansicht umschalten |
+| Karte / Nah, Z | große Karte: zwischen Übersicht und Nahansicht umschalten; hineingezoomt: zurück zur ganzen Ansicht |
+| Teilen / D | gewählte Gruppe in zwei Hälften teilen |
 | Tippen in der Übersicht | große Karte: dorthin zoomen |
 | Zwei Finger ziehen (am Rechner: rechte Maustaste, Pfeiltasten) | große Karte: Nahansicht verschieben |
 

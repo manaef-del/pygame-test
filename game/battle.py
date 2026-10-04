@@ -1594,6 +1594,69 @@ class Battle:
         self.events.append("Aufgeteilt: " + ", ".join(f"{g.name} {g.men}" for g in out))
         return out
 
+    def can_split(self, u: Lochos) -> bool:
+        """Lässt sich die Gruppe teilen? Geschlossen in Linie, groß genug, nicht auf dem Wall,
+        ohne Gerät."""
+        return (u.fighting and not u.loose and u.men >= 2 * config.SPLIT_MIN and not self.on_wall(u)
+                and u.engine is None and u.building is None and u.formation == "linie" and len(u.rows[0]) >= 2)
+
+    def command_split(self, u: Lochos) -> Lochos | None:
+        """Die Gruppe in zwei teilen, links und rechts der Mitte: Jede Reihe gibt ihre linke
+        Hälfte an die neue Gruppe, so behält jede Hälfte ihre Tiefe und ihre Ordnung (vorn die
+        Schweren). Die Männer bleiben, wo sie stehen; beide Hälften lassen sich danach
+        getrennt führen. Die rechte Hälfte behält Nummer, Anführer und Platz im Verband.
+        None, wenn es nicht geht (zu klein, aufgelöst, auf dem Wall, mit Gerät, im Kreis)."""
+        if not self.can_split(u):
+            return None
+        self._wake(u)
+        start_share = u.men_start / max(1, u.men)            # Verluste bisher: zählen für beide Hälften weiter
+        fx, fy = u.facing
+        ax, ay = -fy, fx                                      # quer zur Front, nach rechts
+        left_rows: list[list[Man]] = []
+        right_rows: list[list[Man]] = []
+        for row in u.rows:
+            ordered = sorted(row, key=lambda m: m.x * ax + m.y * ay)
+            k = len(ordered) // 2
+            if ordered[:k]:
+                left_rows.append(ordered[:k])
+            if ordered[k:]:
+                right_rows.append(ordered[k:])
+        lead = u.leader_man()
+        if lead is not None and any(lead in r for r in left_rows):
+            left_rows, right_rows = right_rows, left_rows     # der Anführer bleibt bei der alten Gruppe
+        if sum(map(len, left_rows)) < config.SPLIT_MIN or sum(map(len, right_rows)) < config.SPLIT_MIN:
+            return None
+
+        def centre(rows: list[list[Man]]) -> Point:
+            men = [m for r in rows for m in r]
+            return sum(m.x for m in men) / len(men), sum(m.y for m in men) / len(men)
+        cx, cy = centre(left_rows)
+        g = self._spawn(u.side, left_rows, cx, cy, u.name)
+        u.rows = right_rows
+        u.x, u.y = centre(right_rows)
+        u.commander = None
+        for h in (u, g):
+            h.facing = h.heading = (fx, fy)
+            h.formation = "linie"
+            h.file = False
+            h.in_line = False
+            h.waypoints = []
+            h.mode = ""
+            h.target_id = None
+            h.march = None
+            h.face_to = None
+            h.full_width = None
+            h.men_start = max(h.men, round(h.men * start_share))
+            if u.arm() == "hopliten" and not u.free_attack:
+                h.stance, h.target = Stance.PHALANX, h.pos   # die Hopliten stehen als Phalanx, wo sie sind
+            else:
+                h.stance, h.target = Stance.HALTEN, None
+        g.drill = u.drill
+        g.morale = u.morale
+        g.rout_threshold = u.rout_threshold
+        self.events.append(f"{u.name} geteilt: {u.men} und {g.men} Mann")
+        return g
+
     def command_attack(self, units: list[Lochos] | None = None) -> list[Lochos]:
         """Freier Angriff, je Waffengattung: Hopliten stürmen den nächsten Gegner,
         Peltasten plänkeln (auf Wurfweite heran, werfen, ausweichen), Reiter
@@ -3880,11 +3943,8 @@ class Battle:
             row[:] = men[k:k + n]
             k += n
         cls._sort_rows(u, facing)
-        if u.formation == "linie" and u.rows:
-            row = u.rows[len(u.rows) // 2]
-            mid = row[len(row) // 2] if row else None
-            if mid is not None and not mid.leader:
-                u.commander = mid                     # Hauptmann ist, wer in der Mitte ankommt (sonst tauschte er quer)
+        if u.formation == "linie" and u.rows and u.rows[0] and u.leader_man() is None:
+            u.commander = u.rows[0][len(u.rows[0]) // 2]   # Befehlshaber ist, wer vorn in der Mitte ankommt (sonst tauschte er quer)
 
     @staticmethod
     def _sort_rows(u: Lochos, facing: Point) -> None:

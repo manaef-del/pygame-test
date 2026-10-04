@@ -514,41 +514,42 @@ class Lochos:
         return sum(1 for m in self.rows[0] if m.kind.hoplite) / len(self.rows[0])
 
     def commander_man(self) -> "Man | None":
-        """Der Hauptmann der Gruppe: steht mittig, an ihm richtet sich die Gruppe aus. Fällt
-        er (oder ist noch keiner bestimmt), übernimmt der Mann, der dem Platz in der Mitte am
-        nächsten steht; der Anführer bleibt Anführer."""
+        """Der Befehlshaber der Gruppe: steht vorn in der Mitte, an ihm richtet sich die Gruppe
+        aus. Kämpft der Anführer in der Gruppe mit, ist er es. Fällt der Befehlshaber (oder ist
+        noch keiner bestimmt), übernimmt der Mann, der dem Platz vorn in der Mitte am nächsten
+        steht."""
+        lead = self.leader_man()
+        if lead is not None:
+            self.commander = lead
+            return lead
         c = self.commander
         if c is not None and c.hp > HP_EPS and any(m is c for row in self.rows for m in row):
             return c
-        men = [m for m in self.all_men() if not m.leader] or self.all_men()
+        men = self.all_men()
         if not men:
             self.commander = None
             return None
-        if self.formation == "linie" and self.rows:
-            mr = len(self.rows) // 2
-            row = self.rows[mr]
-            mid = row[len(row) // 2] if row else None
-            if mid is not None and not mid.leader:
-                self.commander = mid
-                return mid
+        if self.formation == "linie" and self.rows and self.rows[0]:
+            self.commander = self.rows[0][len(self.rows[0]) // 2]
+            return self.commander
         self.commander = min(men, key=lambda m: (m.x - self.x) ** 2 + (m.y - self.y) ** 2)
         return self.commander
 
     def seat_commander(self) -> None:
-        """Der Hauptmann steht auf dem mittleren Platz der mittleren Reihe (nur in Linie)."""
-        if self.formation != "linie" or not self.rows:
+        """Der Befehlshaber steht auf dem mittleren Platz der vorderen Reihe (nur in Linie)."""
+        if self.formation != "linie" or not self.rows or not self.rows[0]:
             return
         c = self.commander_man()
-        if c is None or c.leader:
+        if c is None:
             return
-        mr = len(self.rows) // 2
-        mc = len(self.rows[mr]) // 2
-        if mc < len(self.rows[mr]) and self.rows[mr][mc] is c:
+        front = self.rows[0]
+        mc = len(front) // 2
+        if front[mc] is c:
             return
-        for ri, row in enumerate(self.rows):
+        for row in self.rows:
             for ci, m in enumerate(row):
                 if m is c:
-                    row[ci], self.rows[mr][mc] = self.rows[mr][mc], row[ci]
+                    row[ci], front[mc] = front[mc], row[ci]
                     return
 
     def leader_man(self) -> "Man | None":

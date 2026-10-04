@@ -8,7 +8,7 @@ import pygame
 
 from . import config
 from .geometry import dist
-from .army import MAX_TIERS, OWN_MAX, OWN_MIN, Army
+from .army import MAX_TIERS, OWN_MAX, OWN_MIN, Army, arm_of
 from .battle import Battle
 from .units import FORMATION_NAMES, PLAYER_TYPES, UNIT_TYPES, Lochos, Side, Stance
 
@@ -682,6 +682,8 @@ class Renderer:
             items.append(("verband", "Verband", 1.3, False, "bilden"))
         elif battle.verband_of(sel[0]) is not None:
             items.append(("verlassen", "Aus", 1.0, False, "Verband"))
+        if len(sel) == 1 and battle.can_split(sel[0]):
+            items.append(("teilen", "Teilen", 1.0, False, None))
         engines = battle.scenario.ram_available
         if arm != "gemischt":
             opts = sel[0].formation_options()
@@ -889,6 +891,23 @@ class Renderer:
             color = config.COLOR_SHIELD if chosen is not None and chosen.id == vid else config.COLOR_RECT
             pygame.draw.rect(self.surface, color, r.inflate(6, 6), 2, border_radius=7)
 
+    def _arm_symbol(self, arm: str, color, cx: int, cy: int) -> None:
+        """Sinnbild der Gattung: Pferdekopf, Wurfspeer oder Rundschild."""
+        s = self.surface
+        if arm == "reiter":                               # Pferdekopf
+            pygame.draw.polygon(s, color, [(cx - 6, cy + 6), (cx + 6, cy + 6), (cx + 2, cy - 6), (cx - 2, cy - 3)])
+        elif arm == "peltasten":                          # Wurfspeer
+            pygame.draw.line(s, color, (cx - 6, cy + 6), (cx + 5, cy - 5), 2)
+            pygame.draw.polygon(s, color, [(cx + 6, cy - 6), (cx + 1, cy - 5), (cx + 5, cy - 1)])
+        else:                                             # Rundschild
+            pygame.draw.circle(s, color, (cx, cy), 7)
+            pygame.draw.circle(s, config.COLOR_BAR, (cx, cy), 7, 1)
+            pygame.draw.circle(s, config.COLOR_BAR, (cx, cy), 2)
+
+    def _leader_badge(self, rect: pygame.Rect) -> None:
+        pygame.draw.circle(self.surface, config.COLOR_LEADER, (rect.right - 8, rect.y + 8), 4)
+        pygame.draw.circle(self.surface, config.COLOR_BAR, (rect.right - 8, rect.y + 8), 4, 1)
+
     def _draw_chip(self, b: Button, u: Lochos) -> None:
         """Gruppenkachel: Sinnbild der Gattung, Mannzahl, Moralbalken; gewählt blau,
         im Kampf orange umrandet, auf der Flucht ausgegraut."""
@@ -901,20 +920,9 @@ class Renderer:
         color = config.COLOR_CITY if lead is None else lead.color
         if fleeing:
             color = desaturate(color, 0.7)
-        cx, cy = b.rect.x + 11, b.rect.y + 11                 # Sinnbild oben links
-        arm = u.arm()
-        if arm == "reiter":                               # Pferdekopf
-            pygame.draw.polygon(s, color, [(cx - 6, cy + 6), (cx + 6, cy + 6), (cx + 2, cy - 6), (cx - 2, cy - 3)])
-        elif arm == "peltasten":                          # Wurfspeer
-            pygame.draw.line(s, color, (cx - 6, cy + 6), (cx + 5, cy - 5), 2)
-            pygame.draw.polygon(s, color, [(cx + 6, cy - 6), (cx + 1, cy - 5), (cx + 5, cy - 1)])
-        else:                                             # Rundschild
-            pygame.draw.circle(s, color, (cx, cy), 7)
-            pygame.draw.circle(s, config.COLOR_BAR, (cx, cy), 7, 1)
-            pygame.draw.circle(s, config.COLOR_BAR, (cx, cy), 2)
+        self._arm_symbol(u.arm(), color, b.rect.x + 11, b.rect.y + 11)   # Sinnbild oben links
         if u.leader_man() is not None:                    # Abzeichen: der Anführer kämpft hier mit
-            pygame.draw.circle(s, config.COLOR_LEADER, (b.rect.right - 8, b.rect.y + 8), 4)
-            pygame.draw.circle(s, config.COLOR_BAR, (b.rect.right - 8, b.rect.y + 8), 4, 1)
+            self._leader_badge(b.rect)
         text = config.COLOR_TEXT_DIM if fleeing else config.COLOR_TEXT
         img = self.font.render(b.label, True, text)         # Mannzahl unten rechts
         s.blit(img, img.get_rect(bottomright=(b.rect.right - 4, b.rect.bottom - 6)))
@@ -976,15 +984,29 @@ class Renderer:
         self._menu_button("scenario", f"Szenario: {scenario.name}", pygame.Rect(gap, y, W - 2 * gap, 32))
         y += 36
 
-        # Gruppenwahl
-        self._menu_button("prev", "<", pygame.Rect(gap, y, 48, 34))
-        self._menu_button("next", ">", pygame.Rect(W - gap - 48, y, 48, 34))
+        # Gruppenwahl: eine Kachel je Gruppe (Sinnbild und Mannzahl), antippen wählt
+        n = len(army.groups)
+        tile_w = min(80, (W - 2 * gap - (n - 1) * gap) // max(1, n))
+        x0 = (W - (n * tile_w + (n - 1) * gap)) // 2
+        for k, grp in enumerate(army.groups):
+            rect = pygame.Rect(x0 + k * (tile_w + gap), y, tile_w, 40)
+            pygame.draw.rect(s, config.COLOR_BUTTON_ACTIVE if k == index else config.COLOR_BUTTON, rect, border_radius=6)
+            tiers = [t for t in grp.tiers if t.count > 0] or grp.tiers
+            arms: dict[str, int] = {}
+            for t in tiers:
+                arms[arm_of(t.kind)] = arms.get(arm_of(t.kind), 0) + t.count
+            arm = max(arms, key=arms.get) if arms else "hopliten"
+            color = UNIT_TYPES[tiers[0].kind].color if tiers else config.COLOR_CITY
+            self._arm_symbol(arm, color, rect.x + 11, rect.y + 11)
+            if grp.leader:
+                self._leader_badge(rect)
+            img = self.font.render(str(grp.men()), True, config.COLOR_TEXT)
+            s.blit(img, img.get_rect(bottomright=(rect.right - 4, rect.bottom - 4)))
+            self.menu_buttons.append(Button(f"groupsel:{k}", grp.name, rect))
         g = army.groups[index]
-        title = f"{g.name}  ({index + 1}/{len(army.groups)})  ·  {g.men()} Mann" + ("  + Anführer" if g.leader else "")
-        self._center_text(self.font, title, config.COLOR_TEXT, y + 17)
 
         # Reihen-Blöcke, vorn nach hinten
-        y += 40
+        y += 46
         block_h = 58
         for i, tier in enumerate(g.tiers):
             kind = UNIT_TYPES[tier.kind]

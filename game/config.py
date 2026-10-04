@@ -8,6 +8,7 @@ MAP_W = COLS * TILE          # 480
 MAP_H = ROWS * TILE          # 540
 BAR_H = 52                   # eine Reihe: nur die Befehle für die gewählten Gruppen
 WIDTH = MAP_W                # 480
+SPLIT_MIN = 3                # so viele Männer braucht jede Hälfte, wenn man eine Gruppe teilt
 MAX_ZOOM = 2.0               # so weit lässt sich hineinzoomen (doppelte Größe), auf jeder Karte
 HEIGHT = MAP_H + BAR_H       # 680
 FPS = 60
