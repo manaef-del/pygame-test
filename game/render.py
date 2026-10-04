@@ -98,8 +98,10 @@ class Camera:
 
 
 def shown(man) -> tuple[int, int]:
-    """Wo ein Mann gezeichnet wird: an seiner Stelle, im Gerangel zum Gegner hin verschoben."""
-    return px((man.x + man.show_dx, man.y + man.show_dy))
+    """Wo ein Mann gezeichnet wird: an seiner (geglätteten) Stelle, im Gerangel zum Gegner hin verschoben."""
+    if man.sx is None:
+        return px((man.x + man.show_dx, man.y + man.show_dy))
+    return px((man.sx + man.show_dx, man.sy + man.show_dy))
 
 
 def desaturate(color: tuple[int, int, int], amount: float) -> tuple[int, int, int]:

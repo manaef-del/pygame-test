@@ -175,6 +175,7 @@ class Battle:
     fallen_marks: list[tuple[Point, float]] = field(default_factory=list)          # nur fürs Bild: wo und wann einer fiel
     climb_budget: dict[tuple[int, int], float] = field(default_factory=dict)       # Durchsatz je Leiter/Turm
     _barrier_cache: dict = field(default_factory=dict)
+    _shown_facing: dict = field(default_factory=dict)  # nur fürs Bild: Front je Gruppe im letzten Takt
     _man_grid: dict = field(default_factory=dict)      # Männer je Rasterzelle (0,5 Kacheln), je Schritt neu
     _man_group: dict = field(default_factory=dict)     # id(Mann) -> Gruppen-id, je Schritt neu
     _man_side: dict = field(default_factory=dict)      # id(Mann) -> Seite, je Schritt neu
@@ -2417,6 +2418,49 @@ class Battle:
         self._check_outcome()
         self._show(dt)
 
+    def _smooth_shown(self, dt: float) -> None:
+        """Nur fürs Bild: Jeder Mann wird an einer geglätteten Stelle gezeichnet. Geglättet wird
+        seine Lage in der Gruppe (zu ihrer Mitte, entlang ihrer Front), nicht Marsch und Schwenk der
+        Gruppe: Das Hin und Her einzelner Schritte im Gedränge verschwindet aus dem Bild, niemand
+        hängt beim Marschieren oder Schwenken nach. Aufgelöste Gruppen haben keine feste Mitte:
+        Dort folgt das Bild dem Mann selbst, und nur solange er langsam ist. Ein Sprung (neu
+        aufgestellt) oder eine Kehrtwendung wird sofort übernommen."""
+        k = 1.0 if config.SHOW_SMOOTH <= dt else dt / config.SHOW_SMOOTH
+        for u in self.lochoi:
+            if not u.alive:
+                continue
+            fx, fy = u.facing if u.facing != (0.0, 0.0) else (0.0, -1.0)
+            ax, ay = -fy, fx
+            last = self._shown_facing.get(u.id)
+            flipped = last is not None and last[0] * fx + last[1] * fy < 0.5   # Kehrt: Lage neu übernehmen
+            self._shown_facing[u.id] = (fx, fy)
+            for m in u.all_men():
+                jump = m.sx is None or abs(m.x - m.sx) + abs(m.y - m.sy) > 0.6
+                if u.loose:
+                    m.ref_id = -1
+                    if jump:
+                        m.sx, m.sy = m.x, m.y
+                        continue
+                    speed = math.hypot(m.vx, m.vy)
+                    tau = config.SHOW_SMOOTH * max(0.0, 1.0 - speed / config.SHOW_SMOOTH_FAST)
+                    k_l = 1.0 if tau <= dt else dt / tau
+                    m.sx += (m.x - m.sx) * k_l
+                    m.sy += (m.y - m.sy) * k_l
+                    continue
+                dx, dy = m.x - u.x, m.y - u.y
+                lx, ly = dx * ax + dy * ay, dx * fx + dy * fy          # Lage in der Gruppe: entlang und quer zur Front
+                if jump or flipped or m.ref_id != u.id:
+                    if jump or flipped:
+                        m.rx, m.ry = lx, ly
+                    else:                                              # eben noch aufgelöst: vom Bild aus weiter
+                        sx_, sy_ = m.sx - u.x, m.sy - u.y
+                        m.rx, m.ry = sx_ * ax + sy_ * ay, sx_ * fx + sy_ * fy
+                    m.ref_id = u.id
+                else:
+                    m.rx += (lx - m.rx) * k
+                    m.ry += (ly - m.ry) * k
+                m.sx, m.sy = u.x + m.rx * ax + m.ry * fx, u.y + m.rx * ay + m.ry * fy
+
     def _mark_engines(self) -> None:
         """Aufgestellte Türme und liegende Rammböcke als Hindernisse (Viertelkacheln)."""
         self._engines_key = (len(self.towers), len(self.debris))
@@ -2445,6 +2489,7 @@ class Battle:
                 self.fallen_marks.extend((p, self.time) for p in u.fell_at)
                 u.fell_at.clear()
         self.fallen_marks = [(p, t) for p, t in self.fallen_marks if self.time - t < config.FALLEN_MARK_TIME]
+        self._smooth_shown(dt)
         grid: dict[tuple[int, int], list[tuple[Man, Lochos]]] = {}
         for u in self.lochoi:
             if u.alive:
@@ -4066,6 +4111,8 @@ class Battle:
                     if self._crowding(man, man.pos, slot, u.id) is None and self._man_can_step(u, man, man.pos, slot, walker):
                         man.x, man.y = slot
                     continue
+                if settled and d <= config.MAN_DEADZONE and u.in_line:
+                    continue                          # steht so gut wie an seinem Platz: nicht nachkorrigieren
                 if self._resting(u, man, slot, d, settled):
                     continue                          # kommt nicht näher: stehen bleiben statt hin und her
                 speed = max(u.speed, man.speed) * config.MAN_CATCHUP

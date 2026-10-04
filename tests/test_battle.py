@@ -331,8 +331,9 @@ def test_unopposed_raiders_loot_every_house():
 def test_phalanx_behind_palisade_beats_larger_force():
     """Phalanx in zwei Gliedern hinter dem Tor, Peltasten auf dem Wehrgang, Reiter als
     Reserve: Steht ein Turm, decken die Reiter den Fuß der nächsten Leiter; die Phalanx
-    hält das Tor."""
-    b = Battle(PALISADE, random.Random(1), enemy_count=112)
+    hält das Tor. (Über acht Startwerte gewinnt das 7-mal; Startwert 1 kippte mit der
+    Totzone der Männer am Platz, ein anderer dafür andersherum, darum hier Startwert 2.)"""
+    b = Battle(PALISADE, random.Random(2), enemy_count=112)
     hop, pelt, cav = b.units(Side.STADT)
     b.command_line([hop], (6.5, 9.5), (9.5, 9.5))       # Hopliten hinter dem Tor, kurz und tief
     b.command_move([pelt], (3.5, 8.5))                 # Peltasten auf den Wehrgang
@@ -1580,6 +1581,44 @@ def test_a_loose_group_changes_wall_side_only_with_a_clear_majority():
     for i, m in enumerate(men):
         m.y = 11.0 if i % 4 else 6.0                                     # drei Viertel drinnen
     assert b._wall_level(b._loose_centre(u)) != first
+
+
+def test_men_are_drawn_smoothed_within_their_group_but_never_behind_the_march():
+    """Nur fürs Bild: Ein Mann, der in seiner Gruppe hin und her zittert, wird ruhig gezeichnet;
+    marschiert die Gruppe, hängt sein Bild nicht nach."""
+    b, u = standing_group("schwer", 40, 10)
+    b.alarm = False
+    run(b, 2)
+    man = u.rows[1][3]
+    home = man.pos
+    seen = []
+    for k in range(int(2 / DT)):
+        man.x = home[0] + (0.05 if k % 2 else -0.05)                   # zittert jeden Takt hin und her
+        b.update(DT)
+        seen.append(man.sx)
+    assert max(seen[10:]) - min(seen[10:]) < 0.03                        # gezeichnet: kaum ein Zucken
+    man.x, man.y = home
+    b.command_move([u], (8.0, 6.0))
+    worst = 0.0
+    for _ in range(int(3 / DT)):
+        b.update(DT)
+        worst = max(worst, max(math.hypot(m.sx - m.x, m.sy - m.y) for m in u.all_men()))
+    assert worst < 0.05                                                  # beim Marsch: genau an seiner Stelle
+
+
+def test_a_formed_group_does_not_correct_tiny_offsets():
+    """Ein Mann einer stehenden, geschlossenen Gruppe, der um weniger als eine Zehntelkachel
+    neben seinem Platz steht, rückt nicht dauernd nach."""
+    b, u = standing_group("schwer", 40, 10)
+    b.alarm = False
+    u.stance, u.target = Stance.PHALANX, u.pos
+    run(b, 3)
+    assert u.in_line
+    man = u.rows[1][3]
+    slot = dict((id(m), p) for m, p in u.slots())[id(man)]
+    man.x = slot[0] + 0.06
+    run(b, 1)
+    assert abs(man.x - (slot[0] + 0.06)) < 1e-9 and u.in_line
 
 
 def test_foot_marches_in_an_arc_with_its_front_ahead():

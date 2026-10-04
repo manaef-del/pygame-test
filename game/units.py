@@ -89,6 +89,11 @@ class Man:
     leader: bool = False  # der Anführer: kämpft mit, hält viel mehr aus
     show_dx: float = 0.0  # nur fürs Bild: so weit drängt er gerade von seiner Stelle zum Gegner (Gerangel)
     show_dy: float = 0.0
+    sx: float | None = None  # nur fürs Bild: geglättete Stelle (ruhig statt zitternd), None = noch keine
+    sy: float = 0.0
+    rx: float = 0.0          # ... und seine geglättete Lage in der Gruppe (zur Mitte), für die das Bild gilt
+    ry: float = 0.0
+    ref_id: int = -1         # (die Gruppe, auf deren Mitte sich rx, ry beziehen; -1: aufgelöst)
     flash: float = 0.0    # nur fürs Bild: so lange (Sekunden) blitzt er nach einem Treffer noch auf
     hurt: float = 0.0     # nur fürs Bild: Schaden seit dem letzten Aufblitzen
     rest_slot: tuple[float, float] | None = None   # sein Platz, als er zuletzt näher kam ...

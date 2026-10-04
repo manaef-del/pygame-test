@@ -34,6 +34,13 @@ wandert nach unten.
    (8 von 8) gegen eine Besatzung von 40. Bildete die Besatzung gegen
    Reiter schon Kreise, wenn sie vorn gebunden war, gewann man nie (Lauf 24);
    seit der Kreis nur eine Verzweiflungstat ist, wieder immer.
+13. **Ausweichen ohne Seitenwechsel, Vorfahrt.** Im Gedränge weichen
+    Männer einem Kameraden aus und wechseln dabei oft gleich die Seite (zwei
+    Drittel aller Umkehrungen). Ein erster Versuch (bei der Seite bleiben,
+    kurz warten) half beim Tauschen (−25 %), schadete beim Zusammenrücken
+    (+40 %). Besser wäre wohl eine Vorfahrt zwischen zwei Gruppen (die
+    gehende geht, die stehende macht Platz) und bei sich überschneidenden
+    Zielen versetzte Plätze und ein kurzes Warten der einen Gruppe.
 10. **Verbände für die Gegner-KI.** Die KI bildet noch keine Verbände und
     wechselt keine Modi; denkbar wäre etwa eine lockere Ordnung der
     Siedlung gegen Peltasten.
@@ -58,6 +65,17 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Zittern im Gedränge** (4. Oktober 2026): Die Männer werden geglättet
+  gezeichnet (nur ihre Lage in der Gruppe, nicht deren Marsch), dazu eine
+  Totzone am Platz für geschlossene Gruppen. Gemessen wurde, wie oft ein
+  Mann sichtbar umkehrt (je Mann und Sekunde, mindestens 0,4 Bildpunkte):
+  - Plätze tauschen: 0,80 → 0,08
+  - alle auf einen Punkt: 0,50 → 0,13
+  - alle zugleich vor: 0,63 → 0,07
+
+  Beim Marschieren und Reiten hängt das Bild nicht nach. Offen bleibt das
+  Ausweichen selbst: Zwei Drittel der Umkehrungen sind „links, dann
+  rechts“ (siehe Offen).
 - **Kolonne durchs Tor für alle** (3. Oktober 2026): Lockere Hopliten,
   Peltasten und Reiter ziehen wie die Phalanx schmaler durch Tor und Gasse.
   Vorher blieben lockere Hopliten und Peltasten beim Zurück durchs Tor

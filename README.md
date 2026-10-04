@@ -119,6 +119,16 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   - Plänkler weichen mindestens 1 s zurück, bevor sie neu entscheiden.
   - Ein Mann, der seinem Platz eine Sekunde lang nicht näherkommt, während
     seine Gruppe steht, bleibt stehen, statt endlos auszuweichen.
+  - Steht eine Gruppe geschlossen, rückt ein Mann, der weniger als eine
+    Zehntelkachel neben seinem Platz steht, nicht mehr nach.
+- **Ruhiges Bild.** Die Männer werden an einer geglätteten Stelle
+  gezeichnet. Geglättet wird nur ihre Lage innerhalb der Gruppe (entlang
+  und quer zur Front, über 0,15 s), nicht Marsch und Schwenk der Gruppe.
+  Das Hin und Her einzelner Schritte im Gedränge verschwindet so aus dem
+  Bild, und beim Marschieren oder Reiten hängt niemand nach. Bei
+  aufgelösten Gruppen folgt das Bild dem Mann selbst, geglättet nur,
+  solange er langsam ist. Die Schlacht rechnet weiter mit den wirklichen
+  Stellen.
 - **Hauptmann und Kontermarsch.** Jede Gruppe hat einen Hauptmann (weißer
   Ring) auf dem mittleren Platz der mittleren Reihe; an ihm richtet sich die
   Gruppe beim Marsch aus. Fällt er, übernimmt der Mann, der dem Platz am
