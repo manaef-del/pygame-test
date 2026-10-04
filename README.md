@@ -513,7 +513,7 @@ Festung. Zusammen ergeben sie eines von acht Szenarien.
 | Angriff: Offene Siedlung | Dieselbe Stadt; sie stellt eine eigene Truppe, passend zur Mischung des Spielers (siehe Gegner-KI), vor ihren südlichen Häusern. Hopliten und Peltasten halten, Reiter greifen an |
 | Verteidigung: Räuberhorde | Eine Räuberhorde stürmt gleich zu Beginn von Norden heran, auf offenem Feld; man hat den Anmarsch (rund 20 Kacheln) Zeit, sich aufzustellen |
 | Angriff: Räuberhorde | Die Horde lagert im Norden und stürmt, sobald man ihr nahe kommt |
-| Verteidigung: Festung | Ein Heer aus Hopliten, Peltasten und Reitern, doppelt so stark wie die eigene Truppe, belagert die sechseckige Festung |
+| Verteidigung: Festung | Ein Heer aus Hopliten, Peltasten und Reitern, rund anderthalbmal so stark wie die eigene Truppe (110 gegen 75), belagert die sechseckige Festung |
 | Angriff: Festung | Dieselbe Festung, man selbst belagert sie; die Besatzung ist etwa halb so stark wie die eigene Truppe |
 
 Alle Karten sind gleich groß (32 × 36 Kacheln, viermal so groß wie die

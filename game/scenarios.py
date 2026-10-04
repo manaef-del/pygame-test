@@ -189,7 +189,7 @@ FESTUNG = Scenario(
     key="festung", name="Verteidigung: Festung",
     hint="Ein Heer aus Hopliten, Peltasten und Reitern rückt an. Drei Tore, Türme an den Ecken; "
          "Peltasten über die Leitern auf den Wehrgang. Zwei Finger verschieben die Karte.",
-    role="verteidigung", enemy_kind="armee", enemy_default=150, enemy_min=40, enemy_max=300,
+    role="verteidigung", enemy_kind="armee", enemy_default=110, enemy_min=40, enemy_max=300,
     houses=FORT["houses"], palisade=FORT["palisade"], gate_closed=True, wall_side="stadt",
     ladders=FORT["ladders"], raider_spawns=FORT_ARMY, deploy_y=FORT_CENTRE[1] + 1.5, agora=FORT_CENTRE,
     cols=FORT_COLS, rows=FORT_ROWS, gates=FORT["gates"], corner_towers=FORT["towers"], ring=FORT["poly"],
