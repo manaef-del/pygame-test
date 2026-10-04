@@ -639,7 +639,10 @@ still oder folgen der Linie, die Räuber-Peltasten gehen in den Nahkampf.
   - kaum noch andere kämpfen,
   - oder spätestens nach 35 Sekunden.
 
-  Das Protokoll meldet, warum sie kommt. Die Festungsbesatzung hat schon
+  Das Protokoll meldet, warum sie kommt. Steht vor ihr eine geschlossene
+  Phalanx, läuft sie nicht frontal hinein, sondern um deren Flanke und
+  fällt ihr in Flanke oder Rücken („…, um die Flanke herum“); kommt sie,
+  weil ein Feind schon nah ist, kämpft sie gleich. Die Festungsbesatzung hat schon
   eine eigene Reserve: Phalanxen an ruhigen Toren gehen an bedrohte
   Stellen.
 - **Gegen Reiter:** Reiten Reiter auf eine Hoplitengruppe der KI zu, und

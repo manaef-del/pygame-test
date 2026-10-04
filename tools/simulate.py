@@ -191,6 +191,52 @@ def t_phalanxstoss(b: Battle) -> dict:
     }
 
 
+def t_agora(b: Battle) -> dict:
+    """Angriff auf die Siedlung, mit Plan für den letzten Kampf: Vor ihrer Phalanx (etwa auf
+    der Agora) zieht die eigene Phalanx auf, die Peltasten werfen, die Reiter gehen in den
+    Rücken; sind sie dort (oder nach 20 Sekunden), rückt die Phalanx in Phalanx heran,
+    statt aufgelöst anzustürmen, und die Reiter fallen in den Rücken."""
+    from game.ai import local_to_world
+    hop, pelt, cav = groups(b)
+    st = {"foe": None, "since": 0.0, "pinned": False}
+
+    def line(b: Battle, units, foe, gap: float) -> None:
+        a = local_to_world(foe, -foe.half_w - 0.5, foe.half_d + gap)
+        c = local_to_world(foe, foe.half_w + 0.5, foe.half_d + gap)
+        if (c[1] - a[1]) * foe.facing[0] - (c[0] - a[0]) * foe.facing[1] > 0:   # die Front zur Phalanx
+            a, c = c, a
+        b.command_line(units, a, c)
+
+    def step(b: Battle) -> None:
+        foes = [f for f in b.units(Side.FEIND, fighting_only=True) if f.stance is not Stance.FLUCHT]
+        alive = lambda grp: [u for u in grp if u.fighting and u.stance is not Stance.FLUCHT]   # noqa: E731
+        own_hop, own_pelt, own_cav = alive(hop), alive(pelt), alive(cav)
+        if not foes:
+            return
+        foe = max(foes, key=lambda f: f.men)
+        own = own_hop + own_cav
+        regrouped = st["pinned"] and own and all(u.rect_distance(foe.pos) > 4.0 and u.stance is Stance.HALTEN for u in own)
+        if st["foe"] != foe.id or dist(st["at"], foe.pos) > 1.5 or regrouped:   # nach dem Sammeln von vorn
+            st.update(foe=foe.id, at=foe.pos, since=b.time, pinned=False)
+            line(b, own_hop, foe, 1.3)
+            b.command_attack_target(own_pelt, foe)
+            b.command_move(own_cav, local_to_world(foe, 0.0, -(foe.half_d + 2.5)))
+        if st["pinned"]:
+            return
+        behind = bool(own_cav) and all(b.arc_of(foe, c.pos) == "rear" for c in own_cav)
+        if behind or b.time - st["since"] > 20.0:
+            st["pinned"] = True
+            b.command_attack_target(own_cav, foe)
+            line(b, own_hop, foe, 0.2)
+
+    return {
+        0: lambda b: (b.command_line(hop, _at(b, -4.0, -3.5), _at(b, 4.0, -3.5)),
+                      b.command_line(pelt, _at(b, -3.0, -2.5), _at(b, 3.0, -2.5)),
+                      b.command_move(cav, _at(b, 5.5, -2.0))),
+        **{t: step for t in range(15, int(LIMIT))},
+    }
+
+
 def _finish_off(b: Battle) -> None:
     """Steht keine feindliche Phalanx mehr, greifen alle an: Wer sich auf der Agora
     zum letzten Kampf stellt, wird nicht von den Reitern allein bezwungen."""
@@ -346,7 +392,7 @@ def t_festung_angriff_turm(b: Battle) -> dict:
 
 TACTICS = {
     "siedlung": {"linie": t_linie, "schlachtordnung": t_schlachtordnung, "linie_reiter": t_linie_reiter_aktiv, "linie_aktiv": t_linie_aktiv, "linie_tief": t_linie_tief, "passiv": t_passiv, "angriff": t_angriff},
-    "siedlung_angriff": {"phalanxstoss": t_phalanxstoss, "vorruecken": t_vorruecken, "angriff": t_angriff},
+    "siedlung_angriff": {"phalanxstoss": t_phalanxstoss, "agora": t_agora, "vorruecken": t_vorruecken, "angriff": t_angriff},
     "horde": {"vorruecken": t_vorruecken, "angriff": t_angriff},
     "horde_sturm": {"linie_tief": t_linie_tief, "linie_aktiv": t_linie_aktiv, "angriff": t_angriff},
     "ueberfall": {"linie": t_linie, "linie_aktiv": t_linie_aktiv, "passiv": t_passiv, "angriff": t_angriff},
