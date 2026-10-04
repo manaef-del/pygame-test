@@ -162,6 +162,8 @@ class App:
             self.command("jagen")
         elif key == pygame.K_d:
             self.command("teilen")
+        elif key == pygame.K_e:
+            self.command("vereinen")
         elif key == pygame.K_SPACE:
             self.command("pause")
         elif key == pygame.K_r:
@@ -367,6 +369,12 @@ class App:
                 b.events.append("Teilen: eine geschlossene Gruppe in Linie wählen")
             else:
                 self.selected = {sel[0].id, g.id}            # beide Hälften gewählt; antippen wählt eine
+        elif key == "vereinen" and b.outcome is None:
+            keep = b.command_merge(self._selection())
+            if keep is None:
+                b.events.append("Vereinen: zwei oder mehr Gruppen derselben Gattung wählen")
+            else:
+                self.selected = {keep.id}
         elif key == "jagen" and b.outcome is None:
             sel = self._selection()
             if not b.command_hunt(sel):

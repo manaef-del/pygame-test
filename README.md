@@ -256,6 +256,13 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Niemand verlässt dabei seinen Platz; die rechte Hälfte behält Anführer
   und Platz im Verband, die bisherigen Verluste zählen für beide weiter.
   Danach sind beide gewählt, antippen wählt eine zum getrennten Führen.
+- **Vereinen (Taste E):** Sind zwei oder mehr Gruppen derselben Gattung
+  gewählt (etwa zwei Hälften), vereint „Vereinen“ sie zu einer: Die Gruppe
+  mit dem Anführer (sonst die größte) bleibt, die Fronten kommen
+  nebeneinander, vorn wieder die Schweren; die Männer laufen zur neuen
+  Aufstellung in der Mitte der Gruppen, Hopliten schließen sich dort zur
+  Phalanx. Verschiedene Gattungen werden nicht vereint, dafür gibt es den
+  Verband.
 - **Front aufziehen:** Gruppe antippen, dann auf der Karte den Finger
   aufsetzen und eine Linie ziehen. Die Linie ist die Front, ihre Länge
   bestimmt die Breite und damit die Zahl der echten Reihen. Landen
@@ -714,6 +721,7 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 | Menü, dann Aufstellung / M | zurück ins Aufstellungsmenü |
 | Karte / Nah, Z | große Karte: zwischen Übersicht und Nahansicht umschalten; hineingezoomt: zurück zur ganzen Ansicht |
 | Teilen / D | gewählte Gruppe in zwei Hälften teilen |
+| Vereinen / E | gewählte Gruppen derselben Gattung zu einer vereinen |
 | Tippen in der Übersicht | große Karte: dorthin zoomen |
 | Zwei Finger ziehen (am Rechner: rechte Maustaste, Pfeiltasten) | große Karte: Nahansicht verschieben |
 

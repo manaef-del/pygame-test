@@ -164,7 +164,9 @@ def test_split_button_makes_two_groups_and_selects_both():
     press(app, bar(app)["teilen"])
     assert len(app.battle.units(Side.STADT)) == n + 1 and len(app.selected) == 2   # zwei Hälften, beide gewählt
     assert "teilen" not in bar(app)                       # zwei gewählt: nichts zu teilen
-    assert "verband" in bar(app)
+    assert "verband" in bar(app) and "vereinen" in bar(app)
+    press(app, bar(app)["vereinen"])                      # und wieder zusammen
+    assert len(app.battle.units(Side.STADT)) == n and app.selected == {hop.id}
 
 
 def test_setup_screen_picks_groups_by_their_tiles():

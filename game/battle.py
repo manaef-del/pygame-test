@@ -1657,6 +1657,54 @@ class Battle:
         self.events.append(f"{u.name} geteilt: {u.men} und {g.men} Mann")
         return g
 
+    def can_merge(self, units: list[Lochos]) -> bool:
+        """Lassen sich die Gruppen vereinen? Mindestens zwei, alle derselben Gattung, geschlossen,
+        nicht auf dem Wall, ohne Gerät."""
+        if len(units) < 2 or len({u.arm() for u in units}) != 1:
+            return False
+        return all(u.fighting and not u.loose and not self.on_wall(u) and u.engine is None and u.building is None
+                   for u in units)
+
+    def command_merge(self, units: list[Lochos] | None) -> Lochos | None:
+        """Gleiche Gruppen (dieselbe Gattung) zu einer vereinen, etwa zwei geteilte Hälften: Die
+        Gruppe mit dem Anführer (sonst die größte) bleibt, die Fronten der anderen kommen
+        nebeneinander dazu, vorn wieder die Schweren. Die Männer laufen von ihren Plätzen
+        zur neuen Aufstellung in der Mitte der Gruppen; Verluste zählen weiter."""
+        sel = self._selection(units) if units is not None else []
+        if not self.can_merge(sel):
+            return None
+        self.alarm = False
+        keep = max(sel, key=lambda u: (u.leader_man() is not None, u.men, -u.id))
+        others = [u for u in sel if u is not keep]
+        men = [m for u in sel for m in u.all_men()]
+        total = len(men)
+        width = min(total, sum(max(1, u.width) for u in sel))
+        self._wake(keep)
+        keep.morale = sum(u.morale * u.men for u in sel) / total
+        keep.men_start = sum(max(u.men_start, u.men) for u in sel)
+        keep.rows = arrange(men, width)
+        keep.commander = None
+        keep.x = sum(m.x for m in men) / total
+        keep.y = sum(m.y for m in men) / total
+        keep.formation = "linie"
+        keep.in_line = False
+        keep.mode = ""
+        keep.target_id = None
+        keep.waypoints = []
+        keep.march = None
+        keep.face_to = None
+        keep.full_width = None
+        if keep.arm() == "hopliten":
+            keep.stance, keep.target = Stance.PHALANX, keep.pos   # die Phalanx schließt sich, wo sie steht
+        else:
+            keep.stance, keep.target = Stance.HALTEN, None
+        for u in others:
+            u.rows = []
+        self.lochoi = [u for u in self.lochoi if u not in others]
+        self._tidy_verbaende()
+        self.events.append(f"Vereint: {keep.name} mit {keep.men} Mann")
+        return keep
+
     def command_attack(self, units: list[Lochos] | None = None) -> list[Lochos]:
         """Freier Angriff, je Waffengattung: Hopliten stürmen den nächsten Gegner,
         Peltasten plänkeln (auf Wurfweite heran, werfen, ausweichen), Reiter

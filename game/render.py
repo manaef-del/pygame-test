@@ -684,6 +684,8 @@ class Renderer:
             items.append(("verlassen", "Aus", 1.0, False, "Verband"))
         if len(sel) == 1 and battle.can_split(sel[0]):
             items.append(("teilen", "Teilen", 1.0, False, None))
+        elif len(sel) >= 2 and battle.can_merge(sel):
+            items.append(("vereinen", "Vereinen", 1.2, False, None))
         engines = battle.scenario.ram_available
         if arm != "gemischt":
             opts = sel[0].formation_options()

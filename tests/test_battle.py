@@ -2427,6 +2427,24 @@ def test_split_keeps_the_leader_and_the_losses():
     assert u.men_start + g.men_start >= u.men + g.men + 9
 
 
+def test_split_halves_merge_back_into_one_group():
+    """Zwei gleiche Gruppen (etwa die Hälften einer geteilten) lassen sich wieder vereinen: eine
+    Gruppe, so breit wie beide nebeneinander, vorn die Schweren, die Verluste zählen weiter.
+    Verschiedene Gattungen lassen sich nicht vereinen."""
+    army = army_of(GroupSpec("H", [Tier("schwer", 10), Tier("mittel", 10)], leader=True),
+                   GroupSpec("R", [Tier("reiter", 12)]))
+    b = Battle(raid(16, (8.0, 1.0)), random.Random(0), army=army, ai="einfach")
+    hop, cav = b.units(Side.STADT)
+    width, men = hop.width, hop.men
+    half = b.command_split(hop)
+    keep = b.command_merge([hop, half])
+    assert keep is hop and half not in b.lochoi and hop.men == men and hop.width == width
+    assert hop.leader_man() is not None and all(m.kind.key == "schwer" for m in hop.rows[0])
+    assert b.command_merge([hop, cav]) is None                              # Hopliten und Reiter nicht
+    run(b, 4)
+    assert hop.in_line
+
+
 def test_drill_command_forms_up_in_place_and_only_for_hoplites():
     b = Battle(raid(16, (8.0, 3.0)), random.Random(0))
     b._ai_raiders = lambda: None
