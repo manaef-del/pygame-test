@@ -688,6 +688,7 @@ Die Leiste unter der Karte zeigt immer nur, was gerade geht:
 | Tippen auf das Tor | gewählte Gruppen mit Rammbock brechen es auf (in der Festung das angetippte Tor) |
 | Tippen auf den Wall | gewählte Gruppen mit Turm setzen ihn dort an |
 | Ziehen auf der Karte | gewählte Gruppen ziehen eine Front auf (ohne Auswahl: nichts): Länge = Breite, Richtung = Blickrichtung; bei Gruppen im Kreis: Anfang = Mitte, Länge = Halbmesser |
+| Zwei Finger auseinander/zusammen | stufenlos zoomen, bis zur doppelten Größe (auf jeder Karte); zwei Finger gemeinsam verschieben die Karte; Mausrad am Rechner |
 | Sturm / Plänkeln / Sturmangriff / A | gewählte Gruppen greifen frei an, je Waffengattung (siehe oben) |
 | Locker, Phalanx / L, P | Modus der gewählten Hopliten |
 | Halten / H | Hopliten bilden an Ort und Stelle eine Phalanx, andere bleiben stehen |

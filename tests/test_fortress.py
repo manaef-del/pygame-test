@@ -274,9 +274,11 @@ def test_two_fingers_pan_the_close_view_and_cancel_the_drag():
     assert app.drag_start is not None
     app.handle_event(pygame.event.Event(pygame.FINGERDOWN, touch_id=0, finger_id=2, x=0.6, y=0.4, dx=0.0, dy=0.0))
     assert app.panning and app.drag_start is None
-    for fid in (1, 2):
-        app.handle_event(pygame.event.Event(pygame.FINGERMOTION, touch_id=0, finger_id=fid, x=0.5, y=0.5, dx=0.1, dy=0.1))
+    zoom = cam.zoom
+    for fid, x in ((1, 0.5), (2, 0.7)):                           # beide Finger gleich weit: verschieben, nicht zoomen
+        app.handle_event(pygame.event.Event(pygame.FINGERMOTION, touch_id=0, finger_id=fid, x=x, y=0.5, dx=0.1, dy=0.1))
     assert cam.ox < ox and cam.oy < oy                        # die Karte folgt den Fingern
+    assert cam.zoom == pytest.approx(zoom, rel=0.1)
     app.handle_event(pygame.event.Event(pygame.MOUSEBUTTONUP, button=1, pos=(240, 320)))
     for fid in (1, 2):
         app.handle_event(pygame.event.Event(pygame.FINGERUP, touch_id=0, finger_id=fid, x=0.5, y=0.5, dx=0.0, dy=0.0))
@@ -284,13 +286,34 @@ def test_two_fingers_pan_the_close_view_and_cancel_the_drag():
     assert not app.battle.line                                # kein Befehl aus dem Verschieben
 
 
-def test_old_maps_have_a_fixed_view():
+def test_old_maps_start_whole_and_zoom_with_two_fingers():
+    """Kleine Karten beginnen ganz sichtbar; zwei Finger auseinander zoomen bis zur doppelten
+    Größe hinein (die Stelle zwischen den Fingern bleibt), zusammen wieder hinaus."""
     pygame.init()
     app = App(Renderer(pygame.Surface((config.WIDTH, config.HEIGHT))), seed=1, start_in_battle=True)
     app.draw()
     cam = app.renderer.camera
     assert not cam.big and cam.zoom == 1.0 and (cam.ox, cam.oy) == (0.0, 0.0)
-    assert "ansicht" not in {b.key for b in app.renderer.layout_bar(app.battle, False, set())}
+    keys = lambda: {b.key for b in app.renderer.layout_bar(app.battle, False, set())}   # noqa: E731
+    assert "ansicht" not in keys()
+    finger = lambda kind, fid, x, y: app.handle_event(pygame.event.Event(                # noqa: E731
+        kind, touch_id=0, finger_id=fid, x=x, y=y, dx=0.0, dy=0.0))
+    middle = cam.to_tiles((0.5 * config.WIDTH, 0.4 * config.HEIGHT))
+    finger(pygame.FINGERDOWN, 1, 0.45, 0.4)
+    finger(pygame.FINGERDOWN, 2, 0.55, 0.4)
+    for k in range(1, 6):                                          # auseinander ziehen
+        finger(pygame.FINGERMOTION, 1, 0.45 - 0.05 * k, 0.4)
+        finger(pygame.FINGERMOTION, 2, 0.55 + 0.05 * k, 0.4)
+    assert cam.zoom == pytest.approx(config.MAX_ZOOM)               # höchstens doppelt so groß
+    assert cam.to_tiles((0.5 * config.WIDTH, 0.4 * config.HEIGHT)) == pytest.approx(middle, abs=0.1)
+    assert "ansicht" in keys()                                     # ein Knopf führt zurück
+    for k in range(1, 5):                                          # zusammen: wieder hinaus
+        finger(pygame.FINGERMOTION, 1, 0.2 + 0.07 * k, 0.4)
+        finger(pygame.FINGERMOTION, 2, 0.8 - 0.07 * k, 0.4)
+    assert cam.zoom == pytest.approx(1.0) and (cam.ox, cam.oy) == (0.0, 0.0)
+    for fid in (1, 2):
+        finger(pygame.FINGERUP, fid, 0.5, 0.4)
+    assert not app.panning and not app.battle.line
 
 
 # ------------------------------------------------------------- Hindernisse

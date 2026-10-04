@@ -24,9 +24,10 @@ def px(p: tuple[float, float]) -> tuple[int, int]:
 
 
 class Camera:
-    """Was von der Karte zu sehen ist: Maßstab (1 = Nahansicht, kleiner = Übersicht)
-    und die linke obere Ecke in Kacheln. Passt die Karte auf den Bildschirm, steht
-    sie fest; sonst wechselt man zwischen Übersicht (alles) und Nahansicht."""
+    """Was von der Karte zu sehen ist: Maßstab (1 = Nahansicht, kleiner = Übersicht, bis
+    ``MAX_ZOOM`` hineingezoomt) und die linke obere Ecke in Kacheln. Mit zwei Fingern
+    (oder dem Mausrad) zoomt man stufenlos; große Karten wechseln per Knopf oder Tipp
+    zwischen Übersicht (alles) und Nahansicht."""
 
     def __init__(self) -> None:
         self.zoom = 1.0
@@ -66,6 +67,20 @@ class Camera:
         t = config.TILE * self.zoom
         return (pos[0] / t + self.ox, pos[1] / t + self.oy)
 
+    @property
+    def zoomed_in(self) -> bool:
+        """Näher als die ganze Karte bzw. die Nahansicht: Dann gibt es den Knopf zurück."""
+        return self.zoom > max(1.0, self.overview_zoom()) + 1e-6
+
+    def zoom_at(self, factor: float, center: tuple[float, float]) -> None:
+        """Um ``factor`` zoomen (größer = näher), die Stelle unter ``center`` (Bildpunkte)
+        bleibt dabei unter dem Finger."""
+        anchor = self.to_tiles(center)
+        self.zoom = min(config.MAX_ZOOM, max(self.overview_zoom(), self.zoom * factor))
+        t = config.TILE * self.zoom
+        self.ox, self.oy = anchor[0] - center[0] / t, anchor[1] - center[1] / t
+        self.clamp()
+
     def zoom_to(self, p: tuple[float, float]) -> None:
         """Nahansicht, die Stelle ``p`` in der Mitte."""
         self.zoom = 1.0
@@ -75,6 +90,8 @@ class Camera:
 
     def toggle(self, around: tuple[float, float] | None = None) -> None:
         if not self.big:
+            self.zoom = 1.0                                 # kleine Karte: zurück zur ganzen Ansicht
+            self.ox = self.oy = 0.0
             return
         if self.overview:
             w, h = self.span()
@@ -410,7 +427,7 @@ class Renderer:
             pygame.draw.polygon(s, ring, corners, 1 if u.side is Side.STADT else 2)
 
         fx, fy = u.facing
-        r_man = 3 if T >= 24 else 2                      # in der Übersicht kleiner
+        r_man = max(2, int(round(T * 0.1)))              # in der Übersicht kleiner, hineingezoomt größer
         chief = u.commander_man() if not u.loose else None
         for row in u.rows:
             for man in row:
@@ -568,7 +585,7 @@ class Renderer:
         out.append(Button("menue", "Zurück" if menu_open else "Menü", pygame.Rect(gap, TOP_BTN_Y, 64, TOP_BTN_H), active=menu_open))
         pause = "Los" if battle.alarm else ("Weiter" if paused else "Pause")
         out.append(Button("pause", pause, pygame.Rect(W - gap - 72, TOP_BTN_Y, 72, TOP_BTN_H), active=paused or battle.alarm))
-        if self.camera.big and not menu_open:
+        if (self.camera.big or self.camera.zoomed_in) and not menu_open:
             label = "Nah" if self.camera.overview else "Karte"
             out.append(Button("ansicht", label, pygame.Rect(gap, TOP_BTN_Y + TOP_BTN_H + gap, 64, TOP_BTN_H),
                               active=not self.camera.overview))

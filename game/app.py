@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import math
 import random
 
 import pygame
@@ -53,6 +54,7 @@ class App:
         self.own_count = OWN_DEFAULT
         self.fingers: dict[int, tuple[float, float]] = {}   # aufliegende Finger (für das Verschieben)
         self.panning = False                                 # zwei Finger liegen auf: kein Tippen, kein Ziehen
+        self.pinch_from: tuple | None = None                 # (Abstand, Mitte) der zwei Finger beim letzten Schritt
         self.pan_from: tuple[int, int] | None = None         # rechte Maustaste: verschieben am Rechner
         self.clock = 0.0                                     # Echtzeit seit dem Start (für langes Drücken)
         self.chip_press: list | None = None                  # [Taste, seit wann, schon erledigt] auf einer Gruppenkachel
@@ -82,6 +84,8 @@ class App:
             self._finger(event)
         elif event.type == pygame.KEYDOWN:
             self._key(event.key)
+        elif event.type == pygame.MOUSEWHEEL and self.screen == "schlacht":
+            self.renderer.camera.zoom_at(1.15 ** event.y, pygame.mouse.get_pos())   # Mausrad: zoomen
         elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
             self.pan_from = event.pos
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 3:
@@ -104,22 +108,38 @@ class App:
         elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
             self._release(event.pos)
 
+    def _pinch(self) -> tuple[float, tuple[float, float]] | None:
+        """Abstand der ersten beiden Finger und ihre Mitte, in Bildpunkten."""
+        if len(self.fingers) < 2:
+            return None
+        (x1, y1), (x2, y2) = list(self.fingers.values())[:2]
+        a = (x1 * config.WIDTH, y1 * config.HEIGHT)
+        b = (x2 * config.WIDTH, y2 * config.HEIGHT)
+        return math.hypot(a[0] - b[0], a[1] - b[1]), ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2)
+
     def _finger(self, event: pygame.event.Event) -> None:
-        """Zwei Finger verschieben die Karte; was der erste Finger angefangen hat (Tipp,
-        Front aufziehen), fällt dann weg."""
+        """Zwei Finger verschieben die Karte und zoomen (auseinander ziehen = näher); was der
+        erste Finger angefangen hat (Tipp, Front aufziehen), fällt dann weg."""
         if event.type == pygame.FINGERDOWN:
             self.fingers[event.finger_id] = (event.x, event.y)
             if len(self.fingers) >= 2 and self.screen == "schlacht":
                 self.panning = True
                 self.drag_start = self.drag_now = None
+                self.pinch_from = self._pinch()
         elif event.type == pygame.FINGERMOTION:
             if event.finger_id in self.fingers:
                 self.fingers[event.finger_id] = (event.x, event.y)
-            if self.panning and len(self.fingers) >= 2:
-                n = len(self.fingers)
-                self.renderer.camera.pan(event.dx * config.WIDTH / n, event.dy * config.HEIGHT / n)
+            now = self._pinch()
+            if self.panning and now is not None and self.pinch_from is not None:
+                cam = self.renderer.camera
+                (d0, m0), (d1, m1) = self.pinch_from, now
+                if d0 > 1.0 and d1 > 1.0:
+                    cam.zoom_at(d1 / d0, m1)                 # auseinander: näher, zusammen: weiter weg
+                cam.pan(m1[0] - m0[0], m1[1] - m0[1])        # die Karte folgt der Mitte der Finger
+                self.pinch_from = now
         else:
             self.fingers.pop(event.finger_id, None)
+            self.pinch_from = self._pinch()
             if not self.fingers:
                 self.panning = False
 
