@@ -1,5 +1,100 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 34 (4. Oktober 2026): Reserve um die Flanke, Festung, Räuberlager
+
+Neu seit Lauf 33:
+
+- Ausweichen ohne Seitenwechsel (eine Sekunde Gedächtnis), Hänger an der
+  Leiter der Festung behoben.
+- Zwei kleine Szenarien für den Anfang einer Kolonie: Räuberüberfall
+  (Verteidigung) und Räuberlager (Angriff), 13 Mann gegen 18 Räuber.
+- Die freigegebene Reserve der KI läuft um die Front einer geschlossenen
+  Phalanx herum in Flanke oder Rücken (`AI_RESERVE_FLANK`), statt frontal
+  hineinzulaufen. Kommt sie, weil ein Feind schon nah ist, kämpft sie gleich.
+- Verteidigung der Festung: 110 statt 150 Angreifer.
+- Neue Taktik „agora“ für den Angriff auf die Siedlung (siehe unten).
+
+Nicht verändert: die Werte der Räuber und der letzte Kampf auf der Agora.
+
+Gegner-KI „klug“, sechs Seeds (Festung im Angriff vier). „ohne Flanke“ ist
+derselbe Stand mit `AI_RESERVE_FLANK = False`.
+
+| Szenario | Taktik | Siege | Verlust Stadt | Verlust Feind | Häuser verloren | ohne Flanke | Lauf 33 |
+|---|---|---|---|---|---|---|---|
+| siedlung | linie | 1/6 | 97 % | 64 % | 27,2 | 1/6 | 0/6 |
+| siedlung | schlachtordnung | 6/6 | 49 % | 61 % | 13,3 | 6/6 (18,0 Häuser) | 6/6 |
+| siedlung | linie_reiter | 6/6 | 32 % | 50 % | 3,8 | 6/6 (20 %, 0 Häuser) | 6/6 |
+| siedlung | linie_aktiv | 4/6 | 89 % | 71 % | 25,8 | 4/6 | 2/6 |
+| siedlung | linie_tief | 6/6 | 27 % | 49 % | 1,0 | 6/6 | 6/6 |
+| siedlung | passiv | 6/6 | 72 % | 76 % | 25,5 | 6/6 | 4/6 |
+| siedlung | angriff | 6/6 | 28 % | 54 % | 10,7 | 6/6 | 6/6 |
+| siedlung_angriff | phalanxstoss | 0/6 | 60 % | 38 % | – | – | 1/6 |
+| siedlung_angriff | vorruecken | 0/6 | 51 % | 10 % | – | – | 0/6 |
+| siedlung_angriff | angriff | 0/6 | 44 % | 10 % | – | – | 0/6 |
+| siedlung_angriff | agora (neu) | 1/6 | 64 % | 82 % | – | – | – |
+| horde | vorruecken | 6/6 | 34 % | 69 % | – | 6/6 | 6/6 |
+| horde | angriff | 6/6 | 18 % | 34 % | – | 6/6 | 6/6 |
+| horde_sturm | linie_tief | 6/6 | 23 % | 65 % | – | 5/6 | – |
+| horde_sturm | linie_aktiv | 6/6 | 16 % | 48 % | – | 6/6 | – |
+| horde_sturm | angriff | 6/6 | 29 % | 49 % | – | 6/6 | – |
+| festung (110) | tore | 6/6 | 7 % | 60 % | 1,7 | – | 0/4 (150) |
+| festung (110) | passiv | 1/6 | 97 % | 51 % | 4,8 | – | 0/4 (150) |
+| festung_angriff | rammbock | 4/4 | 40 % | 100 % | – | – | 4/4 |
+| festung_angriff | turm | 3/4 | 36 % | 92 % | – | – | 2/4 |
+| ueberfall | linie | 4/6 | 13 % | 53 % | 2,0 (von 6) | 5/6 | 5/6 |
+| ueberfall | linie_aktiv | 5/6 | 14 % | 64 % | 1,8 | 5/6 | 5/6 |
+| ueberfall | passiv | 0/6 | 58 % | 31 % | 5,7 | 0/6 | 0/6 |
+| ueberfall | angriff | 0/6 | 73 % | 34 % | 5,7 | 0/6 | 0/6 |
+| lager | sturm | 6/6 | 23 % | 62 % | 6 Hütten verbrannt | – | 6/6 |
+
+**Reserve um die Flanke.** In allen geprüften Schlachten (Siedlung, Horde,
+Räuberüberfall) ruft die Umfassung die Reserve, und sie geht um die Flanke.
+Die Wirkung auf die Siegquote ist klein: Wer seine Reiter jagen lässt
+(„linie_reiter“), verliert jetzt 32 statt 20 % und knapp vier Häuser statt
+keines; beim Räuberüberfall kostet die dünne Linie einen Sieg mehr. Gegen die
+Schlachtordnung trifft die Reserve dagegen auf die zweite Linie und richtet
+weniger aus als frontal. Die Unterschiede zu Lauf 33 bei „linie_aktiv“ und
+„passiv“ kommen vom Ausweichen, nicht von der Reserve (ohne Flanke gleich).
+
+**Festung, Verteidigung.** Die Siegquote kippt steil mit der Zahl der
+Angreifer:
+
+| Angreifer | tore | passiv |
+|---|---|---|
+| 100 | 6/6 | 5/6 |
+| 110 | 6/6 | 1/6 |
+| 120 | 0/4 | 0/4 |
+| 150 | 0/4 | 0/4 |
+
+Bei 110 gewinnt, wer die Tore hält, und verliert, wer nur steht. Das ist die
+neue Vorgabe. Die Kante liegt nahe (bei 120 hält kein Tor mehr).
+
+**Angriff auf die Siedlung.** Die einfachen Taktiken verlieren weiter. Der
+Grund ist der letzte Kampf auf der Agora: Die Siedlung flieht nach dem
+ersten Zusammenstoß auf die Agora, sammelt sich und hält dort bis zum
+letzten Mann. Wer dann aufgelöst anstürmt („Freier Angriff“), verliert in
+zehn Sekunden zwei Drittel seiner Hopliten gegen einen Mann der Siedlung.
+Weniger Verteidiger helfen den einfachen Taktiken erst spät:
+
+| Siedlung | phalanxstoss | vorruecken | angriff |
+|---|---|---|---|
+| 75 (Vorgabe) | 0/6 | 0/6 | 0/6 |
+| 66 | 0/6 | 0/6 | 0/6 |
+| 60 | 0/6 | 0/6 | 0/6 |
+| 50 | 0/6 | 5/6 | 4/6 |
+
+Statt den Kampf um die Agora abzuschwächen, prüft die neue Taktik „agora“,
+ob er mit Plan zu gewinnen ist: Die eigene Phalanx zieht vor der Front der
+Siedlung auf, die Peltasten werfen, die Reiter gehen in den Rücken; sind
+sie dort, rückt die Phalanx in Ordnung heran, und nach einer Flucht wird neu
+angesetzt. Die Siedlung verliert so im Mittel 82 % (statt 10 bis 38 %). In
+300 Sekunden gewinnt das einmal, mit 600 Sekunden vier von sechs Schlachten
+(Siege nach 139 bis 372 s). Der Angriff ist also schwer und langwierig, aber
+zu schaffen; die Vorgabe bleibt 75.
+
+**Horde.** Weiter immer gewonnen. Die Räuberwerte bleiben vorerst, wie sie
+sind.
+
 ## Lauf 33 (4. Oktober 2026): neue Szenarien
 
 Neu seit Lauf 32:

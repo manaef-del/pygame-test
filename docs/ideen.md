@@ -6,26 +6,22 @@ wandert nach unten.
 
 ## Offen
 
-0. **Balance der Angriffe.** Seit niemand mehr geschoben wird und
-   Siedlungen bis zum letzten Mann halten, sind die Angriffsszenarien
-   viel schwerer (Lauf 13): Gegen die Horde verliert eine dünne Linie
-   immer, und der letzte Kampf auf der Agora zieht sich bis zum
-   Zeitlimit. Zu klären: Soll der letzte Kampf schwächer sein (etwa
-   Moralverlust trotz Agora), sollen Angreifer Reserven gezielt um die
-   eigene Front herum an den Feind schicken können, oder brauchen die
-   Räuber andere Werte?
-0b. **Phalanx hinter Mauern (Abnahme L9).** Der Abnahmetest „eine Phalanx
-   hinter der Palisade schlägt eine deutlich größere Übermacht“ ist mit der
-   Palisade entfallen. An der Festung gibt es ihn noch nicht: Gegen ein
-   doppelt so starkes Heer gewinnt die Verteidigung mit den einfachen
-   Taktiken der Simulation selten (Lauf 33). Zu klären: eine Festungsfassung
-   des Tests mit einer passenden Übermacht, oder die Verteidigung stärken.
-5. **Festung: Turm allein reicht nicht.** Über einen Belagerungsturm allein
-   kommt kaum ein Angriff hinein (0 bis 1 von 8): Die Männer steigen einzeln,
-   im Feuer der Ecktürme. Dazu greift die Turm-Taktik der Simulation die
-   fliehenden Reste an der Agora nicht an, sodass die Schlacht bis zur
-   Zeitgrenze läuft (Lauf 29). Vielleicht deckt ein angesetzter Turm gegen die Ecktürme,
-   oder er lässt mehr Männer zugleich durch.
+0. **Angriff auf die Siedlung.** Der letzte Kampf auf der Agora bleibt
+   bewusst stark: Die einfachen Taktiken der Simulation verlieren immer, mit
+   Plan (Phalanx bindet, Reiter in den Rücken, nach der Flucht neu ansetzen)
+   gewinnt man vier von sechs, braucht aber oft länger als 300 Sekunden
+   (Lauf 34). Offen: Soll das so lang dauern, oder hilft dem Spieler ein
+   Hinweis, wie man die Agora nimmt?
+0b. **Phalanx hinter Mauern (Abnahme L9).** An der Festung fehlt ein Test
+   „Verteidigung schlägt deutliche Übermacht“. Seit Lauf 34 stürmen 110
+   statt 150 Mann; wer die Tore hält, gewinnt immer, wer nur steht, selten.
+   Die Kante ist steil (bei 120 hält kein Tor), ein Test könnte sie bewachen.
+0c. **Horde zu leicht.** Beide Richtungen werden immer gewonnen (Lauf 34).
+   Die Räuberwerte bleiben vorerst, wie sie sind.
+5. **Festung: Turm allein.** Über einen Belagerungsturm kam lange kaum ein
+   Angriff hinein (Lauf 29: 0 bis 1 von 8). Seit Gruppen oben auf dem
+   Wehrgang sich schließen, gewinnt die Turm-Taktik drei von vier (Lauf 34).
+   Beobachten, ob das so bleibt.
 6. **Festung im Angriff zu leicht?** Mit dem Rammbock gewinnt man immer
    (8 von 8) gegen eine Besatzung von 40. Bildete die Besatzung gegen
    Reiter schon Kreise, wenn sie vorn gebunden war, gewann man nie (Lauf 24);
@@ -53,6 +49,12 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
   Aufwand.
 
 ## Erledigt
+
+- **Reserve um die Flanke** (4. Oktober 2026): Wird die Reserve der KI
+  gerufen und steht vor ihr eine geschlossene Phalanx, läuft sie um deren
+  Flanke in Flanke oder Rücken (Lauf 34: kleine Wirkung, jagende Reiter
+  kosten den Spieler mehr).
+- **Festung, Verteidigung** (4. Oktober 2026): 110 statt 150 Angreifer.
 
 - **Ausweichen ohne Seitenwechsel** (4. Oktober 2026, #13): Fast alle
   Seitenwechsel entstanden, weil ein Mann nach einem freien Schritt seine
