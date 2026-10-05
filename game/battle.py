@@ -2385,7 +2385,7 @@ class Battle:
         laufen; es dreht nicht mit der Front (sonst flögen die Bilder im Kreis um die Mitte, während
         die Männer noch stehen). Ein Sprung (neu aufgestellt) wird sofort übernommen. Dazu der Blick
         jedes Mannes: zu seinem Gegner im Gerangel, aufgelöst oder auf der Flucht seinen Weg entlang,
-        sonst zur Front seiner Gruppe; er dreht sich begrenzt schnell."""
+        im Kreis nach außen, sonst zur Front seiner Gruppe; er dreht sich begrenzt schnell."""
         k = 1.0 if config.SHOW_SMOOTH <= dt else dt / config.SHOW_SMOOTH
         turn = config.SHOW_TURN_RATE * dt
         for u in self.lochoi:
@@ -2409,6 +2409,8 @@ class Battle:
                     look = (m.bound_dx, m.bound_dy)       # hat kehrtgemacht oder sich zur Flanke gedreht
                 elif free and math.hypot(m.mvx, m.mvy) > 0.3:
                     look = norm((m.mvx, m.mvy))
+                elif u.formation == "o" and (m.x, m.y) != (u.x, u.y):
+                    look = norm((m.x - u.x, m.y - u.y))    # im Kreis schaut jeder nach außen
                 else:
                     look = (fx, fy)
                 if look != (0.0, 0.0):

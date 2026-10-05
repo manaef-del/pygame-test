@@ -802,6 +802,27 @@ def test_ring_is_strong_all_round_but_weaker_in_front():
     assert arc_name == "front" and front_mod < ring_mod < flank_mod
 
 
+def test_men_in_a_ring_look_outward():
+    """Im Kreis schaut jeder Mann von der Mitte weg, nicht alle in die Gruppenrichtung;
+    auch wenn der Kreis marschiert."""
+    b = Battle(raid(16, (8.0, 1.0)), random.Random(0), army=army_of(GroupSpec("H", [Tier("mittel", 24)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    hop = b.units(Side.STADT)[0]
+    hop.formation = "o"
+    hop.place_men()
+    b.command_hold([hop])                                 # weckt die Schlacht aus dem Aufziehen
+    run(b, 2)
+    def outward(m):
+        ox, oy = m.x - hop.x, m.y - hop.y
+        n = (ox * ox + oy * oy) ** 0.5
+        return (ox * m.sfx + oy * m.sfy) / n if n > 1e-6 else 1.0
+    assert all(outward(m) > 0.9 for m in hop.all_men())
+    b.command_move([hop], (hop.x, hop.y + 3.0))
+    run(b, 3)
+    assert hop.vel > 0.0 or hop.target is not None
+    assert all(outward(m) > 0.8 for m in hop.all_men())
+
+
 def test_hold_forms_a_phalanx_in_place_and_line_resets_formation():
     b = Battle(raid(16, (8.0, 2.0)), random.Random(0), army=army_of(GroupSpec("H", [Tier("mittel", 20)])), ai="einfach")
     b._ai_raiders = lambda: None
