@@ -2853,7 +2853,7 @@ class Battle:
             speed = u.speed * (1.25 if u.stance is Stance.FLUCHT else 1.0)
             if u.pace is not None and u.stance is not Stance.FLUCHT:
                 speed = min(speed, u.pace)              # im Verband: so schnell wie die langsamste Gruppe
-            if u.engaged and u.stance is not Stance.FLUCHT and not self._chasing(u):
+            if u.engaged and u.stance is not Stance.FLUCHT and not (config.CHASE_FULL_SPEED and self._chasing(u)):
                 speed *= config.ENGAGED_SPEED           # im Handgemenge kommt man kaum vom Fleck (Verfolger nicht)
             if u.charge_slow_until > self.time:
                 speed *= config.CHARGE_SLOW             # der Aufprall hat die Reiter gebremst

@@ -73,6 +73,7 @@ CAVALRY_VS_FRONT = 0.3       # Pferde laufen nicht in Speere
 CAVALRY_CHARGE = 1.5         # Reiter gegen Gegner ohne Formation
 ROUTED_DAMAGE = 2.0          # Fliehende werden niedergemacht ...
 PURSUIT_DAMAGE = 5.0         # ... und wer von hinten eingeholt wird, wehrt sich nicht: so vielfacher Schaden (Verfolgung)
+CHASE_FULL_SPEED = True      # wer nur noch Fliehende vor sich hat, wird vom Handgemenge nicht gebremst (sonst laufen sie ihm davon)
 
 # Winkel (Grad) für Front / Flanke / Rücken (nur noch für Hilfsrechnungen)
 FRONT_ARC = 60
