@@ -1,5 +1,110 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 35 (5. Oktober 2026): Ruhe der Bewegung
+
+Kein Balance-Lauf, sondern eine Messung, wie unruhig die Männer laufen,
+und was zwei Änderungen daran geändert haben. Werkzeug: `lab/ruhe.py`
+(Scratchpad), das in echten Schlachten jeden Mann in jedem Takt verfolgt
+und je Lage (steht, marschiert, aufgelöst, Handgemenge, Flucht) zählt:
+
+- **Umkehr:** ein Schritt entgegen dem letzten (> 1 Pixel), je Mann und Sekunde.
+- **Knick:** Richtungsänderung über 60 Grad.
+- **Tausch:** zwei Nachbarn einer Reihe wechseln die Seite.
+- **Bild:** Umkehrungen des gezeichneten Punkts (geglättet plus Gerangel).
+
+### Ausgangslage (vier Schlachten, 60–120 s)
+
+| Lage | Umkehr | Knick | Tausch | Bild |
+|---|---|---|---|---|
+| steht in Ordnung | 0,01–0,10 | 0,01–0,17 | 0,01–0,06 | 0,01–0,02 |
+| marschiert in Ordnung | 0,34–0,82 | 1,1–2,4 | 0,25–0,59 | 0,09–0,31 |
+| Handgemenge | 0,30–0,77 | 0,7–1,2 | 0,20–0,51 | 0,71–1,36 |
+| aufgelöst (Festung, Leitern) | 2,6 | 5,1 | – | 0,55 |
+| Flucht | 0,2–1,8 | 0,4–4,0 | 0,05–0,94 | 0,1–0,6 |
+
+Befunde: Im Stand ist es ruhig. Im Handgemenge ist das Bild unruhiger
+als die Simulation, weil das Gerangel jeden Takt den nächsten freien
+Gegner neu wählte und auf Armlänge zurück und wieder vor pendelte. Im
+Marsch gehen 90–96 % der Schritte geradeaus zum Platz; die 5–8 %
+Ausweichschritte machen fast alle Umkehrungen. Eine Gruppe, die allein
+marschiert, hat 0,02 Umkehrungen; fünf Gruppen, die ihre Reihenfolge
+behalten, 0,04. Unruhig wird es beim **Umformen**: In den fünf Sekunden
+nach einem Linienbefehl oder Schwenk liegen die Umkehrungen bei
+0,46–0,75, danach bei 0,09–0,29. Die Männer kreuzen einander auf dem Weg
+zu ihren neuen Plätzen (Treffer meist mit Männern anderer Reihen derselben
+Gruppe).
+
+### Änderung A: Gerangel im Bild
+
+Ein Mann bleibt drei Sekunden bei seinem Gegner, drängt mit 0,6 statt 1,5
+Kacheln/s, steht auf Armlänge still; im Handgemenge folgt das Bild dem
+Mann selbst statt seiner Lage in der (wandernden, drehenden) Gruppe.
+
+| Handgemenge, Bild-Umkehr | Siedlung | Horde |
+|---|---|---|
+| vorher | 1,10 | 1,36 |
+| Gegner halten (1,5 s) | 0,81 | 1,04 |
+| + Bild folgt dem Mann | 0,71 | 0,81 |
+| + 0,6 Kacheln/s | 0,39 | 0,40 |
+| + 3 s halten | 0,37 | 0,38 |
+
+### Änderung B: Entscheidungen festhalten (verworfen)
+
+| Variante | Marsch-Labor Umkehr | Labor „Haufen bilden“ fertig nach |
+|---|---|---|
+| Stand | 0,568 | 6,1 s |
+| Ausweichseite 2 s statt 1 s | 0,570 | – |
+| Blockierer merken | – | 11,3 s |
+| Mitlaufen statt schlängeln | 0,542 | 6,4 s |
+
+Das Seitengedächtnis bringt nichts mehr, der gemerkte Blockierer schadet,
+das Mitlaufen bringt wenig und ließ im Test „durchs offene Tor“ Männer
+draußen zurück. Nichts davon ist im Spiel.
+
+### Änderung D: Plätze nach kürzesten Wegen
+
+Beim Umformen (neue Breite, Front oder Stelle) werden die Plätze jedes
+Abschnitts so auf seine Männer verteilt, dass die Summe der Wege am
+kleinsten ist (ungarische Methode, in der jetzigen Front um die neue
+Mitte). Labor, eine Hoplitengruppe mit 40 Mann (Umkehr je Mann und Sekunde
+bis alle stehen):
+
+| Fall | vorher | nachher |
+|---|---|---|
+| Schwenk 90 Grad an Ort und Stelle | 0,25 | 0,00 |
+| Kehrtwende | 0,13 | 0,00 |
+| Linie schmaler (14 → 7) | 1,33 | 0,19 |
+| Linie breiter (14 → 20) | 1,39 | 1,75 |
+| vier Kacheln vor | 0,03 | 0,00 |
+| fünf Gruppen schwenken je 45 Grad | 0,27 | 0,02 |
+
+Breiter werden bleibt unruhig: Männer der zweiten Reihe müssen durch die
+erste nach vorn; das dauert aber nur eine halbe Sekunde. Gerechnet wird im
+mitgedrehten Rahmen (wo jeder nach dem Schwenk stünde), sonst liefen die
+Männer beim Schwenk quer durch die Formation. Verworfen wurde unterwegs,
+Männer in Ordnung durch einen fremden eigenen Block hindurchgehen zu
+lassen (verletzt den Mindestabstand zweier Halbmesser, und eine Gruppe,
+deren Ziel in einem stehenden Block liegt, kam nie an) und ein stehender
+Block, der jeden Durchgänger an seinen Rand setzt (Platztausch zweier
+Gruppen dauerte 9,9 statt 4,4 s). Geblieben ist: Nur eine kämpfende
+Phalanx drängt Männer anderer eigener Gruppen hinaus, die tief in ihren
+Reihen stecken und ihren Platz woanders haben.
+
+Echte Schlachten, Aufmarschphase (erste 30 s), sechs Seeds, Marsch in
+Ordnung:
+
+| | Umkehr | Tausch | Bild |
+|---|---|---|---|
+| Siedlung vorher / nachher | 0,72 / 0,71 | 0,59 / 0,55 | 0,25 / 0,25 |
+| Horde vorher / nachher | 0,39 / 0,46 | 0,45 / 0,44 | 0,06 / 0,06 |
+
+In der Schlacht ist der Gewinn also nicht messbar: Dort marschieren vor
+allem die Haufen der KI (ohne Linienbefehle), und die Schlachten laufen
+chaotisch auseinander. Die Platzverteilung wirkt dort, wo der Spieler
+hinschaut, wenn er seine Gruppen umformt, schwenkt oder wenden lässt.
+Offen bleiben die Trägheit je Mann (siehe `docs/ideen.md`, Punkt 8), das
+Gedränge marschierender Gruppen und die aufgelösten Haufen an den Leitern.
+
 ## Lauf 34 (4. Oktober 2026): Reserve um die Flanke, Festung, Räuberlager
 
 Neu seit Lauf 33:

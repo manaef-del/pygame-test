@@ -178,6 +178,93 @@ def arrange(men: list[Man], width: int) -> list[list[Man]]:
     return [interleave(r) for r in chunk(ordered, width)]
 
 
+def assign_min_cost(cost: list[list[float]]) -> list[int]:
+    """Zuordnung mit kleinster Gesamtsumme (ungarische Methode, quadratische Matrix):
+    Ergebnis[i] = Spalte für Zeile i."""
+    n = len(cost)
+    INF = float("inf")
+    u = [0.0] * (n + 1)
+    v = [0.0] * (n + 1)
+    p = [0] * (n + 1)            # p[j]: Zeile, die Spalte j hat (1-basiert; 0 = frei)
+    way = [0] * (n + 1)
+    for i in range(1, n + 1):
+        p[0] = i
+        j0 = 0
+        minv = [INF] * (n + 1)
+        used = [False] * (n + 1)
+        while True:
+            used[j0] = True
+            i0 = p[j0]
+            delta, j1 = INF, 0
+            for j in range(1, n + 1):
+                if used[j]:
+                    continue
+                cur = cost[i0 - 1][j - 1] - u[i0] - v[j]
+                if cur < minv[j]:
+                    minv[j], way[j] = cur, j0
+                if minv[j] < delta:
+                    delta, j1 = minv[j], j
+            for j in range(n + 1):
+                if used[j]:
+                    u[p[j]] += delta
+                    v[j] -= delta
+                else:
+                    minv[j] -= delta
+            j0 = j1
+            if p[j0] == 0:
+                break
+        while j0:
+            j1 = way[j0]
+            p[j0] = p[j1]
+            j0 = j1
+    out = [0] * n
+    for j in range(1, n + 1):
+        if p[j]:
+            out[p[j] - 1] = j - 1
+    return out
+
+
+def fit_men(rows: list[list[Man]], centre: tuple[float, float], facing: tuple[float, float],
+            gap: float, row_gap: float, origin: tuple[float, float] | None = None,
+            old_facing: tuple[float, float] | None = None) -> list[list[Man]]:
+    """Die Männer so auf die Plätze der Aufstellung (Mitte, Front) verteilen, dass die Wege
+    zusammen am kürzesten sind: Jeder geht etwa dorthin, wo er schon steht, und keiner kreuzt
+    den anderen. Welche Plätze einem Abschnitt gehören, bleibt; getauscht wird nur innerhalb.
+    Schwenkt die Gruppe dabei (``old_facing`` → ``facing``, um ``origin``), zählt, wo jeder
+    nach dem Schwenk stünde: Die Männer drehen mit der Formation mit, statt quer durch sie zu
+    laufen."""
+    fx, fy = facing
+    ax, ay = -fy, fx
+    ox, oy = origin or centre
+    ofx, ofy = old_facing or facing
+    c, s = ofx * fx + ofy * fy, ofx * fy - ofy * fx            # Drehung alte Front -> neue Front
+    where = {}
+    for row in rows:
+        for m in row:
+            dx, dy = m.x - ox, m.y - oy
+            where[id(m)] = (centre[0] + dx * c - dy * s, centre[1] + dx * s + dy * c)
+    n_rows = len(rows)
+    by_tier: dict[int, list[tuple[int, int]]] = {}            # Abschnitt -> seine Plätze (Reihe, Stelle)
+    for r, row in enumerate(rows):
+        for i, m in enumerate(row):
+            by_tier.setdefault(m.tier, []).append((r, i))
+    out = [list(row) for row in rows]
+    for places in by_tier.values():
+        men = [rows[r][i] for r, i in places]
+        if len(men) < 2:
+            continue
+        spots = []
+        for r, i in places:
+            forward = ((n_rows - 1) / 2 - r) * row_gap
+            side = (i - (len(rows[r]) - 1) / 2) * gap
+            spots.append((centre[0] + fx * forward + ax * side, centre[1] + fy * forward + ay * side))
+        cost = [[(where[id(m)][0] - sx) ** 2 + (where[id(m)][1] - sy) ** 2 for sx, sy in spots] for m in men]
+        for k, j in enumerate(assign_min_cost(cost)):
+            r, i = places[j]
+            out[r][i] = men[k]
+    return out
+
+
 @dataclass
 class Lochos:
     """Eine Gruppe: Reihen von Männern, die zusammen handeln."""
@@ -571,10 +658,17 @@ class Lochos:
         return " ".join(parts) if parts else f"{self.men}"
 
     # -------------------------------------------------------- Formation
-    def reform(self, width: int) -> None:
+    def reform(self, width: int, centre: tuple[float, float] | None = None,
+               facing: tuple[float, float] | None = None) -> None:
         """Reihen neu bilden: Abschnitte bleiben vorn/hinten, Breite ändert sich.
-        Die Männer behalten ihre Position und laufen zu ihren neuen Plätzen."""
-        self.rows = arrange(self.all_men(), width)
+        Die Männer behalten ihre Position und laufen zu ihren neuen Plätzen; in der Linie
+        werden die Plätze der neuen Aufstellung (``centre``, ``facing``; sonst die jetzige)
+        so verteilt, dass die Wege zusammen am kürzesten sind und keiner den anderen kreuzt."""
+        rows = arrange(self.all_men(), width)
+        if self.formation == "linie" and config.FIT_MEN:
+            rows = fit_men(rows, centre or self.pos, facing or self.facing, self.man_gap(), self.row_gap(),
+                           origin=self.pos, old_facing=self.facing)
+        self.rows = rows
 
     def slots(self) -> list[tuple[Man, tuple[float, float]]]:
         """Platz jedes Mannes in der Formation (Weltkoordinaten)."""

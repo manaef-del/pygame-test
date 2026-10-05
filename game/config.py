@@ -223,6 +223,7 @@ MAN_DEADZONE = 0.1            # Kacheln: so nah an seinem Platz rückt ein Mann 
 MAN_REST_TIME = 1.0           # Sekunden: kommt ein Mann seinem Platz so lange nicht näher, während die Gruppe steht ...
 MAN_REST_DIST = 0.8           # ... und ist er höchstens so weit davon, bleibt er stehen statt endlos auszuweichen
 DODGE_MEMORY = 1.0           # Sekunden: so lange bleibt die Ausweichseite eines Mannes gemerkt
+FIT_MEN = True               # beim Umformen bekommt jeder Mann den Platz, der seiner Stelle am nächsten kommt (keiner kreuzt)
 SHUFFLE_DIST = 0.8            # Kacheln: so kurze Wege zum Ziel rückt eine Gruppe, ohne sich erst umzudrehen
 FLEE_TURN_RATE = 6.0          # rad/s: Fliehende wenden ohne Zeremonie, aber nicht schneller (sonst zuckt die Front)
 LOOSE_LEVEL_SWITCH = 1.5      # eine aufgelöste Gruppe zählt erst als drüben, wenn dort 1,5-mal so viele stehen wie hier

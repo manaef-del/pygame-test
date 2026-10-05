@@ -31,22 +31,15 @@ wandert nach unten.
    Zurückweichen, auf der Flucht, beim Hit-and-run vom Gegner weg) wird nicht
    geworfen. Noch nicht gebaut; Balance-Wirkung auf Plänkeln und Zermürben
    vorher messen.
-8. **Ruhe der Bewegung (Trägheit).** Gemessen am 5. Oktober 2026 in vier
-   echten Schlachten, je Mann und Sekunde: im Stand 0,01–0,10 Umkehrungen;
-   im Marsch 0,3–0,8 Umkehrungen und alle 2–4 s ein Seitentausch mit dem
-   Nachbarn (nur 5–8 % der Schritte sind Ausweichschritte, aber sie machen
-   fast alle Umkehrungen); im Handgemenge ist das Bild unruhiger als die
-   Simulation (1,0–1,4 gegen 0,3–0,8), weil das Gerangel jeden Takt den
-   nächsten Gegner neu wählt; aufgelöst an Leitern 2,6. Ein Mann hat keine
-   Trägheit, er wählt jeden Takt neu. Reihenfolge der Abhilfen: (a) Gerangel
-   im Bild beruhigen (Gegner 1–2 s behalten, langsamer drängen), (b)
-   Entscheidungen festhalten: Ausweichseite länger, Blockierer merken, im
-   Marsch mitlaufen statt schlängeln, (c) Platztausch statt Kreuzen für
-   Nachbarn, (d) echte Trägheit je Mann (Geschwindigkeit, begrenzte
-   Beschleunigung und Drehrate, Dämpfung am Platz), (e) Schwenk im
-   Gruppenrahmen. Vorbilder: Steering Behaviors (Seek/Arrive mit max.
-   Kraft), Platzzuweisung nach Nähe wie in Total War, RVO/ORCA gegen
-   gegenseitiges Anstoßen. Maßstab: dieselbe Messung noch einmal.
+8. **Ruhe der Bewegung, Rest (Trägheit).** Gemessen am 5. Oktober 2026
+   (Lauf 35 in `docs/ki-simulation.md`). Erledigt sind das Gerangel im
+   Bild und die Platzverteilung beim Umformen. Noch offen: echte Trägheit
+   je Mann (Geschwindigkeit, begrenzte Beschleunigung und Drehrate,
+   Dämpfung am Platz), die Umkehrungen im Marsch mit Gedränge (noch
+   0,3–0,5 je Mann und Sekunde in echten Schlachten, vor allem in den ersten
+   Sekunden nach einem Befehl), aufgelöste Haufen an Leitern (2,6) und die
+   Flucht. Vorbilder: Steering Behaviors (Seek/Arrive mit max. Kraft),
+   RVO/ORCA gegen gegenseitiges Anstoßen. Maßstab: `ruhe.py` je Lage.
 10. **Verbände für die Gegner-KI.** Die KI bildet noch keine Verbände und
     wechselt keine Modi; denkbar wäre etwa eine lockere Ordnung der
     Siedlung gegen Peltasten.
@@ -70,6 +63,20 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
   Aufwand.
 
 ## Erledigt
+
+- **Ruhe der Bewegung, Teil 1** (5. Oktober 2026, Lauf 35): (a) Das
+  Gerangel im Bild bleibt drei Sekunden bei einem Gegner, drängt langsamer
+  und steht auf Armlänge still; im Handgemenge folgt das Bild dem Mann statt
+  der Gruppenmitte. Bild-Umkehrungen im Handgemenge 1,1–1,4 → 0,37 je Mann
+  und Sekunde. (b) Beim Umformen bekommt jeder Mann den Platz mit den
+  zusammen kürzesten Wegen (ungarische Methode je Abschnitt): Schwenk und
+  Kehrtwende ohne Umkehrschritte (0,25 → 0,00), Verschmälern 1,33 → 0,19;
+  in echten Schlachten (vor allem KI-Haufen ohne Linienbefehle) nicht
+  messbar. Eine kämpfende Phalanx drängt fremde eigene Männer hinaus, die
+  tief in ihren Reihen stecken.
+  Nicht übernommen, weil gemessen wirkungslos oder schädlich: längeres
+  Seitengedächtnis (2 s), den Blockierer merken (Haufen bilden dauerte
+  11 statt 6 s), Mitlaufen im Marsch (ließ Männer vor dem Tor zurück).
 
 - **Reserve um die Flanke** (4. Oktober 2026): Wird die Reserve der KI
   gerufen und steht vor ihr eine geschlossene Phalanx, läuft sie um deren

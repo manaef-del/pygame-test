@@ -2012,7 +2012,7 @@ class Battle:
             u.face_to = None
         else:
             u.march = None
-            u.reform(plan.width)
+            u.reform(plan.width, plan.center, plan.facing)
             u.face_to = plan.facing              # die Front schwenkt mit begrenzter Rate dorthin
 
     # -- Verbände ----------------------------------------------------------
@@ -2889,7 +2889,7 @@ class Battle:
         if u.full_width is not None:
             u.full_width = width                  # noch im Engpass: erst dahinter in voller Breite aufmarschieren
         elif width != u.width:
-            u.reform(width)
+            u.reform(width, u.target, facing)
         u.face_to = facing
 
     def _wheel(self, u: Lochos, dt: float, goal: Point, speed: float, d: float) -> None:
@@ -3984,6 +3984,8 @@ class Battle:
             walker = self.is_walker(u)
             u.file = self.on_wall(u)
             self._bind_men(u)
+            if u.engaged and not u.loose and u.formation == "linie":
+                self._push_out(u)
             if u.loose:
                 self._move_loose(u, dt, walker)
                 continue
@@ -4087,6 +4089,49 @@ class Battle:
             self._man_step(u, man, goal, speed * dt, walker, stick=u.loose_why == "wall")
             man.stall = man.stall + dt if dist(before, man.pos) < 0.2 * speed * dt else 0.0
         u.x, u.y = self._loose_centre(u)
+
+    def _push_out(self, u: Lochos) -> None:
+        """Eine kämpfende Phalanx, die sich über Männer einer anderen eigenen Gruppe gedreht
+        hat, drängt sie hinaus: Wer tief in ihren Reihen steckt, selbst nicht kämpft und seinen
+        Platz woanders hat, wird an ihren nächsten Rand gesetzt, wenn dort Platz ist. Sonst
+        säße er zwischen gebundenen Männern fest, die ihm keine Lücke lassen."""
+        centre, facing = u.pos, u.facing
+        fx, fy = facing
+        ax, ay = -fy, fx
+        hw, hd = u.half_w - 0.12, u.half_d - 0.12
+        if hw <= 0.0 or hd <= 0.0:
+            return
+        cx, cy = self._grid_cell(*centre)
+        slot_of: dict[int, dict[int, Point]] = {}
+        r = int(math.ceil(u.radius * 2)) + 1
+        for gx in range(cx - r, cx + r + 1):
+            for gy in range(cy - r, cy + r + 1):
+                for m, gid in self._man_grid.get((gx, gy), ()):
+                    if gid == u.id or m.bound or m.hp <= 0.0 or self._man_side.get(id(m)) is not u.side:
+                        continue
+                    g = self._group_map.get(gid)
+                    if g is None or g.loose or g.engaged:
+                        continue
+                    dx, dy = m.x - centre[0], m.y - centre[1]
+                    along, forward = dx * ax + dy * ay, dx * fx + dy * fy
+                    if abs(along) >= hw or abs(forward) >= hd:
+                        continue
+                    if gid not in slot_of:
+                        slot_of[gid] = {id(o): p for o, p in g.slots()}
+                    slot = slot_of[gid].get(id(m))
+                    if slot is None or u.rect_distance(slot) <= 0.2:
+                        continue                      # sein Platz liegt hier: er will hinein, nicht hinaus
+                    # zum nächsten Rand hinaus, gut zwei Halbmesser vor die äußerste Reihe
+                    out_side = (u.half_w + 2.5 * config.MAN_RADIUS) * (1.0 if along >= 0 else -1.0)
+                    out_fwd = (u.half_d + 2.5 * config.MAN_RADIUS) * (1.0 if forward >= 0 else -1.0)
+                    cands = [(along, out_fwd), (out_side, forward)]
+                    cands.sort(key=lambda c: abs(c[0] - along) + abs(c[1] - forward))
+                    for a_, f_ in cands:
+                        nx, ny = centre[0] + ax * a_ + fx * f_, centre[1] + ay * a_ + fy * f_
+                        if (self.inside(nx, ny) and not self.is_blocked(nx, ny, g)
+                                and self._crowding(m, m.pos, (nx, ny), gid) is None):
+                            m.x, m.y = nx, ny
+                            break
 
     def _bind_men(self, u: Lochos) -> None:
         """Wer einen feindlichen Mann in Reichweite hat, steht im Handgemenge fest

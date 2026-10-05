@@ -66,7 +66,15 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
 - **Jeder Mann zählt einzeln.** Er hat eigene Trefferpunkte (verwundete
   Punkte sind dunkler) und eine eigene Position: Er läuft zu seinem
   Platz in der Formation, weicht aber selbst aus, durchs Tor nur durch
-  die Öffnung, auf den Wall nur über Leiter oder Turm.
+  die Öffnung, auf den Wall nur über Leiter oder Turm. Formt sich die
+  Gruppe um (neue Breite, neue Front, neue Stelle), werden die Plätze
+  eines Abschnitts so verteilt, dass die Wege zusammen am kürzesten sind:
+  Jeder geht etwa dorthin, wo er schon steht, und keiner kreuzt den
+  anderen; beim Schwenk um 90 Grad oder bei der Kehrtwende gibt es so
+  praktisch keine Umkehrschritte mehr (vorher 0,13 bis 0,25 je Mann und
+  Sekunde). Hat sich eine kämpfende Phalanx über Männer einer anderen
+  eigenen Gruppe gedreht, drängt sie die hinaus, die dort nichts zu suchen
+  haben; sonst säßen sie zwischen den gebundenen Männern fest.
 - **Marsch im Bogen.** Auf längeren Wegen (über drei Kacheln) über freies
   Feld läuft eine Gruppe zu Fuß in ihrer Blickrichtung an und schwenkt
   unterwegs zum Ziel, die Front immer in Marschrichtung. Eine breite Linie
@@ -444,8 +452,11 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
 - **Gerangel (nur im Bild):** Im Handgemenge treten die Männer sichtbar
   an ihren Gegner heran; wer in einer kämpfenden Gruppe keinen hat,
   drängt auf einen freien feindlichen Mann in der Nähe (höchstens zwei
-  auf einen, höchstens eine Kachel von seiner Stelle). Die Phalanx hält
-  ihre Reihen. Ein spürbarer Treffer blitzt kurz hell auf, und wo einer
+  auf einen, höchstens eine Kachel von seiner Stelle). Er bleibt drei
+  Sekunden bei diesem Gegner, drängt gemächlich (0,6 Kacheln/s) und
+  steht auf Armlänge still, statt zurück und wieder vor zu zucken; das
+  Bild im Handgemenge folgt dem Mann selbst, nicht der wandernden Mitte
+  seiner Gruppe. Die Phalanx hält ihre Reihen. Ein spürbarer Treffer blitzt kurz hell auf, und wo einer
   fällt, bleibt für einen Moment ein dunkler Fleck. Gerechnet wird
   weiter von den Stellen der Männer: Das Gerangel ändert nichts am
   Ausgang.

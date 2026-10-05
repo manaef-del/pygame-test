@@ -1172,6 +1172,32 @@ def test_men_are_drawn_smoothed_within_their_group_but_never_behind_the_march():
     assert worst < 0.05                                                  # beim Marsch: genau an seiner Stelle
 
 
+def test_reform_gives_each_man_the_nearest_slot():
+    """Umformen: Die Plätze werden so verteilt, dass die Wege zusammen am kürzesten sind.
+    Schwenkt die Front um 90 Grad oder wird die Linie schmaler, bleibt jeder etwa, wo er steht,
+    und in jeder Reihe stehen die Männer so nebeneinander wie ihre Plätze (keiner kreuzt)."""
+    from game.units import assign_min_cost
+    import itertools
+    rnd = random.Random(3)
+    for n in (2, 4, 6):
+        cost = [[rnd.random() for _ in range(n)] for _ in range(n)]
+        got = assign_min_cost(cost)
+        best = min(sum(cost[i][p[i]] for i in range(n)) for p in itertools.permutations(range(n)))
+        assert sorted(got) == list(range(n)) and sum(cost[i][got[i]] for i in range(n)) == pytest.approx(best)
+    for facing, width in (((1.0, 0.0), 14), ((0.0, -1.0), 7), ((0.0, 1.0), 14)):
+        b, u = standing_group("schwer", 40, 14)
+        u.facing = facing
+        u.rows = arrange(u.all_men(), width)
+        plain = sum(dist(m.pos, p) for m, p in u.slots())
+        u.reform(width)
+        fitted = sum(dist(m.pos, p) for m, p in u.slots())
+        assert fitted < plain
+        if facing == (0.0, -1.0):                      # gleiche Front: in der Reihe bleibt die Ordnung
+            for row in u.rows:
+                along = [m.x for m in row]
+                assert along == sorted(along)
+
+
 def test_a_formed_group_does_not_correct_tiny_offsets():
     """Ein Mann einer stehenden, geschlossenen Gruppe, der um weniger als eine Zehntelkachel
     neben seinem Platz steht, rückt nicht dauernd nach."""
@@ -1240,7 +1266,7 @@ def test_phalanx_wheels_to_its_ordered_front_without_swapping_rows():
     assert u.face_to == (0.0, 1.0) and u.facing == (0.0, -1.0)             # noch nicht gesprungen
     run(b, 0.6)
     assert -0.9 < u.facing[1] < 0.9                                        # mitten im Schwenk
-    assert u.rows[0][0] is heavy[0]                                        # eine Phalanx tauscht keine Reihen
+    assert heavy[0] in u.rows[0]                                           # eine Phalanx tauscht keine Reihen
     run(b, 2.5)
     assert u.facing == (0.0, 1.0) and u.face_to is None
 
