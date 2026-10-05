@@ -466,6 +466,12 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Lösen ist eine Entscheidung mit Preis, auch für die Räuber, die nach
   einem gescheiterten Angriff zurückweichen. Weicht sein Gegner weiter
   als eine Kachel von der Stelle, an der er gebunden wurde, ist er frei.
+- **Blickstrich (nur im Bild):** Hineingezoomt trägt jeder Mann einen kurzen
+  dunklen Strich von der Mitte zum vorderen Rand: Er zeigt, wo bei ihm vorn
+  ist. In Ordnung schaut er zur Front seiner Gruppe, im Gerangel zu seinem
+  Gegner, aufgelöst und auf der Flucht seinen Weg entlang; der Blick dreht
+  sich begrenzt schnell, damit nichts flackert. So sieht man beim Schwenk,
+  beim Kontermarsch und im Handgemenge, wohin sich die Männer wenden.
 - **Gerangel (nur im Bild):** Im Handgemenge treten die Männer sichtbar
   an ihren Gegner heran; wer in einer kämpfenden Gruppe keinen hat,
   drängt auf einen freien feindlichen Mann in der Nähe (höchstens zwei

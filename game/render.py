@@ -384,6 +384,14 @@ class Renderer:
                 frac = min(1.0, h.progress / config.LOOT_TIME)
                 pygame.draw.rect(s, config.COLOR_FIRE, pygame.Rect(x + t // 10, y + t - t // 5, int((t - t // 5) * frac), 3))
 
+    def _draw_face(self, man, mx: int, my: int, r: int) -> None:
+        """Ein kurzer dunkler Strich von der Mitte zum vorderen Rand: wo der Mann hinschaut
+        (nur hineingezoomt, wenn die Männer groß genug sind)."""
+        if r < 3:
+            return
+        ex, ey = mx + man.sfx * (r + 1), my + man.sfy * (r + 1)
+        pygame.draw.line(self.surface, config.COLOR_FACE, (mx, my), (int(round(ex)), int(round(ey))), 2 if r >= 5 else 1)
+
     def _draw_lochos(self, u: Lochos, selected: bool, frames: bool = True) -> None:
         """Eine Gruppe: ihre Männer, und nur mit ``frames`` (Pause, Aufziehen) ihr
         Formationsrechteck; sonst zeigt ein Ring um jeden Mann, dass sie gewählt ist."""
@@ -428,8 +436,10 @@ class Renderer:
                 if man.leader:                           # der Anführer: größer, goldener Ring
                     pygame.draw.circle(s, color, (mx, my), r_man + 1)
                     pygame.draw.circle(s, config.COLOR_LEADER, (mx, my), r_man + 2, 2)
+                    self._draw_face(man, mx, my, r_man + 1)
                     continue
                 pygame.draw.circle(s, color, (mx, my), r_man)
+                self._draw_face(man, mx, my, r_man)
                 if man is chief:                         # der Hauptmann: weißer Ring, Richtpunkt der Gruppe
                     pygame.draw.circle(s, config.COLOR_COMMANDER, (mx, my), r_man + 1, 1)
                 if man.bound:

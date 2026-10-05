@@ -2385,6 +2385,7 @@ class Battle:
         Dort folgt das Bild dem Mann selbst, und nur solange er langsam ist. Ein Sprung (neu
         aufgestellt) oder eine Kehrtwendung wird sofort übernommen."""
         k = 1.0 if config.SHOW_SMOOTH <= dt else dt / config.SHOW_SMOOTH
+        turn = config.SHOW_TURN_RATE * dt
         for u in self.lochoi:
             if not u.alive:
                 continue
@@ -2393,7 +2394,19 @@ class Battle:
             last = self._shown_facing.get(u.id)
             flipped = last is not None and last[0] * fx + last[1] * fy < 0.5   # Kehrt: Lage neu übernehmen
             self._shown_facing[u.id] = (fx, fy)
+            free = u.loose or u.stance is Stance.FLUCHT
             for m in u.all_men():
+                # wohin er schaut: zu seinem Gegner im Gerangel, aufgelöst oder auf der Flucht seinen Weg
+                # entlang, sonst zur Front seiner Gruppe; der Blick dreht sich begrenzt schnell
+                if m.jostle_foe is not None and m.jostle_foe.hp > 0.0:
+                    look = norm(sub(m.jostle_foe.pos, m.pos))
+                elif free and math.hypot(m.mvx, m.mvy) > 0.3:
+                    look = norm((m.mvx, m.mvy))
+                else:
+                    look = (fx, fy)
+                if look != (0.0, 0.0):
+                    m.sfx, m.sfy = (look if flipped or m.sx is None
+                                    else self._rotated_towards((m.sfx, m.sfy), look, turn))
                 jump = m.sx is None or abs(m.x - m.sx) + abs(m.y - m.sy) > 0.6
                 if u.loose or m.bound or u.engaged:
                     # im Handgemenge steht der Mann, die Mitte seiner Gruppe aber wandert und dreht:
