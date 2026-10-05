@@ -478,6 +478,13 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Blickstrich zeigt es: Die hintere Reihe schaut nach hinten, sobald sie
   dort gepackt wird. Eine einreihige Linie, deren Männer alle vorn im
   Speerkampf stehen, kann sich nicht umdrehen.
+- **Um Häuser herum schwenkt die Phalanx in Marschrichtung:** Führt der
+  Weg zu einer befohlenen Linie um Häuserblöcke (über Wegpunkte), dreht
+  sich der Block erst in die Richtung des nächsten Wegpunkts und
+  marschiert dann, wie jede andere Gruppe; die befohlene Front nimmt er
+  erst beim Aufmarschieren vor dem Ziel ein. Vorher rückte er die ganze
+  Strecke seitwärts, mit der alten Front (ein Zweig, der nur für kurze
+  Stücke gedacht war). Schalter `ROUTE_TURN`.
 - **Pferde:** Unter jedem Reiter liegt ein braunes Oval mit einem Kopf
   vorn, das Pferd. Es zeigt dorthin, wo der Reiter wirklich läuft, und
   dreht sich mit begrenztem Tempo in die Laufrichtung; im Stand dreht es

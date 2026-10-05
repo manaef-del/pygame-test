@@ -2899,9 +2899,11 @@ class Battle:
                     u.facing = self._rotated_towards(u.facing, direction, config.FLEE_TURN_RATE * dt)   # ohne Zeremonie, aber ohne Zucken
                 elif final and u.target_id is None and d <= config.SHUFFLE_DIST:
                     pass                                            # ein kurzes Stück: rücken, ohne sich umzudrehen
-                elif u.stance is not Stance.PHALANX:
+                elif u.stance is not Stance.PHALANX or (config.ROUTE_TURN and u.march is not None and not final):
+                    # erst schwenken, dann marschieren; eine Phalanx mit Marschbefehl auch auf dem Weg um
+                    # Häuser (die befohlene Front nimmt sie erst beim Aufmarschieren ein)
                     if abs(self._turn_towards(u, direction, dt)) > config.MOVE_TURN_TOLERANCE:
-                        continue                                    # erst schwenken, dann marschieren
+                        continue
                 self._step(u, scale(direction, step))
             if u.stance is Stance.ANGRIFF and not u.engaged:
                 u.runup += dist(before, u.pos)          # Anlauf für den Sturmangriff

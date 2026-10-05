@@ -149,6 +149,7 @@ FORMATION_MARGIN = 0.5       # Sekunden: so viel schneller muss Auflösen sein, 
 NARROW_LOOSE = True          # passt ein Block nicht durch eine Gasse und ist Mann für Mann schneller, geht er so hindurch
 NARROW_MIN_WIDTH = 0.2       # Kacheln: halbe Breite, mit der einzelne Männer durchkommen
 MARCH_LOOKAHEAD = 1.0        # Kacheln: so weit über einen Umwegpunkt hinaus zielt ein Block im Bogen (zum Ziel hin)
+ROUTE_TURN = True            # auch eine Phalanx auf dem Weg um Häuser (Wegpunkte) schwenkt erst in Marschrichtung, statt seitwärts zu rücken
 CAVALRY_ACCEL = 2.5          # Kacheln/s²: Reiter fahren an
 CAVALRY_BRAKE = 4.0          # Kacheln/s²: Reiter bremsen vor dem Ziel
 CAVALRY_TURN_RATE = 6.0      # rad/s im Schritt; geteilt durch das Tempo darüber (Bogen wächst mit dem Tempo)

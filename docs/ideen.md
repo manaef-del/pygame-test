@@ -65,6 +65,11 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Seitwärts rückende Phalanx um Häuser** (5. Oktober 2026): Auf Wegen
+  mit Wegpunkten schwenkt die Phalanx jetzt erst in Marschrichtung. Labor
+  (offene Siedlung, Linie hinter den Häuserblöcken): 2,6 Kacheln seitwärts
+  → 0, gleiche Ankunftszeit.
+
 - **Pferde, Lücke im Gerangel, Aufstellung bei der Agora** (5. Oktober
   2026): Unter jedem Reiter ein Pferd (Oval mit Kopf) in seiner
   Laufrichtung, der Reiter schaut, wohin die Gruppe schaut. Die Bilder im
