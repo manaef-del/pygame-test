@@ -1,5 +1,37 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 38 (5. Oktober 2026): Der Kreis als Phalanx
+
+Neu: Die Ringe des Kreises sind die Reihen der Gruppe; der weiteste Kreis ist
+eine geschlossene Reihe, enger gezogen bilden sich Ringe nach innen. Nur der
+äußere Ring kämpft und wird getroffen, der zweite sticht mit, von innen wird
+nachgerückt, beim Umformen bekommt jeder den nächsten Platz. Dazu zählt eine
+Phalanx als stehend, sobald 85 % der Männer auf ihren Plätzen sind (ein
+Gebundener, dessen Platz der Feind besetzt, zählt als da); vorher hielt ein
+einzelner Gebundener abseits seines Platzes den Phalanxbonus auf. Die KI bildet
+ihren Kreis weiter als eine Reihe, also wie bisher. Gegner-KI „klug“, sechs
+Seeds, vorher (Lauf 37) / nachher:
+
+| Szenario | Taktik | Siege | Verlust Stadt | Verlust Feind | Häuser verloren |
+|---|---|---|---|---|---|
+| siedlung | linie_tief | 6/6 / 6/6 | 23 % / 23 % | 60 % / 60 % | 2,3 / 2,3 |
+| siedlung | schlachtordnung | 6/6 / 6/6 | 66 % / 66 % | 73 % / 73 % | 19,5 / 19,5 |
+| siedlung | linie_reiter | 5/6 / 5/6 | 94 % / 94 % | 71 % / 71 % | 26,3 / 26,3 |
+| siedlung | linie_aktiv | 6/6 / 6/6 | 18 % / 21 % | 54 % / 68 % | 0,0 / 0,2 |
+| siedlung_angriff | agora | 0/6 / 0/6 | 56 % / 57 % | 13 % / 16 % | – |
+| horde_sturm | linie_aktiv | 6/6 / 6/6 | 18 % / 17 % | 54 % / 59 % | – |
+| ueberfall | linie_aktiv | 6/6 / 6/6 | 5 % / 5 % | 66 % / 66 % | 0,3 / 0,3 |
+
+Lesart: Die Balance der Szenarien bleibt, nur die aktive Linie und die Horde
+verschieben sich um ein paar Punkte (die mildere Stehregel lässt den Bonus
+nach einem Umformen im Kampf früher greifen). Der Kreis selbst ist im Labor
+gemessen: 40 Hopliten gegen 48 Räuber, stehend eine Reihe oder drei Ringe,
+mittlere Abweichung von den Plätzen 0,0 Kacheln über den ganzen Kampf (vorher
+0,3–0,7 nach den ersten Verlusten, einzelne Männer bis 2,5 Kacheln weg); aus
+einer kämpfenden Linie zum engen Kreis befohlen, steht er nach vier Sekunden
+als Phalanx und hält (vorher nie: ein Gebundener abseits seines Platzes
+verhinderte es, der Kreis verlor ohne Bonus).
+
 ## Lauf 37 (5. Oktober 2026): Die hintere Reihe macht kehrt
 
 Neu: Der Phalanxbonus gilt nur in der ersten Reihe nach vorn. Wer in einer
