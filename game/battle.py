@@ -525,7 +525,8 @@ class Battle:
 
     def is_walker(self, u: Lochos) -> bool:
         """Wer den Wehrgang betreten darf: von der Wallseite reine Peltasten über die Leitern
-        (in der Festung jede Fußgruppe), Angreifer über einen aufgestellten Turm. Steht ein
+        (in der Festung jede Fußgruppe), Angreifer über einen aufgestellten Turm, und wer von
+        ihnen durch ein Tor eingedrungen ist, über die Leitern der Verteidiger. Steht ein
         Turm, ist er für beide Seiten da: Dann darf auch das Fußvolk der Wallseite hinauf,
         etwa um Fliehenden über den Wall nachzusetzen."""
         if u.side is self.wall_side():
@@ -534,11 +535,12 @@ class Battle:
             if config.FORT_FOOT_ON_WALL:
                 return foot                       # alles Fußvolk
             return u.wall_capable() or (bool(self.crossings) and foot)
-        if not self.crossings:
-            return False
         if 2 * len(u.mounted_men()) >= u.men:
             return False                  # wer im Sattel sitzt, klettert nicht
-        return True
+        if self.crossings:
+            return True                   # ein Turm steht: über ihn hinauf
+        # wer durch ein Tor eingedrungen ist (innen oder schon oben), darf die Leitern der Verteidiger nehmen
+        return self._wall_level(u.pos) == "innen" or self.is_wall_cell(self.cell(u.x, u.y), True)
 
     def ladders_for(self, u: Lochos, pos: Point | None = None, target: Point | None = None) -> set[tuple[int, int]]:
         """Auf- und Abstiege: Leitern und Turm für alle Läufer beider Seiten; die Leitern

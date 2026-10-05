@@ -506,6 +506,24 @@ def test_fortress_hoplites_may_climb_the_wall():
     assert all(garrison.is_walker(u) for u in garrison.units(Side.FEIND) if u.arm() != "reiter")
 
 
+def test_intruders_inside_may_use_the_ladders_but_outsiders_need_a_tower():
+    """Wer von den Angreifern durch ein Tor eingedrungen ist, darf die Leitern der Verteidiger
+    nehmen, auch ohne Turm; wer draußen steht, kommt ohne Turm nicht hinauf."""
+    b = quiet(Battle(FESTUNG, random.Random(0)))
+    clear(b)
+    assert not b.crossings
+    ladder = sorted(b.ladders)[0]
+    foot = b.foot_of(ladder)
+    inside = lone_group(b, Side.FEIND, "mittel", 12, (foot[0], foot[1] + 0.8))
+    assert b._wall_level(inside.pos) == "innen" and b.is_walker(inside)
+    outside = lone_group(b, Side.FEIND, "mittel", 12, (1.5, b.rows / 2))
+    assert b._wall_level(outside.pos) == "aussen" and not b.is_walker(outside)
+    inside.target = (ladder[0] + 0.5, ladder[1] + 0.5)
+    run(b, 40)
+    up = sum(1 for m in inside.all_men() if b.is_wall_cell(b.cell(m.x, m.y), True))
+    assert up >= 6                                        # oben auf dem Wehrgang
+
+
 def test_garrison_holds_the_tower_landing():
     """Die Reserve der Besatzung steigt auf den Wehrgang an den Ausstieg neben einem Turm."""
     b = Battle(FESTUNG_ANGRIFF, random.Random(1))

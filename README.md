@@ -483,6 +483,14 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   „hinten“, sonst „seitlich“. Wer am Ende einer Reihe von der Seite
   gepackt wird, dreht sich also um, auch wenn der Gegner für die ganze
   Gruppe noch knapp als „vorn“ zählt (die Toleranz neben dem Linienende).
+- **Wer innen ist, darf klettern:** Angreifer, die durch ein Tor in die
+  Festung eingedrungen sind, dürfen die Leitern der Verteidiger auf den
+  Wehrgang nehmen, ob irgendwo ein Turm steht oder nicht. Von außen
+  kommen sie weiter nur über einen aufgestellten Turm hinauf. Vorher
+  entschied ein Zufall: Sobald irgendwo ein Turm stand, durften alle
+  Angreifer klettern, auch die im Inneren; ohne Turm keiner. Ein
+  verlorenes Tor ist damit gefährlicher, denn die Peltasten oben sind
+  dann angreifbar.
 - **Kein Zittern aufgelöster Männer (nur im Bild):** Das Bild eines
   Mannes glättete bisher seinen Versatz zur Mitte seiner Gruppe. Bei
   aufgelösten Gruppen wandert diese Mitte mit jedem Schritt der anderen

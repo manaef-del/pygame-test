@@ -65,6 +65,14 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Feinde auf dem Wall ohne Turm** (5. Oktober 2026, Lauf 41): Sobald
+  irgendwo ein Turm stand, durften alle Angreifer klettern, und wer durch
+  ein Tor innen war, stieg über die Leitern der Verteidiger auf den
+  Wehrgang. Jetzt gilt die Regel ausdrücklich: Wer innen ist, darf die
+  Leitern nehmen, von außen nur über den Turm. Ein Aufstieg ohne Leiter
+  oder Turm (etwa am Wallvorsprung hängengeblieben und hinaufkorrigiert)
+  kam in drei Schlachten mit 265 Aufstiegen nicht vor.
+
 - **Zittern auf dem Wehrgang** (5. Oktober 2026): Die Männer standen
   still, ihre Bilder zitterten, weil das Bild am Versatz zur wandernden
   Mitte der aufgelösten Gruppe hing. Aufgelöst glättet das Bild jetzt die
