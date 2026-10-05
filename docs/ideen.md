@@ -26,6 +26,27 @@ wandert nach unten.
    (8 von 8) gegen eine Besatzung von 40. Bildete die Besatzung gegen
    Reiter schon Kreise, wenn sie vorn gebunden war, gewann man nie (Lauf 24);
    seit der Kreis nur eine Verzweiflungstat ist, wieder immer.
+7. **Peltasten werfen nur geradeaus oder im Stand.** Werfen dürfen sie, wenn
+   sie stehen oder gerade auf den Gegner zulaufen; im Lauf nach hinten (beim
+   Zurückweichen, auf der Flucht, beim Hit-and-run vom Gegner weg) wird nicht
+   geworfen. Noch nicht gebaut; Balance-Wirkung auf Plänkeln und Zermürben
+   vorher messen.
+8. **Ruhe der Bewegung (Trägheit).** Gemessen am 5. Oktober 2026 in vier
+   echten Schlachten, je Mann und Sekunde: im Stand 0,01–0,10 Umkehrungen;
+   im Marsch 0,3–0,8 Umkehrungen und alle 2–4 s ein Seitentausch mit dem
+   Nachbarn (nur 5–8 % der Schritte sind Ausweichschritte, aber sie machen
+   fast alle Umkehrungen); im Handgemenge ist das Bild unruhiger als die
+   Simulation (1,0–1,4 gegen 0,3–0,8), weil das Gerangel jeden Takt den
+   nächsten Gegner neu wählt; aufgelöst an Leitern 2,6. Ein Mann hat keine
+   Trägheit, er wählt jeden Takt neu. Reihenfolge der Abhilfen: (a) Gerangel
+   im Bild beruhigen (Gegner 1–2 s behalten, langsamer drängen), (b)
+   Entscheidungen festhalten: Ausweichseite länger, Blockierer merken, im
+   Marsch mitlaufen statt schlängeln, (c) Platztausch statt Kreuzen für
+   Nachbarn, (d) echte Trägheit je Mann (Geschwindigkeit, begrenzte
+   Beschleunigung und Drehrate, Dämpfung am Platz), (e) Schwenk im
+   Gruppenrahmen. Vorbilder: Steering Behaviors (Seek/Arrive mit max.
+   Kraft), Platzzuweisung nach Nähe wie in Total War, RVO/ORCA gegen
+   gegenseitiges Anstoßen. Maßstab: dieselbe Messung noch einmal.
 10. **Verbände für die Gegner-KI.** Die KI bildet noch keine Verbände und
     wechselt keine Modi; denkbar wäre etwa eine lockere Ordnung der
     Siedlung gegen Peltasten.
