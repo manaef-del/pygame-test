@@ -65,6 +65,12 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Zittern auf dem Wehrgang** (5. Oktober 2026): Die Männer standen
+  still, ihre Bilder zitterten, weil das Bild am Versatz zur wandernden
+  Mitte der aufgelösten Gruppe hing. Aufgelöst glättet das Bild jetzt die
+  eigene Stelle: Bild-Umkehrungen auf dem Wall 0,96 → 0,01, am Boden in
+  Flucht 0,46 → 0,11 und im Handgemenge 0,24 → 0,13 je Mann und Sekunde.
+
 - **Endmann dreht sich nicht zum Angreifer** (5. Oktober 2026): Die
   Richtung, aus der ein Mann gepackt wird, kam von der Formation (Front,
   Flanke, Rücken mit Toleranz neben dem Linienende). Drei Gegner dicht

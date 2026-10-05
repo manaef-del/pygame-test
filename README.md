@@ -483,6 +483,15 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   „hinten“, sonst „seitlich“. Wer am Ende einer Reihe von der Seite
   gepackt wird, dreht sich also um, auch wenn der Gegner für die ganze
   Gruppe noch knapp als „vorn“ zählt (die Toleranz neben dem Linienende).
+- **Kein Zittern aufgelöster Männer (nur im Bild):** Das Bild eines
+  Mannes glättete bisher seinen Versatz zur Mitte seiner Gruppe. Bei
+  aufgelösten Gruppen wandert diese Mitte mit jedem Schritt der anderen
+  (an der Leiter etwa eine Kachel je Sekunde, mit Sprüngen, wenn die
+  Mehrheit die Wallseite wechselt), und so zitterten die Bilder von
+  Männern, die selbst still standen. Aufgelöst folgt das Bild jetzt der
+  eigenen Stelle des Mannes. Auf dem Wehrgang sinken die Bild-Umkehrungen
+  aufgelöster Männer von 0,96 auf 0,01 je Mann und Sekunde, am Boden in
+  Flucht und Handgemenge etwa auf die Hälfte; die Rechnung bleibt gleich.
 - **Um Häuser herum schwenkt die Phalanx in Marschrichtung:** Führt der
   Weg zu einer befohlenen Linie um Häuserblöcke (über Wegpunkte), dreht
   sich der Block erst in die Richtung des nächsten Wegpunkts und

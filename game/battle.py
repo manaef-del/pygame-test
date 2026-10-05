@@ -2439,6 +2439,10 @@ class Battle:
                 ox, oy = m.x - u.x, m.y - u.y
                 if m.sx is None or abs(m.x - m.sx) + abs(m.y - m.sy) > 0.6:
                     m.rx, m.ry = ox, oy
+                elif config.SHOW_ABS_LOOSE and u.loose:
+                    # aufgelöst geht jeder für sich: sein Bild folgt seiner Stelle, nicht der wandernden Mitte
+                    m.rx = m.sx + (m.x - m.sx) * k - u.x
+                    m.ry = m.sy + (m.y - m.sy) * k - u.y
                 else:
                     m.rx += (ox - m.rx) * k
                     m.ry += (oy - m.ry) * k
