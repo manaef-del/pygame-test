@@ -158,13 +158,15 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Handgemenge) und liegt das Ziel auf der anderen Seite, geht er gerade los,
   statt drei Kacheln seitlich hinaus und im großen Bogen zurück zu laufen.
 - **Ruhiges Bild.** Die Männer werden an einer geglätteten Stelle
-  gezeichnet. Geglättet wird nur ihre Lage innerhalb der Gruppe (entlang
-  und quer zur Front, über 0,15 s), nicht Marsch und Schwenk der Gruppe.
-  Das Hin und Her einzelner Schritte im Gedränge verschwindet so aus dem
-  Bild, und beim Marschieren oder Reiten hängt niemand nach. Bei
-  aufgelösten Gruppen folgt das Bild dem Mann selbst, geglättet nur,
-  solange er langsam ist. Die Schlacht rechnet weiter mit den wirklichen
-  Stellen.
+  gezeichnet. Geglättet wird ihr Versatz zur Mitte der Gruppe (über
+  0,15 s, in Weltrichtung): Das Hin und Her einzelner Schritte im Gedränge
+  verschwindet so aus dem Bild, und beim Marschieren oder Reiten hängt
+  niemand nach, weil die Mitte mitgeht. Schwenkt die Gruppe, folgt das Bild
+  den Männern, wie sie wirklich laufen, es dreht nicht mit der Front;
+  vorher drehte es mit, und auf der Flucht oder beim Drehen im Handgemenge
+  flogen die Bilder im Kreis um die Mitte, während die Männer noch standen.
+  Springt die Mitte (ans Ziel gesetzt, weggeschoben), springen die Bilder
+  nicht mit. Die Schlacht rechnet weiter mit den wirklichen Stellen.
 - **Befehlshaber und Kontermarsch.** Jede Gruppe hat einen Befehlshaber
   (weißer Ring) auf dem mittleren Platz der vorderen Reihe; an ihm richtet
   sich die Gruppe beim Marsch aus. Kämpft der Anführer in der Gruppe mit, ist

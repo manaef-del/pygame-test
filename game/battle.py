@@ -175,7 +175,7 @@ class Battle:
     fallen_marks: list[tuple[Point, float]] = field(default_factory=list)          # nur fürs Bild: wo und wann einer fiel
     climb_budget: dict[tuple[int, int], float] = field(default_factory=dict)       # Durchsatz je Leiter/Turm
     _barrier_cache: dict = field(default_factory=dict)
-    _shown_facing: dict = field(default_factory=dict)  # nur fürs Bild: Front je Gruppe im letzten Takt
+    _shown_facing: dict = field(default_factory=dict)  # nur fürs Bild: Mitte je Gruppe im letzten Takt
     _man_grid: dict = field(default_factory=dict)      # Männer je Rasterzelle (0,5 Kacheln), je Schritt neu
     _man_group: dict = field(default_factory=dict)     # id(Mann) -> Gruppen-id, je Schritt neu
     _man_side: dict = field(default_factory=dict)      # id(Mann) -> Seite, je Schritt neu
@@ -2379,25 +2379,30 @@ class Battle:
 
     def _smooth_shown(self, dt: float) -> None:
         """Nur fürs Bild: Jeder Mann wird an einer geglätteten Stelle gezeichnet. Geglättet wird
-        seine Lage in der Gruppe (zu ihrer Mitte, entlang ihrer Front), nicht Marsch und Schwenk der
-        Gruppe: Das Hin und Her einzelner Schritte im Gedränge verschwindet aus dem Bild, niemand
-        hängt beim Marschieren oder Schwenken nach. Aufgelöste Gruppen haben keine feste Mitte:
-        Dort folgt das Bild dem Mann selbst, und nur solange er langsam ist. Ein Sprung (neu
-        aufgestellt) oder eine Kehrtwendung wird sofort übernommen."""
+        sein Versatz zur Mitte seiner Gruppe (in Weltrichtung, nicht mitgedreht): Das Hin und Her
+        einzelner Schritte im Gedränge verschwindet aus dem Bild, beim Marsch hängt niemand nach,
+        weil die Mitte mitgeht. Schwenkt die Gruppe, folgt das Bild den Männern, wie sie wirklich
+        laufen; es dreht nicht mit der Front (sonst flögen die Bilder im Kreis um die Mitte, während
+        die Männer noch stehen). Ein Sprung (neu aufgestellt) wird sofort übernommen. Dazu der Blick
+        jedes Mannes: zu seinem Gegner im Gerangel, aufgelöst oder auf der Flucht seinen Weg entlang,
+        sonst zur Front seiner Gruppe; er dreht sich begrenzt schnell."""
         k = 1.0 if config.SHOW_SMOOTH <= dt else dt / config.SHOW_SMOOTH
         turn = config.SHOW_TURN_RATE * dt
         for u in self.lochoi:
             if not u.alive:
                 continue
             fx, fy = u.facing if u.facing != (0.0, 0.0) else (0.0, -1.0)
-            ax, ay = -fy, fx
-            last = self._shown_facing.get(u.id)
-            flipped = last is not None and last[0] * fx + last[1] * fy < 0.5   # Kehrt: Lage neu übernehmen
-            self._shown_facing[u.id] = (fx, fy)
             free = u.loose or u.stance is Stance.FLUCHT
+            # springt die Mitte (ans Ziel gesetzt, weggeschoben), springen die Bilder nicht mit
+            last = self._shown_facing.get(u.id)
+            self._shown_facing[u.id] = u.pos
+            hop = (u.x - last[0], u.y - last[1]) if last is not None else (0.0, 0.0)
+            if math.hypot(*hop) <= 0.25:
+                hop = (0.0, 0.0)
             for m in u.all_men():
-                # wohin er schaut: zu seinem Gegner im Gerangel, aufgelöst oder auf der Flucht seinen Weg
-                # entlang, sonst zur Front seiner Gruppe; der Blick dreht sich begrenzt schnell
+                if hop != (0.0, 0.0) and m.sx is not None:
+                    m.rx -= hop[0]
+                    m.ry -= hop[1]
                 if m.jostle_foe is not None and m.jostle_foe.hp > 0.0:
                     look = norm(sub(m.jostle_foe.pos, m.pos))
                 elif free and math.hypot(m.mvx, m.mvy) > 0.3:
@@ -2405,35 +2410,14 @@ class Battle:
                 else:
                     look = (fx, fy)
                 if look != (0.0, 0.0):
-                    m.sfx, m.sfy = (look if flipped or m.sx is None
-                                    else self._rotated_towards((m.sfx, m.sfy), look, turn))
-                jump = m.sx is None or abs(m.x - m.sx) + abs(m.y - m.sy) > 0.6
-                if u.loose or m.bound or u.engaged:
-                    # im Handgemenge steht der Mann, die Mitte seiner Gruppe aber wandert und dreht:
-                    # das Bild folgt hier dem Mann selbst, nicht seiner Lage in der Gruppe
-                    m.ref_id = -1
-                    if jump:
-                        m.sx, m.sy = m.x, m.y
-                        continue
-                    speed = math.hypot(m.vx, m.vy)
-                    tau = config.SHOW_SMOOTH * max(0.0, 1.0 - speed / config.SHOW_SMOOTH_FAST)
-                    k_l = 1.0 if tau <= dt else dt / tau
-                    m.sx += (m.x - m.sx) * k_l
-                    m.sy += (m.y - m.sy) * k_l
-                    continue
-                dx, dy = m.x - u.x, m.y - u.y
-                lx, ly = dx * ax + dy * ay, dx * fx + dy * fy          # Lage in der Gruppe: entlang und quer zur Front
-                if jump or flipped or m.ref_id != u.id:
-                    if jump or flipped:
-                        m.rx, m.ry = lx, ly
-                    else:                                              # eben noch aufgelöst: vom Bild aus weiter
-                        sx_, sy_ = m.sx - u.x, m.sy - u.y
-                        m.rx, m.ry = sx_ * ax + sy_ * ay, sx_ * fx + sy_ * fy
-                    m.ref_id = u.id
+                    m.sfx, m.sfy = look if m.sx is None else self._rotated_towards((m.sfx, m.sfy), look, turn)
+                ox, oy = m.x - u.x, m.y - u.y
+                if m.sx is None or abs(m.x - m.sx) + abs(m.y - m.sy) > 0.6:
+                    m.rx, m.ry = ox, oy
                 else:
-                    m.rx += (lx - m.rx) * k
-                    m.ry += (ly - m.ry) * k
-                m.sx, m.sy = u.x + m.rx * ax + m.ry * fx, u.y + m.rx * ay + m.ry * fy
+                    m.rx += (ox - m.rx) * k
+                    m.ry += (oy - m.ry) * k
+                m.sx, m.sy = u.x + m.rx, u.y + m.ry
 
     def _mark_engines(self) -> None:
         """Aufgestellte Türme und liegende Rammböcke als Hindernisse (Viertelkacheln)."""

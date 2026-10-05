@@ -61,6 +61,13 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Kreisflüge im Bild** (5. Oktober 2026): Die Bildglättung rechnete im
+  mitgedrehten Rahmen der Gruppe; drehte sich die Front schnell (Flucht
+  6 rad/s, Drehen im Handgemenge), flogen die Bilder im Kreis um die Mitte
+  (bis 0,6 Kacheln je Takt), während die Männer standen. Jetzt wird der
+  Versatz zur Mitte in Weltrichtung geglättet; große Bildsprünge in 90 s
+  Schlacht 88 → 0–3 (die Reste: ein Mann, der wirklich geworfen wurde).
+
 - **Trägheit je Mann** (5. Oktober 2026, Lauf 35, Punkt C): Schrittgeschwindigkeit
   je Mann, Anfahren 6 und Bremsen 15 Kacheln/s², Bremsen vor dem Platz
   (Arrive), Gruppengeschwindigkeit mitgeführt, der Block bremst vor dem Ziel.
