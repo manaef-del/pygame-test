@@ -21,6 +21,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from game import config                                       # noqa: E402
+import os as _os
+for _kv in filter(None, _os.environ.get("CFG", "").split(",")):      # z. B. CFG=PUSH=0,RALLY_INSTANT=0: Schalter zum Vergleichen
+    _k, _v = _kv.split("=")
+    _t = type(getattr(config, _k))
+    setattr(config, _k, (_v.lower() in ("1", "true", "ja")) if _t is bool else _t(_v))
 from game.ai import Memory                                    # noqa: E402
 from game.army import Army, GroupSpec, Tier, default_army     # noqa: E402
 from game.battle import Battle                                # noqa: E402

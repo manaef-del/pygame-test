@@ -101,6 +101,7 @@ RALLY_SAFE = 2.0             # Kacheln Lücke: so nah darf kein kämpfender Fein
 RALLY_REGEN = 0.04           # Moral je Sekunde beim Sammeln
 LAST_STAND_RANGE = 1.0       # Kacheln Lücke: so nah gesetzt, kehren Verteidiger auf der Agora um (Angreifer verlassen das Feld)
 RALLY_MORALE = 0.6           # ab dieser Moral nimmt eine gesammelte Gruppe wieder Befehle an
+RALLY_INSTANT = True         # Verteidiger sind auf ihrer Agora sofort wieder kampfbereit (sonst erst, wenn kein Feind nah ist und die Moral reicht)
 RALLY_EDGE = 1.5             # Kacheln vom eigenen Kartenrand, wo sich Angreifer sammeln
 
 # Peltasten

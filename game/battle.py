@@ -5744,7 +5744,7 @@ class Battle:
             return
         if dist(u.pos, self.rally_point(u)) > config.RALLY_RADIUS:
             return
-        if self.defends(u):
+        if self.defends(u) and config.RALLY_INSTANT:
             # auf der eigenen Agora ist man sofort wieder kampfbereit und nimmt Befehle an
             self._stand_again(u, max(u.morale, config.RALLY_MORALE))
             self.events.append(f"{u.name} ({u.side.value}) sammeln sich auf der Agora")
