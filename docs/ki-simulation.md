@@ -21,11 +21,44 @@ ein paar Salven weniger (Feindverluste 2 bis 4 Punkte niedriger). Bei
 treffen die Reiter nicht mehr im Rücken), beim Angriff auf die Siedlung
 kostet es den einen Sieg von sechs. Die Räuberwerte bleiben.
 
-Nebenbefund: Die Trägheit (Lauf 35, C) hat die Balance der Siedlung
-verschoben. Dieselben Seeds, Taktik „schlachtordnung“: Lauf 34 49 %
-Verluste und 13,3 Häuser, jetzt 75 % und 22,8. Die Männer stehen nicht mehr
-sofort wieder in der Reihe, wenn die Haufen sie durcheinanderbringen. Das
-gehört zur nächsten Balance-Runde.
+### Nachprüfung: Warum die Siedlungsverteidigung teurer wurde
+
+Dieselben Seeds, Taktik „schlachtordnung“: Lauf 34 49 % Verluste und 13,3
+Häuser, jetzt 75 % und 22,8; „linie_reiter“ 32 % → 86 %, „linie_tief“
+27 % → 40 %. Geprüft wurden „Nachrücken in die Lücke“ und
+„Zusammenschließen nach dem Gerangel“: **beides ist in Ordnung.** Die
+Phalanx der Hopliten bleibt im Handgemenge geschlossen (alle Männer auf
+ihren Plätzen, Phalanx-Bonus bis zuletzt); sie bricht an der **Moral**:
+Ein Räuberhaufen im Rücken zehrt an einer Phalanx 0,05 je Schadenspunkt,
+und die einreihige Linie der Simulationstaktiken (41 Mann in einer Reihe)
+hat keinen Rücken, der sich wehrt. Jetzt kommen die Haufen des Plans
+„Umgehen und in den Rücken fallen“ früher (12 statt 16 s) und zu zweit
+nacheinander in den Rücken (41 s statt 15 s Rückenkontakt über acht
+Seeds), und die Hopliten fliehen nach vier Gefallenen; nach dem Sammeln
+auf der Agora kämpfen sie ohne Phalanx weiter.
+
+Welche Änderung das auslöst, lässt sich nicht sauber trennen: Mit
+Platzverteilung *und* Trägheit aus sind die alten Zahlen zurück (32
+Verluste, 15 s Rücken), mit nur einer von beiden aus nicht. Eine winzige
+Störung des alten Stands (Mannradius 0,055 → 0,0551) ergibt schon 42
+Verluste und 30 s Rücken: Der alte Stand hing an einem günstigen
+Verlauf, bei dem die umgehenden Haufen an der Flanke hängen blieben.
+Kontrollierte Duelle sind alt wie neu gleich (Haufen frontal gegen Phalanx:
+Flucht nach 12 s, 9 Räuber übrig; Reiterstoß in einen anstürmenden
+Haufen: Flucht nach 12 s, 14–16 Mann geworfen). Die Räuber sind also nicht
+stärker geworden, sie **kommen nur besser um die Linie herum**, seit die
+Männer ruhiger laufen.
+
+Stärke-Sweep (sechs Seeds) zur Entscheidung:
+
+| Räuber | linie_tief | schlachtordnung | linie_reiter |
+|---|---|---|---|
+| 128 (Vorgabe) | 5/6, 40 %, 5,5 Häuser | 6/6, 75 %, 22,8 | 5/6, 86 %, 24,3 |
+| 112 | 6/6, 13 %, 0,0 | 6/6, 62 %, 18,3 | 4/6, 83 %, 20,8 |
+| 96 | 6/6, 11 %, 0,0 | 6/6, 26 %, 0,2 | 6/6, 14 %, 0,0 |
+
+Die tiefe Linie hält bei 112; die dünnen Linien brauchen 96 oder eine
+Antwort auf den Rückenangriff.
 
 ## Lauf 35 (5. Oktober 2026): Ruhe der Bewegung
 

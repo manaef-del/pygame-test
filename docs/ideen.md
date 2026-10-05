@@ -26,12 +26,14 @@ wandert nach unten.
    (8 von 8) gegen eine Besatzung von 40. Bildete die Besatzung gegen
    Reiter schon Kreise, wenn sie vorn gebunden war, gewann man nie (Lauf 24);
    seit der Kreis nur eine Verzweiflungstat ist, wieder immer.
-7. **Balance nach der Trägheit.** Lauf 36 zeigt, dass die Trägheit die
-   Verteidigung der Siedlung mit Schlachtordnung teurer macht (49 % → 75 %
-   Verluste, 13 → 23 Häuser bei denselben Seeds): Die Männer stehen nicht
-   mehr sofort wieder in der Reihe, wenn Haufen sie durcheinanderbringen.
-   Zu prüfen: Nachrücken in die Lücke, Zusammenschließen nach dem Gerangel,
-   oder die Räuber etwas schwächer.
+7. **Rückenangriff auf die dünne Linie.** Seit die Männer ruhiger laufen,
+   kommen die Räuberhaufen des Plans „in den Rücken fallen“ zuverlässig um
+   eine einreihige Linie herum; die Phalanx bleibt ganz, bricht aber an der
+   Moral (Rückenangriff zehrt 0,05 je Schadenspunkt). Nachrücken und
+   Zusammenschließen sind geprüft und in Ordnung (Lauf 36). Zu entscheiden:
+   weniger Räuber in der offenen Siedlung (112: tiefe Linie hält, dünne
+   Linien nicht; 96: alle halten), oder eine Antwort auf den Rückenangriff
+   (hintere Reihe macht kehrt, wenn vorn Ruhe ist; schwächerer Rücken-Zehr).
 8. **Ruhe der Bewegung, Rest.** Nach Lauf 35 (Gerangel, Platzverteilung,
    Trägheit je Mann) bleiben: Nachbartausch in der Reihe beim Marsch mit
    Gedränge (die Männer kreuzen sich seltener, tauschen aber noch), die
