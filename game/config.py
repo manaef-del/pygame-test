@@ -251,6 +251,14 @@ MAN_DEADZONE = 0.1            # Kacheln: so nah an seinem Platz rückt ein Mann 
 MAN_REST_TIME = 1.0           # Sekunden: kommt ein Mann seinem Platz so lange nicht näher, während die Gruppe steht ...
 MAN_REST_DIST = 0.8           # ... und ist er höchstens so weit davon, bleibt er stehen statt endlos auszuweichen
 DODGE_MEMORY = 1.0           # Sekunden: so lange bleibt die Ausweichseite eines Mannes gemerkt
+ROW_SWAP = False             # Marsch: kreuzen sich zwei Nachbarn in der Reihe, tauschen sie ihre Plätze. Gemessen (Lauf 40): locker
+                             # ausgelegt halbiert es den Nachbartausch, bremst aber Blöcke im Gedränge; streng ausgelegt bringt es nichts; bleibt aus
+ROW_SWAP_GAP = 0.75          # ... erst, wenn der Tausch die Wege zusammen um so viel (mal Mannabstand) kürzer macht; sonst tauschen sie hin und her
+DODGE_SHARE = False          # Ausweichen unter eigenen Leuten: beide weichen je zur Hälfte (wie RVO). Gemessen (Lauf 40): im Marsch etwas
+                             # ruhiger, aber bindende Gruppen der KI kamen nicht mehr an die Front; bleibt aus
+QUEUE_CALM = True            # Schlange vor der Leiter: die Reihenfolge klebt (wer vorn stand, bleibt vorn), und wer an seinem
+                             # Platz in der Schlange steht, bremst dort und zappelt nicht nach
+QUEUE_STICK = 0.15           # Kacheln: so viel näher muss einer sein, um in der Schlange einen Platz vorzurücken
 FIT_MEN = True               # beim Umformen bekommt jeder Mann den Platz, der seiner Stelle am nächsten kommt (keiner kreuzt)
 SHUFFLE_DIST = 0.8            # Kacheln: so kurze Wege zum Ziel rückt eine Gruppe, ohne sich erst umzudrehen
 FLEE_TURN_RATE = 6.0          # rad/s: Fliehende wenden ohne Zeremonie, aber nicht schneller (sonst zuckt die Front)

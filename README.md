@@ -478,6 +478,10 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Blickstrich zeigt es: Die hintere Reihe schaut nach hinten, sobald sie
   dort gepackt wird. Eine einreihige Linie, deren Männer alle vorn im
   Speerkampf stehen, kann sich nicht umdrehen.
+- **Schlange vor der Leiter:** Wer sich vor einer besetzten Leiter oder
+  einem Turm anstellt, behält seinen Platz in der Reihenfolge, solange ihn
+  keiner klar überholt, bremst vor seinem Platz in der Schlange und wartet
+  dort still, statt mit jedem Takt nachzurücken.
 - **Drücken (Othismos):** Wo zwei Fronten gebunden sind, schiebt die
   stärkere Seite die schwächere Ruck für Ruck zurück. Die Stoßkraft je
   Berührungsstelle ist die Tiefe: Jede Reihe bis zur vierten zählt voll,

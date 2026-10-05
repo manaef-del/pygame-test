@@ -83,6 +83,7 @@ class Man:
     bound_arc: str = ""  # von wo sein Gegner kam, aus Sicht der Formation ("front", "flank", "rear"): wer nicht
                          # vorn gebunden ist, dreht sich zu ihm um und kämpft ohne Rückennachteil
     bound_dx: float = 0.0   # Richtung zu seinem Gegner, als er gebunden wurde (nur fürs Bild: sein Blick)
+    queue_rank: int = -1    # Platz in der Schlange vor einer Leiter (klebrig: wer vorn stand, bleibt vorn)
     bound_dy: float = 0.0
     anchor: tuple[float, float] | None = None   # Gruppenzentrum, als er gebunden wurde
     stand: tuple[float, float] | None = None    # sein eigener Platz, als er gebunden wurde
@@ -322,6 +323,7 @@ class Lochos:
     face_to: tuple[float, float] | None = None   # befohlene Front, auf die die Gruppe schwenkt
     ring_size: float = 0.0            # Kreis: gewünschter äußerer Halbmesser (0 = eine geschlossene Reihe, der weiteste)
     pushed: float = 0.0               # Kacheln, die die Gruppe im Drücken zuletzt verloren hat (nur für Bericht und Bild)
+    prev_facing: tuple[float, float] = (0.0, 0.0)   # Front im letzten Takt der Männerbewegung (schwenkt sie gerade?)
     rows_are_rings: bool = False      # die Reihen sind die Ringe des Kreises (außen zuerst)
     line_width: int = 0               # Breite der Linie, ehe die Gruppe in den Kreis ging
     _ring_cache: tuple = ()           # (Schlüssel, engster, weitester Halbmesser)

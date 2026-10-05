@@ -32,12 +32,15 @@ wandert nach unten.
    statt 49 %, linie_reiter 94 % statt 32 %, Streuung ±10). Offen: weniger Räuber in der
    offenen Siedlung (112: tiefe Linie hält leicht; 96: alle halten) oder
    ein schwächerer Rücken-Zehr für die, die noch vorn gebunden sind.
-8. **Ruhe der Bewegung, Rest.** Nach Lauf 35 (Gerangel, Platzverteilung,
-   Trägheit je Mann) bleiben: Nachbartausch in der Reihe beim Marsch mit
-   Gedränge (die Männer kreuzen sich seltener, tauschen aber noch), die
-   Flucht, aufgelöste Haufen an Leitern, und Reziprozität beim Ausweichen
-   (beide weichen je zur Hälfte, wie RVO/ORCA; heute weicht der, der anstößt).
-   Maßstab: `ruhe.py` je Lage.
+8. **Ruhe der Bewegung, Rest.** Nach Lauf 40 bleibt: Nachbartausch in der
+   Reihe beim Marsch mit Gedränge (0,5–0,7 je Mann und Sekunde). Zwei
+   Versuche sind gemessen und verworfen (Schalter ROW_SWAP, DODGE_SHARE in
+   config.py): Platztausch kreuzender Nachbarn halbiert den Tausch, bremst
+   aber Blöcke im Gedränge und wirft die KI-Pläne aus dem Tritt; streng
+   ausgelegt bringt er nichts. Geteiltes Ausweichen (beide je zur Hälfte, wie
+   RVO) beruhigt den Marsch etwas, aber bindende Gruppen der KI kamen nicht
+   mehr an die Front. Die Flucht ist mit der Schlange an der Festung ruhiger;
+   in der offenen Siedlung schwankt sie stark mit dem Verlauf der Schlacht.
 10. **Verbände für die Gegner-KI.** Die KI bildet noch keine Verbände und
     wechselt keine Modi; denkbar wäre etwa eine lockere Ordnung der
     Siedlung gegen Peltasten.
@@ -61,6 +64,11 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
   Aufwand.
 
 ## Erledigt
+
+- **Schlange vor der Leiter** (5. Oktober 2026, Lauf 40): Die Reihenfolge
+  klebt, wer an seinem Platz in der Schlange steht, wartet still. Aufgelöste
+  Haufen an der Festung: Umkehrungen 0,67 → 0,57 (Tore) und 0,57 → 0,36
+  (Turm) je Mann und Sekunde, Flucht dort ebenfalls ruhiger.
 
 - **Drücken, Phalanx gegen Phalanx** (5. Oktober 2026, Lauf 39): Die
   stärkere Seite (Tiefe mal Moral je Berührungsstelle; Haufen ein halber

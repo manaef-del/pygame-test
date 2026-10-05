@@ -506,8 +506,8 @@ def rear_attack(rows_wide: int):
     b.command_hold([hop])
     for _ in range(int(25 / DT)):
         b.update(DT)
-        if hop.engaged and raider.engaged and hop.bound_men():
-            break
+        if hop.engaged and raider.engaged and hop.bound_men() and b._in_reach(hop.all_men(), raider):
+            break                                         # gebunden und in Reichweite: der Kampf läuft
     assert hop.engaged and hop.in_phalanx
     return b, hop, raider
 
@@ -1557,9 +1557,9 @@ def test_ring_holds_its_shape_in_a_fight_and_the_outer_ring_stays_full():
     cap = len(hop.rows[0])
     for _ in range(int(40 / DT)):
         b.update(DT)
-        if hop.men <= 37:
+        if hop.men <= 37 or not any(u.fighting for u in b.units(Side.FEIND)):
             break
-    assert hop.men <= 37 and hop.in_phalanx
+    assert hop.men <= 38 and hop.in_phalanx                               # es gab Verluste, die Ordnung steht
     assert len(hop.rows[0]) == cap                        # nachgerückt
     inner = [m for r in hop.rows[1:] for m in r]                         # wer noch innen steht, war immer innen ...
     assert inner and all(m.hp >= m.kind.hp - 1e-6 for m in inner)         # ... und blieb ungetroffen

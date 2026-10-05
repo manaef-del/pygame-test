@@ -4015,6 +4015,10 @@ class Battle:
             u.assault_slots = [slot for _, slot in assault] if assault is not None else []
             settled = (assault is None and u.vel <= 0.05 and not u.engaged and not u.waiting
                        and (u.target is None or dist(u.pos, u.target) <= config.ARRIVE_EPS + 0.05))
+            steady = u.facing[0] * u.prev_facing[0] + u.facing[1] * u.prev_facing[1] > 0.9995
+            u.prev_facing = u.facing
+            if config.ROW_SWAP and assault is None and not settled and steady and u.formation == "linie" and not u.engaged:
+                self._swap_crossed_neighbours(u)          # nicht im Schwenk: dort hinken die Männer der Front nur nach
             for man, slot in (assault if assault is not None else u.slots()):
                 d = dist(man.pos, slot)
                 if assault is not None:               # um den Gegner herum: dicht an seinen Umriss, nie hinein
@@ -4040,6 +4044,28 @@ class Battle:
                     man.mvx, man.mvy = mv                             # der zweite Anlauf geht aus der alten Bewegung heraus
                     goal, _ = self.route_from(u, man.pos, slot)     # Umweg (Tor), statt an der Palisade zu kriechen
                     self._man_step(u, man, goal, speed * dt, walker, dt=dt, brake=False)
+
+    def _swap_crossed_neighbours(self, u: Lochos) -> None:
+        """Marsch in Ordnung: Stehen zwei Nachbarn einer Reihe vertauscht, jeder schon auf dem Platz
+        des anderen, tauschen sie die Plätze, statt sich zurück aneinander vorbeizudrängen. Der Tausch
+        kostet keinen Schritt. Gebundene und der Befehlshaber bleiben, wo sie sind."""
+        if math.hypot(*u.moved) < 0.3:
+            return                                        # die Gruppe steht oder steckt: dann hilft kein Tausch
+        chief = u.commander_man()
+        slot_of = {id(m): p for m, p in u.slots()}
+        margin = config.ROW_SWAP_GAP * config.MAN_SPACING
+        for row in u.rows:
+            for i in range(len(row) - 1):
+                a, b = row[i], row[i + 1]
+                if a is chief or b is chief or a.bound or b.bound:
+                    continue
+                if math.hypot(a.mvx, a.mvy) < 0.3 or math.hypot(b.mvx, b.mvy) < 0.3:
+                    continue                              # nur zwei, die beide gehen (im Gedränge steht man)
+                sa, sb = slot_of[id(a)], slot_of[id(b)]
+                near = 0.6 * config.MAN_SPACING
+                if (dist(a.pos, sb) < near and dist(b.pos, sa) < near          # jeder steht schon auf dem Platz des anderen
+                        and dist(a.pos, sb) + dist(b.pos, sa) + margin < dist(a.pos, sa) + dist(b.pos, sb)):
+                    row[i], row[i + 1] = b, a                                  # der Tausch kostet keinen Schritt
 
     def _resting(self, u: Lochos, man: Man, slot: Point, d: float, settled: bool) -> bool:
         """Bleibt ``man`` stehen? Die Gruppe steht, er ist nahe an seinem Platz, kommt ihm aber
@@ -4103,18 +4129,33 @@ class Battle:
         ranks: dict[int, int] = {}
         for cell in {self.cell(*g) for _, g, _, _ in goals}:
             if cell in self.ladders or cell in self.crossings:
-                waiting = sorted((m for m, g, _, _ in goals if self.cell(*g) == cell),
-                                 key=lambda m: dist(m.pos, (cell[0] + 0.5, cell[1] + 0.5)))
+                foot = (cell[0] + 0.5, cell[1] + 0.5)
+                if config.QUEUE_CALM:
+                    # die Reihenfolge klebt: wer vorn stand, bleibt vorn, solange ihn keiner klar überholt
+                    def key(m: Man) -> float:
+                        return dist(m.pos, foot) + (config.QUEUE_STICK * m.queue_rank if m.queue_rank >= 0 else 9.0)
+                else:
+                    def key(m: Man) -> float:
+                        return dist(m.pos, foot)
+                waiting = sorted((m for m, g, _, _ in goals if self.cell(*g) == cell), key=key)
                 for rank, m in enumerate(waiting):
                     ranks[id(m)] = rank
         for man, goal, slot, lagging in goals:
+            man.queue_rank = ranks.get(id(man), -1)
             if man.bound and dist(goal, man.stand or man.pos) > config.BOUND_SHUFFLE:
                 continue
-            goal = self._queue_spot(goal, man, ranks.get(id(man), 0))
+            spot = self._queue_spot(goal, man, ranks.get(id(man), 0))
+            queued = spot != goal
+            goal = spot
+            if config.QUEUE_CALM and queued and dist(man.pos, goal) <= 0.06:
+                man.mvx = man.mvy = 0.0
+                man.stall = 0.0
+                continue                                  # steht an seinem Platz in der Schlange: warten, nicht zappeln
             speed = max(u.speed, man.speed) * config.MAN_CATCHUP if lagging else u.speed
             before = man.pos
             # wer über den Wall kommt, bleibt drüben an Feinden hängen (kein Entlanggleiten um sie herum)
-            self._man_step(u, man, goal, speed * dt, walker, stick=u.loose_why == "wall", dt=dt, brake=goal == slot)
+            self._man_step(u, man, goal, speed * dt, walker, stick=u.loose_why == "wall", dt=dt,
+                           brake=goal == slot or (config.QUEUE_CALM and queued))
             man.stall = man.stall + dt if dist(before, man.pos) < 0.2 * speed * dt else 0.0
         u.x, u.y = self._loose_centre(u)
 
@@ -4607,6 +4648,20 @@ class Battle:
         # erst auf der gewählten Seite (seitlich, dann schräg zurück), dann erst die andere; an einem
         # fremden Block gleitet er mit vollem Tempo entlang, unter den eigenen nur um den gebremsten Schritt
         aside = full if self._man_group.get(id(crowded)) != u.id else step
+        if (config.DODGE_SHARE and self._man_group.get(id(crowded)) == u.id and not crowded.bound
+                and not u.loose and u.stance is not Stance.FLUCHT        # im Marsch in Ordnung; Flucht und Haufen nicht
+                and math.hypot(crowded.mvx, crowded.mvy) > 0.3):   # nur wer selbst geht; wer steht, wird umgangen
+            # unter eigenen Leuten weichen beide je zur Hälfte: der im Weg rückt ein halbes Stück
+            # zur anderen Seite, der Gehende braucht nur noch ein halbes zur seinen
+            half = 0.5 * aside
+            ox, oy = crowded.x - tx * half, crowded.y - ty * half
+            if (self._crowding(crowded, crowded.pos, (ox, oy), u.id) is None
+                    and self._man_can_step(u, crowded, crowded.pos, (ox, oy), walker)):
+                crowded.x, crowded.y = ox, oy
+                nx, ny = man.x + tx * half + dx, man.y + ty * half + dy
+                if self._crowding(man, man.pos, (nx, ny), u.id) is None and self._man_can_step(u, man, man.pos, (nx, ny), walker, through):
+                    self._place(man, nx, ny, dt)
+                    return True
         for vx, vy in ((tx, ty), (-tx, -ty), (tx + ax, ty + ay), (-tx + ax, -ty + ay), (ax, ay)):
             m_ = math.hypot(vx, vy)
             nx, ny = man.x + vx / m_ * aside, man.y + vy / m_ * aside

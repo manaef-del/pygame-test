@@ -1,5 +1,45 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 40 (5. Oktober 2026): Ruhe der Bewegung, Rest
+
+Drei Regeln gebaut, einzeln gemessen (`ruhe.py`: Umkehrungen, Knicke und
+Nachbartausch je Mann und Sekunde, nach Lage; je zwei bis drei Seeds). Nur
+eine bleibt.
+
+**Schlange vor der Leiter** (bleibt, QUEUE_CALM): Die Reihenfolge in der
+Schlange klebt (wer vorn stand, bleibt vorn, solange ihn keiner um 0,15
+Kacheln überholt), wer an seinem Platz in der Schlange steht, bremst und
+wartet still.
+
+| Lage | festung/tore vorher / nachher | festung_angriff/turm vorher / nachher |
+|---|---|---|
+| aufgelöst, Umkehr | 0,67 / 0,57 | 0,57 / 0,36 |
+| aufgelöst, Knick | 1,48 / 1,31 | 1,10 / 0,82 |
+| Flucht, Umkehr | 0,36 / 0,19 | 0,27 / 0,10 |
+
+**Platztausch kreuzender Nachbarn** (verworfen, ROW_SWAP): Stehen zwei
+Nachbarn einer Reihe im Marsch vertauscht, tauschen sie die Plätze. Locker
+ausgelegt (sobald der linke rechts vom rechten steht) halbiert das den
+Nachbartausch im Marsch (siedlung 0,73 → 0,49, horde 0,65 → 0,44, Festung
+0,51 → 0,32), aber jeder Tausch schickt zwei Männer quer, und im Gedränge
+bremst das die Blöcke: Ein angreifender Haufen kam hinter eigenen Gruppen
+nicht mehr voran, und zwei KI-Pläne (binden und umfassen, Rückzug vor der
+Phalanx) kippten in den Tests. Streng ausgelegt (nur, wenn jeder schon auf
+dem Platz des anderen steht) kostet der Tausch keinen Schritt, bringt aber
+auch nichts mehr (0,73 → 0,76, 0,65 → 0,56). Bleibt aus.
+
+**Geteiltes Ausweichen** (verworfen, DODGE_SHARE): Unter eigenen Leuten
+weichen beide je zur Hälfte, wie bei RVO. Im Marsch etwas ruhiger (Knick
+siedlung 0,99 → 0,73, horde 0,57 → 0,34), aber die bindenden Gruppen der KI
+kamen nicht mehr an die Front (Test „binden und umfassen“), und in Flucht
+und Haufen wurde das Bild unruhiger. Bleibt aus.
+
+Zur Streuung: Seit dem Drücken (Lauf 39) nehmen Schlachten mit derselben
+Saat je nach kleinsten Unterschieden einen anderen Verlauf; Handgemenge und
+Flucht schwanken zwischen zwei Läufen um 50 %, Marsch und aufgelöste Haufen
+weniger. Die Zahlen oben sind deshalb nur dort belastbar, wo sie in allen
+Fällen in dieselbe Richtung zeigen.
+
 ## Lauf 39 (5. Oktober 2026): Drücken, Phalanx gegen Phalanx
 
 Neu: Wo zwei Fronten gebunden sind, schiebt die stärkere Seite die schwächere
