@@ -39,6 +39,24 @@ PHALANX_REAR = 1.8           # ... für Männer, die vorn gebunden sind und dem 
 PHALANX_TURN = True          # wer nicht vorn gebunden ist, macht kehrt bzw. dreht sich zur Flanke: dort gilt kein Rückennachteil,
                              # aber auch kein Phalanxbonus (der gilt nur in der ersten Reihe nach vorn)
 PHALANX_FRONT_O = 0.55       # Kreis: rundum Front, ohne den Rückhalt der Glieder
+
+# Drücken (Othismos): Wo zwei Fronten gebunden sind, schiebt die stärkere Seite die schwächere
+# Ruck für Ruck zurück. Stoßkraft einer Phalanx an der Berührung = Männer der vorderen Reihe in
+# Reichweite × Tiefe (jede Reihe bis PUSH_ROWS_FULL zählt voll, dahinter halb) × Moral; ein Haufen
+# ohne Reihen zählt PUSH_LOOSE je Mann nahe der Berührung. Peltasten, Reiter und der Kreis drücken
+# nicht und werden nicht gedrückt.
+PUSH = True
+PUSH_STEP = 0.055            # Kacheln je Ruck: ein halber Manndurchmesser; die ganze Gruppe macht ihn zusammen
+PUSH_RATIO = 1.2             # Stärkeverhältnis, ab dem gedrückt wird, alle PUSH_INTERVAL Sekunden ...
+PUSH_FAST = 2.0              # ... und ab dem jede PUSH_INTERVAL_FAST Sekunde
+PUSH_INTERVAL = 2.0
+PUSH_INTERVAL_FAST = 1.0
+PUSH_ROWS_FULL = 4           # Reihen, die voll mitschieben; jede weitere zählt halb
+PUSH_LOOSE = 0.5             # Stoß je Mann eines Haufens ohne Reihen (ein Phalanxmann vorn zählt je Reihe hinter ihm 1)
+MORALE_PUSH = 0.3            # Moralverlust je Kachel verlorenen Bodens
+PUSH_CRUSH = 0.1             # Schaden je Ruck und drückendem Mann vorn, wenn die Gedrückten nicht weichen können
+PUSH_CRUSH_MORALE = 1.5      # ... (Haus, Mauer, eigene Gruppe, Kartenrand), dazu so viel mehr Moral
+PUSH_BLOCKED_SHARE = 0.3     # Anteil der Männer, die nicht weichen können, ab dem die Gruppe eingeklemmt ist
 RING_ATTACK_SHARE = 0.6      # Anteil aller Männer, die im Kreis kämpfen
 PHALANX_ATTACK_FRONT = 1.3   # Speere in der Linie
 SECOND_ROW_SPEARS = 0.5      # Anteil, mit dem die Hopliten der zweiten Reihe über die Schultern mitstechen

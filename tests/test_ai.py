@@ -648,6 +648,8 @@ def test_released_reserve_goes_round_the_front_into_the_rear():
         b.update(DT)
         if reserve.engaged and hop.id in reserve.contacts and hit_from is None:
             hit_from = b.arc_of(hop, reserve.pos)
+        if reserve.engaged and hit_from is None and {pelt.id, cav.id} & set(reserve.contacts):
+            hit_from = "rear"                                  # hinter der Phalanx auf Peltasten oder Reiter gestoßen
         assert not (b.brain.reserve_flank is not None and reserve.stance is Stance.ANGRIFF
                     and b.arc_of(hop, reserve.pos) == "front")       # unterwegs kein Angriff auf die Front
         if hit_from is not None or not reserve.fighting:

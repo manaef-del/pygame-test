@@ -176,6 +176,8 @@ class Battle:
     climb_budget: dict[tuple[int, int], float] = field(default_factory=dict)       # Durchsatz je Leiter/Turm
     _barrier_cache: dict = field(default_factory=dict)
     _shown_facing: dict = field(default_factory=dict)  # nur fürs Bild: Mitte je Gruppe im letzten Takt
+    _push_due: dict = field(default_factory=dict)      # Drücken: Paar (ids) -> Zeit des nächsten Rucks
+    _push_told: set = field(default_factory=set)       # Gruppen, deren Zurückdrängen schon gemeldet ist
     _man_grid: dict = field(default_factory=dict)      # Männer je Rasterzelle (0,5 Kacheln), je Schritt neu
     _man_group: dict = field(default_factory=dict)     # id(Mann) -> Gruppen-id, je Schritt neu
     _man_side: dict = field(default_factory=dict)      # id(Mann) -> Seite, je Schritt neu
@@ -4895,6 +4897,123 @@ class Battle:
         hits = [(a, b, *self._melee(a, b, dt)) for a, b in pairs]
         for a, b, dmg, arc_name in hits:
             self._apply_damage(a, b, dmg, arc_name)
+        if config.PUSH:
+            self._pushes(pairs)
+
+    # -- Drücken ------------------------------------------------------------
+    def _pushable(self, u: Lochos) -> bool:
+        """Wer drückt und gedrückt wird: Fußvolk unten auf dem Feld; Peltasten, Reiter, der Kreis
+        und Fliehende nicht."""
+        return (u.alive and u.fighting and u.arm() == "hopliten" and u.formation != "o"
+                and not self.on_wall(u) and u.building is None)
+
+    def _push_strength(self, u: Lochos, foe: Lochos) -> float:
+        """Stoßkraft von ``u`` je Berührungsstelle mit ``foe`` (die Berührungsbreite ist für
+        beide dieselbe, wer daneben steht, schiebt nicht): in der Phalanx die Tiefe, im Haufen
+        PUSH_LOOSE je Mann nahe der Berührung, geteilt durch die Stellen der gegnerischen Front;
+        beides mal Moral. Ohne Phalanx auf einer Seite gibt es kein Drücken."""
+        if self._formed(u) and u.formation == "linie":
+            return u.push_depth() * max(0.0, u.morale)
+        if not (self._formed(foe) and foe.formation == "linie" and foe.rows):
+            return 0.0
+        files = max(1, len(self._in_reach(foe.rows[0], u)))
+        near = self._in_reach(u.all_men(), foe, 0.6)
+        return config.PUSH_LOOSE * len(near) / files * max(0.0, u.morale)
+
+    def _pushes(self, pairs: list[tuple[Lochos, Lochos]]) -> None:
+        """Je Paar in Berührung: Die stärkere Seite drückt die schwächere Ruck für Ruck zurück,
+        alle PUSH_INTERVAL Sekunden (bei doppelter Stärke PUSH_INTERVAL_FAST). Eine Phalanx drückt
+        nur nach vorn und wird nur von vorn gedrückt; sonst entscheiden Flanke und Rücken."""
+        seen: set[tuple[int, int]] = set()
+        for a, b in pairs:
+            key = (min(a.id, b.id), max(a.id, b.id))
+            if key in seen:
+                continue
+            seen.add(key)
+            if not (self._pushable(a) and self._pushable(b)):
+                self._push_due.pop(key, None)
+                continue
+            if (self._formed(a) and self.arc_of(a, b.pos) != "front") or (self._formed(b) and self.arc_of(b, a.pos) != "front"):
+                self._push_due.pop(key, None)
+                continue
+            sa, sb = self._push_strength(a, b), self._push_strength(b, a)
+            if sa <= 0.0 and sb <= 0.0:
+                self._push_due.pop(key, None)
+                continue
+            strong, weak, s_hi, s_lo = (a, b, sa, sb) if sa >= sb else (b, a, sb, sa)
+            ratio = s_hi / s_lo if s_lo > 0.0 else float("inf")
+            if ratio < config.PUSH_RATIO:
+                self._push_due.pop(key, None)
+                continue
+            interval = config.PUSH_INTERVAL_FAST if ratio >= config.PUSH_FAST else config.PUSH_INTERVAL
+            due = self._push_due.get(key)
+            if due is None:
+                self._push_due[key] = self.time + interval      # erst stemmen, dann der erste Ruck
+                continue
+            if self.time < due:
+                continue
+            self._push_due[key] = self.time + interval
+            direction = strong.facing if self._formed(strong) else norm(sub(weak.pos, strong.pos))
+            if direction == (0.0, 0.0):
+                continue
+            self._push_step(strong, weak, direction)
+
+    def _shift_group(self, u: Lochos, dx: float, dy: float, movers: list[Man]) -> None:
+        """Die Gruppe um (dx, dy) versetzen: die Männer, ihre Mitte, ihr Halteziel, und die
+        Stellen, an denen Gebundene stehen (sonst rissen sie sich los)."""
+        for m in movers:
+            m.x += dx
+            m.y += dy
+            if m.stand is not None:
+                m.stand = (m.stand[0] + dx, m.stand[1] + dy)
+            if m.anchor is not None:
+                m.anchor = (m.anchor[0] + dx, m.anchor[1] + dy)
+        if u.loose:
+            return
+        hold = u.target is not None and dist(u.target, u.pos) <= config.ARRIVE_EPS + 0.1
+        u.x += dx
+        u.y += dy
+        if hold:
+            u.target = u.pos
+        if u.last_pos is not None:
+            u.last_pos = (u.last_pos[0] + dx, u.last_pos[1] + dy)
+
+    def _push_step(self, strong: Lochos, weak: Lochos, direction: Point) -> None:
+        """Ein Ruck: die Gedrückten weichen um PUSH_STEP zurück, die Drückenden rücken nach.
+        Wer nicht weichen kann (Haus, Mauer, Kartenrand, eine andere Gruppe im Rücken), bleibt;
+        sind das zu viele, ist die Gruppe eingeklemmt und wird gequetscht statt geschoben."""
+        step = config.PUSH_STEP
+        dx, dy = direction[0] * step, direction[1] * step
+        pushed = weak.all_men()
+        free: list[Man] = []
+        for m in pushed:
+            nx, ny = m.x + dx, m.y + dy
+            if not self.inside(nx, ny) or self.is_blocked(nx, ny, weak):
+                continue
+            other = self._crowding(m, m.pos, (nx, ny), weak.id)
+            if other is not None and self._man_group.get(id(other)) != strong.id:
+                continue                                   # eine dritte Gruppe oder ein Hindernis im Rücken
+            free.append(m)
+        if len(free) < (1.0 - config.PUSH_BLOCKED_SHARE) * len(pushed):
+            front = self._in_reach(strong.rows[0], weak) if self._formed(strong) and strong.rows else self._in_reach(strong.all_men(), weak)
+            victims = self._in_reach(weak.all_men(), strong) or weak.all_men()
+            dmg = config.PUSH_CRUSH * len(front)
+            fallen = weak.take_damage_men(victims, dmg, self.rng)
+            weak.morale -= config.MORALE_PUSH * step * config.PUSH_CRUSH_MORALE * weak.bravery()
+            self._after_hit(weak, fallen, "front", dmg)
+            if weak.id not in self._push_told:
+                self._push_told.add(weak.id)
+                self.events.append(f"{strong.name} ({strong.side.value}) quetschen {weak.name} am Hindernis")
+            return
+        self._shift_group(weak, dx, dy, free)
+        weak.morale -= config.MORALE_PUSH * step * weak.bravery()
+        weak.pushed += step
+        movers = [m for m in strong.all_men()
+                  if self.inside(m.x + dx, m.y + dy) and not self.is_blocked(m.x + dx, m.y + dy, strong)]
+        self._shift_group(strong, dx, dy, movers)
+        if weak.id not in self._push_told:
+            self._push_told.add(weak.id)
+            self.events.append(f"{strong.name} ({strong.side.value}) drängen {weak.name} zurück")
 
     def _charge(self, a: Lochos, b: Lochos) -> None:
         """Sturmangriff: Reiter mit Anlauf prallen auf eine Gruppe. In die Front einer

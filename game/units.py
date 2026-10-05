@@ -321,6 +321,7 @@ class Lochos:
     ride_in: float = 0.0              # Reiter: wie weit sie in den Feind hineingetragen wurden
     face_to: tuple[float, float] | None = None   # befohlene Front, auf die die Gruppe schwenkt
     ring_size: float = 0.0            # Kreis: gewünschter äußerer Halbmesser (0 = eine geschlossene Reihe, der weiteste)
+    pushed: float = 0.0               # Kacheln, die die Gruppe im Drücken zuletzt verloren hat (nur für Bericht und Bild)
     rows_are_rings: bool = False      # die Reihen sind die Ringe des Kreises (außen zuerst)
     line_width: int = 0               # Breite der Linie, ehe die Gruppe in den Kreis ging
     _ring_cache: tuple = ()           # (Schlüssel, engster, weitester Halbmesser)
@@ -749,6 +750,14 @@ class Lochos:
     def leader_man(self) -> "Man | None":
         """Der Anführer, wenn er in dieser Gruppe kämpft und lebt."""
         return next((m for m in self.all_men() if m.leader), None)
+
+    def push_depth(self) -> float:
+        """Wie viele Reihen hinter jedem Mann der Front mitschieben: jede Reihe bis
+        PUSH_ROWS_FULL zählt voll, jede weitere halb, Reihen nach ihrer Besetzung."""
+        if not self.rows or not self.rows[0]:
+            return 0.0
+        width = len(self.rows[0])
+        return sum((1.0 if k < config.PUSH_ROWS_FULL else 0.5) * len(row) / width for k, row in enumerate(self.rows))
 
     def bravery(self) -> float:
         men = self.all_men()

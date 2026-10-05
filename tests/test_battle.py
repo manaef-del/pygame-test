@@ -1437,6 +1437,89 @@ def test_enemy_groups_wheel_and_about_turn_like_the_player():
     assert 0.3 < raider.facing[0] < 0.95 and abs(raider.x - x0) < 0.05     # schwenkt erst, marschiert dann
 
 
+# ------------------------------------------------------------ Drücken
+def push_duel(own_width: int, foe_width: int, foe_kind: str = "mittel"):
+    """Zwei Phalanxen zu je 40 Mann Schild an Schild, die eigene (Front Nord) bei (8, 9)."""
+    b = Battle(raid(16, (8.0, 0.5)), random.Random(0), army=army_of(GroupSpec("H", [Tier("mittel", 40)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    for r in b.units(Side.FEIND):
+        r.target = None
+        r.stance = Stance.HALTEN
+    own = b.units(Side.STADT)[0]
+    foe = b._spawn(Side.FEIND, arrange(men(foe_kind, 40), foe_width), 8.0, 7.0, "Feind")
+    for u, width, y, facing in ((own, own_width, 9.0, (0.0, -1.0)), (foe, foe_width, 7.0, (0.0, 1.0))):
+        u.reform(width)
+        u.x, u.y, u.facing = 8.0, y, facing
+        u.stance, u.in_line = Stance.PHALANX, True
+    foe.y = own.y - own.half_d - foe.half_d - 0.1
+    for u in (own, foe):
+        u.place_men()
+        u.target = u.pos
+    b.alarm = False
+    return b, own, foe
+
+
+def test_a_deep_phalanx_pushes_a_wide_one_back_step_by_step():
+    """Sieben breit (sechs tief) gegen vierzehn breit (drei tief): Der tiefe Block drückt die
+    breite Linie Ruck für Ruck zurück (halber Manndurchmesser je Ruck), beide rücken zusammen,
+    die Gedrückten verlieren Moral; die Reihen bleiben stehen."""
+    b, own, foe = push_duel(7, 14)
+    y_own, y_foe = own.y, foe.y
+    run(b, 12)
+    assert own.pushed == 0.0 and foe.pushed > 0.15                       # vier bis sechs Rucke in zwölf Sekunden
+    assert abs((y_own - own.y) - foe.pushed) < 1e-6 and abs((y_foe - foe.y) - foe.pushed) < 1e-6
+    assert foe.morale < 1.0 - 0.9 * config.MORALE_PUSH * foe.pushed
+    assert own.in_phalanx and foe.in_phalanx
+    assert all(dist_of_pt(m.pos, p) < 0.1 for m, p in own.slots())       # die Männer gehen mit ihrer Mitte
+    assert any("drängen" in e for e in b.events)
+
+
+def test_equal_phalanxes_do_not_push_and_the_switch_turns_it_off(monkeypatch):
+    b, own, foe = push_duel(10, 10)
+    run(b, 12)
+    assert own.pushed == 0.0 and foe.pushed == 0.0 and own.y == 9.0
+    monkeypatch.setattr(config, "PUSH", False)
+    b, own, foe = push_duel(7, 14)
+    run(b, 12)
+    assert foe.pushed == 0.0 and foe.y == b.units(Side.FEIND)[-1].y and own.y == 9.0
+
+
+def test_a_phalanx_pushes_a_mob_back_and_crushes_it_against_the_map_edge():
+    """Ein Räuberhaufen hat keine Reihen (ein halber Mann je Mann): Die Phalanx schiebt ihn
+    vor sich her. Kann er nicht weichen (Kartenrand), wird er gequetscht statt geschoben."""
+    b = Battle(raid(48, (8.0, 0.6), houses=((2, 17),)), random.Random(0),
+               army=army_of(GroupSpec("H", [Tier("mittel", 40)])), ai="einfach")
+    b._volleys = lambda dt: None
+    hop = b.units(Side.STADT)[0]
+    hop.reform(10)
+    hop.x, hop.y, hop.facing = 8.0, 1.9, (0.0, -1.0)
+    hop.stance, hop.in_line = Stance.PHALANX, True
+    hop.place_men()
+    hop.target = hop.pos
+    b.alarm = False
+    low = min(m.y for u in b.units(Side.FEIND) for m in u.all_men())
+    for _ in range(int(20 / DT)):
+        b.update(DT)
+        if any("quetschen" in e for e in b.events):
+            break
+    assert any("quetschen" in e for e in b.events)
+    assert hop.y <= 1.9 and hop.pushed == 0.0                            # die Phalanx weicht nie
+    assert min(m.y for u in b.units(Side.FEIND) for m in u.all_men()) >= min(low, 0.0) - 1e-9   # niemand über den Rand
+
+
+def test_peltasts_and_rings_are_neither_pushed_nor_pushing():
+    b, own, foe = push_duel(7, 14, foe_kind="peltast")
+    run(b, 8)
+    assert foe.pushed == 0.0 and own.pushed == 0.0
+    b, own, foe = push_duel(7, 14)
+    foe.formation = "o"
+    foe.reform_ring()
+    foe.place_men()
+    run(b, 8)
+    assert foe.pushed == 0.0 and own.pushed == 0.0
+
+
 # ------------------------------------------------------------ Kreis ziehen, Nachrücken, Gerangel
 def test_ring_size_from_drag_never_tighter_than_the_men_need():
     b, u = standing_group("mittel", 12, 6)

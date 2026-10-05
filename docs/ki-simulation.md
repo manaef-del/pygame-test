@@ -1,5 +1,49 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 39 (5. Oktober 2026): Drücken, Phalanx gegen Phalanx
+
+Neu: Wo zwei Fronten gebunden sind, schiebt die stärkere Seite die schwächere
+Ruck für Ruck zurück (ein halber Manndurchmesser je Ruck, alle zwei Sekunden
+ab dem 1,2-fachen Stoß, jede Sekunde ab dem Doppelten). Stoß je
+Berührungsstelle: in der Phalanx die Tiefe (jede Reihe bis zur vierten voll,
+dahinter halb) mal Moral, im Haufen ein halber Mann je Mann nahe der
+Berührung. Verlorener Boden kostet 0,3 Moral je Kachel; wer nicht weichen
+kann, wird gequetscht. Peltasten, Reiter und der Kreis sind ausgenommen.
+
+Labor (40 gegen 40 Hopliten, Schild an Schild, ohne Wurfspeere):
+
+| Eigene | Gegner | Ergebnis nach 50 s |
+|---|---|---|
+| 7 breit, 6 tief | 14 breit, 3 tief | Gegner 1,4 Kacheln zurückgedrängt, bricht bei 56 s an der Moral (0,48), obwohl er mehr tötet (eigene 28, Gegner 35 Mann) |
+| 14 breit | 7 breit | spiegelbildlich: eigene werden gedrängt und brechen bei 58 s |
+| 10 breit | 10 breit | kein Drücken, beide stehen |
+| 10 breit | 20 breit | Gegner 1,5 Kacheln zurück, bricht bei 41 s |
+| 10 breit, 4 tief | 48 Räuber | Haufen wird vor der Phalanx hergeschoben, flieht nach 17 s |
+| 10 breit, 4 tief | 48 Räuber am Kartenrand | Haufen eingeklemmt und gequetscht, flieht nach 7 s |
+
+Szenarien, Gegner-KI „klug“, sechs Seeds, vorher (Lauf 38) / nachher:
+
+| Szenario | Taktik | Siege | Verlust Stadt | Verlust Feind | Häuser verloren |
+|---|---|---|---|---|---|
+| siedlung | linie_tief | 6/6 / 6/6 | 23 % / 20 % | 60 % / 62 % | 2,3 / 2,3 |
+| siedlung | schlachtordnung | 6/6 / 6/6 | 66 % / 61 % | 73 % / 68 % | 19,5 / 14,8 |
+| siedlung | linie_reiter | 5/6 / 4/6 | 94 % / 85 % | 71 % / 71 % | 26,3 / 27,7 |
+| siedlung | linie_aktiv | 6/6 / 6/6 | 21 % / 30 % | 68 % / 65 % | 0,2 / 2,8 |
+| siedlung_angriff | agora | 0/6 / 0/6 | 57 % / 51 % | 16 % / 6 % | – |
+| horde_sturm | linie_aktiv | 6/6 / 6/6 | 17 % / 7 % | 59 % / 57 % | – |
+| ueberfall | linie_aktiv | 6/6 / 6/6 | 5 % / 4 % | 66 % / 61 % | 0,3 / 0,0 |
+
+Lesart: Die Tiefe lohnt jetzt. Die tiefe Linie und die Horde (dort steht
+die Linie mehrreihig) werden billiger, die Schlachtordnung ebenfalls. Die
+aktive Linie in der Siedlung wird teurer (21 → 30 %, 2,8 Häuser): Sie
+ist acht Kacheln lang, also eine einzige Reihe, und eine Reihe schiebt ein
+Räuberhaufen zurück (ein halber Mann je Mann gegen Tiefe 1). Das ist die
+gewollte Kehrseite, die Taktik muss tiefer stellen. Der Angriff auf die
+Siedlung bleibt verloren und wird schlechter: Die KI-Hopliten stehen acht
+breit und fünf tief und drängen die langen Linien des Spielers zurück; die
+Feindverluste sinken von 16 auf 6 %. Dort ist die KI also nicht zu schwach,
+sondern der Spieler steht falsch. Die Reiterlinie liegt in der Streuung.
+
 ## Lauf 38 (5. Oktober 2026): Der Kreis als Phalanx
 
 Neu: Die Ringe des Kreises sind die Reihen der Gruppe; der weiteste Kreis ist

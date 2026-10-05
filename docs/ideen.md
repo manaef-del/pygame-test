@@ -62,6 +62,14 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Drücken, Phalanx gegen Phalanx** (5. Oktober 2026, Lauf 39): Die
+  stärkere Seite (Tiefe mal Moral je Berührungsstelle; Haufen ein halber
+  Mann je Mann) schiebt die schwächere Ruck für Ruck zurück, ein halber
+  Manndurchmesser je Ruck, alle zwei Sekunden oder jede Sekunde. Verlorener
+  Boden kostet Moral, am Hindernis wird gequetscht. Damit lohnt die Tiefe
+  erstmals: Breite bringt Speere, Tiefe Stoß. Peltasten, Reiter, Kreis
+  drücken nicht. Schalter PUSH.
+
 - **Der Kreis als Phalanx** (5. Oktober 2026): Die Ringe sind die Reihen
   (außen die vorderen Abschnitte), der weiteste Kreis ist eine geschlossene
   Reihe, enger gezogen bilden sich Ringe nach innen. Nur der äußere Ring

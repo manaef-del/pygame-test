@@ -478,6 +478,26 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Blickstrich zeigt es: Die hintere Reihe schaut nach hinten, sobald sie
   dort gepackt wird. Eine einreihige Linie, deren Männer alle vorn im
   Speerkampf stehen, kann sich nicht umdrehen.
+- **Drücken (Othismos):** Wo zwei Fronten gebunden sind, schiebt die
+  stärkere Seite die schwächere Ruck für Ruck zurück. Die Stoßkraft je
+  Berührungsstelle ist die Tiefe: Jede Reihe bis zur vierten zählt voll,
+  jede weitere halb, mal Moral. Ein Räuberhaufen ohne Reihen zählt je
+  Mann nahe der Berührung einen halben Mann. Wer neben der Berührung
+  steht, schiebt nicht; die Breite bringt Speere, die Tiefe Stoß. Ab dem
+  1,2-fachen Stoß ein Ruck alle zwei Sekunden, ab dem Doppelten jede
+  Sekunde; ein Ruck ist ein halber Manndurchmesser (0,055 Kacheln), die
+  ganze Gruppe macht ihn zusammen, die Gedrückten weichen um dasselbe
+  Stück. Man sieht es: Wer drückt, geht Ruck für Ruck vor, wer gedrückt
+  wird, zurück. Verlorener Boden kostet Moral (0,3 je Kachel); wer nicht
+  weichen kann (Haus, Mauer, Kartenrand, eine Gruppe im Rücken), wird
+  gequetscht: Schaden je Ruck und drückendem Mann, anderthalbfache Moral.
+  Eine Phalanx drückt nur nach vorn und wird nur von vorn gedrückt; von
+  Flanke und Rücken gelten die alten Regeln. Peltasten, Reiter und der
+  Kreis drücken nicht und werden nicht gedrückt. Im Labor drückt ein
+  Block sieben breit (sechs tief) eine Linie vierzehn breit in fünfzig
+  Sekunden anderthalb Kacheln zurück, bis sie an der Moral bricht,
+  obwohl die Linie mehr Männer tötet; gleich tiefe Phalanxen stehen.
+  Schalter `PUSH` in config.py.
 - **Der Kreis ist eine Phalanx:** Die Ringe sind seine Reihen. Es kämpft
   der äußere Ring, der zweite sticht mit halben Speeren mit, getroffen wird
   nur der äußere; fällt dort einer, rückt aus dem nächsten Ring der nach,
