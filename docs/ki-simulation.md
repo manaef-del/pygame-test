@@ -105,6 +105,55 @@ hinschaut, wenn er seine Gruppen umformt, schwenkt oder wenden lässt.
 Offen bleiben die Trägheit je Mann (siehe `docs/ideen.md`, Punkt 8), das
 Gedränge marschierender Gruppen und die aufgelösten Haufen an den Leitern.
 
+### Änderung C: Trägheit je Mann
+
+Jeder Mann hat eine Schrittgeschwindigkeit. Er fährt mit 6 Kacheln/s² an,
+bremst mit 15 Kacheln/s² (Bremsweg aus dem Marsch kürzer als ein
+Reihenabstand), führt im Marsch die Geschwindigkeit seiner Gruppe mit und
+korrigiert nur den Rest, bremst vor seinem Platz so, dass er dort steht
+(„Arrive“), und wer anstößt, steht. An einem fremden Block gleitet er mit
+vollem Tempo entlang, unter eigenen Nachbarn weicht er nur um den
+gebremsten Schritt aus. Der Block bremst vor seinem Ziel ebenso, sonst
+liefen die Männer in die Reihe vor ihnen. Reiter sind ausgenommen (ihr
+Schwung steckt schon im Trupp).
+
+Labor, Umkehrungen je Mann und Sekunde:
+
+| Fall | vor C | mit C |
+|---|---|---|
+| Marsch mit Gedränge (fünf Gruppen, eine Linie, Schwenk, Kolonne) | 0,57 | 0,16 |
+| … Knicke über 60 Grad | 1,40 | 0,56 |
+| Platztausch zweier Gruppen (Labor „tauschen“) | 0,44 | 0,23 |
+| Alle auf einen Punkt | 0,23 | 0,16 |
+| Schwenk 90 Grad / Kehrtwende / schmaler | 0,00 / 0,00 / 0,19 | 0,00 / 0,00 / 0,00 |
+| Linie breiter (14 → 20) | 1,88 | 0,34 |
+
+Echte Schlachten, drei Seeds, 90 s, je Mann und Sekunde:
+
+| | Umkehr Marsch | Umkehr Handgemenge | Bild Handgemenge | Tausch Marsch |
+|---|---|---|---|---|
+| Siedlung vor C / mit C | 0,50–0,73 / 0,21 | 0,25–0,46 / 0,17 | 0,28–0,38 / 0,23 | 0,38–0,53 / 0,68 |
+| Horde vor C / mit C | 0,27–0,48 / 0,13 | 0,23–0,40 / 0,12 | 0,33–0,42 / 0,25 | 0,28–0,42 / 0,61 |
+
+Die Umkehrungen fallen in Marsch und Handgemenge auf ein Drittel bis ein
+Viertel; die Männer schießen aber nicht mehr sofort auf ihren Platz zurück,
+sondern laufen weich aus, und so tauschen Nachbarn in der Reihe beim
+Marsch mit Gedränge häufiger die Seite (0,4–0,5 → 0,6–0,7). Das ist der
+offene Rest (siehe `docs/ideen.md`, Punkt 8).
+
+Zwei Dinge kamen dabei als Fehler ans Licht und sind behoben: Eine Gruppe,
+deren Ziel eine ruhende eigene Gruppe belegt, wartete bisher ewig 0,3
+Kacheln davor; jetzt bleibt sie dort stehen. Und der Anlauf der Reiter
+wurde auf null gesetzt, sobald der Kontakt kurz aussetzte (die Geworfenen
+laufen mit Masse langsamer zurück); jetzt zählt er weiter.
+
+Verworfen wurde unterwegs: Trägheit auch für Reiter (doppelt gezählt, der
+Sturm kam nicht mehr in den Feind), eine Bremsrate gleich der Anfahrrate
+(Bremsweg länger als der Reihenabstand: die Männer liefen in die Reihe vor
+ihnen und wichen seitlich aus, Nachbartausch 83 statt 8 im Labor), und
+Ausweichschritte an fremden Blöcken im gebremsten Tempo (Nachzügler krochen
+mit 0,4 Kacheln/s an einer Linie entlang und verloren ihren Block).
+
 ## Lauf 34 (4. Oktober 2026): Reserve um die Flanke, Festung, Räuberlager
 
 Neu seit Lauf 33:

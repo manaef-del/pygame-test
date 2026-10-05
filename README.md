@@ -75,6 +75,23 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Sekunde). Hat sich eine kämpfende Phalanx über Männer einer anderen
   eigenen Gruppe gedreht, drängt sie die hinaus, die dort nichts zu suchen
   haben; sonst säßen sie zwischen den gebundenen Männern fest.
+- **Jeder Mann hat Masse.** Er hat eine eigene Schrittgeschwindigkeit:
+  Aus dem Stand kommt er in einer Viertelsekunde auf Marschtempo
+  (6 Kacheln/s²), bremst in einer Zehntelsekunde (15 Kacheln/s², kürzer als
+  ein Reihenabstand) und ändert seine Richtung nur so schnell, wie das
+  zulässt; eine Kehrtwende von einem Takt auf den anderen gibt es nicht
+  mehr. Im Marsch führt er die Geschwindigkeit seiner Gruppe mit und
+  korrigiert nur den Rest zu seinem Platz, vor dem Platz bremst er so, dass
+  er genau dort steht (Reynolds’ „Arrive“). Wer irgendwo anstößt, steht;
+  danach gilt die wirklich gelaufene Geschwindigkeit. An einem fremden
+  Block gleitet er mit vollem Tempo entlang, unter den eigenen Nachbarn
+  weicht er nur um den gebremsten Schritt aus. Auch der Block als Ganzes
+  bremst vor seinem Ziel, damit seine Männer nicht in die Reihe vor ihnen
+  laufen. Reiter sind ausgenommen: Ihr Schwung steckt im Trupp
+  (Anfahren, Bremsen, Bogen). Im Marsch ohne Gedränge sind die
+  Umkehrschritte damit von 0,57 auf 0,16 je Mann und Sekunde gefallen, in
+  echten Schlachten im Handgemenge und Marsch auf ein Drittel bis ein
+  Viertel.
 - **Marsch im Bogen.** Auf längeren Wegen (über drei Kacheln) über freies
   Feld läuft eine Gruppe zu Fuß in ihrer Blickrichtung an und schwenkt
   unterwegs zum Ziel, die Front immer in Marschrichtung. Eine breite Linie

@@ -31,15 +31,12 @@ wandert nach unten.
    Zurückweichen, auf der Flucht, beim Hit-and-run vom Gegner weg) wird nicht
    geworfen. Noch nicht gebaut; Balance-Wirkung auf Plänkeln und Zermürben
    vorher messen.
-8. **Ruhe der Bewegung, Rest (Trägheit).** Gemessen am 5. Oktober 2026
-   (Lauf 35 in `docs/ki-simulation.md`). Erledigt sind das Gerangel im
-   Bild und die Platzverteilung beim Umformen. Noch offen: echte Trägheit
-   je Mann (Geschwindigkeit, begrenzte Beschleunigung und Drehrate,
-   Dämpfung am Platz), die Umkehrungen im Marsch mit Gedränge (noch
-   0,3–0,5 je Mann und Sekunde in echten Schlachten, vor allem in den ersten
-   Sekunden nach einem Befehl), aufgelöste Haufen an Leitern (2,6) und die
-   Flucht. Vorbilder: Steering Behaviors (Seek/Arrive mit max. Kraft),
-   RVO/ORCA gegen gegenseitiges Anstoßen. Maßstab: `ruhe.py` je Lage.
+8. **Ruhe der Bewegung, Rest.** Nach Lauf 35 (Gerangel, Platzverteilung,
+   Trägheit je Mann) bleiben: Nachbartausch in der Reihe beim Marsch mit
+   Gedränge (die Männer kreuzen sich seltener, tauschen aber noch), die
+   Flucht, aufgelöste Haufen an Leitern, und Reziprozität beim Ausweichen
+   (beide weichen je zur Hälfte, wie RVO/ORCA; heute weicht der, der anstößt).
+   Maßstab: `ruhe.py` je Lage.
 10. **Verbände für die Gegner-KI.** Die KI bildet noch keine Verbände und
     wechselt keine Modi; denkbar wäre etwa eine lockere Ordnung der
     Siedlung gegen Peltasten.
@@ -63,6 +60,14 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
   Aufwand.
 
 ## Erledigt
+
+- **Trägheit je Mann** (5. Oktober 2026, Lauf 35, Punkt C): Schrittgeschwindigkeit
+  je Mann, Anfahren 6 und Bremsen 15 Kacheln/s², Bremsen vor dem Platz
+  (Arrive), Gruppengeschwindigkeit mitgeführt, der Block bremst vor dem Ziel.
+  Marsch-Labor 0,57 → 0,16 Umkehrungen je Mann und Sekunde, Knicke 1,4 → 0,56;
+  Umformen praktisch ohne Umkehrungen. Nebenbei behoben: eine Gruppe, deren
+  Ziel eine ruhende eigene Gruppe belegt, bleibt davor stehen statt ewig zu
+  warten; der Anlauf der Reiter zählt weiter, wenn der Kontakt kurz flackert.
 
 - **Ruhe der Bewegung, Teil 1** (5. Oktober 2026, Lauf 35): (a) Das
   Gerangel im Bild bleibt drei Sekunden bei einem Gegner, drängt langsamer

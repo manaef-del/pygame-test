@@ -30,6 +30,7 @@ DETOUR_MEMORY = 1.5          # Sekunden, die die Umgehungsseite gemerkt bleibt, 
 BASE_RATE = 0.09             # Schaden pro Sekunde je Angriffspunkt
 CONTACT_REACH = 0.6          # Kacheln von Mann zu Mann: so weit reicht ein Mann an den nächsten Feind (Rechteck an Rechteck stehen die Reihen 0,55 auseinander, um ein Linienende gelegt 0,32); wer weiter weg steht, kämpft nicht mit
 ARRIVE_EPS = 0.08
+ARRIVE_SHORT = 0.6           # Kacheln: so nah vor einem Ziel, das eine ruhende eigene Gruppe belegt, bleibt man eben davor stehen
 
 # Phalanx: wie stark trifft ein Angriff je nach Richtung
 PHALANX_FRONT = 0.35
@@ -171,6 +172,9 @@ FALLEN_MARK_TIME = 2.5       # Sekunden: so lange bleibt ein dunkler Fleck, wo e
 
 # Männer
 MAN_CATCHUP = 1.6            # Männer holen ihren Platz schneller ein, als die Gruppe läuft
+MAN_INERTIA = True           # Männer haben Masse: Geschwindigkeit je Mann, begrenzte Beschleunigung, Bremsen vor dem Platz
+MAN_ACCEL = 6.0              # Kacheln/s²: so schnell kommt ein Mann in Fahrt (aus dem Stand auf Marschtempo in einer Viertelsekunde)
+MAN_BRAKE = 15.0             # Kacheln/s²: so schnell bremst er (aus dem Lauf in einer Zehntelsekunde; Bremsweg kürzer als ein Reihenabstand)
 DAMAGE_QUANTUM = 0.1         # Schaden wird in Häppchen auf einzelne Männer verteilt
 DISMOUNTED_SPEED = 1.2       # abgesessene Reiter
 DISMOUNTED_ATTACK = 1.0

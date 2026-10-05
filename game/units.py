@@ -104,6 +104,8 @@ class Man:
     rest_since: float = 0.0                         # ... und seit wann er nicht näher kommt (dann bleibt er stehen)
     vx: float = 0.0       # geschätzte Geschwindigkeit (Kacheln je Sekunde): danach zielen Werfer vor
     vy: float = 0.0
+    mvx: float = 0.0      # seine Schrittgeschwindigkeit (Kacheln je Sekunde): ein Körper mit Masse, der nicht springt
+    mvy: float = 0.0
 
     def __post_init__(self) -> None:
         if self.hp == 0.0:
@@ -296,6 +298,7 @@ class Lochos:
     disengage_until: float = -1.0     # bis dahin gilt die Gruppe als vom Feind gelöst (verwundbar)
     runup: float = 0.0                # Reiter: Anlauf seit dem letzten Halt oder Kontakt (Kacheln)
     vel: float = 0.0                  # Reiter: augenblickliches Tempo (Kacheln/s), Schwung
+    last_pos: tuple[float, float] | None = None   # Mitte beim letzten Takt der Männerbewegung (daraus die Gruppengeschwindigkeit)
     heading: tuple[float, float] = (0.0, -1.0)   # Reiter: Fahrtrichtung
     ride_in: float = 0.0              # Reiter: wie weit sie in den Feind hineingetragen wurden
     face_to: tuple[float, float] | None = None   # befohlene Front, auf die die Gruppe schwenkt

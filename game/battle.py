@@ -2813,7 +2813,8 @@ class Battle:
                     else:
                         u.vel = 0.0
                     continue
-                u.ride_in = 0.0
+                if target is None or u.vel <= 0.05 or self._gap(u, target) > config.CONTACT_GAP + 0.3:
+                    u.ride_in = 0.0                      # (nicht, wenn der Kontakt nur kurz flackert, weil Geworfene zurücklaufen)
                 stop_at = 0.0 if target is not None else config.ENGAGE_RANGE
             if (final and u.target_id is None and self.cell(*u.target) in self.house_cells
                     and u.rect_distance(u.target) <= 0.9 * config.LOOT_RANGE):
@@ -2850,6 +2851,9 @@ class Battle:
                 self._wheel(u, dt, goal, speed, dist(u.pos, goal))   # auf freiem Feld (auch um eigene herum): im Bogen
             else:
                 u.vel = 0.0
+                if (config.MAN_INERTIA and final and not self._rides(u)
+                        and u.stance not in (Stance.ANGRIFF, Stance.FLUCHT)):
+                    speed = min(speed, math.sqrt(2.0 * config.MAN_BRAKE * d) + 0.2)   # der Block bremst vor dem Ziel wie seine Männer
                 step = min(speed * dt, d)
                 direction = norm(sub(goal, u.pos))
                 if self.on_wall(u):
@@ -3993,25 +3997,34 @@ class Battle:
             u.assault_slots = [slot for _, slot in assault] if assault is not None else []
             settled = (assault is None and u.vel <= 0.05 and not u.engaged and not u.waiting
                        and (u.target is None or dist(u.pos, u.target) <= config.ARRIVE_EPS + 0.05))
+            # die Geschwindigkeit der Gruppe: die Männer führen sie mit und korrigieren nur den Rest
+            carry = ((u.x - u.last_pos[0]) / dt, (u.y - u.last_pos[1]) / dt) if u.last_pos is not None and dt > 0 else (0.0, 0.0)
+            u.last_pos = u.pos
             for man, slot in (assault if assault is not None else u.slots()):
                 d = dist(man.pos, slot)
                 if assault is not None:               # um den Gegner herum: dicht an seinen Umriss, nie hinein
-                    self._man_step(u, man, slot, max(u.speed, man.speed) * config.MAN_CATCHUP * dt, walker, through=True)
+                    self._man_step(u, man, slot, max(u.speed, man.speed) * config.MAN_CATCHUP * dt, walker, through=True, dt=dt)
                     continue
                 if man.bound and dist(slot, man.stand or man.pos) > config.BOUND_SHUFFLE:
+                    man.mvx = man.mvy = 0.0
                     continue                          # steht im Handgemenge fest, rückt höchstens etwas nach
                 if d <= 0.02:
                     if self._crowding(man, man.pos, slot, u.id) is None and self._man_can_step(u, man, man.pos, slot, walker):
                         man.x, man.y = slot
+                    man.mvx, man.mvy = carry
                     continue
                 if settled and d <= config.MAN_DEADZONE and u.in_line:
+                    man.mvx = man.mvy = 0.0
                     continue                          # steht so gut wie an seinem Platz: nicht nachkorrigieren
                 if self._resting(u, man, slot, d, settled):
+                    man.mvx = man.mvy = 0.0
                     continue                          # kommt nicht näher: stehen bleiben statt hin und her
                 speed = max(u.speed, man.speed) * config.MAN_CATCHUP
-                if not self._man_step(u, man, slot, speed * dt, walker, slide=False):
+                mv = (man.mvx, man.mvy)
+                if not self._man_step(u, man, slot, speed * dt, walker, slide=False, dt=dt, carry=carry):
+                    man.mvx, man.mvy = mv                             # der zweite Anlauf geht aus der alten Bewegung heraus
                     goal, _ = self.route_from(u, man.pos, slot)     # Umweg (Tor), statt an der Palisade zu kriechen
-                    self._man_step(u, man, goal, speed * dt, walker)
+                    self._man_step(u, man, goal, speed * dt, walker, dt=dt, brake=False)
 
     def _resting(self, u: Lochos, man: Man, slot: Point, d: float, settled: bool) -> bool:
         """Bleibt ``man`` stehen? Die Gruppe steht, er ist nahe an seinem Platz, kommt ihm aber
@@ -4086,7 +4099,7 @@ class Battle:
             speed = max(u.speed, man.speed) * config.MAN_CATCHUP if lagging else u.speed
             before = man.pos
             # wer über den Wall kommt, bleibt drüben an Feinden hängen (kein Entlanggleiten um sie herum)
-            self._man_step(u, man, goal, speed * dt, walker, stick=u.loose_why == "wall")
+            self._man_step(u, man, goal, speed * dt, walker, stick=u.loose_why == "wall", dt=dt, brake=goal == slot)
             man.stall = man.stall + dt if dist(before, man.pos) < 0.2 * speed * dt else 0.0
         u.x, u.y = self._loose_centre(u)
 
@@ -4479,15 +4492,50 @@ class Battle:
         return True
 
     def _man_step(self, u: Lochos, man: Man, goal: Point, step: float, walker: bool, slide: bool = True,
-                  through: bool = False, stick: bool = False) -> bool:
+                  through: bool = False, stick: bool = False, dt: float = 0.0, carry: Point | None = None,
+                  brake: bool = True) -> bool:
         """Ein Schritt Richtung ``goal``; geht es nicht geradeaus, gleitet er entlang
         (``slide``) oder weicht dem aus, der im Weg steht. Mit ``stick`` gleitet er nicht
-        an Feinden entlang: Wer an ihnen ankommt, bleibt hängen."""
+        an Feinden entlang: Wer an ihnen ankommt, bleibt hängen.
+
+        Mit ``dt`` hat der Mann Masse: Er führt die Geschwindigkeit seiner Gruppe (``carry``)
+        mit, läuft darüber hinaus auf sein Ziel zu, bremst davor (``brake``; ein Wegpunkt
+        unterwegs nicht) und ändert seine Geschwindigkeit höchstens mit ``MAN_ACCEL``. Wer
+        irgendwo anstößt, steht; die Geschwindigkeit ist danach die wirklich gelaufene."""
         d = dist(man.pos, goal)
         if d < 1e-6:
             return True
-        step = min(step, d)
-        dx, dy = (goal[0] - man.x) / d * step, (goal[1] - man.y) / d * step
+        x0, y0 = man.x, man.y
+        full = min(step, d)                                 # ein Schritt mit vollem Tempo (zum Gleiten an Fremden)
+        if config.MAN_INERTIA and dt > 0.0 and not (man.kind.cavalry and man.mounted):   # Reiter: der Schwung steckt im Trupp
+            vmax = step / dt
+            ux, uy = (goal[0] - x0) / d, (goal[1] - y0) / d
+            cx, cy = carry or (0.0, 0.0)
+            rel = max(vmax - math.hypot(cx, cy), 0.3 * vmax)            # Überschuss über das Gruppentempo
+            if brake:
+                rel = min(rel, max(0.0, math.sqrt(2.0 * config.MAN_BRAKE * d) - config.MAN_BRAKE * dt))   # so, dass er am Ziel steht
+            tx, ty = cx + ux * rel, cy + uy * rel
+            tn = math.hypot(tx, ty)
+            if tn > vmax:
+                tx, ty = tx / tn * vmax, ty / tn * vmax
+            ax, ay = tx - man.mvx, ty - man.mvy
+            an = math.hypot(ax, ay)
+            slowing = ax * man.mvx + ay * man.mvy < 0.0                  # bremsen geht schneller als anfahren
+            limit = (config.MAN_BRAKE if slowing else config.MAN_ACCEL) * dt
+            if an > limit:
+                ax, ay = ax / an * limit, ay / an * limit
+            vx, vy = man.mvx + ax, man.mvy + ay
+            dx, dy = vx * dt, vy * dt
+            along = dx * ux + dy * uy
+            if along > d:                                                 # nicht über das Ziel hinaus
+                dx, dy = dx - (along - d) * ux, dy - (along - d) * uy
+            step = math.hypot(dx, dy)
+            if step < 1e-9:
+                man.mvx = man.mvy = 0.0
+                return True
+        else:
+            step = min(step, d)
+            dx, dy = (goal[0] - x0) / d * step, (goal[1] - y0) / d * step
         options = [(man.x + dx, man.y + dy)]
         if slide:
             options += [(man.x + dx, man.y), (man.x, man.y + dy)]
@@ -4503,23 +4551,24 @@ class Battle:
                     break                                # ein Feind im Weg: nicht an ihm entlang
                 continue
             if self._man_can_step(u, man, (man.x, man.y), (nx, ny), walker, through):
-                man.x, man.y = nx, ny
+                self._place(man, nx, ny, dt)
                 if self.time - man.dodge_at > config.DODGE_MEMORY or not self._keeps_dodge(u):
                     man.dodge = 0.0                      # der Weg ist schon eine Weile frei: die Seite ist vergessen
                 return True
             if stick and k == 0 and self._walled_off(u, man.pos, (nx, ny), self._barrier_cache.get(u.side, [])):
                 break                                    # vor einer feindlichen Formation: nicht an ihr entlang
         if crowded is None or man.bound:
+            man.mvx = man.mvy = 0.0
             return False                                 # Gebundene rücken nur nach, sie weichen niemandem aus
         if self._rides(u) and u.ride_in > 0.0 and u.vel > 0.05 and self._shove(man, crowded, u):
             nx, ny = man.x + dx, man.y + dy                 # der Sturm drängt hindurch
             if self._crowding(man, man.pos, (nx, ny), u.id) is None and self._man_can_step(u, man, man.pos, (nx, ny), walker, through):
-                man.x, man.y = nx, ny
+                self._place(man, nx, ny, dt)
                 return True
         if self._step_aside(crowded, man, (dx, dy), u):
             nx, ny = man.x + dx, man.y + dy                 # der Leichte tritt beiseite: hindurch
             if self._crowding(man, man.pos, (nx, ny), u.id) is None and self._man_can_step(u, man, man.pos, (nx, ny), walker, through):
-                man.x, man.y = nx, ny
+                self._place(man, nx, ny, dt)
                 return True
         # jemand steht im Weg: an ihm entlang (in Richtung des Ziels), sonst schräg zurück, sonst zurück
         ax, ay = man.x - crowded.x, man.y - crowded.y
@@ -4535,14 +4584,24 @@ class Battle:
             man.dodge = (1.0 if along > 0 else -1.0) if abs(along) > 0.2 * step else (1.0 if id(man) % 2 else -1.0)
         man.dodge_at = self.time
         tx, ty = tx * man.dodge, ty * man.dodge
-        # erst auf der gewählten Seite (seitlich, dann schräg zurück), dann erst die andere
+        # erst auf der gewählten Seite (seitlich, dann schräg zurück), dann erst die andere; an einem
+        # fremden Block gleitet er mit vollem Tempo entlang, unter den eigenen nur um den gebremsten Schritt
+        aside = full if self._man_group.get(id(crowded)) != u.id else step
         for vx, vy in ((tx, ty), (-tx, -ty), (tx + ax, ty + ay), (-tx + ax, -ty + ay), (ax, ay)):
             m_ = math.hypot(vx, vy)
-            nx, ny = man.x + vx / m_ * step, man.y + vy / m_ * step
+            nx, ny = man.x + vx / m_ * aside, man.y + vy / m_ * aside
             if self._crowding(man, man.pos, (nx, ny), u.id) is None and self._man_can_step(u, man, man.pos, (nx, ny), walker, through):
-                man.x, man.y = nx, ny
+                self._place(man, nx, ny, dt)
                 return True
+        man.mvx = man.mvy = 0.0
         return False
+
+    @staticmethod
+    def _place(man: Man, nx: float, ny: float, dt: float) -> None:
+        """Den Mann setzen; seine Geschwindigkeit ist die wirklich gelaufene."""
+        if dt > 0.0:
+            man.mvx, man.mvy = (nx - man.x) / dt, (ny - man.y) / dt
+        man.x, man.y = nx, ny
 
     @staticmethod
     def _keeps_dodge(u: Lochos) -> bool:
@@ -4701,6 +4760,11 @@ class Battle:
         if not through and self._own_in_the_way(u, (nx, ny)):
             slide = self._slide_past(u, delta) if u.idle_block else None
             if slide is None:
+                if (u.idle_block and u.target is not None and u.target_id is None
+                        and dist(u.pos, u.target) <= config.ARRIVE_SHORT):
+                    u.target = u.pos                      # das Ziel ist von einer ruhenden eigenen Gruppe belegt: hier ist Schluss
+                    u.waiting = False
+                    return
                 u.waiting = True                          # anstehen, bis vorn Platz wird
                 u.vel = 0.0
                 return

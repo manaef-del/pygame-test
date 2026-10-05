@@ -240,7 +240,11 @@ def test_men_flow_through_an_open_gate_without_touching_the_wall():
         if hop.target is None and not hop.loose:
             break
     assert hop.target is None and b._wall_level(hop.pos) == "innen"
-    assert all(b._wall_level(m.pos) in ("innen", "tor") for m in hop.all_men())   # (die hintersten stehen noch im Tor)
+    for _ in range(int(3 / DT)):                                   # die hintersten kommen noch durchs Tor nach
+        b.update(DT)
+        for m in hop.all_men():
+            assert b.cell(m.x, m.y) not in b.blocked
+    assert all(b._wall_level(m.pos) in ("innen", "tor") for m in hop.all_men())
 
 
 # ------------------------------------------------------------- Kampf am Wall

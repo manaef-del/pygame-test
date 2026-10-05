@@ -969,7 +969,8 @@ def test_charging_cavalry_rides_into_the_enemy_before_it_stops():
         if x_contact is not None and cav.vel == 0.0:
             break
     assert x_contact is not None
-    assert x_contact - cav.x > 0.3 and cav.ride_in > 0.3                     # weiter nach Westen in den Feind hinein
+    assert x_contact - cav.x > 0.3 and cav.ride_in > 0.2                     # weiter nach Westen in den Feind hinein
+    # (0,2 statt 0,3: die Geworfenen laufen mit Masse langsamer an ihre Plätze zurück, der Kontakt setzt kurz aus)
     assert cav.ride_in <= config.CHARGE_PENETRATION + 1e-6
 
 
@@ -1170,6 +1171,32 @@ def test_men_are_drawn_smoothed_within_their_group_but_never_behind_the_march():
         b.update(DT)
         worst = max(worst, max(math.hypot(m.sx - m.x, m.sy - m.y) for m in u.all_men()))
     assert worst < 0.05                                                  # beim Marsch: genau an seiner Stelle
+
+
+def test_men_have_mass_and_do_not_jump():
+    """Jeder Mann hat eine Schrittgeschwindigkeit: Schneller wird er je Takt höchstens um
+    MAN_ACCEL, ein Marschierender kehrt nie von einem Takt auf den anderen um (ein seitlicher
+    Ausweichschritt ist erlaubt, ein Sprung zurück nicht), und am Platz kommt er ohne
+    Überschwingen an."""
+    b, u = standing_group("schwer", 40, 14)
+    b.alarm = False
+    run(b, 1)
+    b.command_line([u], (8.0 - u.half_w, 8.0), (8.0 + u.half_w, 8.0))        # vier Kacheln vor
+    last = {id(m): (m.mvx, m.mvy) for m in u.all_men()}
+    ahead = 0.0
+    for _ in range(int(8 / DT)):
+        b.update(DT)
+        fx, fy = u.facing
+        for m, p in u.slots():
+            vx, vy = m.mvx, m.mvy
+            ox, oy = last[id(m)]
+            v, o = math.hypot(vx, vy), math.hypot(ox, oy)
+            assert v - o <= config.MAN_ACCEL * DT + 1e-6, (o, v)                    # anfahren nur mit MAN_ACCEL
+            if o > 0.3 and v > 0.3:
+                assert ox * vx + oy * vy > -0.5 * o * v                              # keine Kehrtwende von Takt zu Takt (wie „Umkehr“ in Lauf 35)
+            last[id(m)] = (vx, vy)
+            ahead = max(ahead, (m.x - p[0]) * fx + (m.y - p[1]) * fy)
+    assert u.in_line and ahead < 0.06                                             # niemand schießt über seinen Platz hinaus
 
 
 def test_reform_gives_each_man_the_nearest_slot():
