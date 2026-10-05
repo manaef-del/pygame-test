@@ -50,6 +50,7 @@ class Gate:
     hp: float = config.GATE_HP
     hp_max: float = config.GATE_HP
     normal: Point = (0.0, -1.0)          # Richtung nach außen (waagrecht oder senkrecht)
+    swing: float = 0.0                   # nur fürs Bild: 0 = Flügel zu, 1 = ganz aufgeschwungen
 
     @property
     def center(self) -> Point:
@@ -1729,6 +1730,27 @@ class Battle:
             self.horses.append((u.x, u.y, n))
             self.events.append(f"{u.name} sitzen ab, {n} Pferde bleiben zurück")
 
+    def command_gate(self, gate: Gate) -> bool:
+        """Ein eigenes Tor öffnen oder schließen (nur die Wallseite, nur unversehrte Tore).
+        Offen steht es allen, auch dem Feind. Schließen geht nicht, solange jemand im
+        Durchgang steht. Liefert, ob sich etwas geändert hat."""
+        if self.wall_side() is not Side.STADT:
+            return False
+        if gate.broken:
+            self.events.append("Das Tor ist aufgebrochen, es lässt sich nicht mehr schließen")
+            return False
+        if gate.closed:
+            gate.closed = False
+            self.events.append("Tor geöffnet: Es steht allen offen, auch dem Feind")
+            return True
+        cells = set(gate.cells)
+        if any(self.cell(m.x, m.y) in cells for u in self.lochoi if u.alive for m in u.all_men()):
+            self.events.append("Im Tor steht jemand, es lässt sich nicht schließen")
+            return False
+        gate.closed = True
+        self.events.append("Tor geschlossen")
+        return True
+
     def command_ram_gate(self, units: list[Lochos] | None, gate: Gate | None = None) -> int:
         """Gruppen mit Rammbock gehen ans (angetippte oder nächste) Tor und brechen es auf."""
         return self._ram_gate_ring(units, gate)
@@ -2465,6 +2487,13 @@ class Battle:
                 self._ram_cells.add((math.floor(px_ * 4), math.floor(py_ * 4)))
 
     # -- Bild --------------------------------------------------------------
+    def _swing_gates(self, dt: float) -> None:
+        """Nur fürs Bild: Die Torflügel schwingen auf oder zu."""
+        for g in self.gates:
+            want = 0.0 if g.closed else 1.0
+            step = dt / config.GATE_SWING_TIME
+            g.swing = min(want, g.swing + step) if g.swing < want else max(want, g.swing - step)
+
     def _show(self, dt: float) -> None:
         """Nur fürs Bild, die Schlacht rechnet nichts davon: Getroffene blitzen auf,
         wo einer fiel, bleibt kurz ein Fleck, und im Handgemenge drängen die Männer
@@ -2479,6 +2508,7 @@ class Battle:
                 u.fell_at.clear()
         self.fallen_marks = [(p, t) for p, t in self.fallen_marks if self.time - t < config.FALLEN_MARK_TIME]
         self._smooth_shown(dt)
+        self._swing_gates(dt)
         grid: dict[tuple[int, int], list[tuple[Man, Lochos]]] = {}
         for u in self.lochoi:
             if u.alive:

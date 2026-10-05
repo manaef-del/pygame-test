@@ -340,9 +340,12 @@ class App:
             else:
                 self.selected = {own.id}
             return
+        gate = b.gate_near(p)
+        if gate is not None and b.wall_side() is Side.STADT:
+            b.command_gate(gate)                       # eigenes Tor: öffnen oder schließen
+            return
         if not self.selected:
             return
-        gate = b.gate_near(p)
         if gate is not None and gate.closed:
             b.command_ram_gate(self._selection(), gate)
             return

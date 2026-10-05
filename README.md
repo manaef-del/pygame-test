@@ -483,6 +483,13 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   „hinten“, sonst „seitlich“. Wer am Ende einer Reihe von der Seite
   gepackt wird, dreht sich also um, auch wenn der Gegner für die ganze
   Gruppe noch knapp als „vorn“ zählt (die Toleranz neben dem Linienende).
+- **Eigene Tore öffnen und schließen:** In der Festung öffnet ein Tipp auf
+  ein eigenes Tor seine beiden Flügel, ein zweiter schließt sie. Offen steht
+  das Tor allen, auch dem Feind; schließen geht nur, wenn niemand im
+  Durchgang steht, und ein aufgebrochenes Tor nie mehr. Die Flügel
+  schwingen in einer Sekunde nach innen auf, so sieht man von weitem, ob
+  ein Tor offen steht. Damit kann man einen Ausfall machen, muss das Tor
+  aber auch wieder zubekommen.
 - **Verfolgung:** Wer flieht und von hinten eingeholt wird, wehrt sich
   nicht: Er nimmt den fünffachen Schaden (von vorn oder seitlich getroffen
   den doppelten, wie bisher). Die meisten Hopliten fielen auf der Flucht,

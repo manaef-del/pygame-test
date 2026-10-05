@@ -296,6 +296,7 @@ BLOCK_WAY_TIME = 0.6         # Sekunden, die ein gesuchter Weg um Hindernisse gi
 BLOCK_PATH_LIMIT = 6000      # Halbkacheln, die die Suche höchstens prüft
 BLOCKED_SLOT_REACH = 0.7     # Kacheln: wer so nah an seinem Platz steht, der in einem Haus liegt, gilt als angekommen
 GATE_HP = 100.0
+GATE_SWING_TIME = 1.0        # Sekunden, in denen die Torflügel auf- oder zuschwingen (nur fürs Bild)
 RAM_BUILD_TIME = 8.0         # Sekunden Spielzeit
 RAM_DPS = 12.0               # Schaden am Tor je Sekunde
 RAM_SPEED_FACTOR = 0.7

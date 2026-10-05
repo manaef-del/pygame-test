@@ -354,12 +354,23 @@ class Renderer:
                 ys = [c[1] for c in g.cells]
                 a, b = px((min(xs), min(ys))), px((max(xs) + 1, max(ys) + 1))
                 rect = pygame.Rect(a[0] + 2, a[1] + 2, b[0] - a[0] - 4, b[1] - a[1] - 4)
+                pygame.draw.rect(s, config.COLOR_GATE, rect, 2)           # das Torhaus
+                if g.broken:
+                    continue                                              # aufgebrochen: nur der leere Durchgang
+                # zwei Flügel, an den Pfosten angeschlagen; sie schwingen nach innen auf
+                cx, cy = g.center
+                (tx, ty), (nx, ny) = g.tangent, g.normal
+                ang = g.swing * math.pi / 2
+                c_, s_ = math.cos(ang), math.sin(ang)
+                width = max(3, int(round(T * 0.12)))
+                for sign in (1.0, -1.0):
+                    post = (cx - sign * tx * g.half_len, cy - sign * ty * g.half_len)
+                    dx, dy = sign * tx * c_ - nx * s_, sign * ty * c_ - ny * s_
+                    tip = (post[0] + dx * g.half_len, post[1] + dy * g.half_len)
+                    pygame.draw.line(s, config.COLOR_GATE_CLOSED, px(post), px(tip), width)
                 if g.closed:
-                    pygame.draw.rect(s, config.COLOR_GATE_CLOSED, rect, border_radius=3)
                     frac = g.hp / g.hp_max
                     pygame.draw.rect(s, config.COLOR_FIRE, pygame.Rect(rect.x, rect.bottom + 2, int(rect.w * frac), 3))
-                else:
-                    pygame.draw.rect(s, config.COLOR_GATE, rect, 2)
             for tw in battle.corner_towers:
                 x, y = px(tw.center)
                 r = max(5, int(T * 0.55))

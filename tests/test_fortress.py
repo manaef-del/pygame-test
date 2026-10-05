@@ -124,6 +124,48 @@ def test_a_group_goes_around_the_closed_fortress():
     assert math.dist(u.pos, (16.0, 32.0)) < 0.5
 
 
+def test_the_city_opens_its_gate_for_a_sortie_and_the_enemy_may_use_it_too():
+    """Ein Tipp auf ein eigenes Tor öffnet es: Die eigene Gruppe zieht hindurch hinaus, der
+    Feind findet den offenen Durchgang ebenso; ein zweiter Tipp schließt es wieder."""
+    b = quiet(Battle(FESTUNG, random.Random(1)))
+    sw = b.gates[1]
+    assert sw.closed and b.wall_side() is Side.STADT
+    inner = b.gate_approach(sw, -1.0)
+    own = lone_group(b, Side.STADT, "mittel", 8, inner)
+    foe = lone_group(b, Side.FEIND, "raeuber", 8, (3.0, 25.0))
+    clear(b, [own, foe])
+    assert b.command_gate(sw) and not sw.closed and not sw.broken
+    outer = b.gate_approach(sw, 1.0, 2.0)
+    own.target = outer
+    goal = ((inner[0] + b.agora[0]) / 2, (inner[1] + b.agora[1]) / 2)
+    foe.target = goal
+    out = in_ = False
+    for _ in range(int(40 / DT)):
+        b.update(DT)
+        out = out or b._wall_level(own.pos) == "aussen"
+        in_ = in_ or b._wall_level(foe.pos) == "innen"
+        if out and in_:
+            break
+    assert out and in_                                        # hinaus und herein durch dasselbe Tor
+    run(b, 5)
+    assert b.command_gate(sw) and sw.closed                   # niemand mehr im Durchgang: zu
+
+
+def test_a_gate_does_not_close_on_men_and_a_broken_gate_never():
+    b = quiet(Battle(FESTUNG, random.Random(1)))
+    sw = b.gates[1]
+    sw.closed = False
+    u = lone_group(b, Side.STADT, "mittel", 4, sw.center)     # steht im Durchgang
+    clear(b, [u])
+    assert not b.command_gate(sw) and not sw.closed
+    assert any("steht jemand" in e for e in b.events)
+    sw.hp = 0.0                                               # aufgebrochen
+    u.x, u.y = b.agora
+    u.place_men()
+    assert not b.command_gate(sw) and not sw.closed
+    assert any("aufgebrochen" in e for e in b.events)
+
+
 def test_a_group_goes_through_the_open_gate_that_is_nearest():
     b = quiet(Battle(FESTUNG, random.Random(1)))
     sw = b.gates[1]

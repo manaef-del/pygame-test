@@ -79,6 +79,10 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Eigene Tore öffnen** (5. Oktober 2026): Tipp auf ein eigenes Tor
+  öffnet oder schließt es, mit zwei Flügeln im Bild; offen für alle,
+  schließen nur bei leerem Durchgang, aufgebrochen nie mehr.
+
 - **Verfolgung und Agora** (5. Oktober 2026): Fliehende, die von hinten
   eingeholt werden, nehmen den fünffachen Schaden; Verteidiger sind auf
   ihrer Agora sofort wieder kampfbereit und befehlbar.
