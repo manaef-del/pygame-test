@@ -538,9 +538,13 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   herantritt, bleibt im Bild mindestens zwei Halbmesser und ein Drittel
   von jedem anderen gezeigten Mann entfernt; vorher schoben sich die Bilder
   zweier Männer am selben Gegner ineinander.
-- **Aufstellung bei der Agora:** In der Verteidigung (offene Siedlung,
-  Räuberüberfall, Festung) steht die eigene Truppe zu Beginn bei der Agora,
-  nicht am Rand der Siedlung.
+- **Aufstellung bei der Agora:** In der Verteidigung steht die eigene
+  Truppe zu Beginn bei der Agora, auf der dem Feind zugewandten Seite: in
+  der Festung anderthalb Kacheln hinter ihr, in der offenen Siedlung drei
+  Kacheln vor ihr, im Dorf zwischen Agora und Häusern. Genau auf der Agora
+  (die im Dorf am Kartenrand liegt) kam die Truppe zu spät an die Häuser:
+  Im Dorf stiegen die Verluste von 4 auf 64 %, in der Siedlung die
+  verlorenen Häuser von null auf elf (Lauf 42).
 - **Schlange vor der Leiter:** Wer sich vor einer besetzten Leiter oder
   einem Turm anstellt, behält seinen Platz in der Reihenfolge, solange ihn
   keiner klar überholt, bremst vor seinem Platz in der Schlange und wartet

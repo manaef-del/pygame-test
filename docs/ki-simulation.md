@@ -1,5 +1,48 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 42 (5. Oktober 2026): Verfolgung, Agora, Aufstellung
+
+Drei Neuerungen zugleich gemessen, dann getrennt: Fliehende, die von hinten
+eingeholt werden, nehmen den fünffachen Schaden, und Verfolger werden vom
+Handgemenge nicht gebremst (Verfolgung); Verteidiger sind auf ihrer Agora
+sofort wieder kampfbereit; und die Truppe beginnt bei der Agora statt am
+Rand (seit Lauf 40). Gegner-KI „klug“, sechs Seeds, vorher (Lauf 39) /
+nachher mit allem:
+
+| Szenario | Taktik | Siege | Verlust Stadt | Verlust Feind | Häuser verloren |
+|---|---|---|---|---|---|
+| siedlung | linie_tief | 6/6 → 6/6 | 20 % → 19 % | 62 % → 52 % | 2,3 → 3,8 |
+| siedlung | schlachtordnung | 6/6 → 4/6 | 61 % → 41 % | 68 % → 62 % | 14,8 → 13,5 |
+| siedlung | linie_reiter | 4/6 → 5/6 | 85 % → 57 % | 71 % → 75 % | 27,7 → 19,2 |
+| siedlung | linie_aktiv | 6/6 → 6/6 | 30 % → 37 % | 65 % → 73 % | 2,8 → 7,3 |
+| siedlung_angriff | agora | 0/6 → 0/6 | 51 % → 54 % | 6 % → 7 % | – |
+| horde_sturm | linie_aktiv | 6/6 → 6/6 | 7 % → 7 % | 57 % → 66 % | – |
+| ueberfall | linie_aktiv | 6/6 → 6/6 | 4 % → 64 % | 61 % → 75 % | 0,0 → 1,0 |
+
+Getrennt (ueberfall und siedlung/linie_aktiv): ohne Verfolgung 64 % und
+49 %, ohne sofortige Agora 64 % und 40 %, ohne ungebremsten Verfolger 62 %
+und 40 %, mit der alten Aufstellung am Rand 4 % und 30 %. Die Verfolgung
+und die Agora-Regel erklären den Sprung also nicht, die Aufstellung
+erklärt ihn ganz: Die Taktiken stellten ihre Linien relativ zum Start auf,
+also mitten in der Siedlung, und die Räuber plünderten die äußeren Häuser.
+Die Reiterlinie profitiert von der Verfolgung (85 → 57 %).
+
+Dann die Linien der Taktiken an ihre alten Stellungen am Rand gebunden (die
+Gruppen marschieren zu Beginn erst dorthin) und den Start variiert:
+
+| Szenario, Taktik | Start am Rand (alt) | Start bei der Agora | Start dazwischen |
+|---|---|---|---|
+| ueberfall, linie_aktiv | 6/6, 4 %, 0,0 Häuser | 0/6, 99 %, 5,2 (unterwegs aufgerieben) | 12,0: 5/6, 29 %, 1,0; 13,5: 6/6, 51 %, 2,8 |
+| siedlung, linie_aktiv | 6/6, 30 %, 0,3 | 5/6, 63 %, 10,7 | drei Kacheln vor der Agora: 6/6, 24 %, 0,2 |
+| siedlung, linie_tief | 6/6, 20 %, 2,3 | 6/6, 40 %, 1,0 | drei Kacheln vor der Agora: 6/6, 42 %, 8,2 |
+
+Entschieden: Start bei der Agora, aber auf der dem Feind zugewandten
+Seite: Siedlung drei Kacheln vor der Agora, Dorf bei 12,0 zwischen Agora
+und Häusern (die Agora liegt dort am Kartenrand). Das kostet gegenüber dem
+alten Start am Rand im Dorf 25 Punkte und bei der tiefen Linie in der
+Siedlung 20; die aktive Linie ist so billig wie zuvor. Wer am Rand stehen
+will, muss früh hinmarschieren, das ist der Preis des Starts bei der Agora.
+
 ## Lauf 41 (5. Oktober 2026): Wer innen ist, darf klettern
 
 Neu: Angreifer, die durch ein Tor in die Festung eingedrungen sind, dürfen

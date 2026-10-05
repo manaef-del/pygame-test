@@ -83,9 +83,12 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
   öffnet oder schließt es, mit zwei Flügeln im Bild; offen für alle,
   schließen nur bei leerem Durchgang, aufgebrochen nie mehr.
 
-- **Verfolgung und Agora** (5. Oktober 2026): Fliehende, die von hinten
-  eingeholt werden, nehmen den fünffachen Schaden; Verteidiger sind auf
-  ihrer Agora sofort wieder kampfbereit und befehlbar.
+- **Verfolgung und Agora** (5. Oktober 2026, Lauf 42): Fliehende, die von
+  hinten eingeholt werden, nehmen den fünffachen Schaden, Verfolger werden
+  nicht gebremst; Verteidiger sind auf ihrer Agora sofort wieder
+  kampfbereit und befehlbar. Reiterlinie 85 → 57 % Verluste. Der Start
+  genau auf der Agora erwies sich als teuer (Dorf 4 → 64 %); jetzt bei der
+  Agora auf der dem Feind zugewandten Seite.
 
 - **Feinde auf dem Wall ohne Turm** (5. Oktober 2026, Lauf 41): Sobald
   irgendwo ein Turm stand, durften alle Angreifer klettern, und wer durch

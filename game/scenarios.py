@@ -226,7 +226,7 @@ OFFENE_SIEDLUNG = Scenario(
     hint="Räuber von Norden, zwei Trupps umgehen die Linie. Tippe eine Gruppe an, dann ziehe ihre Front auf. "
          "Zwei Finger verschieben die Karte.",
     role="verteidigung", enemy_kind="raeuber", enemy_default=128, enemy_min=32, enemy_max=300,
-    houses=TOWN_HOUSES, raider_spawns=RAIDS_TOWN, agora=FORT_CENTRE, deploy_y=FORT_CENTRE[1] + 1.5,   # bei der Agora
+    houses=TOWN_HOUSES, raider_spawns=RAIDS_TOWN, agora=FORT_CENTRE, deploy_y=FORT_CENTRE[1] - 3.0,   # bei der Agora, dem Feind zu
     cols=FORT_COLS, rows=FORT_ROWS, place="siedlung",
 )
 
@@ -280,7 +280,7 @@ RAEUBERUEBERFALL = Scenario(
     key="ueberfall", name="Verteidigung: Räuberüberfall",
     hint="Räuber fallen über das junge Dorf her. Halte sie von den sechs Häusern fern.",
     role="verteidigung", enemy_kind="raeuber", enemy_default=18, enemy_min=8, enemy_max=30,
-    houses=VILLAGE_HOUSES, raider_spawns=RAIDS_VILLAGE, agora=(8.0, 17.0), deploy_y=16.5, place="lager",   # bei der Agora
+    houses=VILLAGE_HOUSES, raider_spawns=RAIDS_VILLAGE, agora=(8.0, 17.0), deploy_y=12.0, place="lager",   # zwischen Agora und Häusern, dem Feind zu
     own_kinds=SMALL_KINDS, own_default=13, own_min=6, own_max=20, raider_group=6,
 )
 
