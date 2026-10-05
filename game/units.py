@@ -90,6 +90,8 @@ class Man:
     leader: bool = False  # der Anführer: kämpft mit, hält viel mehr aus
     show_dx: float = 0.0  # nur fürs Bild: so weit drängt er gerade von seiner Stelle zum Gegner (Gerangel)
     show_dy: float = 0.0
+    jostle_foe: "Man | None" = None   # nur fürs Bild: der Gegner, auf den er gerade drängt ...
+    jostle_until: float = -1.0        # ... und wie lange er bei ihm bleibt, ehe er neu wählt
     sx: float | None = None  # nur fürs Bild: geglättete Stelle (ruhig statt zitternd), None = noch keine
     sy: float = 0.0
     rx: float = 0.0          # ... und seine geglättete Lage in der Gruppe (zur Mitte), für die das Bild gilt

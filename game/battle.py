@@ -2395,7 +2395,9 @@ class Battle:
             self._shown_facing[u.id] = (fx, fy)
             for m in u.all_men():
                 jump = m.sx is None or abs(m.x - m.sx) + abs(m.y - m.sy) > 0.6
-                if u.loose:
+                if u.loose or m.bound or u.engaged:
+                    # im Handgemenge steht der Mann, die Mitte seiner Gruppe aber wandert und dreht:
+                    # das Bild folgt hier dem Mann selbst, nicht seiner Lage in der Gruppe
                     m.ref_id = -1
                     if jump:
                         m.sx, m.sy = m.x, m.y
@@ -2468,17 +2470,28 @@ class Battle:
                        and (u.contacts or any(m.bound for m in men)))
             for m in sorted(men, key=lambda m: not m.bound) if engaged else men:
                 tx = ty = 0.0
-                if engaged:
-                    cx, cy = self._grid_cell(m.x, m.y)
-                    best, foe = reach, None
-                    for gx in range(cx - r, cx + r + 1):
-                        for gy in range(cy - r, cy + r + 1):
-                            for o, e in grid.get((gx, gy), ()):
-                                if e.side is u.side or claims.get(id(o), 0) >= config.JOSTLE_PER_FOE:
-                                    continue
-                                d = math.hypot(o.x - m.x, o.y - m.y)
-                                if d < best:
-                                    best, foe = d, o
+                if not engaged:
+                    m.jostle_foe = None
+                else:
+                    # bei seinem Gegner bleiben, solange der lebt und nah ist (sonst zuckt er jeden
+                    # Takt zu einem anderen); erst nach JOSTLE_HOLD wählt er neu
+                    foe = m.jostle_foe
+                    if foe is not None and (foe.hp <= 0.0 or self.time >= m.jostle_until
+                                            or math.hypot(foe.x - m.x, foe.y - m.y) > 1.3 * reach):
+                        foe = None
+                    if foe is None:
+                        cx, cy = self._grid_cell(m.x, m.y)
+                        best = reach
+                        for gx in range(cx - r, cx + r + 1):
+                            for gy in range(cy - r, cy + r + 1):
+                                for o, e in grid.get((gx, gy), ()):
+                                    if e.side is u.side or claims.get(id(o), 0) >= config.JOSTLE_PER_FOE:
+                                        continue
+                                    d = math.hypot(o.x - m.x, o.y - m.y)
+                                    if d < best:
+                                        best, foe = d, o
+                        m.jostle_foe = foe
+                        m.jostle_until = self.time + config.JOSTLE_HOLD
                     if foe is not None and (not self.blocked or self._wall_level(m.pos) == self._wall_level(foe.pos)):
                         claims[id(foe)] = claims.get(id(foe), 0) + 1
                         fx, fy = foe.x + foe.show_dx, foe.y + foe.show_dy
@@ -2487,6 +2500,8 @@ class Battle:
                             k = min(d - config.JOSTLE_GAP, config.JOSTLE_MAX) / d
                             if not self.is_blocked(m.x + (fx - m.x) * k, m.y + (fy - m.y) * k):
                                 tx, ty = (fx - m.x) * k, (fy - m.y) * k
+                        else:
+                            tx, ty = m.show_dx, m.show_dy      # auf Armlänge: stehen bleiben, nicht zurück und wieder vor
                 ddx, ddy = tx - m.show_dx, ty - m.show_dy
                 d = math.hypot(ddx, ddy)
                 if d <= step:

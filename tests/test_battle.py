@@ -1126,6 +1126,29 @@ def test_riders_halt_at_the_house_they_loot_instead_of_circling():
     assert cav.vel == 0.0 and turned < 0.2 and cav.rect_distance((8.5, 8.5)) <= config.LOOT_RANGE
 
 
+def test_a_jostling_man_stays_with_his_opponent():
+    """Nur fürs Bild: Im Gerangel bleibt ein Mann bei dem Gegner, auf den er drängt, solange
+    der lebt und nah ist, statt jeden Takt den nächsten freien neu zu wählen (das zuckte)."""
+    b = Battle(KLEIN_OFFEN, random.Random(1))
+    b.command_attack()
+    picked = None
+    for _ in range(int(30 / DT)):
+        b.update(DT)
+        picked = next(((m, m.jostle_foe) for u in b.lochoi for m in u.all_men() if m.jostle_foe is not None), None)
+        if picked is not None:
+            break
+    assert picked is not None
+    man, foe = picked
+    held = 0
+    for _ in range(int(1.0 / DT)):
+        b.update(DT)
+        if foe.hp <= 0.0 or man.hp <= 0.0 or math.hypot(foe.x - man.x, foe.y - man.y) > 1.3 * config.JOSTLE_REACH:
+            break
+        assert man.jostle_foe is foe
+        held += 1
+    assert held > 0
+
+
 def test_men_are_drawn_smoothed_within_their_group_but_never_behind_the_march():
     """Nur fürs Bild: Ein Mann, der in seiner Gruppe hin und her zittert, wird ruhig gezeichnet;
     marschiert die Gruppe, hängt sein Bild nicht nach."""
