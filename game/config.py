@@ -71,7 +71,8 @@ SHIELD_SPEAR_COVER = 0.6     # Speere von links treffen den Schild
 SHIELD_SPEAR_OPEN = 1.15     # Speere von rechts
 CAVALRY_VS_FRONT = 0.3       # Pferde laufen nicht in Speere
 CAVALRY_CHARGE = 1.5         # Reiter gegen Gegner ohne Formation
-ROUTED_DAMAGE = 2.0          # Fliehende werden niedergemacht
+ROUTED_DAMAGE = 2.0          # Fliehende werden niedergemacht ...
+PURSUIT_DAMAGE = 5.0         # ... und wer von hinten eingeholt wird, wehrt sich nicht: so vielfacher Schaden (Verfolgung)
 
 # Winkel (Grad) für Front / Flanke / Rücken (nur noch für Hilfsrechnungen)
 FRONT_ARC = 60

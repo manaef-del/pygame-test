@@ -483,6 +483,19 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   „hinten“, sonst „seitlich“. Wer am Ende einer Reihe von der Seite
   gepackt wird, dreht sich also um, auch wenn der Gegner für die ganze
   Gruppe noch knapp als „vorn“ zählt (die Toleranz neben dem Linienende).
+- **Verfolgung:** Wer flieht und von hinten eingeholt wird, wehrt sich
+  nicht: Er nimmt den fünffachen Schaden (von vorn oder seitlich getroffen
+  den doppelten, wie bisher). Die meisten Hopliten fielen auf der Flucht,
+  nicht in der Phalanx; eine gebrochene Linie zu verfolgen, mit Reitern
+  zumal, ist jetzt der entscheidende Moment, den es sein sollte. Wer nur
+  noch Fliehende vor sich hat, wird vom Handgemenge nicht gebremst, sonst
+  liefen ihm die Fliehenden davon (im Labor: null Gefallene in zehn
+  Sekunden Verfolgung, jetzt sechs von vierzig).
+- **Auf der eigenen Agora sofort kampfbereit:** Verteidiger, die fliehend
+  ihre Agora erreichen, stehen dort sofort wieder, mit Moral mindestens
+  60 %, und nehmen Befehle an. Vorher mussten sie dort erst warten, bis
+  kein Feind nah war, und die Moral langsam steigen lassen. Angreifer
+  sammeln sich am eigenen Rand weiter wie bisher.
 - **Wer innen ist, darf klettern:** Angreifer, die durch ein Tor in die
   Festung eingedrungen sind, dürfen die Leitern der Verteidiger auf den
   Wehrgang nehmen, ob irgendwo ein Turm steht oder nicht. Von außen

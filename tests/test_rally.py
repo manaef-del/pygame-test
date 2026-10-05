@@ -57,6 +57,31 @@ def test_routed_defenders_run_to_the_agora_and_rally_there():
     assert hop in b.units(Side.STADT, fighting_only=True)
 
 
+def test_defenders_stand_at_once_on_their_agora_even_with_the_enemy_near():
+    """Auf der eigenen Agora sind Verteidiger sofort wieder kampfbereit: keine Wartezeit,
+    kein langsames Steigen der Moral, auch wenn der Feind in der Nähe steht."""
+    b = Battle(KLEIN_OFFEN, random.Random(1))
+    quiet(b)
+    hop, pelt, cav = b.units(Side.STADT)
+    hop.x, hop.y = 8.0, 9.0
+    hop.place_men()
+    foe = b.units(Side.FEIND)[0]
+    foe.x, foe.y = b.agora[0] + 2.5, b.agora[1]          # näher als RALLY_SAFE, weiter als LAST_STAND_RANGE
+    foe.place_men()
+    rout(b, hop)
+    arrived = None
+    for _ in range(int(40 / DT)):
+        b.update(DT)
+        if arrived is None and dist(hop.pos, b.agora) <= config.RALLY_RADIUS:
+            arrived = b.time
+        if hop.stance is not Stance.FLUCHT:
+            break
+    assert arrived is not None and hop.stance is Stance.HALTEN
+    assert b.time - arrived < 0.5                                     # sofort, nicht erst nach dem Sammeln
+    assert hop.morale >= config.RALLY_MORALE
+    assert any("sammeln sich auf der Agora" in e for e in b.events)
+
+
 def test_defenders_cornered_on_the_agora_fight_to_the_last_man():
     b = Battle(KLEIN_OFFEN, random.Random(1))
     quiet(b)
@@ -74,8 +99,8 @@ def test_defenders_cornered_on_the_agora_fight_to_the_last_man():
     raider.target_id = hop.id
     raider.target = hop.pos
     run(b, 1)
-    assert hop.stance is not Stance.FLUCHT                            # umgedreht: letzter Kampf
-    assert any("letzten Kampf" in e for e in b.events)
+    assert hop.stance is not Stance.FLUCHT                            # umgedreht: auf der Agora steht man sofort wieder
+    assert any("auf der Agora" in e for e in b.events)
     hop.morale = -0.5                                                 # auch ohne Moral: auf der Agora flieht niemand mehr
     run(b, 1)
     assert hop.stance is not Stance.FLUCHT

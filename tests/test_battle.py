@@ -1437,6 +1437,43 @@ def test_enemy_groups_wheel_and_about_turn_like_the_player():
     assert 0.3 < raider.facing[0] < 0.95 and abs(raider.x - x0) < 0.05     # schwenkt erst, marschiert dann
 
 
+# ------------------------------------------------------------ Verfolgung
+def pursuit(factor):
+    """Vierzig fliehende Hopliten (nach Süden), zwölf Reiter dicht hinter ihnen."""
+    b = Battle(raid(16, (8.0, 0.5)), random.Random(0),
+               army=army_of(GroupSpec("H", [Tier("mittel", 40)]), GroupSpec("P", [Tier("peltast", 12)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    for r in b.units(Side.FEIND):
+        r.target = None
+        r.stance = Stance.HALTEN
+    hop = b.units(Side.STADT)[0]                          # die Peltasten bleiben abseits: die Lage ist nicht aussichtslos
+    hop.reform(10)
+    hop.x, hop.y, hop.facing = 8.0, 6.0, (0.0, 1.0)
+    hop.place_men()
+    cav = b._spawn(Side.FEIND, arrange(men("reiter", 12), 6), 8.0, 4.9, "Reiter")
+    cav.facing = (0.0, 1.0)
+    cav.place_men()
+    b.alarm = False
+    hop.morale = 0.05
+    b._morale(DT)
+    assert hop.stance is Stance.FLUCHT
+    config.PURSUIT_DAMAGE = factor
+    for _ in range(int(10 / DT)):
+        cav.stance, cav.target_id, cav.target = Stance.ANGRIFF, hop.id, hop.pos   # die Reiter setzen nach (ohne KI von Hand)
+        b.update(DT)
+    return 40 - hop.men
+
+
+def test_routers_caught_from_behind_are_cut_down(monkeypatch):
+    """Fliehende, die von hinten eingeholt werden, wehren sich nicht: deutlich mehr Gefallene
+    als mit dem gewöhnlichen Nachteil der Flucht."""
+    monkeypatch.setattr(config, "PURSUIT_DAMAGE", config.ROUTED_DAMAGE)
+    plain = pursuit(config.ROUTED_DAMAGE)
+    chased = pursuit(5.0)
+    assert chased >= 2 * max(1, plain), (plain, chased)
+
+
 # ------------------------------------------------------------ Drücken
 def push_duel(own_width: int, foe_width: int, foe_kind: str = "mittel"):
     """Zwei Phalanxen zu je 40 Mann Schild an Schild, die eigene (Front Nord) bei (8, 9)."""

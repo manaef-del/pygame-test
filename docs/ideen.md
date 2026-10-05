@@ -45,6 +45,16 @@ wandert nach unten.
     wechselt keine Modi; denkbar wäre etwa eine lockere Ordnung der
     Siedlung gegen Peltasten.
 
+## Später
+
+- **Gelände ohne Hang:** ein Bach mit Furt (eine Enge im freien Feld, wie
+  das Tor ohne Mauer) oder ein Wäldchen (bremst Blöcke, löst die Ordnung,
+  deckt vor Wurfspeeren). Nutzt Hindernisse, Gassen und Auflösen, die es
+  schon gibt, und gäbe den offenen Karten die Frage, wo man sich hinstellt.
+- **Veteranen:** Gruppen, die eine Schlacht überstehen, werden tapferer;
+  der erste Schritt zu einem Feldzug (Apoikia). Für die Mechanik heute kein
+  Mehrwert, für das spätere Spiel viel.
+
 ## Zurückgestellt
 
 Das Spiel soll einfach bleiben und Spaß machen; die Flucht wirkt schon
@@ -62,8 +72,16 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
   (Lauf 22) wäre das die naheliegende Fortsetzung. Geringer Aufwand.
 - **Hang und Höhe.** Gelände, das Tempo und Kampf beeinflusst. Großer
   Aufwand.
+- **Nur Erweiterungen des Vorhandenen** (entschieden am 5. Oktober 2026,
+  nach einem Blick auf andere Spiele): Jubel beim Bruch des Gegners, Ton,
+  Nachbesprechung nach der Schlacht, Zusammenlegen von Gruppen,
+  Laufschritt, Befehlsverzögerung. Gebaut wurde nur die Verfolgung.
 
 ## Erledigt
+
+- **Verfolgung und Agora** (5. Oktober 2026): Fliehende, die von hinten
+  eingeholt werden, nehmen den fünffachen Schaden; Verteidiger sind auf
+  ihrer Agora sofort wieder kampfbereit und befehlbar.
 
 - **Feinde auf dem Wall ohne Turm** (5. Oktober 2026, Lauf 41): Sobald
   irgendwo ein Turm stand, durften alle Angreifer klettern, und wer durch

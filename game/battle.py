@@ -2823,8 +2823,8 @@ class Battle:
             speed = u.speed * (1.25 if u.stance is Stance.FLUCHT else 1.0)
             if u.pace is not None and u.stance is not Stance.FLUCHT:
                 speed = min(speed, u.pace)              # im Verband: so schnell wie die langsamste Gruppe
-            if u.engaged and u.stance is not Stance.FLUCHT:
-                speed *= config.ENGAGED_SPEED           # im Handgemenge kommt man kaum vom Fleck
+            if u.engaged and u.stance is not Stance.FLUCHT and not self._chasing(u):
+                speed *= config.ENGAGED_SPEED           # im Handgemenge kommt man kaum vom Fleck (Verfolger nicht)
             if u.charge_slow_until > self.time:
                 speed *= config.CHARGE_SLOW             # der Aufprall hat die Reiter gebremst
             goal, final = self.route(u, u.target)
@@ -2918,6 +2918,17 @@ class Battle:
             if u.stance is Stance.FLUCHT and not self.inside(u.x, u.y):
                 u.withdrawn = True
         self._move_men(dt)
+
+    def _chasing(self, u: Lochos) -> bool:
+        """Verfolgt die Gruppe nur noch Fliehende? Dann bremst das Handgemenge sie nicht: Wer
+        den Fliehenden auf den Fersen ist, bleibt ihnen auf den Fersen."""
+        if not u.contacts:
+            return False
+        for cid in u.contacts:
+            o = self.by_id(cid)
+            if o is not None and o.stance is not Stance.FLUCHT:
+                return False
+        return True
 
     def _marching(self, u: Lochos, final: bool, d: float) -> bool:
         """Marschiert die Gruppe im Bogen? Fußvolk als Block auf freiem Feld, unterwegs zu
@@ -5187,7 +5198,8 @@ class Battle:
         if turned > 0.0:
             mod = turned * 1.0 + (1.0 - turned) * mod    # weder Rückennachteil und Schildseite noch Rückhalt der Linie
         if b.stance is Stance.FLUCHT:
-            mod *= config.ROUTED_DAMAGE
+            # Verfolgung: wer von hinten eingeholt wird, wehrt sich nicht mehr
+            mod *= config.PURSUIT_DAMAGE if arc_name == "rear" else config.ROUTED_DAMAGE
         if b.leader_man() is not None:
             mod *= config.LEADER_ARMOR                   # der Anführer hält die Reihen zusammen
         return mod, arc_name
@@ -5689,10 +5701,10 @@ class Battle:
         return self.defends(u) and dist(u.pos, self.agora) <= config.RALLY_RADIUS
 
     def _rally(self, u: Lochos, dt: float, hopeless: bool) -> None:
-        """Eine fliehende Gruppe am Sammelpunkt: Ist kein Feind nah, steigt ihre Moral,
-        bis sie wieder Befehle annimmt. Verteidiger, die der Feind auf der Agora
-        stellt, kehren um und kämpfen bis zum letzten Mann. Angreifer in
-        aussichtsloser Lage sammeln sich nicht, sie verlassen das Feld."""
+        """Eine fliehende Gruppe am Sammelpunkt: Verteidiger sind auf ihrer Agora sofort
+        wieder kampfbereit (dort flieht auch niemand mehr). Angreifer sammeln sich am
+        eigenen Rand erst, wenn kein Feind nah ist und die Moral wieder reicht; in
+        aussichtsloser Lage oder bis an den Rand verfolgt verlassen sie das Feld."""
         if u.leaving:
             return
         if not self.defends(u) and hopeless:
@@ -5701,6 +5713,11 @@ class Battle:
             self.events.append(f"{u.name} ({u.side.value}) verlassen das Feld")
             return
         if dist(u.pos, self.rally_point(u)) > config.RALLY_RADIUS:
+            return
+        if self.defends(u):
+            # auf der eigenen Agora ist man sofort wieder kampfbereit und nimmt Befehle an
+            self._stand_again(u, max(u.morale, config.RALLY_MORALE))
+            self.events.append(f"{u.name} ({u.side.value}) sammeln sich auf der Agora")
             return
         nearest = min((self._gap(u, f) for f in self.lochoi if f.side is not u.side and f.fighting
                        and self.on_wall(f) == self.on_wall(u)), default=float("inf"))
