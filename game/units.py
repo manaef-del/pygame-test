@@ -251,6 +251,21 @@ def fit_men(rows: list[list[Man]], centre: tuple[float, float], facing: tuple[fl
             dx, dy = m.x - ox, m.y - oy
             where[id(m)] = (centre[0] + dx * c - dy * s, centre[1] + dx * s + dy * c)
     n_rows = len(rows)
+    spots = {}
+    for r, row in enumerate(rows):
+        for i in range(len(row)):
+            forward = ((n_rows - 1) / 2 - r) * row_gap
+            side = (i - (len(row) - 1) / 2) * gap
+            spots[(r, i)] = (centre[0] + fx * forward + ax * side, centre[1] + fy * forward + ay * side)
+    return fit_rows(rows, spots, where)
+
+
+def fit_rows(rows: list[list[Man]], spots: dict[tuple[int, int], tuple[float, float]],
+             where: dict[int, tuple[float, float]] | None = None) -> list[list[Man]]:
+    """Männer auf gegebene Plätze (Reihe, Stelle) -> Punkt verteilen, je Abschnitt mit den
+    zusammen kürzesten Wegen (``where``: wo jeder Mann dafür steht; sonst seine Stelle)."""
+    if where is None:
+        where = {id(m): (m.x, m.y) for row in rows for m in row}
     by_tier: dict[int, list[tuple[int, int]]] = {}            # Abschnitt -> seine Plätze (Reihe, Stelle)
     for r, row in enumerate(rows):
         for i, m in enumerate(row):
@@ -260,12 +275,8 @@ def fit_men(rows: list[list[Man]], centre: tuple[float, float], facing: tuple[fl
         men = [rows[r][i] for r, i in places]
         if len(men) < 2:
             continue
-        spots = []
-        for r, i in places:
-            forward = ((n_rows - 1) / 2 - r) * row_gap
-            side = (i - (len(rows[r]) - 1) / 2) * gap
-            spots.append((centre[0] + fx * forward + ax * side, centre[1] + fy * forward + ay * side))
-        cost = [[(where[id(m)][0] - sx) ** 2 + (where[id(m)][1] - sy) ** 2 for sx, sy in spots] for m in men]
+        pts = [spots[p] for p in places]
+        cost = [[(where[id(m)][0] - sx) ** 2 + (where[id(m)][1] - sy) ** 2 for sx, sy in pts] for m in men]
         for k, j in enumerate(assign_min_cost(cost)):
             r, i = places[j]
             out[r][i] = men[k]
@@ -309,7 +320,10 @@ class Lochos:
     heading: tuple[float, float] = (0.0, -1.0)   # Reiter: Fahrtrichtung
     ride_in: float = 0.0              # Reiter: wie weit sie in den Feind hineingetragen wurden
     face_to: tuple[float, float] | None = None   # befohlene Front, auf die die Gruppe schwenkt
-    ring_size: float = 0.0            # Kreis: gewünschter äußerer Halbmesser (0 = so eng wie möglich)
+    ring_size: float = 0.0            # Kreis: gewünschter äußerer Halbmesser (0 = eine geschlossene Reihe, der weiteste)
+    rows_are_rings: bool = False      # die Reihen sind die Ringe des Kreises (außen zuerst)
+    line_width: int = 0               # Breite der Linie, ehe die Gruppe in den Kreis ging
+    _ring_cache: tuple = ()           # (Schlüssel, engster, weitester Halbmesser)
     charge_slow_until: float = -1.0   # nach dem Aufprall: bis dahin langsam
     last_arc: str = ""
     men_start: int = 0
@@ -487,26 +501,106 @@ class Lochos:
             out.append(merged)
         return out
 
-    def ring_radii(self) -> list[float]:
-        """Halbmesser je Schicht, von außen nach innen; die äußere ist so weit,
-        dass alle inneren Ringe mit Reihenabstand hineinpassen."""
+    def ring_capacity(self, r: float) -> int:
+        """So viele Männer passen auf einen Ring mit Halbmesser ``r``."""
+        return max(1, int(2 * math.pi * r / self.man_gap() + 1e-6))
+
+    def ring_plan(self, outer: float) -> list[tuple[list[Man], float]]:
+        """Die Ringe für einen äußeren Halbmesser, von außen nach innen: das Fußvolk Ring um
+        Ring (je so viele Männer, wie auf den Umfang passen, die vorderen Abschnitte außen),
+        dann Reiter, innen Peltasten; jeder Ring einen Reihenabstand weiter innen. Der
+        innerste nimmt, was übrig ist."""
+        rows = self.row_gap()
+        out: list[tuple[list[Man], float]] = []
+        r = outer
+        for layer in self.layers():
+            if layer[0].kind.cavalry or layer[0].kind.ranged:
+                out.append((list(layer), max(config.RING_CORE, r)))
+                r -= rows
+                continue
+            rest = sorted(layer, key=lambda m: m.tier)
+            while rest:
+                cap = len(rest) if r - rows < config.RING_CORE else self.ring_capacity(r)
+                out.append((interleave(rest[:cap]), max(config.RING_CORE, r)))
+                rest = rest[cap:]
+                r -= rows
+        return out
+
+    def _ring_fits(self, r: float) -> bool:
+        """Haben alle Ringe bei diesem äußeren Halbmesser Platz (keiner enger als RING_CORE)?"""
         gap, rows = self.man_gap(), self.row_gap()
-        need = [max(0.12, len(layer) * gap / (2 * math.pi)) for layer in self.layers()]
-        if not need:
-            return [0.35]
-        outer = max(0.35, self.ring_size, max(r + i * rows for i, r in enumerate(need)))
-        return [outer - i * rows for i in range(len(need))]
+        for layer in self.layers():
+            if r < config.RING_CORE - 1e-9:
+                return False
+            if layer[0].kind.cavalry or layer[0].kind.ranged:
+                if len(layer) * gap / (2 * math.pi) > r + 1e-9:
+                    return False
+                r -= rows
+                continue
+            n = len(layer)
+            while n > 0:
+                if r < config.RING_CORE - 1e-9:
+                    return False
+                n -= self.ring_capacity(r)
+                r -= rows
+        return True
+
+    def _ring_bounds(self) -> tuple[float, float]:
+        key = (self.men, self.man_gap(), tuple(len(l) for l in self.layers()))
+        if self._ring_cache and self._ring_cache[0] == key:
+            return self._ring_cache[1], self._ring_cache[2]
+        gap, rows = self.man_gap(), self.row_gap()
+        top = config.RING_CORE
+        for k, layer in enumerate(self.layers()):              # der weiteste: jede Gattung in einem Ring
+            top = max(top, len(layer) * gap / (2 * math.pi) + k * rows)
+        low = top
+        while low - 0.01 >= config.RING_CORE and self._ring_fits(low - 0.01):
+            low -= 0.01
+        self._ring_cache = (key, low, top)
+        return low, top
 
     def ring_minimum(self) -> float:
-        """Der engste Kreis, in dem alle Schichten Platz haben."""
-        size, self.ring_size = self.ring_size, 0.0
-        try:
-            return self.ring_radii()[0]
-        finally:
-            self.ring_size = size
+        """Der engste Kreis: so viele Ringe ineinander, wie Platz haben."""
+        return self._ring_bounds()[0]
+
+    def ring_maximum(self) -> float:
+        """Der weiteste Kreis: alles Fußvolk in einer geschlossenen Reihe."""
+        return self._ring_bounds()[1]
 
     def ring_radius(self) -> float:
-        return self.ring_radii()[0]
+        """Der äußere Halbmesser: der gewünschte, nie enger oder weiter, als die Männer können."""
+        low, top = self._ring_bounds()
+        want = self.ring_size if self.ring_size > 0 else top
+        return max(low, min(top, want))
+
+    def ring_radii(self) -> list[float]:
+        """Halbmesser je Ring, von außen nach innen."""
+        return [r for _, r in self.ring_plan(self.ring_radius())]
+
+    def reform_ring(self, centre: tuple[float, float] | None = None) -> None:
+        """Die Reihen zu den Ringen des Kreises machen (die vorderen Abschnitte außen, so viele
+        Ringe, wie der Halbmesser verlangt). Jeder Mann bekommt den Platz seines Abschnitts, der
+        seiner Stelle am nächsten liegt (gemessen an der Mitte ``centre``, sonst der jetzigen):
+        keiner läuft quer durch den Kreis."""
+        if not self.rows_are_rings:
+            self.line_width = self.width
+        plan = self.ring_plan(self.ring_radius())
+        rows = [ring for ring, _ in plan]
+        if config.FIT_MEN:
+            cx, cy = centre or self.pos
+            spots = {}
+            for k, (ring, r) in enumerate(plan):
+                for i in range(len(ring)):
+                    a = 2 * math.pi * (i + 0.5 * k) / len(ring)
+                    spots[(k, i)] = (cx + math.cos(a) * r, cy + math.sin(a) * r)
+            rows = fit_rows(rows, spots)
+        self.rows = rows
+        self.rows_are_rings = True
+
+    def leave_ring(self) -> None:
+        """Zurück aus dem Kreis: die Reihen der Linie wieder bilden, so breit wie zuvor."""
+        if self.rows_are_rings:
+            self.reform(self.line_width or max(1, round(math.sqrt(2 * self.men))))
 
     def wedge_rows(self) -> int:
         k = 1
@@ -679,6 +773,7 @@ class Lochos:
             rows = fit_men(rows, centre or self.pos, facing or self.facing, self.man_gap(), self.row_gap(),
                            origin=self.pos, old_facing=self.facing)
         self.rows = rows
+        self.rows_are_rings = False
 
     def slots(self) -> list[tuple[Man, tuple[float, float]]]:
         """Platz jedes Mannes in der Formation (Weltkoordinaten)."""
@@ -701,9 +796,11 @@ class Lochos:
         fx, fy = facing
         self.seat_commander()
         if self.formation == "o":
-            for k, (layer, r) in enumerate(zip(self.layers(), self.ring_radii())):
-                n = len(layer)
-                for i, man in enumerate(layer):
+            outer, rows = self.ring_radius(), self.row_gap()
+            for k, ring in enumerate(self.rows):              # die Reihen sind die Ringe, außen zuerst
+                r = max(config.RING_CORE, outer - k * rows)
+                n = len(ring)
+                for i, man in enumerate(ring):
                     a = 2 * math.pi * (i + 0.5 * k) / max(1, n)    # innere Ringe auf Lücke
                     out.append((man, (cx + math.cos(a) * r, cy + math.sin(a) * r)))
             return out
@@ -754,8 +851,14 @@ class Lochos:
         if not self.rows:
             return 0.0
         if self.formation == "o":
-            near = [m for m in self.all_men() if distance(m) <= reach]
-            return config.RING_ATTACK_SHARE * sum(m.attack for m in near)
+            near = [m for m in self.rows[0] if distance(m) <= reach]      # der äußere Ring, wie die vordere Reihe
+            total = sum(m.attack for m in near)
+            if len(self.rows) > 1:
+                total += config.SECOND_ROW_SPEARS * sum(m.attack for m in self.rows[1]
+                                                        if m.kind.hoplite and distance(m) <= reach + self.row_gap())
+            if not near:
+                total = 0.5 * sum(m.attack for m in sorted(self.rows[0], key=distance)[:2])
+            return config.RING_ATTACK_SHARE * total
         if arc != "front":
             near = [m for m in self.all_men() if distance(m) <= reach]
             if not near:
@@ -873,6 +976,14 @@ class Lochos:
         for k in range(i + 1, len(self.rows)):
             behind = self.rows[k]
             if behind:
-                man = behind.pop(min(j, len(behind) - 1))
+                if self.formation == "o" and self.rows_are_rings:
+                    # aus dem nächsten Ring tritt der heraus, der der Lücke am nächsten steht
+                    a = 2 * math.pi * (j + 0.5 * i) / (len(self.rows[i]) + 1)
+                    def off(m: Man) -> float:
+                        d = math.atan2(m.y - self.y, m.x - self.x) - a
+                        return abs((d + math.pi) % (2 * math.pi) - math.pi)
+                    man = behind.pop(min(range(len(behind)), key=lambda q: off(behind[q])))
+                else:
+                    man = behind.pop(min(j, len(behind) - 1))
                 self.rows[i].insert(min(j, len(self.rows[i])), man)
                 return

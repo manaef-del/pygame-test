@@ -239,7 +239,8 @@ class Renderer:
             if rings:                                      # Kreis: Mitte am Anfang, Halbmesser aus der Länge
                 r = battle.ring_radius_for(rings[0], dist(start, end))
                 pygame.draw.circle(s, config.COLOR_RECT, px(start), int(r * T), 1)
-                label = self.small.render(f"Kreis, Halbmesser {r:.1f}", True, config.COLOR_RECT)
+                depth = len(rings[0].ring_plan(r))
+                label = self.small.render(f"Kreis, {depth} Ring{'e' if depth != 1 else ''}", True, config.COLOR_RECT)
                 s.blit(label, label.get_rect(center=px((start[0], start[1] + r + 0.4))))
                 units = [u for u in units if u.formation != "o"]
                 if not units:

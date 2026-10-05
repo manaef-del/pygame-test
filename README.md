@@ -380,9 +380,11 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   aber ohne den Rückhalt der Glieder: schwächer nach vorn, nur 60 % der
   Männer kämpfen) für den Fall, dass man umfasst wird oder weit in der
   Unterzahl ist. Die Größe des Kreises zieht man wie eine Linie: Tippen
-  setzt die Mitte, die Länge des Zugs den Halbmesser (nie enger, als die
-  Männer Platz brauchen, höchstens drei Kacheln); ein weiter Kreis steht
-  lockerer. Reine Reiter: Linie und
+  setzt die Mitte, die Länge des Zugs den Halbmesser. Der weiteste Kreis
+  ist eine geschlossene Reihe aller Hopliten (die Formationstaste stellt
+  ihn so auf); zieht man ihn enger, bilden sich Ringe nach innen, die
+  vorderen Abschnitte außen, bis kein Ring mehr Platz hat (40 Mann: drei
+  Ringe). Die Vorschau sagt, wie viele Ringe es werden. Reine Reiter: Linie und
   Keil; der Keil trifft beim Sturm halb so viele Männer, die aber fast
   doppelt so hart. Reine Peltasten: nur die Linie (ohne Schildwand hilft
   ihnen der Kreis nicht). Wer eine neue Linie zieht, steht wieder in Linie.
@@ -410,8 +412,9 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
     Reiter drei Glieder tief, die anderen teilen sich die Länge nach
     Mannzahl. Jede weitere Reihe steht dicht hinter der vorigen, auf drei
     Vierteln ihrer Länge.
-  - „Kreis“ stellt die Reihen als Ringe ineinander, die vordere außen. Beim
-    Aufziehen treten die Männer der Ringe aneinander vorbei.
+  - „Kreis“ stellt die Gruppen als Ringe ineinander, die vordere außen,
+    jede als geschlossene Reihe. Beim Aufziehen treten die Männer der Ringe
+    aneinander vorbei.
   - Jede Gruppe behält ihren Modus und nimmt Befehle einzeln an, sie bleibt
     dabei im Verband; der nächste Befehl an den Verband stellt sie wieder
     an ihren Platz. Wer aus dem Verband heraus frei angreift (Sturm,
@@ -475,6 +478,16 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Blickstrich zeigt es: Die hintere Reihe schaut nach hinten, sobald sie
   dort gepackt wird. Eine einreihige Linie, deren Männer alle vorn im
   Speerkampf stehen, kann sich nicht umdrehen.
+- **Der Kreis ist eine Phalanx:** Die Ringe sind seine Reihen. Es kämpft
+  der äußere Ring, der zweite sticht mit halben Speeren mit, getroffen wird
+  nur der äußere; fällt dort einer, rückt aus dem nächsten Ring der nach,
+  der der Lücke am nächsten steht, so dass der äußere Ring voll bleibt und
+  die inneren schrumpfen. Die Männer bleiben auf ihren Plätzen wie in der
+  Linie. Wird eine kämpfende Linie zum Kreis, bekommt jeder den Platz
+  seines Abschnitts, der ihm am nächsten liegt, keiner läuft quer durch
+  den Kreis, und der Kreis zählt als Phalanx, sobald fast alle stehen
+  (Gebundene, deren Platz der Feind besetzt, zählen als da). Zurück in der
+  Linie steht die Gruppe wieder so breit wie vorher.
 - **Handgemenge bindet:** Jeder Mann, der einen feindlichen Mann in
   Armreichweite hat (orangener Ring), steht fest, auch wenn seine Gruppe einen neuen Befehl
   bekommt; die anderen formieren sich um ihn herum. Eine vorn gebundene

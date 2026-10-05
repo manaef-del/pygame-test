@@ -775,9 +775,10 @@ def test_hopeless_battle_drains_morale():
 def test_formations_geometry_and_arcs():
     u = Lochos(1, Side.STADT, arrange(men("mittel", 20), 7), 5.0, 5.0)
     u.formation = "o"
+    u.reform_ring()
     assert u.arc_to((5.0, 7.0)) == "front" and u.arc_to((7.0, 5.0)) == "front"
     r = u.ring_radius()
-    assert all(abs(dist_of_pt(p, (5.0, 5.0)) - r) < 1e-6 for _, p in u.slots())
+    assert len(u.rows) == 1 and all(abs(dist_of_pt(p, (5.0, 5.0)) - r) < 1e-6 for _, p in u.slots())
     u.formation = "keil"
     assert u.wedge_rows() == 6
     tip = min(u.slots(), key=lambda mp: mp[1][1])[1]
@@ -979,14 +980,40 @@ def test_mixed_groups_form_nested_rings_with_alternating_rows():
     assert [m.kind.key for m in layers[0][:6]] == ["schwer", "mittel", "leicht"] * 2   # Reihen wechseln ab
     assert all(m.kind.cavalry for m in layers[1]) and all(m.kind.ranged for m in layers[2])
     u.formation = "o"
+    u.reform_ring()                                       # der weiteste Kreis: das Fußvolk in einem Ring
+    assert [len(r) for r in u.rows] == [24, 6, 6]
     r_out, r_cav, r_pelt = u.ring_radii()
-    assert r_out > r_cav > r_pelt > 0.1
+    assert r_out > r_cav > r_pelt >= config.RING_CORE
     for m, p in u.slots():
         want = r_pelt if m.kind.ranged else (r_cav if m.kind.cavalry else r_out)
         assert abs(dist_of_pt(p, (5.0, 5.0)) - want) < 1e-6
     assert u.formation_options() == ("linie", "o")
     p = Lochos(2, Side.STADT, [men("peltast", 6), men("reiter", 4)], 5.0, 5.0)
     assert p.formation_options() == ("linie",) and len(p.layers()) == 2   # ohne Schildwand kein Kreis
+
+
+def test_ring_is_one_closed_row_at_most_and_deeper_when_drawn_smaller():
+    """Der weiteste Kreis ist eine geschlossene Reihe aller Hopliten; zieht man ihn enger,
+    bilden sich Ringe nach innen, die vorderen Abschnitte außen, der äußere Ring voll."""
+    u = Lochos(1, Side.STADT, arrange(men("schwer", 14) + men("mittel", 13) + men("leicht", 13), 10), 8.0, 8.0)
+    for m in u.all_men():
+        m.tier = {"schwer": 0, "mittel": 1, "leicht": 2}[m.kind.key]
+    u.formation = "o"
+    top, low = u.ring_maximum(), u.ring_minimum()
+    assert abs(top - 40 * u.man_gap() / (2 * math.pi)) < 1e-6 and low < top
+    u.reform_ring()
+    assert len(u.rows) == 1 and len(u.rows[0]) == 40
+    u.ring_size = low
+    u.reform_ring()
+    assert len(u.rows) >= 3 and len(u.rows[0]) == u.ring_capacity(low)
+    assert all(m.kind.key == "schwer" for m in u.rows[-1]) is False       # die Schweren stehen außen ...
+    assert all(m.kind.key != "leicht" for m in u.rows[0])                  # ... die Leichten nicht im äußeren Ring
+    assert u.ring_radii()[-1] >= config.RING_CORE - 1e-9
+    assert sum(len(r) for r in u.rows) == 40
+    u.ring_size = 0.05
+    assert u.ring_radius() == low                                          # enger geht es nicht
+    u.ring_size = 9.0
+    assert u.ring_radius() == top                                          # weiter als eine Reihe auch nicht
 
 
 def test_mixed_group_of_the_muster_becomes_a_verband():
@@ -1414,18 +1441,70 @@ def test_enemy_groups_wheel_and_about_turn_like_the_player():
 def test_ring_size_from_drag_never_tighter_than_the_men_need():
     b, u = standing_group("mittel", 12, 6)
     b.command_formation([u], "o")
-    tight = u.ring_minimum()
+    tight, wide = u.ring_minimum(), u.ring_maximum()
     assert b.command_ring([u], (8.0, 12.0), 1.5) == 1
-    assert abs(u.ring_size - 1.5) < 1e-6 and u.ring_radius() == 1.5 and u.stance is Stance.PHALANX
+    assert u.ring_size == wide and u.ring_radius() == wide and u.stance is Stance.PHALANX   # weiter als eine Reihe nicht
     run(b, 3)
-    assert all(abs(dist_of_pt(p, u.pos) - 1.5) < 1e-6 for _, p in u.slots())
+    assert all(abs(dist_of_pt(p, u.pos) - wide) < 1e-6 for _, p in u.slots())
     assert u.in_phalanx
     b.command_ring([u], (8.0, 12.0), 0.1)
     assert u.ring_size == tight                              # enger geht es nicht
-    b.command_ring([u], (8.0, 12.0), 9.0)
-    assert u.ring_size == config.RING_MAX
     b.command_line([u], (6.0, 12.0), (10.0, 12.0))
     assert u.formation == "linie" and u.ring_size == 0.0
+
+
+def ring_under_attack(radius: float):
+    """Vierzig Hopliten im Kreis bei (8, 9), 48 Räuber von Norden."""
+    b = Battle(raid(48, (8.0, 2.0), houses=((8, 17),)), random.Random(0),
+               army=army_of(GroupSpec("H", [Tier("mittel", 40)])), ai="einfach")
+    b._volleys = lambda dt: None                          # Wurfspeere fliegen auch in innere Ringe, wie in hintere Reihen
+    hop = b.units(Side.STADT)[0]
+    hop.formation = "o"
+    hop.x, hop.y = 8.0, 9.0
+    b.command_ring([hop], (8.0, 9.0), radius)
+    hop.place_men()
+    return b, hop
+
+
+def test_ring_holds_its_shape_in_a_fight_and_the_outer_ring_stays_full():
+    """Der Kreis kämpft wie eine Phalanx: die Männer bleiben auf ihren Plätzen, von innen wird
+    nachgerückt, der äußere Ring bleibt voll, und nur er wird getroffen."""
+    b, hop = ring_under_attack(0.1)                       # der engste: drei Ringe
+    assert len(hop.rows) >= 3
+    cap = len(hop.rows[0])
+    for _ in range(int(40 / DT)):
+        b.update(DT)
+        if hop.men <= 37:
+            break
+    assert hop.men <= 37 and hop.in_phalanx
+    assert len(hop.rows[0]) == cap                        # nachgerückt
+    inner = [m for r in hop.rows[1:] for m in r]                         # wer noch innen steht, war immer innen ...
+    assert inner and all(m.hp >= m.kind.hp - 1e-6 for m in inner)         # ... und blieb ungetroffen
+    off = [dist_of_pt(m.pos, p) for m, p in hop.slots()]
+    assert sum(off) / len(off) < 0.1 and max(off) < 0.5
+
+
+def test_line_turning_into_a_ring_in_a_fight_takes_the_nearest_places():
+    """Wird eine kämpfende Linie zum Kreis, geht jeder zum nächsten Platz, keiner quer durch;
+    der Kreis steht bald und zählt als Phalanx."""
+    b = Battle(raid(48, (8.0, 2.0), houses=((8, 17),)), random.Random(0),
+               army=army_of(GroupSpec("H", [Tier("mittel", 40)])), ai="einfach")
+    hop = b.units(Side.STADT)[0]
+    b.command_line([hop], (6.0, 9.0), (10.0, 9.0))
+    for _ in range(int(20 / DT)):
+        b.update(DT)
+        if hop.engaged:
+            break
+    assert hop.engaged
+    hop.formation = "o"
+    b.command_ring([hop], hop.pos, 0.1)
+    walk = [dist_of_pt(m.pos, p) for m, p in hop.slots()]
+    assert max(walk) < 2.0 + hop.ring_radius()           # vom Ende der Linie (zwei Kacheln) zum Kreis, nicht quer hindurch
+    assert sum(walk) / len(walk) < 1.0
+    run(b, 6)
+    off = [dist_of_pt(m.pos, p) for m, p in hop.slots()]
+    assert sum(off) / len(off) < 0.15
+    assert hop.in_phalanx
 
 
 def test_second_row_steps_into_gaps_of_the_first():

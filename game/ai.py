@@ -551,7 +551,7 @@ class Brain:
         if u.formation != "o":
             u.formation = "o"
             u.in_line = False
-        u.ring_size = b.ring_radius_for(u, 0.0)
+        u.ring_size = 0.0                             # eine geschlossene Reihe: die meisten Speere nach außen
         u.stance = Stance.PHALANX
         u.target_id = None
         u.waypoints = []
@@ -559,6 +559,8 @@ class Brain:
         u.face_to = None
         if u.target is None or dist(u.target, held[2]) > 0.05:
             u.target = held[2]
+        if not u.rows_are_rings:
+            u.reform_ring(u.target)
 
     def _unbrace(self, b: "Battle", u: Lochos) -> None:
         held = self.braced.pop(u.id)
@@ -566,6 +568,7 @@ class Brain:
             u.formation = "linie"
             u.ring_size = 0.0
             u.in_line = False
+            u.leave_ring()
             u.face_to = held[1]
             if u.stance is not Stance.FLUCHT:
                 u.stance = Stance.PHALANX

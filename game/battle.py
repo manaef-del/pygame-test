@@ -1670,6 +1670,10 @@ class Battle:
                 u.formation = name
                 u.ring_size = 0.0
                 u.in_line = False
+                if name == "o":
+                    u.reform_ring()                   # eine geschlossene Reihe im Kreis; enger zieht man ihn
+                else:
+                    u.leave_ring()
                 changed += 1
         if changed:
             from .units import FORMATION_NAMES
@@ -1899,7 +1903,9 @@ class Battle:
         return plans
 
     def ring_radius_for(self, u: Lochos, wanted: float) -> float:
-        return max(u.ring_minimum(), min(config.RING_MAX, wanted))
+        """Der Halbmesser, den der Kreis bekommt: nie enger, als die Ringe Platz brauchen,
+        nie weiter als eine geschlossene Reihe."""
+        return max(u.ring_minimum(), min(u.ring_maximum(), wanted))
 
     def command_ring(self, units: list[Lochos] | None, centre: Point, radius: float) -> int:
         """Kreis ziehen: Mitte am Anfang des Zugs, Halbmesser aus seiner Länge (nie
@@ -1915,8 +1921,9 @@ class Battle:
             u.target_id = None
             u.waypoints = []
             u.target = self._free_spot(centre, u)
+            u.reform_ring(u.target)                   # die Ringe neu, jeder zum nächsten Platz
         if sel:
-            self.events.append(f"Kreis mit Halbmesser {sel[0].ring_size:.1f}")
+            self.events.append(f"Kreis mit {len(sel[0].rows)} Ring(en), Halbmesser {sel[0].ring_size:.1f}")
         return len(sel)
 
     def command_line(self, units: list[Lochos] | None, start: Point, end: Point) -> list[LinePlan]:
@@ -1999,6 +2006,7 @@ class Battle:
                     break
         self._wake(u)
         u.formation = "linie"
+        u.rows_are_rings = False                      # die Reihen der Linie bildet der Plan gleich neu
         u.full_width = None
         u.ring_size = 0.0
         u.mode = ""
@@ -2238,11 +2246,12 @@ class Battle:
             for u in reversed(units):                      # von innen nach außen: die vordere Reihe außen
                 self._wake(u)
                 u.formation = "o"
-                r = max(u.ring_minimum(), radius + (config.ROW_SPACING + 0.05 if radius else 0.0))
+                r = max(u.ring_maximum(), radius + (config.ROW_SPACING + 0.05 if radius else 0.0))
                 u.ring_size = r
                 u.full_width = None
                 u.mode = ""
                 u.in_line = False
+                u.reform_ring(centre)
                 u.march = None
                 u.face_to = None
                 u.target_id = None
@@ -2278,6 +2287,7 @@ class Battle:
             self._wake(u)
             u.formation, u.ring_size, u.stance, u.in_line = "o", r, Stance.PHALANX, False
             u.mode, u.target_id, u.target, u.march = "", None, centre, None
+            u.reform_ring(centre)
         self.events.append(f"{u.name} kehrt in {v.name} zurück")
 
     def _nested(self, u: Lochos, o: Lochos) -> bool:
@@ -2827,10 +2837,11 @@ class Battle:
                     if (u.x, u.y) != u.target:
                         u.still_since = self.time                # angekommen: wer später kommt, weicht
                     u.x, u.y = u.target
-                    u.in_line = u.on_slots(config.SLOT_TOLERANCE, config.SLOT_SHARE) and all(
-                        dist(m.pos, p) <= config.SLOT_TOLERANCE or self._crowding(m, m.pos, p, u.id) is not None
-                        for m, p in u.slots() if m.bound
-                    )                       # erst wenn (fast) alle stehen, die Gebundenen sicher, oder ihr Platz ist vom Feind besetzt
+                    slots = u.slots()
+                    there = sum(1 for m, p in slots if dist(m.pos, p) <= config.SLOT_TOLERANCE
+                                or (m.bound and self._crowding(m, m.pos, p, u.id) is not None))
+                    u.in_line = bool(slots) and there >= config.SLOT_SHARE * len(slots)
+                    # erst wenn (fast) alle stehen; ein Gebundener, dessen Platz der Feind besetzt, zählt als da
                 elif u.stance in (Stance.HALTEN, Stance.PLAENKELN) and final:
                     u.target = None
                     u.still_since = self.time
@@ -5100,7 +5111,7 @@ class Battle:
         else:
             # es trifft, wer den Angreifer erreicht; erreicht ihn niemand, die ganze Reihe
             row = b.exposed_row(row_arc)
-            candidates = b.all_men() if b.formation == "o" else b.rows[row] if b.rows else []
+            candidates = b.rows[row] if b.rows else []    # im Kreis der äußere Ring: die inneren sind gedeckt
             near = self._in_reach(candidates, a) if arc_name != "ranged" else []
             if near:
                 fallen = b.take_damage_men(near, dmg, self.rng)

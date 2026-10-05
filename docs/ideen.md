@@ -62,6 +62,19 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Der Kreis als Phalanx** (5. Oktober 2026): Die Ringe sind die Reihen
+  (außen die vorderen Abschnitte), der weiteste Kreis ist eine geschlossene
+  Reihe, enger gezogen bilden sich Ringe nach innen. Nur der äußere Ring
+  kämpft und wird getroffen, der zweite sticht mit, von innen wird in die
+  Lücke nachgerückt. Beim Umformen bekommt jeder den nächsten Platz seines
+  Abschnitts. Vorher verlor der Kreis im Handgemenge die Form: Die Plätze
+  wurden nach Reihenfolge vergeben (Wege quer durch den Kreis), ein
+  gebundener Mann abseits seines Platzes hielt die Phalanx auf, und beim
+  Nachrücken drehten sich alle Plätze. Im Labor (40 Hopliten, 48 Räuber)
+  hält der Kreis jetzt die Form (mittlere Abweichung 0,0 statt 0,3–0,7
+  Kacheln) und steht auch aus einer kämpfenden Linie heraus nach vier
+  Sekunden als Phalanx.
+
 - **Die hintere Reihe macht kehrt** (5. Oktober 2026, Lauf 37): Der
   Phalanxbonus gilt nur in der ersten Reihe nach vorn. Wer gebunden wird,
   ohne vorn zu stehen, dreht sich zum Gegner um und kämpft wie jeder Mann:
