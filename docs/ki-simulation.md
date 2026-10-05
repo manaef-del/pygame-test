@@ -1,5 +1,31 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 41 (5. Oktober 2026): Wer innen ist, darf klettern
+
+Neu: Angreifer, die durch ein Tor in die Festung eingedrungen sind, dürfen
+die Leitern der Verteidiger nehmen, ob irgendwo ein Turm steht oder nicht;
+von außen kommen sie nur über einen aufgestellten Turm hinauf. Vorher
+entschied der Turmbau: Stand irgendwo ein Turm, kletterten alle Angreifer,
+sonst keiner. Festung, Gegner-KI „klug“, sechs Seeds; zum Vergleich Lauf 34
+(dazwischen liegen Trägheit, Kehrtwende, Kreis, Drücken, Ruhe):
+
+| Szenario | Taktik | Siege | Verlust Stadt | Verlust Feind | Häuser verloren | Dauer |
+|---|---|---|---|---|---|---|
+| festung | tore | 6/6 → 6/6 | 7 % → 10 % | 60 % → 67 % | 1,7 → 1,2 | 99 s |
+| festung | passiv | 1/6 → 4/6 | 97 % → 85 % | 51 % → 67 % | 4,8 → 4,5 | 190 s |
+| festung_angriff | rammbock | 4/4 → 6/6 | 40 % → 40 % | 100 % → 100 % | – | 119 s |
+| festung_angriff | turm | 3/4 → 2/6 | 36 % → 37 % | 92 % → 86 % | – | 233 s |
+
+Lesart: Wer die Tore hält, gewinnt weiter immer und billig. Die passive
+Verteidigung gewinnt jetzt öfter als in Lauf 34, das kommt aber eher vom
+Drücken (die Besatzung steht tief hinter den Toren) als von der Leiterregel.
+Der Angriff mit Turm ist schwerer geworden (2/6); dort steht die
+Besatzung nach der neuen Regel ohnehin innen und durfte schon immer
+klettern, der Unterschied liegt in der Streuung von vier gegen sechs Seeds
+und im Drücken auf dem Wehrgang. Ein Aufstieg ohne Leiter oder Turm (die
+Vermutung, Angreifer blieben am Wallvorsprung hängen und würden
+hinaufkorrigiert) kam in drei Schlachten mit 265 Aufstiegen nicht vor.
+
 ## Lauf 40 (5. Oktober 2026): Ruhe der Bewegung, Rest
 
 Drei Regeln gebaut, einzeln gemessen (`ruhe.py`: Umkehrungen, Knicke und
