@@ -2427,6 +2427,15 @@ class Battle:
                     look = (fx, fy)
                 if look != (0.0, 0.0):
                     m.sfx, m.sfy = look if m.sx is None else self._rotated_towards((m.sfx, m.sfy), look, turn)
+                if m.mounted and m.kind.cavalry:
+                    # das Pferd läuft, wohin der Reiter wirklich geht; im Stand dreht es sich langsam zu seinem Blick
+                    v = math.hypot(m.mvx, m.mvy)
+                    if m.sx is None:
+                        m.hx, m.hy = m.sfx, m.sfy
+                    elif v > 0.3:
+                        m.hx, m.hy = self._rotated_towards((m.hx, m.hy), (m.mvx / v, m.mvy / v), config.HORSE_TURN_RATE * dt)
+                    else:
+                        m.hx, m.hy = self._rotated_towards((m.hx, m.hy), (m.sfx, m.sfy), config.HORSE_TURN_STILL * dt)
                 ox, oy = m.x - u.x, m.y - u.y
                 if m.sx is None or abs(m.x - m.sx) + abs(m.y - m.sy) > 0.6:
                     m.rx, m.ry = ox, oy
@@ -2515,6 +2524,8 @@ class Battle:
                                 tx, ty = (fx - m.x) * k, (fy - m.y) * k
                         else:
                             tx, ty = m.show_dx, m.show_dy      # auf Armlänge: stehen bleiben, nicht zurück und wieder vor
+                        if (tx, ty) != (m.show_dx, m.show_dy) and self._shown_crowded(grid, m, m.x + tx, m.y + ty):
+                            tx, ty = m.show_dx, m.show_dy      # dort stünde er im Bild in einem anderen: bleibt, wo er ist
                 ddx, ddy = tx - m.show_dx, ty - m.show_dy
                 d = math.hypot(ddx, ddy)
                 if d <= step:
@@ -2522,6 +2533,18 @@ class Battle:
                 else:
                     m.show_dx += ddx * step / d
                     m.show_dy += ddy * step / d
+
+    def _shown_crowded(self, grid: dict, m: Man, x: float, y: float) -> bool:
+        """Stünde der Mann im Bild an (x, y) einem anderen gezeigten Mann näher als zwei
+        Halbmesser und die Lücke? (Nur fürs Bild: das Gerangel schiebt keinen in einen anderen.)"""
+        limit = 2 * config.MAN_RADIUS + config.MAN_GAP
+        cx, cy = self._grid_cell(x, y)
+        for gx in range(cx - 3, cx + 4):
+            for gy in range(cy - 3, cy + 4):
+                for o, _ in grid.get((gx, gy), ()):
+                    if o is not m and math.hypot(o.x + o.show_dx - x, o.y + o.show_dy - y) < limit:
+                        return True
+        return False
 
     # -- KI ----------------------------------------------------------------
     def _ai_raiders(self) -> None:

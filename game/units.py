@@ -111,6 +111,8 @@ class Man:
     mvx: float = 0.0      # seine Schrittgeschwindigkeit (Kacheln je Sekunde): ein Körper mit Masse, der nicht springt
     mvy: float = 0.0
     sfx: float = 0.0      # nur fürs Bild: wohin er schaut (geglättet) – Front der Gruppe, sein Gegner oder sein Weg
+    hx: float = 0.0       # nur fürs Bild, Reiter: wohin das Pferd läuft (geglättet); der Reiter darf anderswohin schauen
+    hy: float = -1.0
     sfy: float = -1.0
 
     def __post_init__(self) -> None:

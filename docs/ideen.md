@@ -65,6 +65,15 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Pferde, Lücke im Gerangel, Aufstellung bei der Agora** (5. Oktober
+  2026): Unter jedem Reiter ein Pferd (Oval mit Kopf) in seiner
+  Laufrichtung, der Reiter schaut, wohin die Gruppe schaut. Die Bilder im
+  Gerangel halten zwei Halbmesser und ein Drittel Abstand. Verteidiger
+  stehen zu Beginn bei der Agora. Ein größerer Abstand auch in der
+  Rechnung (zwei Halbmesser plus ein Drittel) ist gemessen und verworfen:
+  Reiter kamen beim Aufprall nicht mehr in den Haufen, Blöcke nicht mehr
+  aneinander vorbei (zehn Tests kippten).
+
 - **Schlange vor der Leiter** (5. Oktober 2026, Lauf 40): Die Reihenfolge
   klebt, wer an seinem Platz in der Schlange steht, wartet still. Aufgelöste
   Haufen an der Festung: Umkehrungen 0,67 → 0,57 (Tore) und 0,57 → 0,36

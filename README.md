@@ -478,6 +478,20 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   Blickstrich zeigt es: Die hintere Reihe schaut nach hinten, sobald sie
   dort gepackt wird. Eine einreihige Linie, deren Männer alle vorn im
   Speerkampf stehen, kann sich nicht umdrehen.
+- **Pferde:** Unter jedem Reiter liegt ein braunes Oval mit einem Kopf
+  vorn, das Pferd. Es zeigt dorthin, wo der Reiter wirklich läuft, und
+  dreht sich mit begrenztem Tempo in die Laufrichtung; im Stand dreht es
+  sich langsam dorthin, wo der Reiter schaut. Der Reiter selbst trägt den
+  Blickstrich seiner Gruppe: Er darf anderswohin schauen, als das Pferd
+  läuft. So sieht man, wenn Reiter beim Umformen seitlich oder zurück
+  treten, dass das Pferd dabei die Richtung wechselt.
+- **Lücke im Gerangel (nur im Bild):** Wer im Handgemenge an seinen Gegner
+  herantritt, bleibt im Bild mindestens zwei Halbmesser und ein Drittel
+  von jedem anderen gezeigten Mann entfernt; vorher schoben sich die Bilder
+  zweier Männer am selben Gegner ineinander.
+- **Aufstellung bei der Agora:** In der Verteidigung (offene Siedlung,
+  Räuberüberfall, Festung) steht die eigene Truppe zu Beginn bei der Agora,
+  nicht am Rand der Siedlung.
 - **Schlange vor der Leiter:** Wer sich vor einer besetzten Leiter oder
   einem Turm anstellt, behält seinen Platz in der Reihenfolge, solange ihn
   keiner klar überholt, bremst vor seinem Platz in der Schlange und wartet

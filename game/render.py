@@ -393,6 +393,21 @@ class Renderer:
         ex, ey = mx + man.sfx * (r + 1), my + man.sfy * (r + 1)
         pygame.draw.line(self.surface, config.COLOR_FACE, (mx, my), (int(round(ex)), int(round(ey))), 2 if r >= 5 else 1)
 
+    def _draw_horse(self, man, mx: int, my: int, r: int) -> None:
+        """Das Pferd unter dem Reiter: ein braunes Oval in seiner Laufrichtung, vorn ein Kopf.
+        Der Reiter darüber schaut, wohin er will; das Pferd läuft, wohin es wirklich geht."""
+        hx, hy = man.hx, man.hy
+        half_l, half_w = 1.05 * r, 0.6 * r
+        pts = []
+        for k in range(12):
+            a = 2 * math.pi * k / 12
+            ca, sa = math.cos(a) * half_l, math.sin(a) * half_w
+            pts.append((int(round(mx + hx * ca - hy * sa)), int(round(my + hy * ca + hx * sa))))
+        pygame.draw.polygon(self.surface, config.COLOR_HORSE, pts)
+        head = max(1, int(round(0.45 * r)))
+        pygame.draw.circle(self.surface, config.COLOR_HORSE_HEAD,
+                           (int(round(mx + hx * (half_l + 0.2 * r))), int(round(my + hy * (half_l + 0.2 * r)))), head)
+
     def _draw_lochos(self, u: Lochos, selected: bool, frames: bool = True) -> None:
         """Eine Gruppe: ihre Männer, und nur mit ``frames`` (Pause, Aufziehen) ihr
         Formationsrechteck; sonst zeigt ein Ring um jeden Mann, dass sie gewählt ist."""
@@ -434,6 +449,8 @@ class Renderer:
                 if man.flash > 0.0:                      # eben getroffen: blitzt hell auf
                     color = config.COLOR_HIT
                 mx, my = shown(man)
+                if man.kind.cavalry and man.mounted:
+                    self._draw_horse(man, mx, my, r_man)
                 if man.leader:                           # der Anführer: größer, goldener Ring
                     pygame.draw.circle(s, color, (mx, my), r_man + 1)
                     pygame.draw.circle(s, config.COLOR_LEADER, (mx, my), r_man + 2, 2)
