@@ -459,6 +459,22 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   bis drei Sekunden lang langsam. Gegen die Front einer stehenden
   Hoplitenphalanx gibt es keinen Aufprall: Die vordersten Reiter rennen
   in die Speere und fallen, je Speer der vorderen Reihe ein Stück.
+- **Der Phalanxbonus** gilt nur in der ersten Reihe nach vorn: Eine
+  geschlossene Phalanx (alle auf ihren Plätzen, Hopliten vorn) nimmt von
+  vorn nur 35 % des Schadens (je Nachbarphalanx in der Linie noch 15 %
+  weniger, bis 55 %), stößt mit 130 % zu, und die zweite Reihe sticht
+  zur Hälfte mit; Wurfspeere richten gegen sie nur die Hälfte aus, und
+  Verluste von vorn kosten weniger Moral. Von der Flanke zählt nur die
+  Schildseite (von links 80 %, von rechts 125 %), und es kämpfen dort nur
+  die Männer am Rand, einzeln. Von hinten gilt 180 % Schaden, und jeder
+  Schlag zehrt an der Moral; das aber nur für Männer, die vorn gebunden
+  sind. **Wer nicht vorn gebunden ist, macht kehrt** (die hintere Reihe)
+  oder dreht sich zur Flanke: Für ihn gibt es weder Rückennachteil noch
+  Zehren, aber auch keinen Bonus, keine Schildseite und keinen Rückhalt
+  der Nachbarphalanxen, er kämpft wie jeder Mann. Der
+  Blickstrich zeigt es: Die hintere Reihe schaut nach hinten, sobald sie
+  dort gepackt wird. Eine einreihige Linie, deren Männer alle vorn im
+  Speerkampf stehen, kann sich nicht umdrehen.
 - **Handgemenge bindet:** Jeder Mann, der einen feindlichen Mann in
   Armreichweite hat (orangener Ring), steht fest, auch wenn seine Gruppe einen neuen Befehl
   bekommt; die anderen formieren sich um ihn herum. Eine vorn gebundene

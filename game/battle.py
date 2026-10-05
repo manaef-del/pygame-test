@@ -2405,6 +2405,8 @@ class Battle:
                     m.ry -= hop[1]
                 if m.jostle_foe is not None and m.jostle_foe.hp > 0.0:
                     look = norm(sub(m.jostle_foe.pos, m.pos))
+                elif m.bound and m.bound_arc not in ("", "front"):
+                    look = (m.bound_dx, m.bound_dy)       # hat kehrtgemacht oder sich zur Flanke gedreht
                 elif free and math.hypot(m.mvx, m.mvy) > 0.3:
                     look = norm((m.mvx, m.mvy))
                 else:
@@ -4161,21 +4163,26 @@ class Battle:
         slot_of = {id(m): p for m, p in (self._dest_slots(u) if u.loose else u.slots())}
         for m in u.all_men():
             # gemessen von der Stelle, an der er gebunden wurde: wer nur nachrückt, läuft nicht davon
-            nearest, _ = self._nearest_foe_man(m.stand if m.bound and m.stand else m.pos, foe_ids,
-                                               config.MAN_RELEASE_REACH)
+            nearest, who = self._nearest_foe_man(m.stand if m.bound and m.stand else m.pos, foe_ids,
+                                                 config.MAN_RELEASE_REACH)
             if m.bound:
                 if nearest > config.MAN_RELEASE_REACH:
                     m.bound = False               # der Gegner ist weg
                     m.anchor = None
+                    m.bound_arc = ""
                 elif m.anchor is not None and dist(u.pos, m.anchor) > config.BOUND_LEASH:
                     m.bound = False               # die Gruppe ist weitergezogen: er reißt sich los
                     m.anchor = None
+                    m.bound_arc = ""
                     released = True
                 continue
             if nearest <= config.MAN_BIND_REACH and dist(m.pos, slot_of.get(id(m), m.pos)) <= config.BOUND_LEASH:
                 m.bound = True                    # wer seinem Platz gerade hinterherläuft, wird nicht neu gebunden
                 m.anchor = u.pos                  # ein Drehen an Ort und Stelle löst ihn nicht
                 m.stand = m.pos
+                if who is not None:               # von wo er gepackt wird: wer nicht vorn steht, dreht sich dorthin um
+                    m.bound_arc = u.arc_to(who.pos) if not u.loose else "front"
+                    m.bound_dx, m.bound_dy = norm(sub(who.pos, m.pos))
         if released:
             mounted = u.mounted_men()
             span = config.DISENGAGE_TIME_MOUNTED if len(mounted) >= u.men / 2 else config.DISENGAGE_TIME
@@ -4945,22 +4952,41 @@ class Battle:
             # gerade aus dem Handgemenge gelöst: der Gegner hackt in den Rücken
             mod = config.DISENGAGE_DAMAGE * (config.ROUTED_DAMAGE if b.stance is Stance.FLUCHT else 1.0)
             return mod, "rear"
+        turned = 0.0            # Anteil der Getroffenen, die kehrtgemacht haben: sie wehren sich wie jeder Mann
         if self._formed(b):
             shield = b.shield_factor()
             if arc_name == "front":
                 front = config.PHALANX_FRONT_O if b.formation == "o" else config.PHALANX_FRONT
                 mod = 1.0 + (front - 1.0) * shield
-            elif arc_name == "rear":
-                mod = config.PHALANX_REAR
+            else:
+                turned = self._turned_share(a, b)
+                if arc_name == "rear":
+                    mod = config.PHALANX_REAR
             support = max(config.PHALANX_SUPPORT_MIN, 1.0 - config.PHALANX_SUPPORT * self._line_neighbours(b))
             mod *= support
         if arc_name == "flank":
             mod *= self.shield_side(b, a.pos, config.SHIELD_MELEE_COVER, config.SHIELD_MELEE_OPEN)
+        if turned > 0.0:
+            mod = turned * 1.0 + (1.0 - turned) * mod    # weder Rückennachteil und Schildseite noch Rückhalt der Linie
         if b.stance is Stance.FLUCHT:
             mod *= config.ROUTED_DAMAGE
         if b.leader_man() is not None:
             mod *= config.LEADER_ARMOR                   # der Anführer hält die Reihen zusammen
         return mod, arc_name
+
+    def _turned_share(self, a: Lochos, b: Lochos) -> float:
+        """Anteil der Männer von ``b``, die ``a`` erreicht und die sich ihm zugewandt haben: alle,
+        die nicht vorn gebunden sind (die hintere Reihe macht kehrt, am Ende der Reihe dreht man
+        sich zur Flanke). Wer vorn im Speerkampf steht, kann es nicht. Merkt sich ``b.turned``."""
+        if not config.PHALANX_TURN:
+            b.turned = 0.0
+            return 0.0
+        reached = self._in_reach(b.all_men(), a)
+        if not reached:
+            b.turned = 0.0
+            return 0.0
+        b.turned = sum(1 for m in reached if m.bound_arc != "front") / len(reached)
+        return b.turned
 
     @staticmethod
     def shield_side(b: Lochos, p: Point, cover: float, open_: float) -> float:
@@ -5078,16 +5104,19 @@ class Battle:
                 fallen = b.take_damage_men(near, dmg, self.rng)
             else:
                 fallen = b.take_damage(row, dmg, self.rng)
-        self._after_hit(b, fallen, arc_name, dmg)
+        turned = self._turned_share(a, b) if self._formed(b) and row_arc in ("flank", "rear") else 0.0
+        self._after_hit(b, fallen, arc_name, dmg, turned)
 
-    def _after_hit(self, b: Lochos, fallen: int, arc_name: str, dmg: float) -> None:
+    def _after_hit(self, b: Lochos, fallen: int, arc_name: str, dmg: float, turned: float = 0.0) -> None:
+        """Moral nach einem Treffer. ``turned``: Anteil der getroffenen Männer, die dem Angreifer
+        schon zugewandt waren (kehrtgemacht): für sie ist es kein Schlag in den Rücken."""
         if fallen:
-            morale_mod = {"rear": 1.5, "flank": 1.2}.get(arc_name, 1.0)
+            morale_mod = 1.0 + ({"rear": 0.5, "flank": 0.2}.get(arc_name, 0.0)) * (1.0 - turned)
             if b.in_phalanx and arc_name == "front":
                 morale_mod = config.MORALE_LOSS_FRONT_PHALANX
             b.morale -= fallen * (config.MORALE_SCALE / max(1, b.men_start)) * b.bravery() * morale_mod
         if b.in_phalanx and arc_name == "rear":
-            b.morale -= config.MORALE_REAR_DRAIN * b.bravery() * dmg
+            b.morale -= config.MORALE_REAR_DRAIN * b.bravery() * dmg * (1.0 - turned)
         if b.men <= 0:
             b.in_line = False
             self.events.append(f"{b.name} ({b.side.value}) aufgerieben")

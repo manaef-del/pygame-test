@@ -80,6 +80,10 @@ class Man:
     y: float = 0.0
     mounted: bool = False
     bound: bool = False  # im Handgemenge: steht fest, bis die Gruppe ihn wegzieht
+    bound_arc: str = ""  # von wo sein Gegner kam, aus Sicht der Formation ("front", "flank", "rear"): wer nicht
+                         # vorn gebunden ist, dreht sich zu ihm um und kämpft ohne Rückennachteil
+    bound_dx: float = 0.0   # Richtung zu seinem Gegner, als er gebunden wurde (nur fürs Bild: sein Blick)
+    bound_dy: float = 0.0
     anchor: tuple[float, float] | None = None   # Gruppenzentrum, als er gebunden wurde
     stand: tuple[float, float] | None = None    # sein eigener Platz, als er gebunden wurde
     dodge: float = 0.0   # Ausweichseite (+1/-1); 0 = noch keine gewählt
@@ -301,6 +305,7 @@ class Lochos:
     vel: float = 0.0                  # Reiter: augenblickliches Tempo (Kacheln/s), Schwung
     last_pos: tuple[float, float] | None = None   # Mitte beim letzten Takt der Männerbewegung (daraus die Gruppengeschwindigkeit)
     moved: tuple[float, float] = (0.0, 0.0)       # Geschwindigkeit der Gruppe in diesem Takt (Kacheln/s)
+    turned: float = 0.0               # Anteil der vom letzten Angreifer erreichten Männer, die sich ihm zugewandt haben
     heading: tuple[float, float] = (0.0, -1.0)   # Reiter: Fahrtrichtung
     ride_in: float = 0.0              # Reiter: wie weit sie in den Feind hineingetragen wurden
     face_to: tuple[float, float] | None = None   # befohlene Front, auf die die Gruppe schwenkt

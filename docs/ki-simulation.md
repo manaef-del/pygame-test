@@ -1,5 +1,46 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 37 (5. Oktober 2026): Die hintere Reihe macht kehrt
+
+Neu: Der Phalanxbonus gilt nur in der ersten Reihe nach vorn. Wer in einer
+geschlossenen Phalanx gebunden wird, ohne vorn zu stehen (die hintere Reihe
+von hinten, das Ende der Reihe von der Seite), dreht sich zum Gegner um und
+kämpft wie jeder Mann: ohne den Rückennachteil (1,8-facher Schaden), ohne
+das Zehren an der Moral (0,05 je Schadenspunkt), ohne die anderthalbfache
+Moraleinbuße je Gefallenem, aber auch ohne Schildseite und ohne den Rückhalt
+der Nachbarphalanxen. Die Rechnung läuft über den Anteil der vom Angreifer
+erreichten Männer, die nicht vorn gebunden sind; eine einreihige Linie, deren
+Männer alle vorn im Speerkampf stehen, kann sich also nicht umdrehen. Im Bild
+schauen die Umgedrehten zu ihrem Gegner.
+
+Gegner-KI „klug“, sechs Seeds, 128 Räuber in der offenen Siedlung, vorher
+(Lauf 36, Nachprüfung) / nachher:
+
+| Szenario | Taktik | Siege | Verlust Stadt | Verlust Feind | Häuser verloren |
+|---|---|---|---|---|---|
+| siedlung | linie_tief | 5/6 / 6/6 | 40 % / 23 % | – / 60 % | 5,5 / 2,3 |
+| siedlung | schlachtordnung | 6/6 / 6/6 | 75 % / 66 % | 75 % / 73 % | 22,8 / 19,5 |
+| siedlung | linie_reiter | 5/6 / 5/6 | 86 % / 94 % | – / 71 % | 24,3 / 26,3 |
+| siedlung_angriff | agora | 0/6 / 0/6 | 60 % / 56 % | 21 % / 13 % | – |
+| siedlung | linie_aktiv | 6/6 / 6/6 | 19 % / 18 % | 54 % / 54 % | 0,0 / 0,0 |
+| horde_sturm | linie_aktiv | 6/6 / 6/6 | 17 % / 18 % | 54 % / 54 % | – |
+| ueberfall | linie_aktiv | 6/6 / 6/6 | 5 % / 5 % | 66 % / 66 % | 0,3 / 0,3 |
+
+Streuung: Ein zweiter Lauf derselben vier Siedlungsfälle (Zwischenstand, bei
+dem die Umgedrehten Schildseite und Rückhalt der Linie noch behielten) ergab
+linie_tief 32 %/4,5, schlachtordnung 64 %/16,8, linie_reiter 6/6 83 %/24,0.
+Sechs Seeds trennen bei den dünnen Linien also keine zehn Punkte.
+
+Lesart: Die tiefe Linie gewinnt deutlich (Verluste 40 → 23 %, Häuser 5,5 →
+2,3), die Schlachtordnung etwas; die Reiterlinie bleibt in der Streuung. Zurück
+auf den Stand vor der Trägheit (Lauf 34: schlachtordnung 49 %, linie_reiter
+32 % Verluste) führt die Regel nicht. Die dünnen Linien verlieren weiter viele
+Männer und Häuser: Die Räuberhaufen im Rücken sterben nicht an
+der umgedrehten hinteren Reihe, sie binden sie nur, und vorn drückt die
+Masse weiter. Der Angriff auf die Siedlung bleibt verloren; die Verteidiger
+dort haben dieselbe Regel, und ihre Phalanx bricht nun seltener am Rücken.
+Räuberzahl bleibt vorerst 128 (Ideenliste Punkt 7).
+
 ## Lauf 36 (5. Oktober 2026): Peltasten werfen nur im Stand oder im Lauf auf den Gegner zu
 
 Neu: Wer vom Gegner wegläuft (Zurückweichen beim Plänkeln, Flucht, seitlich

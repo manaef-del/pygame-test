@@ -492,6 +492,51 @@ def test_men_in_melee_are_bound_and_the_phalanx_cannot_turn_in_place():
     assert pelt.in_phalanx and all(dist_of_pt(m.pos, p) < 0.2 for m, p in pelt.slots())
 
 
+def rear_attack(rows_wide: int):
+    """Eine Phalanx (Front Nord), ein Räuberhaufen packt sie von hinten (Süden)."""
+    scn = raid(16, (8.0, 14.0), houses=((8, 1),))          # das Haus liegt nördlich, der Weg führt durch die Phalanx
+    army = army_of(GroupSpec("Hopliten", [Tier("schwer", 14), Tier("mittel", 13), Tier("leicht", 13)]))
+    b = Battle(scn, random.Random(0), army=army, ai="einfach")
+    b._volleys = lambda dt: None
+    hop = b.units(Side.STADT)[0]
+    raider = b.units(Side.FEIND)[0]
+    hop.rows = arrange(hop.all_men(), rows_wide)
+    hop.x, hop.y, hop.facing = 8.0, 9.0, (0.0, -1.0)
+    hop.place_men()
+    b.command_hold([hop])
+    for _ in range(int(25 / DT)):
+        b.update(DT)
+        if hop.engaged and raider.engaged and hop.bound_men():
+            break
+    assert hop.engaged and hop.in_phalanx
+    return b, hop, raider
+
+
+def test_rear_row_turns_about_and_fights_without_the_rear_penalty():
+    """Packt ein Haufen eine Phalanx von hinten, macht die hintere Reihe kehrt: Die Gebundenen
+    dort sind dem Gegner zugewandt, der Rückennachteil (1,8-facher Schaden) und das Zehren an
+    der Moral entfallen für sie; der Bonus der Front gilt dort aber auch nicht."""
+    b, hop, raider = rear_attack(14)
+    bound = hop.bound_men()
+    assert bound and all(m.bound_arc == "rear" for m in bound)              # von hinten gepackt ...
+    assert all(m in hop.rows[-1] for m in bound)                            # ... die hintere Reihe
+    mod, arc = b._defense_mod(raider, hop)
+    assert arc == "rear" and hop.turned > 0.9
+    assert mod <= 1.05                                                      # kein Rückennachteil, kein Bonus
+    m0 = hop.morale
+    run(b, 3)
+    assert hop.morale > m0 - 0.15                                           # kein Zehren wie bei einem Schlag in den Rücken
+    assert all(abs(m.sfy - 1.0) < 0.3 for m in bound)                       # im Bild schauen sie nach Süden
+
+
+def test_a_single_row_bound_in_front_cannot_turn_about(monkeypatch):
+    """Dieselbe Lage ohne die Kehrtwende (Schalter aus): der volle Rückennachteil."""
+    monkeypatch.setattr(config, "PHALANX_TURN", False)
+    b, hop, raider = rear_attack(14)
+    mod, arc = b._defense_mod(raider, hop)
+    assert arc == "rear" and mod > 1.5
+
+
 def test_men_are_bound_by_enemy_men_not_by_the_enemy_rectangle():
     """Gebunden ist, wer einen feindlichen Mann in Reichweite hat; ein Rechteck, in
     dem niemand steht, bindet nicht."""

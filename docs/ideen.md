@@ -26,14 +26,12 @@ wandert nach unten.
    (8 von 8) gegen eine Besatzung von 40. Bildete die Besatzung gegen
    Reiter schon Kreise, wenn sie vorn gebunden war, gewann man nie (Lauf 24);
    seit der Kreis nur eine Verzweiflungstat ist, wieder immer.
-7. **Rückenangriff auf die dünne Linie.** Seit die Männer ruhiger laufen,
-   kommen die Räuberhaufen des Plans „in den Rücken fallen“ zuverlässig um
-   eine einreihige Linie herum; die Phalanx bleibt ganz, bricht aber an der
-   Moral (Rückenangriff zehrt 0,05 je Schadenspunkt). Nachrücken und
-   Zusammenschließen sind geprüft und in Ordnung (Lauf 36). Zu entscheiden:
-   weniger Räuber in der offenen Siedlung (112: tiefe Linie hält, dünne
-   Linien nicht; 96: alle halten), oder eine Antwort auf den Rückenangriff
-   (hintere Reihe macht kehrt, wenn vorn Ruhe ist; schwächerer Rücken-Zehr).
+7. **Rückenangriff auf die dünne Linie, Rest.** Die hintere Reihe macht
+   jetzt kehrt (Lauf 37); die tiefe Linie hält wieder gut, die dünnen
+   Linien verlieren weiter mehr als vor der Trägheit (schlachtordnung 66 %
+   statt 49 %, linie_reiter 94 % statt 32 %, Streuung ±10). Offen: weniger Räuber in der
+   offenen Siedlung (112: tiefe Linie hält leicht; 96: alle halten) oder
+   ein schwächerer Rücken-Zehr für die, die noch vorn gebunden sind.
 8. **Ruhe der Bewegung, Rest.** Nach Lauf 35 (Gerangel, Platzverteilung,
    Trägheit je Mann) bleiben: Nachbartausch in der Reihe beim Marsch mit
    Gedränge (die Männer kreuzen sich seltener, tauschen aber noch), die
@@ -63,6 +61,13 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
   Aufwand.
 
 ## Erledigt
+
+- **Die hintere Reihe macht kehrt** (5. Oktober 2026, Lauf 37): Der
+  Phalanxbonus gilt nur in der ersten Reihe nach vorn. Wer gebunden wird,
+  ohne vorn zu stehen, dreht sich zum Gegner um und kämpft wie jeder Mann:
+  ohne Rückennachteil, Zehren und Schildseite, aber auch ohne Bonus. Tiefe
+  Linie in der Siedlung 40 → 23 % Verluste, Schlachtordnung 75 → 66 %,
+  Reiterlinie in der Streuung; andere Szenarien unverändert.
 
 - **Peltasten werfen nur im Stand oder im Lauf auf den Gegner zu**
   (5. Oktober 2026, Lauf 36): nicht beim Zurückweichen, auf der Flucht oder

@@ -35,7 +35,9 @@ ARRIVE_SHORT = 0.6           # Kacheln: so nah vor einem Ziel, das eine ruhende 
 # Phalanx: wie stark trifft ein Angriff je nach Richtung
 PHALANX_FRONT = 0.35
 PHALANX_FLANK = 1.0
-PHALANX_REAR = 1.8
+PHALANX_REAR = 1.8           # ... für Männer, die vorn gebunden sind und dem Rücken nicht zu Hilfe kommen können
+PHALANX_TURN = True          # wer nicht vorn gebunden ist, macht kehrt bzw. dreht sich zur Flanke: dort gilt kein Rückennachteil,
+                             # aber auch kein Phalanxbonus (der gilt nur in der ersten Reihe nach vorn)
 PHALANX_FRONT_O = 0.55       # Kreis: rundum Front, ohne den Rückhalt der Glieder
 RING_ATTACK_SHARE = 0.6      # Anteil aller Männer, die im Kreis kämpfen
 PHALANX_ATTACK_FRONT = 1.3   # Speere in der Linie
