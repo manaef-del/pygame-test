@@ -373,8 +373,9 @@ def test_open_settlement_phalanx_then_pursuit_wins():
                 b.command_attack_target([cav], min(weak, key=lambda f: f.rect_distance(cav.pos)))
     assert b.outcome == "sieg", b.report()
     assert b.houses_intact() >= 5         # wer nicht mehr zappelt, kommt um die kurze Linie herum (Lauf 17)
-    # die Reserve der Räuber (Lauf 24) kostet hier im Mittel drei Mann mehr (8 Startwerte: 21 statt 18)
-    assert b.fallen(Side.STADT) <= 0.35 * 75, b.report()
+    # die Reserve der Räuber (Lauf 24) kostet hier im Mittel drei Mann mehr (8 Startwerte: 21 statt 18);
+    # seit Peltasten im Lauf vom Gegner weg nicht werfen (Lauf 36), fällt bei diesem Startwert ein Mann mehr (27)
+    assert b.fallen(Side.STADT) <= 0.4 * 75, b.report()
 
 
 def test_weak_army_loses_houses():
@@ -772,6 +773,33 @@ def test_hold_forms_a_phalanx_in_place_and_line_resets_formation():
     assert hop.in_phalanx
     b.command_line([hop], (6.0, 12.0), (10.0, 12.0))
     assert hop.formation == "linie"
+
+
+def test_peltasts_throw_standing_or_advancing_but_not_running_away():
+    """Peltasten werfen im Stand und im Lauf auf den Gegner zu, aber nicht, während sie von
+    ihm weglaufen (Zurückweichen, Flucht): Wer rennt, hat den Rücken zum Feind."""
+    b = Battle(raid(16, (8.0, 4.0)), random.Random(0), army=army_of(GroupSpec("P", [Tier("peltast", 12)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    pelt = b.units(Side.STADT)[0]
+    raider = b.units(Side.FEIND)[0]
+    raider.stance, raider.target = Stance.HALTEN, None
+    pelt.x, pelt.y = 8.0, 6.5
+    pelt.place_men()
+    b.command_hold([pelt])
+    run(b, 0.5)
+    assert pelt.ammo() < 12 * config.JAVELINS                               # im Stand: Salve
+    b.command_move([pelt], (8.0, 7.8))                                      # weg vom Räuber (bleibt in Wurfweite)
+    run(b, 0.2)
+    before = pelt.ammo()
+    for _ in range(int(0.6 / DT)):
+        b.update(DT)
+        assert pelt.ammo() == before or pelt.target is None                 # im Lauf vom Gegner weg: kein Wurf
+    run(b, 2.0)
+    assert pelt.target is None and pelt.ammo() < before                     # angekommen: wieder Salven
+    before = pelt.ammo()
+    b.command_move([pelt], (8.0, 6.5))                                      # auf ihn zu
+    run(b, 1.6)
+    assert pelt.ammo() < before                                             # im Lauf auf ihn zu wird geworfen
 
 
 def test_peltasts_skirmish_keep_distance_then_charge_when_empty():

@@ -26,7 +26,10 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   steht. Auf Stehende geht etwa jeder achte Speer daneben, auf eine
   marschierende Phalanx jeder dritte, auf Reiter im Galopp jeder zweite;
   wer abrupt wendet oder stehen bleibt, entgeht manchem Wurf. Die
-  Wehrtürme zielen ebenso. Sind die Speere verschossen, geht die Gruppe in
+  Wehrtürme zielen ebenso. Geworfen wird im Stand oder im Lauf auf den
+  Gegner zu (höchstens 60 Grad daneben); wer vom Gegner wegläuft, beim
+  Zurückweichen, auf der Flucht oder seitlich an ihm vorbei, wirft nicht,
+  bis er wieder steht. Sind die Speere verschossen, geht die Gruppe in
   den Nahkampf über. Das gilt für beide Seiten: auch die Peltasten der
   Räuber tragen zehn Speere und stürmen, sobald sie leer sind.
 - **Es kämpft, wer den Gegner erreicht.** Von der vorderen Reihe kämpfen

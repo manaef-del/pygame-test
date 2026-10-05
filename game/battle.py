@@ -3987,6 +3987,10 @@ class Battle:
             self._bind_men(u)
             if u.engaged and not u.loose and u.formation == "linie":
                 self._push_out(u)
+            # die Geschwindigkeit der Gruppe: die Männer führen sie mit und korrigieren nur den Rest
+            carry = ((u.x - u.last_pos[0]) / dt, (u.y - u.last_pos[1]) / dt) if u.last_pos is not None and dt > 0 else (0.0, 0.0)
+            u.last_pos = u.pos
+            u.moved = carry
             if u.loose:
                 self._move_loose(u, dt, walker)
                 continue
@@ -3994,9 +3998,6 @@ class Battle:
             u.assault_slots = [slot for _, slot in assault] if assault is not None else []
             settled = (assault is None and u.vel <= 0.05 and not u.engaged and not u.waiting
                        and (u.target is None or dist(u.pos, u.target) <= config.ARRIVE_EPS + 0.05))
-            # die Geschwindigkeit der Gruppe: die Männer führen sie mit und korrigieren nur den Rest
-            carry = ((u.x - u.last_pos[0]) / dt, (u.y - u.last_pos[1]) / dt) if u.last_pos is not None and dt > 0 else (0.0, 0.0)
-            u.last_pos = u.pos
             for man, slot in (assault if assault is not None else u.slots()):
                 d = dist(man.pos, slot)
                 if assault is not None:               # um den Gegner herum: dicht an seinen Umriss, nie hinein
@@ -5116,6 +5117,8 @@ class Battle:
             foe, d = self._nearest(a, foes)
             if foe is None:
                 continue
+            if config.THROW_FORWARD and not self.on_wall(a) and not self._throws_on_the_move(a, foe):
+                continue                                   # im Lauf vom Gegner weg wirft niemand (sobald er steht, wieder)
             a.volley_timer = config.VOLLEY_INTERVAL
             targets = foe.all_men()
             for m in throwers:
@@ -5142,6 +5145,18 @@ class Battle:
                     dmg *= config.WALL_COVER_FACTOR
                 fallen = b.hit_man(man, dmg)
                 self._after_hit(b, fallen, "ranged", dmg)
+
+    @staticmethod
+    def _throws_on_the_move(a: Lochos, foe: Lochos) -> bool:
+        """Darf die Gruppe jetzt werfen? Im Stand ja; im Lauf nur, wenn sie auf den Gegner
+        zuläuft (höchstens 60 Grad daneben), nicht seitlich oder rückwärts rennend."""
+        vx, vy = a.moved
+        v = math.hypot(vx, vy)
+        if v <= config.THROW_STILL:
+            return True
+        tx, ty = foe.x - a.x, foe.y - a.y
+        t = math.hypot(tx, ty)
+        return t < 1e-6 or (vx * tx + vy * ty) / (v * t) >= config.THROW_FORWARD_COS
 
     @staticmethod
     def _missile_cover(b: Lochos) -> float:

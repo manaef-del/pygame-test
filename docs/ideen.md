@@ -26,11 +26,12 @@ wandert nach unten.
    (8 von 8) gegen eine Besatzung von 40. Bildete die Besatzung gegen
    Reiter schon Kreise, wenn sie vorn gebunden war, gewann man nie (Lauf 24);
    seit der Kreis nur eine Verzweiflungstat ist, wieder immer.
-7. **Peltasten werfen nur geradeaus oder im Stand.** Werfen dürfen sie, wenn
-   sie stehen oder gerade auf den Gegner zulaufen; im Lauf nach hinten (beim
-   Zurückweichen, auf der Flucht, beim Hit-and-run vom Gegner weg) wird nicht
-   geworfen. Noch nicht gebaut; Balance-Wirkung auf Plänkeln und Zermürben
-   vorher messen.
+7. **Balance nach der Trägheit.** Lauf 36 zeigt, dass die Trägheit die
+   Verteidigung der Siedlung mit Schlachtordnung teurer macht (49 % → 75 %
+   Verluste, 13 → 23 Häuser bei denselben Seeds): Die Männer stehen nicht
+   mehr sofort wieder in der Reihe, wenn Haufen sie durcheinanderbringen.
+   Zu prüfen: Nachrücken in die Lücke, Zusammenschließen nach dem Gerangel,
+   oder die Räuber etwas schwächer.
 8. **Ruhe der Bewegung, Rest.** Nach Lauf 35 (Gerangel, Platzverteilung,
    Trägheit je Mann) bleiben: Nachbartausch in der Reihe beim Marsch mit
    Gedränge (die Männer kreuzen sich seltener, tauschen aber noch), die
@@ -60,6 +61,10 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
   Aufwand.
 
 ## Erledigt
+
+- **Peltasten werfen nur im Stand oder im Lauf auf den Gegner zu**
+  (5. Oktober 2026, Lauf 36): nicht beim Zurückweichen, auf der Flucht oder
+  seitlich vorbei. Wirkung klein (Feindverluste 2–4 Punkte niedriger).
 
 - **Kreisflüge im Bild** (5. Oktober 2026): Die Bildglättung rechnete im
   mitgedrehten Rahmen der Gruppe; drehte sich die Front schnell (Flucht

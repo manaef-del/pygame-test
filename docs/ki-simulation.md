@@ -1,5 +1,32 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 36 (5. Oktober 2026): Peltasten werfen nur im Stand oder im Lauf auf den Gegner zu
+
+Neu: Wer vom Gegner wegläuft (Zurückweichen beim Plänkeln, Flucht, seitlich
+an ihm vorbei), wirft nicht; im Stand und im Lauf auf ihn zu (höchstens 60
+Grad daneben) wie bisher. Gegner-KI „klug“, sechs Seeds, vorher / nachher
+auf demselben Stand des Spiels (mit Trägheit):
+
+| Szenario | Taktik | Siege | Verlust Stadt | Verlust Feind | Häuser verloren |
+|---|---|---|---|---|---|
+| siedlung | linie_aktiv | 6/6 / 6/6 | 34 % / 19 % | 59 % / 54 % | 3,3 / 0,0 |
+| siedlung | schlachtordnung | 6/6 / 6/6 | 75 % / 75 % | 75 % / 75 % | 22,8 / 22,8 |
+| siedlung_angriff | agora | 1/6 / 0/6 | 58 % / 60 % | 25 % / 21 % | – |
+| horde_sturm | linie_aktiv | 6/6 / 6/6 | 17 % / 17 % | 57 % / 54 % | – |
+| ueberfall | linie_aktiv | 6/6 / 6/6 | 5 % / 5 % | 66 % / 66 % | 0,3 / 0,3 |
+
+Die Wirkung ist klein: Die Peltasten beider Seiten werfen beim Zurückweichen
+ein paar Salven weniger (Feindverluste 2 bis 4 Punkte niedriger). Bei
+„linie_aktiv“ hilft es dem Spieler (die zurückweichenden Räuber-Peltasten
+treffen die Reiter nicht mehr im Rücken), beim Angriff auf die Siedlung
+kostet es den einen Sieg von sechs. Die Räuberwerte bleiben.
+
+Nebenbefund: Die Trägheit (Lauf 35, C) hat die Balance der Siedlung
+verschoben. Dieselben Seeds, Taktik „schlachtordnung“: Lauf 34 49 %
+Verluste und 13,3 Häuser, jetzt 75 % und 22,8. Die Männer stehen nicht mehr
+sofort wieder in der Reihe, wenn die Haufen sie durcheinanderbringen. Das
+gehört zur nächsten Balance-Runde.
+
 ## Lauf 35 (5. Oktober 2026): Ruhe der Bewegung
 
 Kein Balance-Lauf, sondern eine Messung, wie unruhig die Männer laufen,

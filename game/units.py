@@ -300,6 +300,7 @@ class Lochos:
     runup: float = 0.0                # Reiter: Anlauf seit dem letzten Halt oder Kontakt (Kacheln)
     vel: float = 0.0                  # Reiter: augenblickliches Tempo (Kacheln/s), Schwung
     last_pos: tuple[float, float] | None = None   # Mitte beim letzten Takt der Männerbewegung (daraus die Gruppengeschwindigkeit)
+    moved: tuple[float, float] = (0.0, 0.0)       # Geschwindigkeit der Gruppe in diesem Takt (Kacheln/s)
     heading: tuple[float, float] = (0.0, -1.0)   # Reiter: Fahrtrichtung
     ride_in: float = 0.0              # Reiter: wie weit sie in den Feind hineingetragen wurden
     face_to: tuple[float, float] | None = None   # befohlene Front, auf die die Gruppe schwenkt
