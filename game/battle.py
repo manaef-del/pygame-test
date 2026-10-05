@@ -4262,8 +4262,8 @@ class Battle:
                 m.anchor = u.pos                  # ein Drehen an Ort und Stelle löst ihn nicht
                 m.stand = m.pos
                 if who is not None:               # von wo er gepackt wird: wer nicht vorn steht, dreht sich dorthin um
-                    m.bound_arc = u.arc_to(who.pos) if not u.loose else "front"
                     m.bound_dx, m.bound_dy = norm(sub(who.pos, m.pos))
+                    m.bound_arc = self._man_arc(u, m) if not u.loose else "front"
         if released:
             mounted = u.mounted_men()
             span = config.DISENGAGE_TIME_MOUNTED if len(mounted) >= u.men / 2 else config.DISENGAGE_TIME
@@ -5185,6 +5185,18 @@ class Battle:
         if b.leader_man() is not None:
             mod *= config.LEADER_ARMOR                   # der Anführer hält die Reihen zusammen
         return mod, arc_name
+
+    @staticmethod
+    def _man_arc(u: Lochos, m: Man) -> str:
+        """Von wo ein Mann selbst gepackt wird, nach seiner eigenen Lage: sein Gegner vor ihm
+        (bis 60 Grad neben der Front) ist „front“, hinter ihm „rear“, sonst „flank“. Nicht die
+        Flanke der Formation entscheidet, sondern wo der Gegner zu ihm steht: Wer am Ende der
+        Reihe von der Seite gepackt wird, steht nicht vorn, auch wenn der Gegner für die Gruppe
+        noch knapp als „vorn“ zählt."""
+        f = m.bound_dx * u.facing[0] + m.bound_dy * u.facing[1]
+        if f > 0.5:
+            return "front"
+        return "rear" if f < -0.5 else "flank"
 
     def _turned_share(self, a: Lochos, b: Lochos) -> float:
         """Anteil der Männer von ``b``, die ``a`` erreicht und die sich ihm zugewandt haben: alle,

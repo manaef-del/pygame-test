@@ -65,6 +65,14 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Endmann dreht sich nicht zum Angreifer** (5. Oktober 2026): Die
+  Richtung, aus der ein Mann gepackt wird, kam von der Formation (Front,
+  Flanke, Rücken mit Toleranz neben dem Linienende). Drei Gegner dicht
+  neben dem Ende der zweiten Reihe zählten so als „vorn“, der Mann schaute
+  weiter geradeaus und hatte keinen Kehrtwende-Schutz. Jetzt zählt seine
+  eigene Lage: bis 60 Grad neben der Front vorn, dahinter hinten, sonst
+  seitlich.
+
 - **Seitwärts rückende Phalanx um Häuser** (5. Oktober 2026): Auf Wegen
   mit Wegpunkten schwenkt die Phalanx jetzt erst in Marschrichtung. Labor
   (offene Siedlung, Linie hinter den Häuserblöcken): 2,6 Kacheln seitwärts

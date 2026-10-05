@@ -477,7 +477,12 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   der Nachbarphalanxen, er kämpft wie jeder Mann. Der
   Blickstrich zeigt es: Die hintere Reihe schaut nach hinten, sobald sie
   dort gepackt wird. Eine einreihige Linie, deren Männer alle vorn im
-  Speerkampf stehen, kann sich nicht umdrehen.
+  Speerkampf stehen, kann sich nicht umdrehen. Von wo ein Mann gepackt
+  wird, entscheidet seine eigene Lage, nicht die Flanke der Formation:
+  Sein Gegner bis 60 Grad neben der Front ist „vorn“, hinter ihm
+  „hinten“, sonst „seitlich“. Wer am Ende einer Reihe von der Seite
+  gepackt wird, dreht sich also um, auch wenn der Gegner für die ganze
+  Gruppe noch knapp als „vorn“ zählt (die Toleranz neben dem Linienende).
 - **Um Häuser herum schwenkt die Phalanx in Marschrichtung:** Führt der
   Weg zu einer befohlenen Linie um Häuserblöcke (über Wegpunkte), dreht
   sich der Block erst in die Richtung des nächsten Wegpunkts und
