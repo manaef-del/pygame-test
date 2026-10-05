@@ -78,9 +78,16 @@ ARMIES = {
 # ---------------------------------------------------------------- Taktiken
 # Jede Taktik: dict Zeitpunkt -> Funktion(battle). Zeit 0 = erster Befehl.
 
+# Die Linien der Taktiken stehen dort, wo sie vor der Aufstellung bei der Agora standen (5. Oktober 2026):
+# am Rand der Siedlung, nicht in ihrer Mitte. Seither marschieren die Gruppen zu Beginn erst dorthin.
+LINE_Y = {"siedlung": lambda b: min(c[1] for c in b.scenario.houses) - 2.0, "ueberfall": lambda b: 10.5}
+
+
 def _at(b: Battle, dx: float, dy: float) -> tuple[float, float]:
-    """Kartenstelle relativ zur Mitte der Karte (x) und zur eigenen Aufstellung (y)."""
-    return (b.cols / 2 + dx, b.scenario.deploy_y + dy)
+    """Kartenstelle relativ zur Mitte der Karte (x) und zur Linie der Taktik (y): die eigene
+    Aufstellung, in der Siedlung und im Dorf die alte Stellung am Rand."""
+    y = LINE_Y.get(b.scenario.key, lambda b: b.scenario.deploy_y)(b)
+    return (b.cols / 2 + dx, y + dy)
 
 
 def t_linie(b: Battle) -> dict:
