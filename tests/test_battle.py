@@ -1524,24 +1524,26 @@ def test_equal_phalanxes_do_not_push_and_the_switch_turns_it_off(monkeypatch):
 
 def test_a_phalanx_pushes_a_mob_back_and_crushes_it_against_the_map_edge():
     """Ein Räuberhaufen hat keine Reihen (ein halber Mann je Mann): Die Phalanx schiebt ihn
-    vor sich her. Kann er nicht weichen (Kartenrand), wird er gequetscht statt geschoben."""
-    b = Battle(raid(48, (8.0, 0.6), houses=((2, 17),)), random.Random(0),
+    vor sich her, der Haufen weicht als Ganzes (die eigenen Leute im Rücken sind kein
+    Hindernis). Kann er nicht mehr weichen (Kartenrand), wird er gequetscht statt geschoben."""
+    b = Battle(raid(48, (8.0, 0.3), houses=((2, 17),)), random.Random(0),
                army=army_of(GroupSpec("H", [Tier("mittel", 40)])), ai="einfach")
     b._volleys = lambda dt: None
     hop = b.units(Side.STADT)[0]
     hop.reform(10)
-    hop.x, hop.y, hop.facing = 8.0, 1.9, (0.0, -1.0)
+    hop.x, hop.y, hop.facing = 8.0, 1.6, (0.0, -1.0)
     hop.stance, hop.in_line = Stance.PHALANX, True
     hop.place_men()
     hop.target = hop.pos
     b.alarm = False
     low = min(m.y for u in b.units(Side.FEIND) for m in u.all_men())
-    for _ in range(int(20 / DT)):
+    for _ in range(int(40 / DT)):
         b.update(DT)
         if any("quetschen" in e for e in b.events):
             break
-    assert any("quetschen" in e for e in b.events)
-    assert hop.y <= 1.9 and hop.pushed == 0.0                            # die Phalanx weicht nie
+    assert any("drängen" in e for e in b.events)                         # erst weicht der Haufen ...
+    assert any("quetschen" in e for e in b.events)                       # ... dann steht er am Rand
+    assert hop.y <= 1.6 and hop.pushed == 0.0                            # die Phalanx weicht nie
     assert min(m.y for u in b.units(Side.FEIND) for m in u.all_men()) >= min(low, 0.0) - 1e-9   # niemand über den Rand
 
 

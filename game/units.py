@@ -92,6 +92,7 @@ class Man:
     wp: tuple[float, float] | None = None       # eigener Wegpunkt auf dem Weg zum Platz
     wp_until: float = -1.0                      # bis dahin gilt der Wegpunkt
     straggling: bool = False                    # weit hinter seinem Platz: sucht seinen eigenen Weg (siehe _move_men)
+    climbed: bool = False                       # frisch auf die Plattform eines Belagerungsturms gestiegen: springt mit der nächsten Dreiergruppe
     stall: float = 0.0                          # Sekunden, die er auf seinem Weg nicht vorankommt
     leader: bool = False  # der Anführer: kämpft mit, hält viel mehr aus
     show_dx: float = 0.0  # nur fürs Bild: so weit drängt er gerade von seiner Stelle zum Gegner (Gerangel)

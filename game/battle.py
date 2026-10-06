@@ -182,6 +182,9 @@ class Battle:
     _shown_facing: dict = field(default_factory=dict)  # nur fürs Bild: Mitte je Gruppe im letzten Takt
     _push_due: dict = field(default_factory=dict)      # Drücken: Paar (ids) -> Zeit des nächsten Rucks
     _push_told: set = field(default_factory=set)       # Gruppen, deren Zurückdrängen schon gemeldet ist
+    _jump_due: dict = field(default_factory=dict)      # Turmübergang -> Zeit des nächsten Sprungs auf den Wehrgang
+    _jump_told: set = field(default_factory=set)       # Gruppen, deren Sprung vom Turm schon gemeldet ist
+    _crush_told: set = field(default_factory=set)      # Gruppen, deren Quetschen schon gemeldet ist
     _man_grid: dict = field(default_factory=dict)      # Männer je Rasterzelle (0,5 Kacheln), je Schritt neu
     _man_group: dict = field(default_factory=dict)     # id(Mann) -> Gruppen-id, je Schritt neu
     _man_side: dict = field(default_factory=dict)      # id(Mann) -> Seite, je Schritt neu
@@ -1293,8 +1296,8 @@ class Battle:
         reach = config.ENGAGE_RANGE + (config.CONTACT_HOLD if held else 0.0)
         if self._gap(a, b) > reach:
             return False
-        if self.blocked and (a.loose or b.loose):
-            return self._men_meet(a, b, reach + 0.2)
+        if self.blocked and (a.loose or b.loose or self.on_wall(a) or self.on_wall(b)):
+            return self._men_meet(a, b, reach + 0.2)      # am Wall zählt, wer wen wirklich erreicht
         up_a, up_b = self._fights_from_wall(a), self._fights_from_wall(b)
         if up_b and not up_a:
             return False
@@ -2863,6 +2866,9 @@ class Battle:
                 speed = min(speed, u.pace)              # im Verband: so schnell wie die langsamste Gruppe
             if u.engaged and u.stance is not Stance.FLUCHT and not (config.CHASE_FULL_SPEED and self._chasing(u)):
                 speed *= config.ENGAGED_SPEED           # im Handgemenge kommt man kaum vom Fleck (Verfolger nicht)
+                if self.on_wall(u) and any(m.bound for m in u.all_men()):
+                    self._coast(u, dt)
+                    continue                            # auf dem Wehrgang gar nicht: der Gang ist eng, es geht nur durch den Feind
             if u.charge_slow_until > self.time:
                 speed *= config.CHARGE_SLOW             # der Aufprall hat die Reiter gebremst
             goal, final = self.route(u, u.target)
@@ -3898,6 +3904,8 @@ class Battle:
         """Darf die aufgelöste Gruppe wieder als Block gehen? Ohne Ziel, im Kampf, auf der
         Flucht und beim Angriff sofort; sonst erst, wenn sie angekommen ist oder ihre
         Männer geschlossen gehen (jeder etwa gleich weit hinter seinem Platz)."""
+        if u.engaged and u.loose_why == "wall" and len({self._wall_level(m.pos) for m in u.all_men()}) > 1:
+            return False                                  # mitten im Übersteigen gepackt: die Männer gehen weiter einzeln
         if u.target is None or u.engaged or u.stance is Stance.FLUCHT or u.target_id is not None:
             return True
         if u.stay_loose and self.time - u.stay_since > config.STAY_LOOSE_MAX:
@@ -4081,6 +4089,8 @@ class Battle:
                 continue
             walker = self.is_walker(u)
             u.file = self.on_wall(u)
+            if self.crossings and u.side is not self.wall_side() and u.fighting:
+                self._tower_jump(u)
             self._bind_men(u)
             if u.engaged and not u.loose and u.formation == "linie":
                 self._push_out(u)
@@ -4221,7 +4231,11 @@ class Battle:
             else:
                 if field_ is None:
                     field_ = self._field(u, slots)
-                goal = field_.waypoint(man.pos, slot)
+                edge = config.FIELD_CELL / 2                  # ein Platz jenseits des Kartenrands (Flucht): im Feld bis an den Rand
+                aim = (min(max(slot[0], edge), self.cols - edge), min(max(slot[1], edge), self.rows - edge))
+                goal = field_.waypoint(man.pos, aim)
+                if goal == aim:
+                    goal = slot if field_.clear(man.pos, aim) else self.route_from(u, man.pos, slot)[0]
                 man.wp = goal if goal != slot else None
                 man.wp_until = self.time + config.WAYPOINT_TIME
             lagging = climbing or man_level != dest_level or d > median + config.LOOSE_LAG
@@ -4798,8 +4812,15 @@ class Battle:
         if not through and self._walled_off(u, a, b, self._barrier_cache.get(u.side, [])):
             return False
         wb = self.is_wall_cell(cb, walker)
-        if wb and cb != ca and config.WALL_NO_PASSING and u.side in self._wall_occupants().get(cb, ()):
-            return False                      # Wehrgang: in eine Kachel, auf der ein Feind steht, kommt man nicht vorbei
+        if wb and config.WALL_NO_PASSING:
+            occ = self._wall_occupants()
+            if cb != ca and u.side in occ.get(cb, ()):
+                return False                  # Wehrgang: in eine Kachel, auf der ein Feind steht, kommt man nicht vorbei
+            if wa and u.side in occ.get(ca, ()) and self._past_foes(u, a, b):
+                return False                  # ... und an Feinden in der eigenen Kachel nicht vorbei (nur bis an sie heran)
+        if (wa and wb and ca != cb and ca in self.crossings and cb not in self.crossings
+                and u.side is not self.wall_side() and man.climbed):
+            return False                      # von der Turmplattform auf den Wehrgang nur im Sprung (_tower_jump)
         if wa == wb:
             return True
         if man.kind.cavalry and man.mounted:
@@ -4807,12 +4828,164 @@ class Battle:
         if wb and not u.loose and not self.on_wall(u) and not (
                 u.target is not None and self.is_wall_cell(self.cell(*u.target), True)):
             return False                      # ein Block am Boden steigt nicht aus Versehen auf die Leiter
+        if wb and u.stance is Stance.FLUCHT:
+            return False                      # wer flieht, klettert nicht hinauf (hinunter schon)
         wall_cell, ground_cell = (ca, cb) if wa else (cb, ca)
         if wall_cell in self.ladders and self.ladder_ok(wall_cell, ground_cell):
             return self._climb(wall_cell)
         if wall_cell in self.crossings:
-            return self.tower_ok(wall_cell, ground_cell) and self._climb(wall_cell)
+            if not wa and self._platform_count(wall_cell) >= config.TOWER_PLATFORM:
+                return False                  # die Plattform ist voll: unten warten, bis die drei gesprungen sind
+            ok = self.tower_ok(wall_cell, ground_cell) and self._climb(wall_cell)
+            if ok and not wa:
+                man.climbed = True            # oben angekommen: springt mit der nächsten Dreiergruppe
+            return ok
         return False
+
+    def _platform_count(self, cell: tuple[int, int]) -> int:
+        """Wie viele Männer auf einem Turmübergang stehen."""
+        n = 0
+        for gx in (2 * cell[0], 2 * cell[0] + 1):
+            for gy in (2 * cell[1], 2 * cell[1] + 1):
+                n += sum(1 for m, _ in self._man_grid.get((gx, gy), ()) if m.hp > 0 and self.cell(m.x, m.y) == cell)
+        return n
+
+    def _regrid(self, m: Man, uid: int, old: Point) -> None:
+        """Einen Mann, der mitten im Takt versetzt wurde, im Raster umhängen."""
+        was = self._man_grid.get(self._grid_cell(*old))
+        if was is not None:
+            try:
+                was.remove((m, uid))
+            except ValueError:
+                pass
+        self._man_grid.setdefault(self._grid_cell(m.x, m.y), []).append((m, uid))
+
+    def _tower_jump(self, u: Lochos) -> None:
+        """Belagerungsturm: Wer oben auf der Plattform ankommt, wartet, bis TOWER_PLATFORM Mann
+        beisammen sind (oder alle, die noch kommen: kleine Gruppen und der letzte Rest), dann
+        springen sie zusammen als eine Reihe quer über den Wehrgang auf die Kachel daneben, in
+        Richtung ihres Weges. Steht dort die Wache, weicht sie um ein Glied zurück (mit allem,
+        was hinter ihr steht); kann sie nicht weichen, weil der Gang dahinter voll ist, gibt es
+        keinen Sprung, und die Angreifer warten oben."""
+        parts = self._walkway_parts()
+        men = u.all_men()
+        for cell in self.crossings:
+            on = [m for m in men if m.climbed and self.cell(m.x, m.y) == cell]
+            if not on or self.time < self._jump_due.get(cell, -1.0):
+                continue                                  # (wer vom Wehrgang zurückgedrängt wurde, springt nicht neu)
+            below = [m for m in men if self._wall_level(m.pos) == "aussen"]
+            if len(on) < config.TOWER_PLATFORM and below:
+                continue                                  # sammeln, bis die Dreiergruppe voll ist
+            centre = (cell[0] + 0.5, cell[1] + 0.5)
+            nbrs = [n for n in ((cell[0] + 1, cell[1]), (cell[0] - 1, cell[1]), (cell[0], cell[1] + 1), (cell[0], cell[1] - 1))
+                    if n in parts and n not in self.crossings]
+            if not nbrs:
+                continue
+            target = u.target if u.target is not None else u.dest
+            if target is not None and len(nbrs) > 1:
+                goal, _ = self.route_from(u, centre, target)
+                nc = min(nbrs, key=lambda n: dist((n[0] + 0.5, n[1] + 0.5), goal))
+            else:
+                nc = nbrs[0]
+            ax, ay = float(nc[0] - cell[0]), float(nc[1] - cell[1])
+            if not self._wall_shove(nc, (ax, ay), u.side, parts):
+                continue                                  # die Wache kann nicht weichen: oben warten
+            k = min(len(on), config.TOWER_PLATFORM)
+            lanes = config.WALL_ACROSS
+            mid = (len(lanes) - 1) / 2
+            chosen = sorted(sorted(range(len(lanes)), key=lambda i: abs(i - mid))[:k])
+            front = config.WALL_ALONG[0]                  # das vorderste Glied der Kachel, zur Plattform hin
+            jumped = 0
+            for m, li in zip(on[:k], chosen):
+                q = lanes[li]
+                p = (nc[0] + 0.5 + ax * front - ay * q, nc[1] + 0.5 + ay * front + ax * q)
+                if self._crowding(m, m.pos, p, -1) is not None or self.is_blocked(p[0], p[1], u, from_wall=True):
+                    continue                              # der Platz ist noch besetzt (auch von Eigenen: zwei Halbmesser)
+                old = m.pos
+                m.x, m.y = p
+                m.mvx = m.mvy = 0.0
+                m.wp = None
+                m.climbed = False
+                self._regrid(m, u.id, old)
+                jumped += 1
+            if jumped:
+                self._wall_occ = None                     # die Belegung des Wehrgangs hat sich geändert
+                self._jump_due[cell] = self.time + config.TOWER_JUMP_INTERVAL
+                if u.id not in self._jump_told:
+                    self._jump_told.add(u.id)
+                    self.events.append(f"{u.name} ({u.side.value}) springen vom Turm auf den Wehrgang")
+
+    def _wall_shove(self, nc: tuple[int, int], axis: Point, side: Side, parts: dict) -> bool:
+        """Die Wache auf der Wehrgangkachel ``nc`` (und alles, was hinter ihr steht) um ein
+        Glied in Richtung ``axis`` zurücksetzen. Liefert False, wenn sie nicht weichen kann
+        (Ende des Gangs, ein Hindernis oder etwas anderes als die eigene Kette im Rücken)."""
+        dx, dy = axis[0] * config.WALL_GLIED, axis[1] * config.WALL_GLIED
+        groups: dict[int, Lochos] = {}
+        for gx in (2 * nc[0], 2 * nc[0] + 1):
+            for gy in (2 * nc[1], 2 * nc[1] + 1):
+                for m, uid in self._man_grid.get((gx, gy), ()):
+                    if m.hp > 0 and self.cell(m.x, m.y) == nc and self._man_side.get(id(m)) is not side:
+                        g = self._group_map.get(uid)
+                        if g is not None:
+                            groups[uid] = g
+        if not groups:
+            return True
+        limit = 2 * config.MAN_RADIUS
+        for _ in range(12):                               # die Kette hinter der Wache wächst, bis sie steht
+            grown = False
+            for g in list(groups.values()):
+                for m in g.all_men():
+                    if self._wall_level(m.pos) != "wall":
+                        continue
+                    nx, ny = m.x + dx, m.y + dy
+                    if self.cell(nx, ny) not in parts:
+                        return False                      # das Ende des Wehrgangs
+                    cx, cy = self._grid_cell(nx, ny)
+                    for gx in (cx - 1, cx, cx + 1):
+                        for gy in (cy - 1, cy, cy + 1):
+                            for o, oid in self._man_grid.get((gx, gy), ()):
+                                if o is m or o.hp <= 0 or oid in groups or math.hypot(o.x - nx, o.y - ny) >= limit:
+                                    continue
+                                if self._man_side.get(id(o)) is side:
+                                    return False          # ein Angreifer im Rücken der Wache: kein Platz
+                                og = self._group_map.get(oid)
+                                if og is None:
+                                    return False
+                                groups[oid] = og          # die nächste eigene Gruppe weicht mit
+                                grown = True
+            if not grown:
+                break
+        for g in groups.values():
+            movers = [m for m in g.all_men() if self._wall_level(m.pos) == "wall"]
+            olds = [m.pos for m in movers]
+            self._shift_group(g, dx, dy, movers)
+            for m, old in zip(movers, olds):
+                self._regrid(m, g.id, old)
+        self._wall_occ = None
+        return True
+
+    def _past_foes(self, u: Lochos, a: Point, b: Point) -> bool:
+        """Brächte der Schritt von ``a`` nach ``b`` den Mann entlang des Wehrgangs über die
+        vorderste Linie der Feinde in seiner Kachel hinaus (oder bis auf Tuchfühlung daran)?
+        Der Gang ist eng: An einem Feind geht man nicht vorbei, auch nicht an seinem Rand."""
+        c = self.cell(*a)
+        parts = self._walkway_parts()
+        along_x = (c[0] + 1, c[1]) in parts or (c[0] - 1, c[1]) in parts
+        axis = (1.0, 0.0) if along_x else (0.0, 1.0)
+        foes = []
+        for gx in (2 * c[0], 2 * c[0] + 1):
+            for gy in (2 * c[1], 2 * c[1] + 1):
+                for o, _ in self._man_grid.get((gx, gy), ()):
+                    if o.hp > 0 and self._man_side.get(id(o)) is not u.side and self.cell(o.x, o.y) == c:
+                        foes.append((o.x - a[0]) * axis[0] + (o.y - a[1]) * axis[1])
+        if not foes:
+            return False
+        side = 1.0 if sum(foes) >= 0.0 else -1.0          # auf welcher Seite die Feinde stehen
+        step = ((b[0] - a[0]) * axis[0] + (b[1] - a[1]) * axis[1]) * side
+        if step <= 0.0:
+            return False                                  # von ihnen weg (oder nur quer)
+        nearest = min(f * side for f in foes)             # der vorderste Feind, von ihm aus gesehen
+        return step > nearest - 2 * config.MAN_RADIUS
 
     def _wall_occupants(self) -> dict:
         """Kachel des Wehrgangs -> Seiten, die dort NICHT hinein dürfen (weil ein Mann der
@@ -5063,7 +5236,7 @@ class Battle:
         """Wer drückt und gedrückt wird: Fußvolk unten auf dem Feld; Peltasten, Reiter, der Kreis
         und Fliehende nicht."""
         return (u.alive and u.fighting and u.arm() == "hopliten" and u.formation != "o"
-                and not self.on_wall(u) and u.building is None)
+                and (config.WALL_PUSH or not self.on_wall(u)) and u.building is None)
 
     def _push_strength(self, u: Lochos, foe: Lochos) -> float:
         """Stoßkraft von ``u`` je Berührungsstelle mit ``foe`` (die Berührungsbreite ist für
@@ -5072,11 +5245,47 @@ class Battle:
         beides mal Moral. Ohne Phalanx auf einer Seite gibt es kein Drücken."""
         if self._formed(u) and u.formation == "linie":
             return u.push_depth() * max(0.0, u.morale)
+        if self.on_wall(u) and self.on_wall(foe):
+            return self._wall_push_strength(u, foe)
         if not (self._formed(foe) and foe.formation == "linie" and foe.rows):
             return 0.0
         files = max(1, len(self._in_reach(foe.rows[0], u)))
         near = self._in_reach(u.all_men(), foe, 0.6)
         return config.PUSH_LOOSE * len(near) / files * max(0.0, u.morale)
+
+    def _wall_push_strength(self, u: Lochos, foe: Lochos) -> float:
+        """Stoßkraft auf dem Wehrgang, entlang des Gangs: Eine Wache in Phalanx-Stellung schiebt
+        mit ihren Gliedern (vier Mann je Glied; bis PUSH_ROWS_FULL voll, darüber halb), ein Haufen
+        in lockerer Ordnung wie unten mit PUSH_LOOSE je Mann nahe der Berührung, geteilt durch die
+        Berührungsstellen; beides mal Moral."""
+        distance = self._reach_to(foe)
+        near = [m for m in u.all_men() if distance(m) <= config.CONTACT_REACH + 0.6]
+        if not near:
+            return 0.0
+        lanes = len(config.WALL_ACROSS)
+        if u.stance is Stance.PHALANX and not u.loose:
+            behind = [m for m in u.all_men() if self._wall_level(m.pos) == "wall" and distance(m) <= 2.5]
+            ranks = len(behind) / lanes
+            full = min(ranks, float(config.PUSH_ROWS_FULL))
+            return (full + 0.5 * (ranks - full)) * max(0.0, u.morale)
+        files = max(1, min(lanes, len(self._in_reach(foe.all_men(), u))))
+        return config.PUSH_LOOSE * len(near) / files * max(0.0, u.morale)
+
+    def _wall_push_direction(self, strong: Lochos, weak: Lochos) -> Point:
+        """Richtung eines Rucks auf dem Wehrgang: von der Kachel des vordersten Drückenden zur
+        Kachel des vordersten Gedrückten (um Ecken herum), auf derselben Kachel entlang ihrer Achse."""
+        distance = self._reach_to(weak)
+        front = min(strong.all_men(), key=distance)
+        back = min(weak.all_men(), key=self._reach_to(strong))
+        cs, cw = self.cell(front.x, front.y), self.cell(back.x, back.y)
+        if cs != cw:
+            return norm((float(cw[0] - cs[0]), float(cw[1] - cs[1])))
+        parts = self._walkway_parts()
+        along_x = (cs[0] + 1, cs[1]) in parts or (cs[0] - 1, cs[1]) in parts
+        vx, vy = back.x - front.x, back.y - front.y
+        if along_x:
+            return (1.0 if vx >= 0 else -1.0, 0.0)
+        return (0.0, 1.0 if vy >= 0 else -1.0)
 
     def _pushes(self, pairs: list[tuple[Lochos, Lochos]]) -> None:
         """Je Paar in Berührung: Die stärkere Seite drückt die schwächere Ruck für Ruck zurück,
@@ -5111,7 +5320,10 @@ class Battle:
             if self.time < due:
                 continue
             self._push_due[key] = self.time + interval
-            direction = strong.facing if self._formed(strong) else norm(sub(weak.pos, strong.pos))
+            if self.on_wall(strong) and self.on_wall(weak):
+                direction = self._wall_push_direction(strong, weak)
+            else:
+                direction = strong.facing if self._formed(strong) else norm(sub(weak.pos, strong.pos))
             if direction == (0.0, 0.0):
                 continue
             self._push_step(strong, weak, direction)
@@ -5143,15 +5355,41 @@ class Battle:
         step = config.PUSH_STEP
         dx, dy = direction[0] * step, direction[1] * step
         pushed = weak.all_men()
-        free: list[Man] = []
+        up = self.on_wall(weak) and self.on_wall(strong)
+        parts = self._walkway_parts() if up else None
+        stuck: list[Man] = []                              # wer nicht weichen kann: Hindernis, Rand, dritte Gruppe
+        loose_men: list[Man] = []
         for m in pushed:
             nx, ny = m.x + dx, m.y + dy
-            if not self.inside(nx, ny) or self.is_blocked(nx, ny, weak):
+            if not self.inside(nx, ny) or self.is_blocked(nx, ny, weak) or (up and self.cell(nx, ny) not in parts):
+                stuck.append(m)                            # (vom Wehrgang gibt es kein Weichen)
                 continue
             other = self._crowding(m, m.pos, (nx, ny), weak.id)
-            if other is not None and self._man_group.get(id(other)) != strong.id:
-                continue                                   # eine dritte Gruppe oder ein Hindernis im Rücken
-            free.append(m)
+            if other is not None and self._man_group.get(id(other)) not in (strong.id, weak.id):
+                stuck.append(m)                            # eine dritte Gruppe im Rücken
+            else:
+                loose_men.append(m)                        # die eigenen weichen zusammen ...
+        # ... außer, hinter einem steckt dicht ein eigener Mann fest: dann steckt auch er (Kette bis nach vorn)
+        reach, half = 4 * config.MAN_RADIUS, 2 * config.MAN_RADIUS
+        grew = True
+        while grew and stuck:
+            grew = False
+            still: list[Man] = []
+            for m in loose_men:
+                held = False
+                for o in stuck:
+                    ox, oy = o.x - m.x, o.y - m.y
+                    along = ox * direction[0] + oy * direction[1]
+                    if 0.0 < along <= reach and abs(ox * direction[1] - oy * direction[0]) <= half:
+                        held = True
+                        break
+                if held:
+                    stuck.append(m)
+                    grew = True
+                else:
+                    still.append(m)
+            loose_men = still
+        free = loose_men
         if len(free) < (1.0 - config.PUSH_BLOCKED_SHARE) * len(pushed):
             front = self._in_reach(strong.rows[0], weak) if self._formed(strong) and strong.rows else self._in_reach(strong.all_men(), weak)
             victims = self._in_reach(weak.all_men(), strong) or weak.all_men()
@@ -5159,15 +5397,16 @@ class Battle:
             fallen = weak.take_damage_men(victims, dmg, self.rng)
             weak.morale -= config.MORALE_PUSH * step * config.PUSH_CRUSH_MORALE * weak.bravery()
             self._after_hit(weak, fallen, "front", dmg)
-            if weak.id not in self._push_told:
-                self._push_told.add(weak.id)
+            if weak.id not in self._crush_told:
+                self._crush_told.add(weak.id)
                 self.events.append(f"{strong.name} ({strong.side.value}) quetschen {weak.name} am Hindernis")
             return
         self._shift_group(weak, dx, dy, free)
         weak.morale -= config.MORALE_PUSH * step * weak.bravery()
         weak.pushed += step
         movers = [m for m in strong.all_men()
-                  if self.inside(m.x + dx, m.y + dy) and not self.is_blocked(m.x + dx, m.y + dy, strong)]
+                  if self.inside(m.x + dx, m.y + dy) and not self.is_blocked(m.x + dx, m.y + dy, strong)
+                  and (not up or self.cell(m.x + dx, m.y + dy) in parts)]
         self._shift_group(strong, dx, dy, movers)
         if weak.id not in self._push_told:
             self._push_told.add(weak.id)

@@ -601,6 +601,114 @@ def test_nobody_slips_past_an_enemy_on_the_walkway():
     assert b._man_can_step(attacker, m, m.pos, (nxt[0] + 0.2, nxt[1] + 0.5), True)
 
 
+def tower_fight(n_guard: int, n_att: int, guard_kind: str = "mittel"):
+    """Eine Wache auf dem Wehrgang gleich neben einem Turmübergang, Angreifer am Fuß des
+    Turms mit Ziel hinter der Wache. Liefert Schlacht, Wache, Angreifer, Übergang und eine
+    Funktion, die die Lage eines Punkts entlang des Wehrgangs misst (vom Übergang aus)."""
+    b = quiet(Battle(FESTUNG, random.Random(1)))
+    b.corner_towers = []
+    b._volleys = lambda dt: None
+    b._check_outcome = lambda: None
+    cell = min((c for c in b.blocked if b.tower_step(c) is not None and c[1] >= 24 and c not in b.ladders),
+               key=lambda c: abs(c[0] - 15))
+    d = b.tower_step(cell)
+    b.crossings.add(cell)
+    b._foot[cell] = d
+    cx, cy = cell[0] + 0.5, cell[1] + 0.5
+    b.towers.append((cx + d[0] * 0.75, cy + d[1] * 0.75))
+    land = b.landing(cell)
+    lc = b.cell(*land)
+    step = (lc[0] - cell[0], lc[1] - cell[1])
+    guard = lone_group(b, Side.STADT, guard_kind, n_guard, land)
+    guard.stance = Stance.PHALANX
+    att = lone_group(b, Side.FEIND, "mittel", n_att, b.foot_of(cell))
+    clear(b, [guard, att])
+    run(b, 3)
+    att.target = (land[0] + step[0] * 3, land[1] + step[1] * 3)
+
+    def along(p):
+        return (p[0] - cx) * step[0] + (p[1] - cy) * step[1]
+    return b, guard, att, cell, along
+
+
+def test_attackers_gather_on_the_tower_and_jump_in_threes_pushing_the_guard_back_a_rank():
+    """Belagerungsturm: Oben auf der Plattform sammeln sich drei Mann, dann springen sie
+    zusammen auf den Wehrgang; die Wache dort weicht je Sprung um ein Glied zurück. Mehr als
+    drei stehen nie auf der Plattform, und einzeln springt niemand, solange noch welche
+    unten warten."""
+    b, guard, att, cell, along = tower_fight(12, 12)
+    front0 = min(along(m.pos) for m in guard.all_men())
+    jumps = 0
+    most = 0
+    for _ in range(int(12 / DT)):
+        before = sum(1 for m in att.all_men() if b._wall_level(m.pos) == "wall" and b.cell(m.x, m.y) != cell)
+        b.update(DT)
+        on = sum(1 for m in att.all_men() if b.cell(m.x, m.y) == cell)
+        most = max(most, on)
+        after = sum(1 for m in att.all_men() if b._wall_level(m.pos) == "wall" and b.cell(m.x, m.y) != cell)
+        if after > before:
+            assert after - before in (2, 3) or not any(b._wall_level(m.pos) == "aussen" for m in att.all_men())
+            jumps += 1
+    assert most <= config.TOWER_PLATFORM
+    assert jumps >= 2
+    front = min(along(m.pos) for m in guard.all_men())
+    assert front - front0 >= 1.5 * config.WALL_GLIED           # mindestens um zwei Glieder zurückgewichen
+    assert any("springen vom Turm" in e for e in b.events)
+
+
+def test_a_lone_remainder_jumps_without_waiting_for_three():
+    b, guard, att, cell, along = tower_fight(12, 2)
+    for _ in range(int(10 / DT)):
+        b.update(DT)
+        if all(b._wall_level(m.pos) == "wall" and b.cell(m.x, m.y) != cell for m in att.all_men()):
+            break
+    else:
+        pytest.fail("die zwei Mann sind nach zehn Sekunden noch nicht auf dem Wehrgang")
+
+
+def test_the_walkway_fight_is_a_push_the_deeper_side_wins():
+    """Nach dem Sprung gilt das Gedränge wie am Boden: Eine Wache in Phalanx-Stellung mit drei
+    Gliedern drückt zwölf lockere Angreifer zurück auf die Plattform; vier Mann Wache werden
+    von zwölf Angreifern Ruck für Ruck zurückgedrängt."""
+    b, guard, att, cell, along = tower_fight(12, 12)
+    run(b, 12)
+    front_mid = min(along(m.pos) for m in guard.all_men())
+    run(b, 12)
+    front_late = min(along(m.pos) for m in guard.all_men())
+    assert front_late < front_mid - 0.1                           # die Wache gewinnt Boden zurück
+    assert any("drängen" in e for e in b.events)
+    b, guard, att, cell, along = tower_fight(4, 12)
+    run(b, 12)
+    front_mid = min(along(m.pos) for m in guard.all_men())
+    run(b, 12)
+    front_late = min(along(m.pos) for m in guard.all_men())
+    assert front_late > front_mid + 0.1 or guard.stance is Stance.FLUCHT   # die dünne Wache weicht
+
+
+def test_nobody_slips_past_a_foe_in_his_own_walkway_cell():
+    """Wer auf einer Wehrgangkachel mit Feinden steht, kommt entlang des Gangs nicht an ihnen
+    vorbei, auch nicht am Rand der Kachel; zurück geht es."""
+    b = Battle(FESTUNG, random.Random(1))
+    parts = b._walkway_parts()
+    a = next(c for c in sorted(parts) if (c[0] + 1, c[1]) in parts and c not in b.ladders and c not in b._gate_of)
+    b.crossings.add(next(c for c in sorted(parts) if c != a and c not in b.ladders))
+    attacker = b.units(Side.FEIND)[0]
+    defender = next(u for u in b.units(Side.STADT) if u.arm() == "peltasten")
+    m = attacker.all_men()[0]
+    m.x, m.y = a[0] + 0.2, a[1] + 0.9                        # am Rand der Kachel
+    d = defender.all_men()[0]
+    d.x, d.y = a[0] + 0.5, a[1] + 0.5                        # mitten in derselben Kachel
+    b._man_grid = {}
+    b._man_side = {}
+    for u in b.lochoi:
+        for mm in u.all_men():
+            b._man_grid.setdefault(b._grid_cell(mm.x, mm.y), []).append((mm, u.id))
+            b._man_side[id(mm)] = u.side
+    b._wall_occ = None
+    assert not b._man_can_step(attacker, m, m.pos, (a[0] + 0.6, a[1] + 0.9), True)   # an ihm vorbei: nein
+    assert b._man_can_step(attacker, m, m.pos, (a[0] + 0.1, a[1] + 0.9), True)       # zurück: ja
+
+
 def test_fortress_hoplites_may_climb_the_wall():
     """In der Festung steigt jede Fußgruppe der Wallseite auf den Wehrgang, Reiter nicht."""
     b = Battle(FESTUNG, random.Random(1))

@@ -501,6 +501,32 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   innen nehmen und selbst öffnen, und die Besatzung schließt es wieder,
   sobald sie es zurückhat. Wer durch das offene Tor einer Festung
   hineinzieht und niemanden dahinter antrifft, hat es damit auch schon.
+- **Kampf um den Wehrgang am Belagerungsturm:** Wer oben auf der
+  Plattform eines Turms ankommt, wartet, bis drei Mann beisammen sind
+  (oder alle, die noch kommen: eine kleine Gruppe und der letzte Rest
+  springen auch zu zweit oder allein), dann springen sie zusammen als eine
+  Reihe quer über den Wehrgang auf die Kachel daneben. Steht dort die
+  Wache, weicht sie um ein Glied zurück, mit allem, was hinter ihr steht;
+  ist der Gang dahinter bis zum Ende oder bis zu einem Angreifer voll,
+  gibt es keinen Sprung, und oben wird gewartet. Mehr als drei stehen nie
+  auf der Plattform, unten staut sich die Kolonne. Danach gilt das Gedränge
+  wie am Boden, nur entlang des Gangs: Eine Wache in Phalanx-Stellung
+  schiebt mit ihren Gliedern (vier Mann je Glied, bis vier Glieder voll,
+  darüber halb), ein Haufen in lockerer Ordnung mit einem halben Mann je
+  Mann an der Berührung; wer schwächer ist, weicht Ruck für Ruck, bis
+  zurück auf die Plattform, und wer nicht weichen kann, wird gequetscht.
+  Wer vom Wehrgang zurückgedrängt wurde, springt nicht noch einmal. Im
+  Labor hält eine Wache von zwölf Hopliten in Phalanx zwölf Angreifer und
+  drückt sie zurück auf den Turm, bis sie fliehen; vier Mann Wache werden
+  von zwölf Angreifern in einer halben Minute Glied für Glied
+  zurückgedrängt und brechen. Leitern bleiben, wie sie sind: einer nach
+  dem anderen, nur auf eine Kachel ohne Feind. Dazu drei Dinge, die vorher
+  falsch liefen: Auf einer Wehrgangkachel mit Feinden kommt niemand mehr
+  an ihnen vorbei, auch nicht am Rand der Kachel; eine Gruppe, deren
+  Männer oben im Handgemenge stehen, schiebt ihre Mitte nicht mehr durch
+  den Feind hindurch (der Kampf riss sonst ab, obwohl die Männer sich
+  gegenüberstanden); und Fliehende klettern nie hinauf, sondern laufen um
+  die Festung herum vom Feld.
 - **Abgehängte suchen ihren eigenen Weg:** Ein Mann, der weiter als eine
   Kachel von seinem Platz zurückbleibt (an einer Hausecke, hinter einer
   stehenden eigenen Gruppe, aus dem Handgemenge gelöst), drängt nicht mehr

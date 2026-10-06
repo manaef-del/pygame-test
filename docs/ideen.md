@@ -79,6 +79,12 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Kampf um den Wehrgang** (6. Oktober 2026): Sammeln auf der
+  Turmplattform (drei Mann), Sprung zu dritt mit einem Glied Verdrängung
+  der Wache, danach Drücken entlang des Gangs wie am Boden; Leitern
+  unverändert. Dazu: kein Vorbeischlüpfen am Kachelrand, Gruppen im Kampf
+  oben schieben ihre Mitte nicht durch den Feind, Fliehende klettern nicht.
+
 - **Tore erobern, Flügel nach außen, Abgehängte** (6. Oktober 2026): Tore
   wechseln wie die Türme den Besitzer (Feind innen zwei Sekunden in der
   Überzahl hinter und neben dem Tor); das Heer öffnet ein erobertes Tor,
