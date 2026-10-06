@@ -110,6 +110,7 @@ RALLY_EDGE = 1.5             # Kacheln vom eigenen Kartenrand, wo sich Angreifer
 # Peltasten
 JAVELINS = 10                # Würfe je Peltast
 VOLLEY_INTERVAL = 1.5        # Sekunden zwischen zwei Salven
+THROW_LOOK_TIME = 3.0        # Sekunden: so lange schaut ein Werfer nach seinem Wurf noch zum Ziel (nur fürs Bild; im Kreis statt nach außen)
 JAVELIN_DAMAGE = 0.23        # Schaden je Treffer (etwa jeder achte Speer geht auch auf Stehende daneben)
 JAVELIN_RANGE = 3.5          # Kacheln
 JAVELIN_SPEED = 14.0         # Kacheln pro Sekunde (Anzeige und Einschlag)

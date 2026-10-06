@@ -8,7 +8,7 @@ import pytest
 from game import config
 from game.army import OWN_DEFAULT, Army, GroupSpec, Tier, default_army, scaled_army
 from game.battle import Battle
-from game.geometry import arc, dist, snap4
+from game.geometry import arc, dist, norm, snap4
 from game.scenarios import RaiderSpawn, Scenario
 from kleine_karten import KLEIN_ANGRIFF, KLEIN_HORDE, KLEIN_OFFEN
 from game.units import UNIT_TYPES, Lochos, Man, Side, Stance, arrange
@@ -822,6 +822,31 @@ def test_men_in_a_ring_look_outward():
     run(b, 3)
     assert hop.vel > 0.0 or hop.target is not None
     assert all(outward(m) > 0.8 for m in hop.all_men())
+
+
+def test_throwers_in_a_ring_turn_towards_their_target():
+    """Peltasten im Kreis werfen nicht über die Schulter: Wer wirft, dreht sich an Ort und
+    Stelle zum Ziel (der Kreis bleibt); wer nicht wirft, schaut weiter nach außen."""
+    b = Battle(raid(16, (8.0, 5.0)), random.Random(0),
+               army=army_of(GroupSpec("H", [Tier("mittel", 16)]), GroupSpec("P", [Tier("peltast", 16)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    for r in b.units(Side.FEIND):
+        r.target = None
+        r.stance = Stance.HALTEN
+    hop, pelt = b.units(Side.STADT)
+    v = b.command_verband([hop, pelt])
+    hop.x, hop.y, pelt.x, pelt.y = 8.0, 8.0, 8.0, 8.0
+    b.command_verband_formation(v, "o")
+    b.command_hold([hop, pelt])
+    run(b, 6)
+    foe = b.units(Side.FEIND)[0]
+    thrown = [m for m in pelt.all_men() if m.aim is not None]
+    assert thrown, "niemand hat geworfen"
+    for m in thrown:
+        to = norm((foe.x - m.x, foe.y - m.y))
+        assert to[0] * m.sfx + to[1] * m.sfy > 0.7, (m.pos, (m.sfx, m.sfy))
+    ring = [(m, norm((m.x - hop.x, m.y - hop.y))) for m in hop.all_men()]
+    assert all(ox * m.sfx + oy * m.sfy > 0.8 for m, (ox, oy) in ring)    # die Hopliten außen schauen nach außen
 
 
 def test_hold_forms_a_phalanx_in_place_and_line_resets_formation():

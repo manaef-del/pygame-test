@@ -2456,6 +2456,8 @@ class Battle:
                     look = (m.bound_dx, m.bound_dy)       # hat kehrtgemacht oder sich zur Flanke gedreht
                 elif free and math.hypot(m.mvx, m.mvy) > 0.3:
                     look = norm((m.mvx, m.mvy))
+                elif m.aim is not None and self.time < m.aim_until:
+                    look = m.aim                           # wer wirft, schaut zu seinem Ziel, die Formation haltend
                 elif u.formation == "o" and (m.x, m.y) != (u.x, u.y):
                     look = norm((m.x - u.x, m.y - u.y))    # im Kreis schaut jeder nach außen
                 else:
@@ -5701,6 +5703,8 @@ class Battle:
                 victim = targets[self.rng.randrange(len(targets))]
                 (tx, ty), flight = self._aim(m.pos, victim)
                 self.projectiles.append(Projectile(m.x, m.y, tx, ty, foe.id, config.JAVELIN_DAMAGE, 0.0, flight, victim))
+                m.aim = norm((tx - m.x, ty - m.y))        # er dreht sich zum Ziel (im Kreis statt nach außen)
+                m.aim_until = self.time + config.THROW_LOOK_TIME
         for pr in list(self.projectiles):
             pr.progress += dt
             if pr.progress >= pr.total:

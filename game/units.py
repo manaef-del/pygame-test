@@ -98,6 +98,8 @@ class Man:
     show_dx: float = 0.0  # nur fürs Bild: so weit drängt er gerade von seiner Stelle zum Gegner (Gerangel)
     show_dy: float = 0.0
     jostle_foe: "Man | None" = None   # nur fürs Bild: der Gegner, auf den er gerade drängt ...
+    aim: tuple[float, float] | None = None   # nur fürs Bild: wohin er zuletzt geworfen hat ...
+    aim_until: float = -1.0                  # ... und bis wann er dorthin schaut
     jostle_until: float = -1.0        # ... und wie lange er bei ihm bleibt, ehe er neu wählt
     sx: float | None = None  # nur fürs Bild: geglättete Stelle (ruhig statt zitternd), None = noch keine
     sy: float = 0.0

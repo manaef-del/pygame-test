@@ -79,6 +79,9 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Werfer schauen zum Ziel** (6. Oktober 2026): Im Kreis drehen sich die
+  Peltasten beim Wurf zum Feind statt nach außen (nur fürs Bild).
+
 - **Fliehende hängen an Häusern** (6. Oktober 2026): Der Umweg um Häuser
   fehlte, wenn der Wegpunkt jenseits eines offenen Tors lag; jetzt auch dann.
 

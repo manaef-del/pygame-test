@@ -527,6 +527,12 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   den Feind hindurch (der Kampf riss sonst ab, obwohl die Männer sich
   gegenüberstanden); und Fliehende klettern nie hinauf, sondern laufen um
   die Festung herum vom Feld.
+- **Werfer drehen sich zum Ziel:** Wer einen Speer wirft, schaut drei
+  Sekunden lang zu seinem Ziel, an Ort und Stelle und die Formation
+  haltend; im Kreis also zum Feind statt nach außen (vorher warfen die
+  Peltasten des inneren Rings über die Schulter nach hinten). Wer nicht
+  wirft, schaut weiter nach außen. Nur fürs Bild, die Schlacht rechnet
+  nichts davon.
 - **Flucht an Häusern vorbei:** Lag der nächste Wegpunkt einer Gruppe
   jenseits eines offenen Tors (Fliehende, die aus der Festung wollen),
   wurden die Häuser davor nicht umgangen: Der Block lief geradeaus in das
