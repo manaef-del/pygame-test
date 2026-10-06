@@ -2474,8 +2474,10 @@ class Battle:
                     else:
                         m.hx, m.hy = self._rotated_towards((m.hx, m.hy), (m.sfx, m.sfy), config.HORSE_TURN_STILL * dt)
                 ox, oy = m.x - u.x, m.y - u.y
-                if m.sx is None or abs(m.x - m.sx) + abs(m.y - m.sy) > 0.6:
-                    m.rx, m.ry = ox, oy
+                leapt = m.lx is None or math.hypot(m.x - m.lx, m.y - m.ly) > config.SHOW_JUMP
+                m.lx, m.ly = m.x, m.y
+                if m.sx is None or leapt:
+                    m.rx, m.ry = ox, oy                    # ein Satz (neu aufgestellt, geworfen): das Bild springt mit
                 elif config.SHOW_ABS_LOOSE and u.loose:
                     # aufgelöst geht jeder für sich: sein Bild folgt seiner Stelle, nicht der wandernden Mitte
                     m.rx = m.sx + (m.x - m.sx) * k - u.x
@@ -2484,6 +2486,11 @@ class Battle:
                     m.rx += (ox - m.rx) * k
                     m.ry += (oy - m.ry) * k
                 m.sx, m.sy = u.x + m.rx, u.y + m.ry
+                lag = math.hypot(m.sx - m.x, m.sy - m.y)
+                if lag > config.SHOW_LAG_MAX:              # ein schneller Reiter: das Bild wird mitgezogen, es springt nicht
+                    f = config.SHOW_LAG_MAX / lag
+                    m.sx, m.sy = m.x + (m.sx - m.x) * f, m.y + (m.sy - m.y) * f
+                    m.rx, m.ry = m.sx - u.x, m.sy - u.y
 
     def _mark_engines(self) -> None:
         """Aufgestellte Türme und liegende Rammböcke als Hindernisse (Viertelkacheln)."""

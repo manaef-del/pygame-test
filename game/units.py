@@ -114,6 +114,8 @@ class Man:
     vy: float = 0.0
     mvx: float = 0.0      # seine Schrittgeschwindigkeit (Kacheln je Sekunde): ein Körper mit Masse, der nicht springt
     mvy: float = 0.0
+    lx: float | None = None   # nur fürs Bild: seine wirkliche Stelle im letzten Takt (ein Satz darüber hinaus springt im Bild mit)
+    ly: float = 0.0
     sfx: float = 0.0      # nur fürs Bild: wohin er schaut (geglättet) – Front der Gruppe, sein Gegner oder sein Weg
     hx: float = 0.0       # nur fürs Bild, Reiter: wohin das Pferd läuft (geglättet); der Reiter darf anderswohin schauen
     hy: float = -1.0

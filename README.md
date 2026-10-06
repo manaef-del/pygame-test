@@ -527,6 +527,15 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   den Feind hindurch (der Kampf riss sonst ab, obwohl die Männer sich
   gegenüberstanden); und Fliehende klettern nie hinauf, sondern laufen um
   die Festung herum vom Feld.
+- **Reiter springen nicht mehr im Bild:** Das Bild eines Mannes folgt
+  seiner Stelle geglättet und sprang bisher sofort nach, sobald es mehr
+  als 0,6 Kacheln nachhing. Ein Reiter mit Aufholtempo (ein Nachzügler,
+  ein Ausweichen im Gedränge) hing genau so weit nach, sein Bild sprang
+  alle paar Takte um eine halbe Kachel. Jetzt springt das Bild nur bei
+  einem echten Satz (mehr als eine halbe Kachel in einem Takt: neu
+  aufgestellt, geworfen), sonst wird es mitgezogen und hängt höchstens
+  0,3 Kacheln nach. Im Labor: größter Sprung je Takt beim Nachzügler
+  0,49 → 0,16 Kacheln.
 - **Werfer drehen sich zum Ziel:** Wer einen Speer wirft, schaut drei
   Sekunden lang zu seinem Ziel, an Ort und Stelle und die Formation
   haltend; im Kreis also zum Feind statt nach außen (vorher warfen die

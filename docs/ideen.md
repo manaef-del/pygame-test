@@ -79,6 +79,10 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Reiter springen im Bild** (6. Oktober 2026): Das Bild springt nur
+  noch bei einem echten Satz, sonst wird es mitgezogen (höchstens 0,3
+  Kacheln Nachlauf). Nachzügler-Reiter: 0,49 → 0,16 Kacheln je Takt.
+
 - **Werfer schauen zum Ziel** (6. Oktober 2026): Im Kreis drehen sich die
   Peltasten beim Wurf zum Feind statt nach außen (nur fürs Bild).
 

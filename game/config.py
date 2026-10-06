@@ -258,6 +258,9 @@ FORT_SEEK_RANGE = 8.0         # Kacheln: so nah müssen Verteidiger sein, damit 
 AI_TARGET_HYST = 1.5          # Kacheln: ... und von einem angegriffenen lässt sie erst so viel weiter weg wieder ab
 SHOW_SMOOTH = 0.15            # Sekunden: so träge folgt das Bild eines Mannes seiner Lage in der Gruppe (nur fürs Bild)
 SHOW_TURN_RATE = 8.0          # rad/s: so schnell dreht sich im Bild der Blick eines Mannes (nur fürs Bild)
+SHOW_JUMP = 0.5               # Kacheln in einem Takt: erst so ein Satz (neu aufgestellt, geworfen) springt im Bild sofort mit;
+                              # vorher sprang das Bild, sobald es 0,6 Kacheln nachhing, also bei jedem schnellen Reiter
+SHOW_LAG_MAX = 0.3            # Kacheln: weiter hängt das Bild seinem Mann nie nach (es wird mitgezogen, nicht gesprungen)
 SHOW_ABS_LOOSE = True         # aufgelöste Gruppen: das Bild jedes Mannes glättet seine eigene Stelle, nicht den Versatz zur
                               # wandernden Mitte (sonst zittern stehende Männer, wenn die Mitte springt, etwa an der Leiter)
 

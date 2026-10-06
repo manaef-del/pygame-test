@@ -1319,6 +1319,32 @@ def test_men_are_drawn_smoothed_within_their_group_but_never_behind_the_march():
     assert worst < 0.05                                                  # beim Marsch: genau an seiner Stelle
 
 
+def test_a_fast_rider_catching_up_is_drawn_without_jumps():
+    """Das Bild eines Mannes springt nur bei einem echten Satz (neu aufgestellt, geworfen),
+    nicht, weil es einem schnellen Reiter nachhängt: Ein Reiter, der seiner Gruppe mit
+    Aufholtempo nachsetzt, wird Takt für Takt mitgezogen (vorher sprang sein Bild alle paar
+    Takte um eine halbe Kachel)."""
+    b = Battle(raid(8, (1.0, 1.0)), random.Random(0), army=army_of(GroupSpec("R", [Tier("reiter", 12)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    b.alarm = False
+    cav = b.units(Side.STADT)[0]
+    cav.x, cav.y = 8.0, 14.0
+    cav.place_men()
+    run(b, 1)
+    m = cav.all_men()[3]
+    m.x, m.y = m.x + 1.5, m.y + 3.0                       # ein Satz: das Bild springt einmal mit ...
+    b.command_move([cav], (8.0, 4.0))
+    b.update(DT)
+    worst = 0.0
+    last = (m.sx, m.sy)
+    for _ in range(int(8 / DT)):                           # ... danach nie mehr
+        b.update(DT)
+        worst = max(worst, dist((m.sx, m.sy), last))
+        last = (m.sx, m.sy)
+        assert dist((m.sx, m.sy), m.pos) <= config.SHOW_LAG_MAX + 1e-6
+    assert worst < 0.25, worst
+
+
 def test_men_have_mass_and_do_not_jump():
     """Jeder Mann hat eine Schrittgeschwindigkeit: Schneller wird er je Takt höchstens um
     MAN_ACCEL, ein Marschierender kehrt nie von einem Takt auf den anderen um (ein seitlicher
