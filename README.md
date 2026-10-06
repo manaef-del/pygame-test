@@ -483,13 +483,34 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   „hinten“, sonst „seitlich“. Wer am Ende einer Reihe von der Seite
   gepackt wird, dreht sich also um, auch wenn der Gegner für die ganze
   Gruppe noch knapp als „vorn“ zählt (die Toleranz neben dem Linienende).
-- **Eigene Tore öffnen und schließen:** In der Festung öffnet ein Tipp auf
-  ein eigenes Tor seine beiden Flügel, ein zweiter schließt sie. Offen steht
+- **Tore öffnen und schließen:** In der Festung öffnet ein Tipp auf
+  ein Tor, das wir halten, seine beiden Flügel, ein zweiter schließt sie. Offen steht
   das Tor allen, auch dem Feind; schließen geht nur, wenn niemand im
   Durchgang steht, und ein aufgebrochenes Tor nie mehr. Die Flügel
-  schwingen in einer Sekunde nach innen auf, so sieht man von weitem, ob
+  schwingen in einer Sekunde nach außen auf, so sieht man von weitem, ob
   ein Tor offen steht. Damit kann man einen Ausfall machen, muss das Tor
   aber auch wieder zubekommen.
+- **Tore wechseln den Besitzer wie die Türme:** Steht der Feind innen
+  hinter und neben einem Tor (näher als zweieinhalb Kacheln, auf dem Boden,
+  nicht auf dem Wehrgang) zwei Sekunden lang in der Überzahl, nimmt er es
+  und darf es öffnen und schließen; wer es hält, zeigen Farbpunkte an den
+  Pfosten. Dieselbe Regel gibt es zurück. Das Heer vor der Festung öffnet
+  ein erobertes Tor nach einer Sekunde für seine Truppen, also stürmt es
+  nach, sobald ein paar Eindringlinge (über Turm oder Leiter) hinter dem Tor
+  die Oberhand haben; wer die Festung angreift, kann umgekehrt ein Tor von
+  innen nehmen und selbst öffnen, und die Besatzung schließt es wieder,
+  sobald sie es zurückhat. Wer durch das offene Tor einer Festung
+  hineinzieht und niemanden dahinter antrifft, hat es damit auch schon.
+- **Abgehängte suchen ihren eigenen Weg:** Ein Mann, der weiter als eine
+  Kachel von seinem Platz zurückbleibt (an einer Hausecke, hinter einer
+  stehenden eigenen Gruppe, aus dem Handgemenge gelöst), drängt nicht mehr
+  stur geradeaus, sondern sucht im Wegefeld seinen eigenen Weg um Häuser,
+  Tore und stehende eigene Gruppen herum zu seinem Platz, während die
+  Gruppe in Formation weiterzieht; steckt er in einem eigenen Block, tritt
+  er durch dessen Reihen hinaus. Im Labor kamen vier in einer Hausnische
+  zurückgelassene Hopliten in fünf statt elf Sekunden wieder an ihren Platz
+  (vorher drückten sie sechs Sekunden in die Ecke). Fliehende laufen
+  weiter einfach mit, und auf dem Wehrgang gilt der Wehrgang-Weg.
 - **Verfolgung:** Wer flieht und von hinten eingeholt wird, wehrt sich
   nicht: Er nimmt den fünffachen Schaden (von vorn oder seitlich getroffen
   den doppelten, wie bisher). Die meisten Hopliten fielen auf der Flucht,

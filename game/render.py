@@ -357,17 +357,19 @@ class Renderer:
                 pygame.draw.rect(s, config.COLOR_GATE, rect, 2)           # das Torhaus
                 if g.broken:
                     continue                                              # aufgebrochen: nur der leere Durchgang
-                # zwei Flügel, an den Pfosten angeschlagen; sie schwingen nach innen auf
+                # zwei Flügel, an den Pfosten angeschlagen; sie schwingen nach außen auf
                 cx, cy = g.center
                 (tx, ty), (nx, ny) = g.tangent, g.normal
                 ang = g.swing * math.pi / 2
                 c_, s_ = math.cos(ang), math.sin(ang)
                 width = max(3, int(round(T * 0.12)))
+                owner = {Side.STADT: config.COLOR_CITY, Side.FEIND: config.COLOR_ENEMY}.get(g.owner, config.COLOR_TEXT_DIM)
                 for sign in (1.0, -1.0):
                     post = (cx - sign * tx * g.half_len, cy - sign * ty * g.half_len)
-                    dx, dy = sign * tx * c_ - nx * s_, sign * ty * c_ - ny * s_
+                    dx, dy = sign * tx * c_ + nx * s_, sign * ty * c_ + ny * s_
                     tip = (post[0] + dx * g.half_len, post[1] + dy * g.half_len)
                     pygame.draw.line(s, config.COLOR_GATE_CLOSED, px(post), px(tip), width)
+                    pygame.draw.circle(s, owner, px(post), max(2, width))      # wer das Tor hält: an den Pfosten
                 if g.closed:
                     frac = g.hp / g.hp_max
                     pygame.draw.rect(s, config.COLOR_FIRE, pygame.Rect(rect.x, rect.bottom + 2, int(rect.w * frac), 3))

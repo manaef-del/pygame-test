@@ -51,6 +51,9 @@ class Gate:
     hp_max: float = config.GATE_HP
     normal: Point = (0.0, -1.0)          # Richtung nach außen (waagrecht oder senkrecht)
     swing: float = 0.0                   # nur fürs Bild: 0 = Flügel zu, 1 = ganz aufgeschwungen
+    owner: Side | None = None            # wer das Tor hält und es öffnen oder schließen darf
+    hold: float = 0.0                    # Sekunden, die der Feind schon in der Überzahl dahinter steht
+    taken_at: float = -1.0               # wann es zuletzt den Besitzer wechselte
 
     @property
     def center(self) -> Point:
@@ -217,7 +220,8 @@ class Battle:
         self.blocked = set(s.palisade)
         self.ladders = set(s.ladders)
         for cells, out in s.gates:
-            self.gates.append(Gate(list(cells), closed=s.gate_closed, normal=(float(out[0]), float(out[1]))))
+            self.gates.append(Gate(list(cells), closed=s.gate_closed, normal=(float(out[0]), float(out[1])),
+                                   owner=self.wall_side()))
         self._gate_of = {c: g for g in self.gates for c in g.cells}
         self.ring = bool(s.ring)
         self._level_of: dict[tuple[int, int], str] = {}
@@ -1731,10 +1735,12 @@ class Battle:
             self.events.append(f"{u.name} sitzen ab, {n} Pferde bleiben zurück")
 
     def command_gate(self, gate: Gate) -> bool:
-        """Ein eigenes Tor öffnen oder schließen (nur die Wallseite, nur unversehrte Tore).
-        Offen steht es allen, auch dem Feind. Schließen geht nicht, solange jemand im
-        Durchgang steht. Liefert, ob sich etwas geändert hat."""
-        if self.wall_side() is not Side.STADT:
+        """Ein Tor öffnen oder schließen, das wir halten (auch ein erobertes des Feindes; nur
+        unversehrte Tore). Offen steht es allen, auch dem Feind. Schließen geht nicht, solange
+        jemand im Durchgang steht. Liefert, ob sich etwas geändert hat."""
+        if gate.owner is not Side.STADT:
+            if gate.owner is not None:
+                self.events.append("Das Tor hält der Feind")
             return False
         if gate.broken:
             self.events.append("Das Tor ist aufgebrochen, es lässt sich nicht mehr schließen")
@@ -2403,6 +2409,8 @@ class Battle:
         self._volleys(dt)
         if self.corner_towers:
             self._tower_fire(dt)
+        if self.gates:
+            self._gate_control(dt)
         self._engines(dt)
         if not self.attacking:
             self._loot(dt)
@@ -4087,12 +4095,15 @@ class Battle:
             u.assault_slots = [slot for _, slot in assault] if assault is not None else []
             settled = (assault is None and u.vel <= 0.05 and not u.engaged and not u.waiting
                        and (u.target is None or dist(u.pos, u.target) <= config.ARRIVE_EPS + 0.05))
+            field_ = None                                 # Wegefeld für Abgehängte, erst bei Bedarf
+            slots = u.slots()
             steady = u.facing[0] * u.prev_facing[0] + u.facing[1] * u.prev_facing[1] > 0.9995
             u.prev_facing = u.facing
             if config.ROW_SWAP and assault is None and not settled and steady and u.formation == "linie" and not u.engaged:
                 self._swap_crossed_neighbours(u)          # nicht im Schwenk: dort hinken die Männer der Front nur nach
-            for man, slot in (assault if assault is not None else u.slots()):
+            for man, slot in (assault if assault is not None else slots):
                 d = dist(man.pos, slot)
+                man.straggling = False
                 if assault is not None:               # um den Gegner herum: dicht an seinen Umriss, nie hinein
                     self._man_step(u, man, slot, max(u.speed, man.speed) * config.MAN_CATCHUP * dt, walker, through=True, dt=dt)
                     continue
@@ -4111,6 +4122,24 @@ class Battle:
                     man.mvx = man.mvy = 0.0
                     continue                          # kommt nicht näher: stehen bleiben statt hin und her
                 speed = max(u.speed, man.speed) * config.MAN_CATCHUP
+                if (config.STRAGGLER_PATH and d > config.STRAGGLER_WAY and not self.on_wall(u)
+                        and u.stance is not Stance.FLUCHT):               # Fliehende laufen einfach mit
+                    # abgehängt, und etwas liegt zwischen ihm und seinem Platz (Haus, Tor, stehende eigene
+                    # Gruppe): eigener Weg im Wegefeld; steckt er in einem eigenen Block, tritt er wie ein
+                    # Aufgelöster durch dessen Reihen hinaus. Ist der Weg frei (etwa beim Umstellen an Ort
+                    # und Stelle), geht er wie alle anderen in der Ordnung der Gruppe.
+                    if man.wp is not None and self.time < man.wp_until and dist(man.pos, man.wp) > 0.05:
+                        goal = man.wp
+                    else:
+                        if field_ is None:
+                            field_ = self._field(u, slots)
+                        goal = field_.waypoint(man.pos, slot)
+                        man.wp = goal if goal != slot else None
+                        man.wp_until = self.time + config.WAYPOINT_TIME
+                    if goal != slot:
+                        man.straggling = True
+                        self._man_step(u, man, goal, speed * dt, walker, dt=dt, brake=False)
+                        continue
                 mv = (man.mvx, man.mvy)
                 if not self._man_step(u, man, slot, speed * dt, walker, slide=False, dt=dt, carry=carry):
                     man.mvx, man.mvy = mv                             # der zweite Anlauf geht aus der alten Bewegung heraus
@@ -4551,7 +4580,8 @@ class Battle:
         cx, cy = self._grid_cell(*b)
         friends = self._ring_friends.get(own) if self._ring_friends else None
         mover = self._group_map.get(own)
-        side = self._man_side.get(id(man)) if mover is not None and mover.loose else None   # nur wer aufgelöst geht
+        side = (self._man_side.get(id(man)) if mover is not None and (mover.loose or man.straggling)
+                else None)                                # nur wer aufgelöst geht oder seiner Gruppe nachläuft
         inside: dict[int, bool] = {}                      # eigene Gruppen, in deren Block er gerade steckt
         near: list[tuple[Man, bool, float, float]] = []
         nearest = {True: float("inf"), False: float("inf")}   # wie dicht er jetzt schon steht: eigene / fremde
@@ -4562,6 +4592,7 @@ class Battle:
                         continue
                     if friends and uid in friends and uid != own:
                         continue                          # Ring im Ring desselben Verbands: man tritt aneinander vorbei
+                    mine = uid == own
                     if uid != own and side is not None and self._man_side.get(id(o)) is side:
                         hit = inside.get(uid)
                         if hit is None:
@@ -4572,8 +4603,8 @@ class Battle:
                                 hit = abs(along) < g.half_w - 0.12 and abs(forward) < g.half_d - 0.12
                             inside[uid] = hit
                         if hit:
-                            continue                      # in einem eigenen Block eingeschlossen: durch seine Reihen hinaus
-                    mine = uid == own
+                            mine = True                   # in einem eigenen Block eingeschlossen: durch seine Reihen
+                                                          # hinaus, Schulter an Schulter wie unter den eigenen Leuten
                     da = math.hypot(a[0] - o.x, a[1] - o.y)
                     nearest[mine] = min(nearest[mine], da)
                     near.append((o, mine, da, math.hypot(b[0] - o.x, b[1] - o.y)))
@@ -5508,6 +5539,53 @@ class Battle:
                 vx = vy = 0.0
             m.vx += (vx - m.vx) * k
             m.vy += (vy - m.vy) * k
+
+    def _gate_control(self, dt: float) -> None:
+        """Tore wie Türme: Steht der Feind hinter und neben einem Tor (innen, auf dem Boden,
+        näher als ``GATE_HOLD_RADIUS``) ``GATE_HOLD_TIME`` lang in der Überzahl, nimmt er es
+        und darf es öffnen und schließen; dieselbe Regel gibt es dem Besitzer zurück. Die KI
+        öffnet ein erobertes Tor für ihr Heer, die Besatzung schließt ein zurückgewonnenes."""
+        if not config.GATE_CAPTURE:
+            return
+        reach = config.GATE_HOLD_RADIUS
+        span = int(math.ceil(reach * 2))
+        for g in self.gates:
+            if g.broken or g.owner is None:
+                continue
+            cx, cy = g.center
+            present = {Side.STADT: 0, Side.FEIND: 0}
+            gx, gy = self._grid_cell(cx, cy)
+            for x in range(gx - span, gx + span + 1):
+                for y in range(gy - span, gy + span + 1):
+                    for m, uid in self._man_grid.get((x, y), ()):
+                        if m.hp > 0 and math.hypot(m.x - cx, m.y - cy) <= reach and self._wall_level(m.pos) in ("innen", "tor"):
+                            present[self._man_side[id(m)]] += 1
+            foe_side = Side.FEIND if g.owner is Side.STADT else Side.STADT
+            if present[foe_side] > present[g.owner]:
+                g.hold += dt
+            else:
+                g.hold = 0.0
+            if g.hold >= config.GATE_HOLD_TIME:
+                g.owner, g.hold, g.taken_at = foe_side, 0.0, self.time
+                who = "Der Feind nimmt" if foe_side is Side.FEIND else "Wir nehmen"
+                self.events.append(f"{who} ein Tor ein")
+            if g.owner is Side.FEIND and g.taken_at >= 0.0 and self.time - g.taken_at >= config.GATE_AI_DELAY:
+                self._ai_gate(g)
+
+    def _ai_gate(self, g: Gate) -> None:
+        """Die KI am Tor, das sie hält: Das Heer vor der Festung öffnet es für seine Truppen,
+        die Besatzung schließt es wieder, sobald niemand mehr im Durchgang steht."""
+        if self.wall_side() is Side.FEIND:
+            if g.closed:
+                return
+            cells = set(g.cells)
+            if any(self.cell(m.x, m.y) in cells for u in self.lochoi if u.alive for m in u.all_men()):
+                return
+            g.closed = True
+            self.events.append("Der Feind schließt das Tor")
+        elif g.closed:
+            g.closed = False
+            self.events.append("Der Feind öffnet das Tor")
 
     def _tower_fire(self, dt: float) -> None:
         """Wehrtürme: Wer oben steht, gehört dazu. Steht nur der Feind oben, gehört der Turm

@@ -79,6 +79,14 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Tore erobern, Flügel nach außen, Abgehängte** (6. Oktober 2026): Tore
+  wechseln wie die Türme den Besitzer (Feind innen zwei Sekunden in der
+  Überzahl hinter und neben dem Tor); das Heer öffnet ein erobertes Tor,
+  die Besatzung schließt ein zurückgewonnenes, der Spieler bedient nur Tore,
+  die er hält (auch eroberte feindliche). Flügel schwingen nach außen.
+  Männer weiter als eine Kachel hinter ihrem Platz suchen ihren eigenen Weg
+  im Wegefeld (Hausnische: 11 → 5 s), die Gruppe bleibt in Formation.
+
 - **Eigene Tore öffnen** (5. Oktober 2026): Tipp auf ein eigenes Tor
   öffnet oder schließt es, mit zwei Flügeln im Bild; offen für alle,
   schließen nur bei leerem Durchgang, aufgebrochen nie mehr.

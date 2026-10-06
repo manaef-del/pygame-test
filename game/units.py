@@ -91,6 +91,7 @@ class Man:
     dodge_at: float = -9.0   # wann er zuletzt ausgewichen ist (die Seite gilt noch eine Weile)
     wp: tuple[float, float] | None = None       # eigener Wegpunkt auf dem Weg zum Platz
     wp_until: float = -1.0                      # bis dahin gilt der Wegpunkt
+    straggling: bool = False                    # weit hinter seinem Platz: sucht seinen eigenen Weg (siehe _move_men)
     stall: float = 0.0                          # Sekunden, die er auf seinem Weg nicht vorankommt
     leader: bool = False  # der Anführer: kämpft mit, hält viel mehr aus
     show_dx: float = 0.0  # nur fürs Bild: so weit drängt er gerade von seiner Stelle zum Gegner (Gerangel)

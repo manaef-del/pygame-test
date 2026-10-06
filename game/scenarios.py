@@ -189,7 +189,8 @@ FESTUNG = Scenario(
     key="festung", name="Verteidigung: Festung",
     hint="Ein Heer aus Hopliten, Peltasten und Reitern rückt an. Drei Tore, Türme an den Ecken; "
          "Peltasten über die Leitern auf den Wehrgang. Ein Tor antippen öffnet oder schließt es "
-         "(offen für alle). Zwei Finger verschieben die Karte.",
+         "(offen für alle); steht der Feind innen in der Überzahl dahinter, nimmt er es. "
+         "Zwei Finger verschieben die Karte.",
     role="verteidigung", enemy_kind="armee", enemy_default=110, enemy_min=40, enemy_max=300,
     houses=FORT["houses"], palisade=FORT["palisade"], gate_closed=True, wall_side="stadt",
     ladders=FORT["ladders"], raider_spawns=FORT_ARMY, deploy_y=FORT_CENTRE[1] + 1.5, agora=FORT_CENTRE,
@@ -200,6 +201,7 @@ FESTUNG = Scenario(
 FESTUNG_ANGRIFF = Scenario(
     key="festung_angriff", name="Angriff: Festung",
     hint="Die Festung hält drei Tore und sechs Türme. Baue Rammbock oder Turm und tippe dann Tor oder Wall an. "
+         "Wer innen in der Überzahl hinter einem Tor steht, nimmt es und kann es öffnen. "
          "Zwei Finger verschieben die Karte.",
     role="angriff", enemy_kind="spiegel", enemy_default=40, enemy_min=20, enemy_max=150,
     houses=FORT["houses"], palisade=FORT["palisade"], gate_closed=True, wall_side="feind",

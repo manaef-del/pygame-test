@@ -148,6 +148,15 @@ def test_the_city_opens_its_gate_for_a_sortie_and_the_enemy_may_use_it_too():
             break
     assert out and in_                                        # hinaus und herein durch dasselbe Tor
     run(b, 5)
+    assert sw.owner is Side.FEIND                             # der Feind stand allein dahinter: das Tor ist seins
+    assert not b.command_gate(sw) and not sw.closed
+    foe.x, foe.y = b.agora                                    # er zieht weiter, wir kehren zurück
+    foe.place_men()
+    own.x, own.y = inner
+    own.target = None
+    own.place_men()
+    run(b, config.GATE_HOLD_TIME + 0.5)
+    assert sw.owner is Side.STADT
     assert b.command_gate(sw) and sw.closed                   # niemand mehr im Durchgang: zu
 
 
@@ -164,6 +173,59 @@ def test_a_gate_does_not_close_on_men_and_a_broken_gate_never():
     u.place_men()
     assert not b.command_gate(sw) and not sw.closed
     assert any("aufgebrochen" in e for e in b.events)
+
+
+def test_the_enemy_takes_a_gate_it_outnumbers_from_inside_and_opens_it():
+    """Wie die Türme: Steht der Feind innen hinter und neben einem Tor zwei Sekunden lang in
+    der Überzahl, nimmt er es; das Heer öffnet es dann, und wir können es nicht mehr
+    schließen. Stehen wir dort wieder in der Überzahl, gehört es wieder uns."""
+    b = quiet(Battle(FESTUNG, random.Random(1)))
+    sw = b.gates[1]
+    assert sw.owner is Side.STADT and sw.closed
+    inner = b.gate_approach(sw, -1.0, 0.5)
+    foe = lone_group(b, Side.FEIND, "raeuber", 8, inner)
+    (tx, ty) = sw.tangent
+    own = lone_group(b, Side.STADT, "mittel", 2, (inner[0] + tx * 1.5, inner[1] + ty * 1.5))
+    clear(b, [foe, own])
+    run(b, config.GATE_HOLD_TIME - 0.5)
+    assert sw.owner is Side.STADT                             # noch nicht lange genug
+    run(b, 1.0)
+    assert sw.owner is Side.FEIND
+    assert any("nimmt ein Tor" in e for e in b.events)
+    assert not b.command_gate(sw) and sw.closed                # uns gehorcht es nicht mehr
+    assert any("hält der Feind" in e for e in b.events)
+    run(b, config.GATE_AI_DELAY + 0.5)
+    assert not sw.closed                                      # das Heer öffnet es für die Seinen
+    assert any("öffnet das Tor" in e for e in b.events)
+    foe.x, foe.y = 3.0, 3.0                                   # der Feind zieht ab, wir rücken nach
+    foe.place_men()
+    more = lone_group(b, Side.STADT, "mittel", 8, inner)
+    run(b, config.GATE_HOLD_TIME + 0.5)
+    assert sw.owner is Side.STADT and more.alive
+    assert any("Wir nehmen ein Tor" in e for e in b.events)
+    assert b.command_gate(sw) and sw.closed                   # und schließen es wieder
+
+
+def test_the_attacker_can_take_and_open_the_fortress_gate_and_the_garrison_closes_it_back():
+    """Beim Angriff auf die Festung gehören die Tore dem Feind: Wer von innen in der Überzahl
+    dahinter steht, nimmt eines und darf es öffnen; nimmt es die Besatzung zurück, schließt
+    sie es wieder."""
+    b = quiet(Battle(FESTUNG_ANGRIFF, random.Random(1)))
+    sw = b.gates[1]
+    assert sw.owner is Side.FEIND and sw.closed
+    assert not b.command_gate(sw) and sw.closed
+    inner = b.gate_approach(sw, -1.0, 0.5)
+    own = lone_group(b, Side.STADT, "mittel", 8, inner)
+    clear(b, [own])
+    run(b, config.GATE_HOLD_TIME + 0.5)
+    assert sw.owner is Side.STADT
+    assert b.command_gate(sw) and not sw.closed                # unser Tor nun: auf
+    own.x, own.y = b.agora
+    own.place_men()
+    foe = lone_group(b, Side.FEIND, "schwer", 8, inner)
+    run(b, config.GATE_HOLD_TIME + config.GATE_AI_DELAY + 1.0)
+    assert sw.owner is Side.FEIND and foe.alive
+    assert sw.closed and any("schließt das Tor" in e for e in b.events)
 
 
 def test_a_group_goes_through_the_open_gate_that_is_nearest():

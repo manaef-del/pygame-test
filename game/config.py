@@ -201,6 +201,9 @@ FALLEN_MARK_TIME = 2.5       # Sekunden: so lange bleibt ein dunkler Fleck, wo e
 
 # Männer
 MAN_CATCHUP = 1.6            # Männer holen ihren Platz schneller ein, als die Gruppe läuft
+STRAGGLER_PATH = True        # wer weiter als STRAGGLER_WAY hinter seinem Platz ist, sucht seinen eigenen Weg dorthin (Wegefeld
+                             # um Häuser, Tore und stehende eigene Gruppen), statt stur geradeaus zu drängen
+STRAGGLER_WAY = 1.0          # Kacheln (STRAGGLER_DIST unten ist das Maß fürs Auflösen der ganzen Gruppe)
 MAN_INERTIA = True           # Männer haben Masse: Geschwindigkeit je Mann, begrenzte Beschleunigung, Bremsen vor dem Platz
 MAN_ACCEL = 6.0              # Kacheln/s²: so schnell kommt ein Mann in Fahrt (aus dem Stand auf Marschtempo in einer Viertelsekunde)
 MAN_BRAKE = 15.0             # Kacheln/s²: so schnell bremst er (aus dem Lauf in einer Zehntelsekunde; Bremsweg kürzer als ein Reihenabstand)
@@ -299,6 +302,10 @@ BLOCK_PATH_LIMIT = 6000      # Halbkacheln, die die Suche höchstens prüft
 BLOCKED_SLOT_REACH = 0.7     # Kacheln: wer so nah an seinem Platz steht, der in einem Haus liegt, gilt als angekommen
 GATE_HP = 100.0
 GATE_SWING_TIME = 1.0        # Sekunden, in denen die Torflügel auf- oder zuschwingen (nur fürs Bild)
+GATE_CAPTURE = True          # Tore wechseln wie die Türme den Besitzer (zum Messen abschaltbar)
+GATE_HOLD_RADIUS = 2.5       # Kacheln: wer innen so nah am Tor steht (hinter und neben ihm), hält es mit
+GATE_HOLD_TIME = 2.0         # Sekunden: so lange muss der Feind dort in der Überzahl stehen, dann ist das Tor seins
+GATE_AI_DELAY = 1.0          # Sekunden, bis die KI ein erobertes Tor öffnet (Heer) oder wieder schließt (Besatzung)
 RAM_BUILD_TIME = 8.0         # Sekunden Spielzeit
 RAM_DPS = 12.0               # Schaden am Tor je Sekunde
 RAM_SPEED_FACTOR = 0.7

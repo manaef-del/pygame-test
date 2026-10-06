@@ -1824,9 +1824,10 @@ def test_losses_fall_where_the_enemy_stands():
 
 # ------------------------------------------------- Niemand steht im anderen
 def test_no_two_men_ever_share_a_position():
-    """Jeder Mann hat seinen Platz: Zwischen Männern verschiedener Gruppen bleiben
+    """Jeder Mann hat seinen Platz: Zwischen Männern verschiedener Seiten bleiben
     immer zwei Halbmesser, auch beim Sturm, beim Umfassen und durch Fliehende
-    hindurch; in der eigenen Gruppe rückt man höchstens Schulter an Schulter."""
+    hindurch; in der eigenen Gruppe rückt man höchstens Schulter an Schulter, und wer
+    durch einen eigenen Block hinaus muss, ebenso (sonst auch unter Eigenen zwei)."""
     b = Battle(KLEIN_OFFEN, random.Random(2))
     b.command_attack()
     for i in range(int(40 / DT)):
@@ -1835,10 +1836,10 @@ def test_no_two_men_ever_share_a_position():
             break
         if i % 30:
             continue
-        men = [(m, u.id) for u in b.lochoi if u.alive for m in u.all_men()]
-        for j, (a, ua) in enumerate(men):
-            for c, uc in men[j + 1:]:
-                least = config.MAN_RADIUS if ua == uc else 2 * config.MAN_RADIUS
+        men = [(m, u.id, u.side) for u in b.lochoi if u.alive for m in u.all_men()]
+        for j, (a, ua, sa) in enumerate(men):
+            for c, uc, sc in men[j + 1:]:
+                least = config.MAN_RADIUS if sa is sc else 2 * config.MAN_RADIUS
                 assert dist_of_pt(a.pos, c.pos) >= least - 1e-6, (i / 30, ua, uc, a.pos, c.pos)
 
 
@@ -2460,6 +2461,33 @@ def test_a_group_sent_next_to_a_house_moves_clear_of_it():
     assert not any(b.is_blocked(*p) for _, p in hop.slots_at(hop.target, (0.0, -1.0)))
     run(b, 8)
     assert all(dist_of_pt(m.pos, p) <= 0.3 for m, p in hop.slots())
+
+
+def test_stragglers_find_their_own_way_round_a_house():
+    """Männer, die weiter als eine Kachel von ihrem Platz zurückbleiben (hier: in einer
+    Hausnische, während die Gruppe jenseits des Hauses steht), suchen ihren eigenen Weg im
+    Wegefeld um das Haus herum, statt stur geradeaus in die Wand zu drängen."""
+    b = Battle(raid(8, (1.0, 1.0), houses=((2, 17), (7, 9), (8, 9), (9, 9), (9, 10), (9, 11))), random.Random(0),
+               army=army_of(GroupSpec("H", [Tier("mittel", 30)])), ai="einfach")
+    b._ai_raiders = lambda: None
+    b._volleys = lambda dt: None
+    b._check_outcome = lambda: None
+    b.alarm = False
+    hop = b.units(Side.STADT)[0]
+    hop.reform(10)
+    hop.x, hop.y, hop.facing = 11.5, 12.0, (1.0, 0.0)
+    hop.stance = Stance.PHALANX
+    hop.place_men()
+    stuck = hop.rows[0][2:6]
+    for k, m in enumerate(stuck):
+        m.x, m.y = 7.3 + 0.45 * k, 10.4                   # in der Nische südlich der Häuserreihe
+    b.command_line([hop], (12.0, 6.0), (12.0, 10.0))      # die Gruppe zieht östlich am Haus vorbei nach Norden
+    for _ in range(int(8 / DT)):
+        b.update(DT)
+        if all(dist(m.pos, p) < 0.4 for m, p in hop.slots() if m in stuck):
+            break
+    else:
+        pytest.fail("die Abgehängten haben ihren Platz nach acht Sekunden noch nicht erreicht (ohne eigenen Weg: elf)")
 
 
 def test_a_jammed_block_dissolves_and_finds_its_way():
