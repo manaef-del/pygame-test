@@ -1,5 +1,54 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 44 (6. Oktober 2026): Wehrgang und Weichen beim Drücken
+
+Neu: der Kampf um den Wehrgang am Belagerungsturm (Sammeln auf der
+Plattform, Sprung zu dritt mit einem Glied Verdrängung, danach Drücken
+entlang des Gangs) und eine Änderung am Drücken, die auch am Boden gilt:
+Eigene Leute im Rücken sind kein Hindernis mehr, der Haufen weicht als
+Ganzes, gequetscht wird erst, wenn die Hintersten wirklich feststecken
+(Rand, Haus, dritte Gruppe) und die Kette bis nach vorn steht. Vorher galt
+jeder eigene Mann dicht im Rücken als Hindernis, und ein dichter Haufen
+wurde gleich beim ersten Ruck gequetscht statt geschoben. Gegner-KI
+„klug“, vier Seeds, alte Regel (`PUSH_CHAIN=0`) / neue Regel:
+
+| Szenario | Taktik | Siege | Verlust Stadt | Verlust Feind | Häuser verloren |
+|---|---|---|---|---|---|
+| siedlung | linie | 4/4 → 4/4 | 79 % → 73 % | 75 % → 77 % | 22,2 → 16,8 |
+| siedlung | schlachtordnung | 4/4 → 4/4 | 68 % → 79 % | 72 % → 75 % | 15,5 → 20,0 |
+| siedlung | linie_reiter | 4/4 → 4/4 | 35 % → 52 % | 62 % → 76 % | 2,5 → 8,2 |
+| siedlung | linie_aktiv | 4/4 → 4/4 | 25 % → 25 % | 58 % → 57 % | 0,0 → 0,0 |
+| siedlung | linie_tief | 4/4 → 4/4 | 23 % → 22 % | 55 % → 54 % | 1,0 → 1,0 |
+| siedlung | passiv | 4/4 → 4/4 | 35 % → 39 % | 45 % → 49 % | 4,5 → 5,0 |
+| horde_sturm | linie_tief | 4/4 → 4/4 | 14 % → 14 % | 54 % → 51 % | – |
+| horde_sturm | linie_aktiv | 4/4 → 4/4 | 7 % → 6 % | 66 % → 64 % | – |
+| ueberfall | linie_aktiv | – → 4/4 | – → 32 % | – → 50 % | – → 0,0 |
+| festung (Lauf 43 → jetzt) | tore | 4/4 → 4/4 | 10 % → 0 % | 78 % → 58 % | 1,2 → 1,2 |
+| festung (Lauf 43 → jetzt) | passiv | 1/4 → 0/4 | 96 % → 100 % | 51 % → 53 % | 4,8 → 4,8 |
+
+An der Festung (Vergleich mit Lauf 43, dort noch ohne beides) verliert
+die Tore-Taktik jetzt keinen Mann mehr: Die Phalanx hinter dem Tor drückt
+den hereindrängenden Haufen als Ganzes wieder hinaus, statt ihn zu
+quetschen, und die Peltasten oben werden am Turm nicht mehr überrannt. Der
+Feind verliert dafür weniger (78 → 58 %), die Schlacht dauert länger
+(119 → 163 s). Wer gar nichts tut (passiv), verliert jetzt alle vier
+statt drei von vier.
+
+Die stehenden Linien (aktiv, tief, Horde) sind unverändert; die Taktiken,
+die mit Haufen im Gedränge enden (schlachtordnung, linie_reiter), schwanken
+mit vier Seeds um 10 bis 17 Punkte, in beide Richtungen (linie besser,
+schlachtordnung und reiter schlechter). Das ist die Streuung dieser
+Taktiken, kein klarer Effekt; die neue Regel bleibt, weil sie das richtige
+Bild gibt (ein Haufen, der weichen kann, weicht).
+
+Die erste Fassung des Wehrgang-Kampfs hatte zwei Fehler, die die Festung
+fingen: Ein einzelner zurückgedrängter Mann auf der Plattform „sprang“
+jede Sekunde neu und verdrängte die ganze Wache (jetzt springt nur, wer
+frisch heraufgestiegen ist), und Fliehende durften gar nicht mehr klettern,
+so dass Eindringlinge in der Festung nie mehr hinauskamen und die Schlacht
+nicht endete (jetzt steigen sie innen die Leitern hinauf und über den Turm
+hinab; nur draußen steigt kein Fliehender wieder auf den Turm).
+
 ## Lauf 43 (6. Oktober 2026): Tore erobern, Abgehängte
 
 Neu: Tore wechseln wie die Türme den Besitzer (Feind innen zwei Sekunden in

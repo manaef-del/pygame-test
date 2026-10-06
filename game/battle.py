@@ -4828,8 +4828,8 @@ class Battle:
         if wb and not u.loose and not self.on_wall(u) and not (
                 u.target is not None and self.is_wall_cell(self.cell(*u.target), True)):
             return False                      # ein Block am Boden steigt nicht aus Versehen auf die Leiter
-        if wb and u.stance is Stance.FLUCHT:
-            return False                      # wer flieht, klettert nicht hinauf (hinunter schon)
+        if wb and u.stance is Stance.FLUCHT and cb in self.crossings and not wa:
+            return False                      # wer draußen flieht, steigt nicht wieder auf den Turm (Leitern innen hinauf: ja)
         wall_cell, ground_cell = (ca, cb) if wa else (cb, ca)
         if wall_cell in self.ladders and self.ladder_ok(wall_cell, ground_cell):
             return self._climb(wall_cell)
@@ -5365,8 +5365,9 @@ class Battle:
                 stuck.append(m)                            # (vom Wehrgang gibt es kein Weichen)
                 continue
             other = self._crowding(m, m.pos, (nx, ny), weak.id)
-            if other is not None and self._man_group.get(id(other)) not in (strong.id, weak.id):
-                stuck.append(m)                            # eine dritte Gruppe im Rücken
+            if other is not None and self._man_group.get(id(other)) != strong.id and (
+                    not config.PUSH_CHAIN or self._man_group.get(id(other)) != weak.id):
+                stuck.append(m)                            # eine dritte Gruppe (oder, ohne Kette, ein Eigener) im Rücken
             else:
                 loose_men.append(m)                        # die eigenen weichen zusammen ...
         # ... außer, hinter einem steckt dicht ein eigener Mann fest: dann steckt auch er (Kette bis nach vorn)

@@ -59,6 +59,8 @@ MORALE_PUSH = 0.3            # Moralverlust je Kachel verlorenen Bodens
 PUSH_CRUSH = 0.1             # Schaden je Ruck und drückendem Mann vorn, wenn die Gedrückten nicht weichen können
 PUSH_CRUSH_MORALE = 1.5      # ... (Haus, Mauer, eigene Gruppe, Kartenrand), dazu so viel mehr Moral
 PUSH_BLOCKED_SHARE = 0.3     # Anteil der Männer, die nicht weichen können, ab dem die Gruppe eingeklemmt ist
+PUSH_CHAIN = True            # eigene Leute im Rücken sind kein Hindernis (alle weichen zusammen), außer sie stecken selbst fest;
+                             # aus: jeder eigene Mann dicht im Rücken zählt als Hindernis (die alte Regel, zum Vergleich)
 RING_ATTACK_SHARE = 0.6      # Anteil aller Männer, die im Kreis kämpfen
 PHALANX_ATTACK_FRONT = 1.3   # Speere in der Linie
 SECOND_ROW_SPEARS = 0.5      # Anteil, mit dem die Hopliten der zweiten Reihe über die Schultern mitstechen
