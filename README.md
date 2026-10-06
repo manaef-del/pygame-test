@@ -527,6 +527,12 @@ Aus dem Apoikia-Konzept (Teil A·12 und B4) und dem Wirtschaftsregister
   den Feind hindurch (der Kampf riss sonst ab, obwohl die Männer sich
   gegenüberstanden); und Fliehende klettern nie hinauf, sondern laufen um
   die Festung herum vom Feld.
+- **Flucht an Häusern vorbei:** Lag der nächste Wegpunkt einer Gruppe
+  jenseits eines offenen Tors (Fliehende, die aus der Festung wollen),
+  wurden die Häuser davor nicht umgangen: Der Block lief geradeaus in das
+  Haus am Rand der Gasse und blieb hängen. Jetzt gilt der Umweg um Häuser
+  auch auf dem Weg durch ein Tor (Labor: 58 Startplätze an den Häusern der
+  Festung, vorher blieben je Tor drei bis vier hängen, jetzt keiner).
 - **Abgehängte suchen ihren eigenen Weg:** Ein Mann, der weiter als eine
   Kachel von seinem Platz zurückbleibt (an einer Hausecke, hinter einer
   stehenden eigenen Gruppe, aus dem Handgemenge gelöst), drängt nicht mehr

@@ -79,6 +79,9 @@ wie eine Moral, und für Ausdauer ist die Karte zu klein.
 
 ## Erledigt
 
+- **Fliehende hängen an Häusern** (6. Oktober 2026): Der Umweg um Häuser
+  fehlte, wenn der Wegpunkt jenseits eines offenen Tors lag; jetzt auch dann.
+
 - **Kampf um den Wehrgang** (6. Oktober 2026): Sammeln auf der
   Turmplattform (drei Mann), Sprung zu dritt mit einem Glied Verdrängung
   der Wache, danach Drücken entlang des Gangs wie am Boden; Leitern

@@ -2872,9 +2872,12 @@ class Battle:
             if u.charge_slow_until > self.time:
                 speed *= config.CHARGE_SLOW             # der Aufprall hat die Reiter gebremst
             goal, final = self.route(u, u.target)
-            if (not self.on_wall(u) and self._wall_level(goal) == self._wall_level(u.pos)
+            if (not self.on_wall(u)
+                    and (self._wall_level(goal) == self._wall_level(u.pos) or self.wall_clear(u.pos, goal))
                     and not any(dist(goal, self.foot_of(c)) < 0.8 for c in self.crossings)):
-                way = self._obstacle_way(u, goal)        # um Häuser und Gerät herum, durch Gassen, in die man passt
+                # um Häuser und Gerät herum, durch Gassen, in die man passt; auch auf dem Weg durch ein
+                # offenes Tor (der Wegpunkt liegt schon jenseits, die Häuser davor sind trotzdem da)
+                way = self._obstacle_way(u, goal)
                 if way != goal:
                     goal, final = way, False
             d = dist(u.pos, goal)

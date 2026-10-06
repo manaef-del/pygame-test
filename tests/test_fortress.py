@@ -709,6 +709,29 @@ def test_nobody_slips_past_a_foe_in_his_own_walkway_cell():
     assert b._man_can_step(attacker, m, m.pos, (a[0] + 0.1, a[1] + 0.9), True)       # zurück: ja
 
 
+def test_a_fleeing_block_in_a_lane_finds_its_way_out_through_the_open_gate():
+    """Fliehende Angreifer in der Festung, nur ein Tor offen: Der Wegpunkt liegt schon
+    jenseits des Tors, die Häuser davor sind trotzdem da. Vorher lief der Block geradeaus in
+    das Haus am Rand der Gasse und blieb dort hängen."""
+    b = quiet(Battle(FESTUNG_ANGRIFF, random.Random(1)))
+    b._volleys = lambda dt: None
+    b._check_outcome = lambda: None
+    b.corner_towers = []
+    for i, g in enumerate(b.gates):
+        g.closed = i != 0                                        # nur das Nordtor offen
+    u = lone_group(b, Side.STADT, "mittel", 7, (15.5, 23.6))     # in der Gasse zwischen zwei Häuserreihen
+    clear(b, [u])
+    u.morale = 0.05
+    b._morale(DT)
+    assert u.stance is Stance.FLUCHT
+    for _ in range(int(60 / DT)):
+        b.update(DT)
+        if not b.inside(u.x, u.y) or u.withdrawn:
+            break
+    else:
+        pytest.fail(f"die Fliehenden hängen nach einer Minute noch bei {u.pos}")
+
+
 def test_fortress_hoplites_may_climb_the_wall():
     """In der Festung steigt jede Fußgruppe der Wallseite auf den Wehrgang, Reiter nicht."""
     b = Battle(FESTUNG, random.Random(1))
