@@ -1,5 +1,41 @@
 # Simulation: Spielertaktiken gegen die Gegner-KI
 
+## Lauf 43 (6. Oktober 2026): Tore erobern, Abgehängte
+
+Neu: Tore wechseln wie die Türme den Besitzer (Feind innen zwei Sekunden in
+der Überzahl hinter und neben dem Tor; das Heer öffnet ein erobertes Tor,
+die Besatzung schließt ein zurückgewonnenes), und Männer weiter als eine
+Kachel hinter ihrem Platz, vor denen ein Hindernis liegt, suchen ihren
+eigenen Weg im Wegefeld. Festung, Gegner-KI „klug“, vier Seeds, beides aus
+/ beides an:
+
+| Szenario | Taktik | Siege | Verlust Stadt | Verlust Feind | Häuser verloren | Dauer |
+|---|---|---|---|---|---|---|
+| festung | tore | 4/4 → 4/4 | 10 % → 10 % | 81 % → 78 % | 1,0 → 1,2 | 136 → 119 s |
+| festung | passiv | 2/4 → 1/4 | 93 % → 96 % | 59 % → 51 % | 4,5 → 4,8 | 208 → 188 s |
+| festung_angriff | rammbock | 4/4 → 4/4 | 34 % → 34 % | 100 % → 100 % | – | 103 → 103 s |
+| festung_angriff | turm | 4/4 → 4/4 | 28 % → 28 % | 100 % → 100 % | – | 94 → 95 s |
+
+Alles im Rauschen von vier Seeds. Die Toreroberung greift in diesen Läufen
+gar nicht: Das KI-Heer bricht die Tore mit dem Rammbock auf (ein
+aufgebrochenes Tor hat keinen Besitzer mehr), und der Spieler der
+Simulation stürmt über Rammbock oder Turm, ohne je hinter ein Tor zu
+geraten. Sie wirkt im Spiel von Hand: beim Ausfall (wer hinausgeht und
+niemanden hinter dem Tor lässt, verliert es an den nachrückenden Feind),
+bei Eindringlingen über Leiter oder Turm, die sich hinter einem Tor
+festsetzen (dann strömt das Heer nach), und beim Angriff auf die Festung,
+wo man ein Tor von innen nehmen und selbst öffnen kann. Die Abgehängten
+sind in den Festungsläufen ebenfalls ohne messbare Folge; ihr Nutzen zeigt
+sich im Labor (Hausnische: 11 → 5 s, vorher sechs Sekunden stures Drücken
+in die Ecke) und im Bild.
+
+Zwei Nebenwirkungen der ersten Fassung, die die Tests fingen: Fliehende
+nahm die Regel mit (ihre Plätze eilen voraus) und trieb sie in stehende
+eigene Blöcke; jetzt laufen Fliehende einfach mit. Und beim Umstellen an
+Ort und Stelle (Plätze wandern mehr als eine Kachel, der Weg ist frei)
+störte der eigene Weg die Ordnung, bis die Gruppe sich auflöste; jetzt gilt
+er nur, wenn wirklich ein Hindernis zwischen Mann und Platz liegt.
+
 ## Lauf 42 (5. Oktober 2026): Verfolgung, Agora, Aufstellung
 
 Drei Neuerungen zugleich gemessen, dann getrennt: Fliehende, die von hinten
