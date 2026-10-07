@@ -62,16 +62,30 @@ function entranceTile(h) {
   return [Math.floor(dx + fx * 0.6), Math.floor(dy + fy * 0.6)];
 }
 
-// Mittelpunkt so einrasten, dass gerade Häuser genau auf Kacheln liegen:
-// halbe Ausdehnung ganzzahlig -> Mittelpunkt auf Kachelecke, sonst auf Kachelmitte.
-// Diagonale Häuser: Drehpunkt wahlweise auf Kachelecke oder Kachelmitte.
-function snapHouse(wx, wy, dir, size, anchor) {
-  const diag = dir % 2 === 1;
+// Mittelpunkt einrasten.
+// grid 'tile': gerade Häuser liegen genau auf Kacheln (halbe Ausdehnung ganzzahlig ->
+//   Mittelpunkt auf Kachelecke, sonst auf Kachelmitte), diagonale auf einer Kachelecke.
+// grid 'half': alle Häuser in halben Kachelschritten, auch gerade; so lassen sie sich um
+//   eine halbe Kachel versetzen und dicht aneinander bauen.
+function snapHouse(wx, wy, dir, size, grid) {
+  if (grid === 'half') return [Math.round(wx * 2) / 2, Math.round(wy * 2) / 2];
+  if (dir % 2 === 1) return [Math.round(wx), Math.round(wy)];
   const snap = (v, half) => Number.isInteger(half) ? Math.round(v) : Math.floor(v) + 0.5;
-  if (diag) return anchor === 'center' ? [Math.floor(wx) + 0.5, Math.floor(wy) + 0.5] : [Math.round(wx), Math.round(wy)];
   const { w, d } = SIZES[size];
   const swap = dir % 4 === 2;            // 90° / 270°: lokale x-Achse liegt auf Welt-y
   return [snap(wx, swap ? d / 2 : w / 2), snap(wy, swap ? w / 2 : d / 2)];
+}
+
+// Überlappen sich zwei konvexe Grundrisse? Berühren (gemeinsame Kante) zählt nicht.
+function polysOverlap(a, b) {
+  for (const poly of [a, b]) for (let i = 0; i < poly.length; i++) {
+    const [x1, y1] = poly[i], [x2, y2] = poly[(i + 1) % poly.length];
+    const nx = y2 - y1, ny = x1 - x2;                       // Normale der Kante
+    const pr = q => q.map(([x, y]) => x * nx + y * ny);
+    const pa = pr(a), pb = pr(b);
+    if (Math.max(...pa) <= Math.min(...pb) + 1e-6 || Math.max(...pb) <= Math.min(...pa) + 1e-6) return false;
+  }
+  return true;
 }
 
 // ---- Belegung ------------------------------------------------------------
@@ -87,7 +101,9 @@ function occupancy(W, threshold) {
 function houseValid(h, W, occ, threshold) {
   const bl = blockedKeys(h, threshold);
   if (!bl.length) return false;
-  return bl.every(k => inGrid(k) && !occ.blocked.has(k) && !occ.trees.has(k) && !W.paths.has(k));
+  if (!bl.every(k => inGrid(k) && !occ.blocked.has(k) && !occ.trees.has(k) && !W.paths.has(k))) return false;
+  const fp = footprint(h);
+  return W.houses.every(o => o === h || !polysOverlap(fp, footprint(o)));
 }
 function tileFree(k, W, occ) { return inGrid(k) && !occ.blocked.has(k) && !occ.trees.has(k) && !W.paths.has(k); }
 

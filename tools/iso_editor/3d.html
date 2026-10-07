@@ -63,7 +63,7 @@
 <footer>
   <button id="projBtn">Kamera: Perspektive</button>
   <button id="isoBtn">2:1-Iso-Ansicht</button>
-  <button id="anchorBtn">Drehpunkt: Ecke</button>
+  <button id="gridBtn">Raster: Kachel</button>
   <label class="chip">Schwelle <input id="thr" type="range" min="1" max="100" value="50"> <span id="thrVal">50 %</span></label>
   <label class="chip"><input id="maskCb" type="checkbox" checked> Maske</label>
   <label class="chip"><input id="diagCb" type="checkbox" checked> Diagonale Wege</label>
@@ -84,6 +84,7 @@
       <li><span class="sw" style="background:rgba(210,60,50,.8)"></span><b>Rot</b> = belegte Kachel (Flächenanteil ≥ Schwelle).
           <span class="sw" style="background:rgba(240,200,40,.8)"></span><b>Gelb</b> = angeschnitten, aber frei. Die schwarze Linie ist der tatsächliche Grundriss.</li>
       <li><b>Ring vor der Tür</b> = Eingangskachel. Grün, wenn dort ein Weg liegt, sonst orange.</li>
+      <li><b>Raster:</b> «Kachel» setzt gerade Häuser genau auf Kacheln. «½ Kachel» lässt alle Häuser in halben Kachelschritten versetzen, so dass sie sich dicht aneinander bauen lassen. Häuser dürfen sich berühren, aber nie überlappen.</li>
     </ul>
     <button id="helpClose">Schliessen</button>
   </div>
@@ -96,7 +97,7 @@
 // ------------------------------------------------------------------
 // Zustand (geteilt mit index.html über localStorage, siehe iso_common.js)
 // ------------------------------------------------------------------
-const S = { tool: 'camera', dir: 0, size: '2x2', anchor: 'corner', sort: 'columns', threshold: 50, showMask: true, diag: true, showCols: false };
+const S = { tool: 'camera', dir: 0, size: '2x2', grid: 'tile', sort: 'columns', threshold: 50, showMask: true, diag: true, showCols: false };
 const W = { houses: [], trees: [], paths: new Set() };
 const TOOLS = ['camera', 'house', 'path', 'tree', 'erase'];
 const save = () => saveState(S, W);
@@ -262,7 +263,7 @@ function updateGhost() {
   const occ = occupancy(W, S.threshold);
   let gh = null;
   if (ghost && S.tool === 'house') {
-    const [cx, cy] = snapHouse(ghost.wx, ghost.wy, S.dir, S.size, S.anchor);
+    const [cx, cy] = snapHouse(ghost.wx, ghost.wy, S.dir, S.size, S.grid);
     gh = makeHouse(cx, cy);
     const ok = houseValid(gh, W, occ, S.threshold);
     const bl = new Set(blockedKeys(gh, S.threshold));
@@ -374,7 +375,7 @@ function placeAtGhost() {
   if (!ghost) return;
   const occ = occupancy(W, S.threshold);
   if (S.tool === 'house') {
-    const [cx, cy] = snapHouse(ghost.wx, ghost.wy, S.dir, S.size, S.anchor);
+    const [cx, cy] = snapHouse(ghost.wx, ghost.wy, S.dir, S.size, S.grid);
     const h = makeHouse(cx, cy);
     if (houseValid(h, W, occ, S.threshold)) { W.houses.push(h); save(); }
   } else if (S.tool === 'tree') {
@@ -434,7 +435,7 @@ function syncUI() {
   $('dirName').textContent = DIRNAMES[S.dir];
   $('sizeBtn').textContent = SIZES[S.size].name;
   $('projBtn').textContent = 'Kamera: ' + (CAM.ortho ? 'Ortho' : 'Perspektive');
-  $('anchorBtn').textContent = 'Drehpunkt: ' + (S.anchor === 'corner' ? 'Ecke' : 'Mitte');
+  $('gridBtn').textContent = 'Raster: ' + (S.grid === 'half' ? '½ Kachel' : 'Kachel');
   $('thr').value = S.threshold; $('thrVal').textContent = S.threshold + ' %';
   $('maskCb').checked = S.showMask; $('diagCb').checked = S.diag;
   save(); rebuild();
@@ -445,7 +446,7 @@ $('rotR').addEventListener('click', () => { S.dir = (S.dir + 1) % 8; S.tool = 'h
 $('sizeBtn').addEventListener('click', () => { const ks = Object.keys(SIZES); S.size = ks[(ks.indexOf(S.size) + 1) % ks.length]; S.tool = 'house'; syncUI(); });
 $('projBtn').addEventListener('click', () => { CAM.ortho = !CAM.ortho; syncUI(); });
 $('isoBtn').addEventListener('click', isoView);
-$('anchorBtn').addEventListener('click', () => { S.anchor = S.anchor === 'corner' ? 'center' : 'corner'; syncUI(); });
+$('gridBtn').addEventListener('click', () => { S.grid = S.grid === 'half' ? 'tile' : 'half'; syncUI(); });
 $('thr').addEventListener('input', e => { S.threshold = +e.target.value; syncUI(); });
 $('maskCb').addEventListener('change', e => { S.showMask = e.target.checked; syncUI(); });
 $('diagCb').addEventListener('change', e => { S.diag = e.target.checked; syncUI(); });

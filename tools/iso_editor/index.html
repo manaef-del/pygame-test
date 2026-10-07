@@ -65,7 +65,7 @@
 <canvas id="c"></canvas>
 <footer>
   <button id="sortBtn">Sortierung: Spalten</button>
-  <button id="anchorBtn">Drehpunkt: Ecke</button>
+  <button id="gridBtn">Raster: Kachel</button>
   <label class="chip">Schwelle <input id="thr" type="range" min="1" max="100" value="50"> <span id="thrVal">50 %</span></label>
   <label class="chip"><input id="maskCb" type="checkbox" checked> Maske</label>
   <label class="chip"><input id="diagCb" type="checkbox" checked> Diagonale Wege</label>
@@ -87,7 +87,7 @@
           <span class="sw" style="background:rgba(240,200,40,.8)"></span><b>Gelb</b> = vom Haus angeschnitten, aber frei.</li>
       <li><b>Ring vor der Tür</b> = Eingangskachel. Grün, wenn dort ein Weg liegt, sonst orange.</li>
       <li><b>Sortierung «Punkt»:</b> ein Tiefenwert je Haus (Mittelpunkt). <b>«Spalten»:</b> das Hausbild wird in Kachelspalten zerschnitten, jede Spalte wird einzeln nach ihrem vordersten Bodenpunkt sortiert. Bäume neben ein diagonales oder langes Haus stellen und vergleichen.</li>
-      <li><b>Drehpunkt</b> (nur diagonale Richtungen): «Ecke» legt den Hausmittelpunkt auf eine Kachelecke, «Mitte» auf eine Kachelmitte. Das ergibt eine andere Belegungsmaske.</li>
+      <li><b>Raster:</b> «Kachel» setzt gerade Häuser genau auf Kacheln und diagonale auf eine Kachelecke. «½ Kachel» lässt alle Häuser in halben Kachelschritten versetzen, auch gerade, so dass sie sich dicht aneinander bauen lassen. Die Belegungsmaske ändert sich entsprechend. Häuser dürfen sich berühren, aber nie überlappen.</li>
       <li><b>Diagonale Wege:</b> an, dann werden schräg benachbarte Wegkacheln mit einem Band verbunden. Aus, dann bleibt die Zickzack-Treppe der Kacheln.</li>
     </ul>
     <p>Alles wird im Browser gespeichert. Der Knopf <b>3D</b> öffnet dieselbe Szene im 3D-Editor mit freier Kamera.</p>
@@ -105,7 +105,7 @@ const TW0 = 64;            // Kachelbreite bei Zoom 1 (2:1-Iso, Höhe = Breite/2
 const ZS = 0.55;           // Höhe einer Welt-Einheit in Kachelbreiten
 // Raster, Hausgrössen, Grundriss, Maske, Flächen und Speichern: iso_common.js
 
-const S = { tool: 'house', dir: 0, size: '2x2', anchor: 'corner', sort: 'columns', threshold: 50, showMask: true, diag: true, showCols: false };
+const S = { tool: 'house', dir: 0, size: '2x2', grid: 'tile', sort: 'columns', threshold: 50, showMask: true, diag: true, showCols: false };
 const W = { houses: [], trees: [], paths: new Set() };
 const view = { zoom: 1, ox: 0, oy: 0 };
 
@@ -274,7 +274,7 @@ function draw() {
 
   let gh = null, gTree = null;
   if (ghost && S.tool === 'house') {
-    const [cx, cy] = snapHouse(ghost.wx, ghost.wy, S.dir, S.size, S.anchor);
+    const [cx, cy] = snapHouse(ghost.wx, ghost.wy, S.dir, S.size, S.grid);
     gh = makeHouse(cx, cy);
     const ok = houseValid(gh, W, occ, S.threshold);
     const bl = new Set(blockedKeys(gh, S.threshold));
@@ -357,7 +357,7 @@ function placeAtGhost() {
   if (!ghost) return;
   const occ = occupancy(W, S.threshold);
   if (S.tool === 'house') {
-    const [cx, cy] = snapHouse(ghost.wx, ghost.wy, S.dir, S.size, S.anchor);
+    const [cx, cy] = snapHouse(ghost.wx, ghost.wy, S.dir, S.size, S.grid);
     const h = makeHouse(cx, cy);
     if (houseValid(h, W, occ, S.threshold)) { W.houses.push(h); save(); }
   } else if (S.tool === 'tree') {
@@ -436,7 +436,7 @@ function syncUI() {
   $('dirName').textContent = DIRNAMES[S.dir];
   $('sizeBtn').textContent = SIZES[S.size].name;
   $('sortBtn').textContent = 'Sortierung: ' + (S.sort === 'columns' ? 'Spalten' : 'Punkt');
-  $('anchorBtn').textContent = 'Drehpunkt: ' + (S.anchor === 'corner' ? 'Ecke' : 'Mitte');
+  $('gridBtn').textContent = 'Raster: ' + (S.grid === 'half' ? '½ Kachel' : 'Kachel');
   $('thr').value = S.threshold; $('thrVal').textContent = S.threshold + ' %';
   $('maskCb').checked = S.showMask; $('diagCb').checked = S.diag; $('colsCb').checked = S.showCols;
   save(); requestDraw();
@@ -446,7 +446,7 @@ $('rotL').addEventListener('click', () => { S.dir = (S.dir + 7) % 8; S.tool = 'h
 $('rotR').addEventListener('click', () => { S.dir = (S.dir + 1) % 8; S.tool = 'house'; syncUI(); });
 $('sizeBtn').addEventListener('click', () => { const ks = Object.keys(SIZES); S.size = ks[(ks.indexOf(S.size) + 1) % ks.length]; S.tool = 'house'; syncUI(); });
 $('sortBtn').addEventListener('click', () => { S.sort = S.sort === 'columns' ? 'single' : 'columns'; syncUI(); });
-$('anchorBtn').addEventListener('click', () => { S.anchor = S.anchor === 'corner' ? 'center' : 'corner'; syncUI(); });
+$('gridBtn').addEventListener('click', () => { S.grid = S.grid === 'half' ? 'tile' : 'half'; syncUI(); });
 $('thr').addEventListener('input', e => { S.threshold = +e.target.value; syncUI(); });
 $('maskCb').addEventListener('change', e => { S.showMask = e.target.checked; syncUI(); });
 $('diagCb').addEventListener('change', e => { S.diag = e.target.checked; syncUI(); });
