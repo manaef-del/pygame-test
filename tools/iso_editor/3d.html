@@ -28,7 +28,9 @@
     border: 1px solid #4a5058; background: #343a42; color: #eee; touch-action: manipulation; cursor: pointer;
     display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
   }
-  a.chip { text-decoration: none; }
+  .seg { display: inline-flex; border: 1px solid #4a5058; border-radius: 9px; overflow: hidden; }
+  .seg a { padding: 9px 12px; color: #eee; text-decoration: none; background: #343a42; font-size: 14px; line-height: 1; touch-action: manipulation; }
+  .seg a.on { background: #3b82d6; }
   button.on { background: #3b82d6; border-color: #3b82d6; }
   button:active { filter: brightness(1.2); }
   .sep { flex: 1 0 4px; }
@@ -55,7 +57,7 @@
   <button id="rotL" title="−45°">↺</button>
   <button id="rotR" title="+45°"><span class="arrow" id="arrow">➜</span> <span id="dirName">0</span></button>
   <button id="sizeBtn">2×2</button>
-  <a class="chip" href="index.html">2D</a>
+  <span class="seg" title="Ansicht wechseln, gleiche Szene"><a href="index.html">2D</a><a href="3d.html" class="on">3D</a></span>
 </header>
 <canvas id="c"></canvas>
 <footer>

@@ -43,7 +43,9 @@
   #help h2 { margin: 0 0 8px; font-size: 17px; }
   #help ul { padding-left: 18px; margin: 6px 0; }
   #help li { margin: 4px 0; }
-  a.chip { text-decoration: none; }
+  .seg { display: inline-flex; border: 1px solid #4a5058; border-radius: 9px; overflow: hidden; }
+  .seg a { padding: 9px 12px; color: #eee; text-decoration: none; background: #343a42; font-size: 14px; line-height: 1; touch-action: manipulation; }
+  .seg a.on { background: #3b82d6; }
   .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 3px; border: 1px solid rgba(255,255,255,.3); }
 </style>
 </head>
@@ -58,7 +60,7 @@
   <button id="rotL" title="−45°">↺</button>
   <button id="rotR" title="+45°"><span class="arrow" id="arrow">➜</span> <span id="dirName">0</span></button>
   <button id="sizeBtn">2×2</button>
-  <a class="chip" href="3d.html">3D</a>
+  <span class="seg" title="Ansicht wechseln, gleiche Szene"><a href="index.html" class="on">2D</a><a href="3d.html">3D</a></span>
 </header>
 <canvas id="c"></canvas>
 <footer>
