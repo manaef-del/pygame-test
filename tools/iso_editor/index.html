@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Iso-Editor: Haus in 8 Richtungen</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
+    background: #23272b; color: #eee;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+  header, footer {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    padding: 6px 8px; background: #1a1d20; flex: none;
+  }
+  header { padding-top: calc(6px + env(safe-area-inset-top)); }
+  footer { padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+  canvas { flex: 1 1 auto; min-height: 0; width: 100%; display: block; touch-action: none; background: #2f3a2f; }
+  button, .chip {
+    font: inherit; font-size: 14px; line-height: 1; padding: 9px 10px; border-radius: 9px;
+    border: 1px solid #4a5058; background: #343a42; color: #eee; touch-action: manipulation; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  button.on { background: #3b82d6; border-color: #3b82d6; }
+  button:active { filter: brightness(1.2); }
+  .sep { flex: 1 0 4px; }
+  .arrow { display: inline-block; transition: transform .15s; font-size: 16px; }
+  label.chip { gap: 6px; }
+  input[type=range] { width: 90px; }
+  #status { flex: 1 1 100%; font-size: 12px; color: #b8c0c8; padding: 2px 2px 0; min-height: 15px; }
+  #help {
+    position: fixed; inset: 0; background: rgba(0,0,0,.75); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10;
+  }
+  #help[hidden] { display: none; }
+  #help .box { background: #1f2327; border: 1px solid #4a5058; border-radius: 12px; padding: 16px 18px; max-width: 520px; max-height: 90dvh; overflow: auto; line-height: 1.45; }
+  #help h2 { margin: 0 0 8px; font-size: 17px; }
+  #help ul { padding-left: 18px; margin: 6px 0; }
+  #help li { margin: 4px 0; }
+  .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 3px; border: 1px solid rgba(255,255,255,.3); }
+</style>
+</head>
+<body>
+<header>
+  <button data-tool="house" class="on">🏠 Haus</button>
+  <button data-tool="path">🛤 Weg</button>
+  <button data-tool="tree">🌳 Baum</button>
+  <button data-tool="erase">✖ Löschen</button>
+  <button data-tool="hand">✋</button>
+  <span class="sep"></span>
+  <button id="rotL" title="−45°">↺</button>
+  <button id="rotR" title="+45°"><span class="arrow" id="arrow">➜</span> <span id="dirName">0</span></button>
+  <button id="sizeBtn">2×2</button>
+</header>
+<canvas id="c"></canvas>
+<footer>
+  <button id="sortBtn">Sortierung: Spalten</button>
+  <button id="anchorBtn">Drehpunkt: Ecke</button>
+  <label class="chip">Schwelle <input id="thr" type="range" min="1" max="100" value="50"> <span id="thrVal">50 %</span></label>
+  <label class="chip"><input id="maskCb" type="checkbox" checked> Maske</label>
+  <label class="chip"><input id="diagCb" type="checkbox" checked> Diagonale Wege</label>
+  <label class="chip"><input id="colsCb" type="checkbox"> Spalten zeigen</label>
+  <button id="fitBtn">⌖ Ansicht</button>
+  <button id="clearBtn">🗑 Leeren</button>
+  <button id="helpBtn">?</button>
+  <div id="status"></div>
+</footer>
+
+<div id="help">
+  <div class="box">
+    <h2>Iso-Editor: Haus in 8 Richtungen</h2>
+    <ul>
+      <li><b>Haus / Baum:</b> Finger aufsetzen und ziehen, das Haus folgt. Loslassen setzt es ab. Mit ↺ ↻ in 45°-Schritten drehen.</li>
+      <li><b>Weg / Löschen:</b> Tippen oder beim Ziehen malen.</li>
+      <li><b>Zwei Finger:</b> Verschieben und zoomen. ✋ verschiebt mit einem Finger.</li>
+      <li><span class="sw" style="background:rgba(210,60,50,.8)"></span><b>Rot</b> = belegte Kachel (Flächenanteil ≥ Schwelle).
+          <span class="sw" style="background:rgba(240,200,40,.8)"></span><b>Gelb</b> = vom Haus angeschnitten, aber frei.</li>
+      <li><b>Ring vor der Tür</b> = Eingangskachel. Grün, wenn dort ein Weg liegt, sonst orange.</li>
+      <li><b>Sortierung «Punkt»:</b> ein Tiefenwert je Haus (Mittelpunkt). <b>«Spalten»:</b> das Hausbild wird in Kachelspalten zerschnitten, jede Spalte wird einzeln nach ihrem vordersten Bodenpunkt sortiert. Bäume neben ein diagonales oder langes Haus stellen und vergleichen.</li>
+      <li><b>Drehpunkt</b> (nur diagonale Richtungen): «Ecke» legt den Hausmittelpunkt auf eine Kachelecke, «Mitte» auf eine Kachelmitte. Das ergibt eine andere Belegungsmaske.</li>
+      <li><b>Diagonale Wege:</b> an, dann werden schräg benachbarte Wegkacheln mit einem Band verbunden. Aus, dann bleibt die Zickzack-Treppe der Kacheln.</li>
+    </ul>
+    <p>Alles wird im Browser gespeichert.</p>
+    <button id="helpClose">Schliessen</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ------------------------------------------------------------------
+// Grundlagen: Raster, Zustand, Projektion
+// ------------------------------------------------------------------
+const N = 12;              // Kacheln je Seite
+const TW0 = 64;            // Kachelbreite bei Zoom 1 (2:1-Iso, Höhe = Breite/2)
+const ZS = 0.55;           // Höhe einer Welt-Einheit in Kachelbreiten
+const SS = 8;              // Abtastung je Kachel für die Belegungsmaske (SS×SS Punkte)
+const SIZES = { '2x2': { w: 2, d: 2, name: '2×2' }, '4x2': { w: 4, d: 2, name: '4×2' } };
+const DIRNAMES = ['SW', 'W', 'NW', 'N', 'NO', 'O', 'SO', 'S'];
+const KEY = (x, y) => x + ',' + y;
+const PARSE = k => k.split(',').map(Number);
+
+const S = { tool: 'house', dir: 0, size: '2x2', anchor: 'corner', sort: 'columns', threshold: 50, showMask: true, diag: true, showCols: false };
+const W = { houses: [], trees: [], paths: new Set() };
+const view = { zoom: 1, ox: 0, oy: 0 };
+
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+let dpr = 1, cw = 0, ch = 0;
+
+const T = () => TW0 * view.zoom;
+function proj(x, y, z = 0) { const t = T(); return [view.ox + (x - y) * t / 2, view.oy + (x + y) * t / 4 - z * ZS * t]; }
+function rel(x, y, z = 0) { const t = T(); return [(x - y) * t / 2, (x + y) * t / 4 - z * ZS * t]; }
+function unproj(px, py) { const t = T(); const a = (px - view.ox) / (t / 2), b = (py - view.oy) / (t / 4); return [(a + b) / 2, (b - a) / 2]; }
+
+// ------------------------------------------------------------------
+// Speichern / Laden
+// ------------------------------------------------------------------
+const LS = 'isoEditor.v1';
+function save() {
+  try {
+    localStorage.setItem(LS, JSON.stringify({
+      S, houses: W.houses.map(h => ({ cx: h.cx, cy: h.cy, dir: h.dir, size: h.size })),
+      trees: W.trees, paths: [...W.paths]
+    }));
+  } catch (e) { /* privater Modus o.ä. */ }
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(LS) || 'null');
+    if (!d) return;
+    Object.assign(S, d.S || {});
+    S.tool = 'house';
+    W.houses = (d.houses || []).map(h => ({ cx: h.cx, cy: h.cy, dir: h.dir, size: SIZES[h.size] ? h.size : '2x2' }));
+    W.trees = d.trees || [];
+    W.paths = new Set(d.paths || []);
+  } catch (e) { /* ignorieren */ }
+}
+
+// ------------------------------------------------------------------
+// Haus: Grundriss, Maske, Flächen
+// ------------------------------------------------------------------
+function rot(h) { const th = h.dir * Math.PI / 4; return [Math.cos(th), Math.sin(th)]; }
+function toWorld(h, a, b, z) { const [c, s] = rot(h); return [h.cx + a * c - b * s, h.cy + a * s + b * c, z]; }
+function facing(h) { const [c, s] = rot(h); return [-s, c]; }  // lokale +y-Richtung
+
+function footprint(h) {
+  const { w, d } = SIZES[h.size], hw = w / 2, hd = d / 2;
+  return [[-hw, -hd], [hw, -hd], [hw, hd], [-hw, hd]].map(([a, b]) => toWorld(h, a, b, 0).slice(0, 2));
+}
+
+function inPoly(poly, x, y) {
+  let sgn = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const [x1, y1] = poly[i], [x2, y2] = poly[(i + 1) % poly.length];
+    const cr = (x2 - x1) * (y - y1) - (y2 - y1) * (x - x1);
+    if (Math.abs(cr) < 1e-9) continue;
+    const s = cr > 0 ? 1 : -1;
+    if (sgn === 0) sgn = s; else if (s !== sgn) return false;
+  }
+  return true;
+}
+
+// Flächenanteil je Kachel (Map "x,y" -> 0..1), nur Kacheln mit Anteil > 0
+function maskOf(h) {
+  if (h._mask) return h._mask;
+  const poly = footprint(h);
+  const xs = poly.map(p => p[0]), ys = poly.map(p => p[1]);
+  const x0 = Math.floor(Math.min(...xs) - 1e-9), x1 = Math.ceil(Math.max(...xs) + 1e-9);
+  const y0 = Math.floor(Math.min(...ys) - 1e-9), y1 = Math.ceil(Math.max(...ys) + 1e-9);
+  const m = new Map();
+  for (let ty = y0; ty < y1; ty++) for (let tx = x0; tx < x1; tx++) {
+    let cnt = 0;
+    for (let i = 0; i < SS; i++) for (let j = 0; j < SS; j++)
+      if (inPoly(poly, tx + (i + .5) / SS, ty + (j + .5) / SS)) cnt++;
+    if (cnt) m.set(KEY(tx, ty), cnt / (SS * SS));
+  }
+  h._mask = m;
+  return m;
+}
+function blockedKeys(h) { const out = []; for (const [k, f] of maskOf(h)) if (f * 100 >= S.threshold - 1e-6) out.push(k); return out; }
+function entranceTile(h) {
+  const { d } = SIZES[h.size];
+  const [dx, dy] = toWorld(h, 0, d / 2, 0);
+  const [fx, fy] = facing(h);
+  return [Math.floor(dx + fx * 0.6), Math.floor(dy + fy * 0.6)];
+}
+
+const vsub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const vdot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const vcross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const vnorm = a => { const l = Math.hypot(...a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+const LIGHT = vnorm([0.8, -0.5, 1.1]);
+
+function houseFaces(h) {
+  const { w, d } = SIZES[h.size], hw = w / 2, hd = d / 2, H = 1, R = H + 0.3 * Math.min(w, d) + 0.1;
+  const WALL = [216, 200, 164], ROOF = [168, 90, 53], DOOR = [74, 48, 24];
+  const F = [];
+  const add = (pts, col) => F.push({ pts: pts.map(p => toWorld(h, ...p)), col });
+  add([[-hw, -hd, 0], [hw, -hd, 0], [hw, -hd, H], [-hw, -hd, H]], WALL);
+  add([[-hw, hd, 0], [hw, hd, 0], [hw, hd, H], [-hw, hd, H]], WALL);
+  add([[hw, -hd, 0], [hw, hd, 0], [hw, hd, H], [hw, -hd, H]], WALL);
+  add([[-hw, -hd, 0], [-hw, hd, 0], [-hw, hd, H], [-hw, -hd, H]], WALL);
+  if (w > d) { // First entlang der langen Seite (x)
+    add([[-hw, -hd, H], [-hw, hd, H], [-hw, 0, R]], WALL);
+    add([[hw, -hd, H], [hw, hd, H], [hw, 0, R]], WALL);
+    add([[-hw, -hd, H], [hw, -hd, H], [hw, 0, R], [-hw, 0, R]], ROOF);
+    add([[-hw, hd, H], [hw, hd, H], [hw, 0, R], [-hw, 0, R]], ROOF);
+  } else {     // First entlang y, Giebel vorne und hinten
+    add([[-hw, -hd, H], [hw, -hd, H], [0, -hd, R]], WALL);
+    add([[-hw, hd, H], [hw, hd, H], [0, hd, R]], WALL);
+    add([[-hw, -hd, H], [-hw, hd, H], [0, hd, R], [0, -hd, R]], ROOF);
+    add([[hw, -hd, H], [hw, hd, H], [0, hd, R], [0, -hd, R]], ROOF);
+  }
+  add([[-0.22, hd + 0.02, 0], [0.22, hd + 0.02, 0], [0.22, hd + 0.02, 0.68], [-0.22, hd + 0.02, 0.68]], DOOR);
+  const C = [h.cx, h.cy, 0.6];
+  for (const f of F) {
+    let n = vcross(vsub(f.pts[1], f.pts[0]), vsub(f.pts[2], f.pts[0]));
+    const m = f.pts.reduce((a, p) => [a[0] + p[0] / f.pts.length, a[1] + p[1] / f.pts.length, a[2] + p[2] / f.pts.length], [0, 0, 0]);
+    if (vdot(n, vsub(m, C)) < 0) { f.pts.reverse(); n = n.map(v => -v); }
+    const sh = 0.55 + 0.45 * Math.max(0, vdot(vnorm(n), LIGHT));
+    f.fill = `rgb(${f.col.map(c => Math.round(c * sh)).join(',')})`;
+  }
+  return F;
+}
+function area2(sp) { let a = 0; for (let i = 0; i < sp.length; i++) { const p = sp[i], q = sp[(i + 1) % sp.length]; a += p[0] * q[1] - q[0] * p[1]; } return a; }
+
+// Hausbild relativ zum Welt-Ursprung (ohne Verschiebung), je Zoom zwischengespeichert
+function houseImage(h) {
+  if (h._img && h._img.zoom === view.zoom && h._img.dpr === dpr) return h._img;
+  const F = houseFaces(h);
+  let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+  const PF = F.map(f => {
+    const sp = f.pts.map(p => rel(...p));
+    for (const [x, y] of sp) { minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y); }
+    return { sp, f };
+  });
+  minX = Math.floor(minX) - 2; minY = Math.floor(minY) - 2; maxX = Math.ceil(maxX) + 2; maxY = Math.ceil(maxY) + 2;
+  const off = document.createElement('canvas');
+  off.width = Math.max(1, Math.ceil((maxX - minX) * dpr)); off.height = Math.max(1, Math.ceil((maxY - minY) * dpr));
+  const c = off.getContext('2d');
+  c.scale(dpr, dpr); c.translate(-minX, -minY);
+  c.lineJoin = 'round'; c.lineWidth = 1; c.strokeStyle = 'rgba(0,0,0,.4)';
+  for (const { sp, f } of PF) {
+    if (area2(sp) <= 0) continue; // Rückseite
+    c.beginPath(); sp.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath();
+    c.fillStyle = f.fill; c.fill(); c.stroke();
+  }
+  h._img = { zoom: view.zoom, dpr, off, x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  return h._img;
+}
+
+// Tiefenwert je Kachelspalte u = x - y: vorderster Bodenpunkt (max x + y) des Grundrisses in der Spalte
+function stripDepths(h) {
+  const poly = footprint(h);
+  const m = new Map();
+  const put = (i, dep) => { if (!m.has(i) || m.get(i) < dep) m.set(i, dep); };
+  for (let e = 0; e < poly.length; e++) {
+    const [x1, y1] = poly[e], [x2, y2] = poly[(e + 1) % poly.length];
+    for (let k = 0; k <= 48; k++) {
+      const t = k / 48, x = x1 + (x2 - x1) * t, y = y1 + (y2 - y1) * t, u = x - y, dep = x + y;
+      put(Math.floor(u - 1e-9), dep); put(Math.floor(u + 1e-9), dep);
+    }
+  }
+  return m;
+}
+
+// ------------------------------------------------------------------
+// Belegung
+// ------------------------------------------------------------------
+function occupancy() {
+  const blocked = new Map(), partial = new Map();
+  for (const h of W.houses) {
+    const bl = new Set(blockedKeys(h));
+    for (const [k] of maskOf(h)) { if (bl.has(k)) blocked.set(k, h); else if (!partial.has(k)) partial.set(k, h); }
+  }
+  const trees = new Set(W.trees.map(t => KEY(t.x, t.y)));
+  return { blocked, partial, trees };
+}
+const inGrid = k => { const [x, y] = PARSE(k); return x >= 0 && y >= 0 && x < N && y < N; };
+function houseValid(h, occ) {
+  const bl = blockedKeys(h);
+  if (!bl.length) return false;
+  return bl.every(k => inGrid(k) && !occ.blocked.has(k) && !occ.trees.has(k) && !W.paths.has(k));
+}
+function snapHouse(wx, wy) {
+  const diag = S.dir % 2 === 1;
+  if (diag && S.anchor === 'center') return [Math.floor(wx) + 0.5, Math.floor(wy) + 0.5];
+  return [Math.round(wx), Math.round(wy)];
+}
+function makeHouse(cx, cy) { return { cx, cy, dir: S.dir, size: S.size }; }
+
+// ------------------------------------------------------------------
+// Zeichnen
+// ------------------------------------------------------------------
+function diamond(c, tx, ty) {
+  const a = proj(tx, ty), b = proj(tx + 1, ty), d = proj(tx + 1, ty + 1), e = proj(tx, ty + 1);
+  c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.lineTo(d[0], d[1]); c.lineTo(e[0], e[1]); c.closePath();
+}
+function tint(key, color) { const [x, y] = PARSE(key); diamond(ctx, x, y); ctx.fillStyle = color; ctx.fill(); }
+
+function drawGround(occ) {
+  for (let ty = 0; ty < N; ty++) for (let tx = 0; tx < N; tx++) {
+    const k = KEY(tx, ty);
+    diamond(ctx, tx, ty);
+    ctx.fillStyle = W.paths.has(k) ? '#cbb892' : ((tx + ty) % 2 ? '#86ad64' : '#8fb66c');
+    ctx.fill();
+    if (S.showMask) {
+      if (occ.blocked.has(k)) { ctx.fillStyle = 'rgba(210,60,50,.45)'; ctx.fill(); }
+      else if (occ.partial.has(k)) { ctx.fillStyle = 'rgba(240,200,40,.5)'; ctx.fill(); }
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = 1; ctx.stroke();
+  }
+}
+function drawPaths() {
+  const t = T();
+  ctx.strokeStyle = '#b39a6c'; ctx.fillStyle = '#b39a6c'; ctx.lineCap = 'round'; ctx.lineWidth = t * 0.2;
+  const nb = S.diag ? [[1, 0], [0, 1], [1, 1], [1, -1]] : [[1, 0], [0, 1]];
+  for (const k of W.paths) {
+    const [x, y] = PARSE(k);
+    const a = proj(x + .5, y + .5);
+    ctx.beginPath(); ctx.ellipse(a[0], a[1], t * 0.1, t * 0.05, 0, 0, Math.PI * 2); ctx.fill();
+    for (const [dx, dy] of nb) if (W.paths.has(KEY(x + dx, y + dy))) {
+      const b = proj(x + dx + .5, y + dy + .5);
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    }
+  }
+}
+function drawEntrance(h, alpha = 1) {
+  const t = T();
+  const [ex, ey] = entranceTile(h);
+  const p = proj(ex + .5, ey + .5);
+  ctx.globalAlpha = alpha;
+  ctx.beginPath(); ctx.ellipse(p[0], p[1], t * 0.2, t * 0.1, 0, 0, Math.PI * 2);
+  ctx.lineWidth = 3; ctx.strokeStyle = W.paths.has(KEY(ex, ey)) ? '#2ecc71' : '#ff9f1a'; ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+function drawTree(tr, alpha = 1) {
+  const t = T();
+  const b = proj(tr.x + .5, tr.y + .5, 0), top = proj(tr.x + .5, tr.y + .5, 0.6), cc = proj(tr.x + .5, tr.y + .5, 1.0);
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = '#5a3d20'; ctx.lineWidth = Math.max(2, t * 0.06); ctx.lineCap = 'butt';
+  ctx.beginPath(); ctx.moveTo(b[0], b[1]); ctx.lineTo(top[0], top[1]); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(cc[0], cc[1], t * 0.3, t * 0.34, 0, 0, Math.PI * 2);
+  ctx.fillStyle = '#3d7a38'; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(cc[0] - t * 0.08, cc[1] - t * 0.1, t * 0.12, t * 0.13, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(150,210,110,.5)'; ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+// Haus als Zeichen-Einträge in die Sortierliste legen
+function addHouseItems(h, items, alpha) {
+  const img = houseImage(h), t = T();
+  const drawPart = (sx0, sx1) => {
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(img.off, (sx0 - img.x) * dpr, 0, (sx1 - sx0) * dpr, img.off.height, view.ox + sx0, view.oy + img.y, sx1 - sx0, img.h);
+    ctx.globalAlpha = 1;
+  };
+  if (S.sort === 'single') {
+    items.push({ depth: h.cx + h.cy, tie: 0, draw: () => drawPart(img.x, img.x + img.w) });
+    return;
+  }
+  const depths = stripDepths(h);
+  const i0 = Math.floor(img.x / (t / 2)), i1 = Math.ceil((img.x + img.w) / (t / 2));
+  const depthAt = i => { for (let k = 0; k < 6; k++) { if (depths.has(i + k)) return depths.get(i + k); if (depths.has(i - k)) return depths.get(i - k); } return h.cx + h.cy; };
+  for (let i = i0; i < i1; i++) {
+    const sx0 = Math.max(i * t / 2, img.x), sx1 = Math.min((i + 1) * t / 2, img.x + img.w);
+    if (sx1 <= sx0) continue;
+    items.push({ depth: depthAt(i), tie: 0, draw: () => drawPart(sx0, sx1) });
+  }
+}
+function drawStripLines(h) {
+  const img = houseImage(h), t = T(), depths = stripDepths(h);
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+  ctx.fillStyle = '#fff'; ctx.font = `${Math.max(9, t * 0.16)}px sans-serif`; ctx.textAlign = 'center';
+  const i0 = Math.floor(img.x / (t / 2)), i1 = Math.ceil((img.x + img.w) / (t / 2));
+  for (let i = i0; i <= i1; i++) {
+    const x = view.ox + i * t / 2;
+    if (x < view.ox + img.x - 1 || x > view.ox + img.x + img.w + 1) continue;
+    ctx.beginPath(); ctx.moveTo(x, view.oy + img.y); ctx.lineTo(x, view.oy + img.y + img.h); ctx.stroke();
+    if (t >= 44 && i < i1 && depths.has(i)) ctx.fillText(depths.get(i).toFixed(1), x + t / 4, view.oy + img.y + img.h + 2 + t * 0.16);
+  }
+  ctx.setLineDash([]);
+}
+
+let ghost = null; // {wx, wy} Weltposition unter dem Finger
+
+function draw() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cw, ch);
+  const occ = occupancy();
+  drawGround(occ);
+  drawPaths();
+  for (const h of W.houses) drawEntrance(h);
+
+  let gh = null, gTree = null;
+  if (ghost && S.tool === 'house') {
+    const [cx, cy] = snapHouse(ghost.wx, ghost.wy);
+    gh = makeHouse(cx, cy);
+    const ok = houseValid(gh, occ);
+    const bl = new Set(blockedKeys(gh));
+    for (const [k] of maskOf(gh)) tint(k, bl.has(k) ? (ok ? 'rgba(60,200,90,.55)' : 'rgba(230,40,40,.65)') : 'rgba(240,200,40,.35)');
+    drawEntrance(gh, 0.7);
+  } else if (ghost && S.tool === 'tree') {
+    const x = Math.floor(ghost.wx), y = Math.floor(ghost.wy), k = KEY(x, y);
+    const ok = inGrid(k) && !occ.blocked.has(k) && !occ.trees.has(k) && !W.paths.has(k);
+    tint(k, ok ? 'rgba(60,200,90,.55)' : 'rgba(230,40,40,.65)');
+    gTree = { x, y };
+  }
+
+  const items = [];
+  for (const h of W.houses) addHouseItems(h, items, 1);
+  for (const tr of W.trees) items.push({ depth: tr.x + tr.y + 1.001, tie: 1, draw: () => drawTree(tr) });
+  if (gh) addHouseItems(gh, items, 0.65);
+  if (gTree) items.push({ depth: gTree.x + gTree.y + 1.001, tie: 1, draw: () => drawTree(gTree, 0.65) });
+  items.sort((a, b) => a.depth - b.depth || a.tie - b.tie);
+  for (const it of items) it.draw();
+
+  if (S.showCols && S.sort === 'columns') { for (const h of W.houses) drawStripLines(h); if (gh) drawStripLines(gh); }
+  updateStatus(gh);
+}
+let pending = false;
+function requestDraw() { if (!pending) { pending = true; requestAnimationFrame(() => { pending = false; draw(); }); } }
+
+function updateStatus(gh) {
+  const el = document.getElementById('status');
+  const h = gh || makeHouse(0, 0);
+  const m = maskOf(h), bl = blockedKeys(h).length;
+  const diag = h.dir % 2 === 1;
+  el.textContent = `Haus ${SIZES[h.size].name}, Richtung ${DIRNAMES[h.dir]} (${diag ? 'diagonal' : 'gerade'}): ${bl} Kacheln belegt, ${m.size - bl} angeschnitten · ${W.houses.length} Häuser, ${W.trees.length} Bäume, ${W.paths.size} Wegkacheln`;
+}
+
+// ------------------------------------------------------------------
+// Ansicht
+// ------------------------------------------------------------------
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  cw = cv.clientWidth; ch = cv.clientHeight;
+  cv.width = Math.round(cw * dpr); cv.height = Math.round(ch * dpr);
+  requestDraw();
+}
+function fitView() {
+  const t = Math.max(12, Math.min(cw * 0.96 / N, (ch - 60) * 2 / N));
+  view.zoom = t / TW0;
+  view.ox = cw / 2;
+  view.oy = (ch - N * t / 2) / 2 + 0.3 * t;
+  requestDraw();
+}
+function zoomAt(px, py, factor) {
+  const [wx, wy] = unproj(px, py);
+  view.zoom = Math.min(6, Math.max(0.15, view.zoom * factor));
+  const t = T();
+  view.ox = px - (wx - wy) * t / 2;
+  view.oy = py - (wx + wy) * t / 4;
+  requestDraw();
+}
+
+// ------------------------------------------------------------------
+// Werkzeuge
+// ------------------------------------------------------------------
+function applyPaint(px, py) {
+  const [wx, wy] = unproj(px, py);
+  const x = Math.floor(wx), y = Math.floor(wy), k = KEY(x, y);
+  if (!inGrid(k)) return;
+  const occ = occupancy();
+  if (S.tool === 'path') {
+    if (!occ.blocked.has(k) && !occ.trees.has(k) && !W.paths.has(k)) { W.paths.add(k); save(); requestDraw(); }
+  } else if (S.tool === 'erase') {
+    let changed = false;
+    const hi = W.houses.findIndex(h => maskOf(h).has(k));
+    if (hi >= 0) { W.houses.splice(hi, 1); changed = true; }
+    else if (occ.trees.has(k)) { W.trees = W.trees.filter(t => KEY(t.x, t.y) !== k); changed = true; }
+    else if (W.paths.has(k)) { W.paths.delete(k); changed = true; }
+    if (changed) { save(); requestDraw(); }
+  }
+}
+function placeAtGhost() {
+  if (!ghost) return;
+  const occ = occupancy();
+  if (S.tool === 'house') {
+    const [cx, cy] = snapHouse(ghost.wx, ghost.wy);
+    const h = makeHouse(cx, cy);
+    if (houseValid(h, occ)) { W.houses.push(h); save(); }
+  } else if (S.tool === 'tree') {
+    const x = Math.floor(ghost.wx), y = Math.floor(ghost.wy), k = KEY(x, y);
+    if (inGrid(k) && !occ.blocked.has(k) && !occ.trees.has(k) && !W.paths.has(k)) { W.trees.push({ x, y }); save(); }
+  }
+  requestDraw();
+}
+
+// ------------------------------------------------------------------
+// Eingabe: ein Finger = Werkzeug, zwei Finger = verschieben/zoomen
+// ------------------------------------------------------------------
+const ptrs = new Map();
+let pinch = null, pan = null, suppress = false;
+function pt(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, type: e.pointerType }; }
+function startPinch() {
+  const [a, b] = [...ptrs.values()];
+  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  const [wx, wy] = unproj(mid.x, mid.y);
+  pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, zoom: view.zoom, wx, wy };
+}
+function updatePinch() {
+  const [a, b] = [...ptrs.values()];
+  const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+  view.zoom = Math.min(6, Math.max(0.15, pinch.zoom * dist / pinch.dist));
+  const t = T();
+  view.ox = mid.x - (pinch.wx - pinch.wy) * t / 2;
+  view.oy = mid.y - (pinch.wx + pinch.wy) * t / 4;
+  requestDraw();
+}
+cv.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  cv.setPointerCapture(e.pointerId);
+  const p = pt(e); ptrs.set(e.pointerId, p);
+  if (ptrs.size === 2) { startPinch(); pan = null; ghost = null; requestDraw(); return; }
+  if (ptrs.size > 2) return;
+  if (S.tool === 'hand') pan = { x: p.x, y: p.y, ox: view.ox, oy: view.oy };
+  else if (S.tool === 'path' || S.tool === 'erase') applyPaint(p.x, p.y);
+  else { const [wx, wy] = unproj(p.x, p.y); ghost = { wx, wy }; requestDraw(); }
+});
+cv.addEventListener('pointermove', e => {
+  const p = pt(e);
+  if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, p);
+  if (pinch && ptrs.size >= 2) { updatePinch(); return; }
+  if (suppress) return;
+  if (ptrs.size === 1 && ptrs.has(e.pointerId)) {
+    if (pan) { view.ox = pan.ox + p.x - pan.x; view.oy = pan.oy + p.y - pan.y; requestDraw(); }
+    else if (S.tool === 'path' || S.tool === 'erase') applyPaint(p.x, p.y);
+    else { const [wx, wy] = unproj(p.x, p.y); ghost = { wx, wy }; requestDraw(); }
+  } else if (ptrs.size === 0 && p.type === 'mouse' && (S.tool === 'house' || S.tool === 'tree')) {
+    const [wx, wy] = unproj(p.x, p.y); ghost = { wx, wy }; requestDraw();
+  }
+});
+function endPointer(e, cancelled) {
+  const wasTracked = ptrs.delete(e.pointerId);
+  if (pinch) { if (ptrs.size < 2) { pinch = null; suppress = ptrs.size > 0; } }
+  else if (wasTracked && !suppress && ptrs.size === 0 && !cancelled && (S.tool === 'house' || S.tool === 'tree')) placeAtGhost();
+  if (ptrs.size === 0) { suppress = false; pan = null; if (e.pointerType !== 'mouse') ghost = null; requestDraw(); }
+}
+cv.addEventListener('pointerup', e => endPointer(e, false));
+cv.addEventListener('pointercancel', e => endPointer(e, true));
+cv.addEventListener('pointerleave', e => { if (ptrs.size === 0 && e.pointerType === 'mouse') { ghost = null; requestDraw(); } });
+cv.addEventListener('wheel', e => { e.preventDefault(); const p = pt(e); zoomAt(p.x, p.y, e.deltaY < 0 ? 1.1 : 1 / 1.1); }, { passive: false });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+
+// ------------------------------------------------------------------
+// Bedienelemente
+// ------------------------------------------------------------------
+const $ = id => document.getElementById(id);
+function syncUI() {
+  document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === S.tool));
+  const [fx, fy] = facing({ dir: S.dir });
+  const sv = rel(fx, fy, 0);
+  $('arrow').style.transform = `rotate(${Math.atan2(sv[1], sv[0])}rad)`;
+  $('dirName').textContent = DIRNAMES[S.dir];
+  $('sizeBtn').textContent = SIZES[S.size].name;
+  $('sortBtn').textContent = 'Sortierung: ' + (S.sort === 'columns' ? 'Spalten' : 'Punkt');
+  $('anchorBtn').textContent = 'Drehpunkt: ' + (S.anchor === 'corner' ? 'Ecke' : 'Mitte');
+  $('thr').value = S.threshold; $('thrVal').textContent = S.threshold + ' %';
+  $('maskCb').checked = S.showMask; $('diagCb').checked = S.diag; $('colsCb').checked = S.showCols;
+  save(); requestDraw();
+}
+document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => { S.tool = b.dataset.tool; ghost = null; syncUI(); }));
+$('rotL').addEventListener('click', () => { S.dir = (S.dir + 7) % 8; S.tool = 'house'; syncUI(); });
+$('rotR').addEventListener('click', () => { S.dir = (S.dir + 1) % 8; S.tool = 'house'; syncUI(); });
+$('sizeBtn').addEventListener('click', () => { const ks = Object.keys(SIZES); S.size = ks[(ks.indexOf(S.size) + 1) % ks.length]; S.tool = 'house'; syncUI(); });
+$('sortBtn').addEventListener('click', () => { S.sort = S.sort === 'columns' ? 'single' : 'columns'; syncUI(); });
+$('anchorBtn').addEventListener('click', () => { S.anchor = S.anchor === 'corner' ? 'center' : 'corner'; syncUI(); });
+$('thr').addEventListener('input', e => { S.threshold = +e.target.value; syncUI(); });
+$('maskCb').addEventListener('change', e => { S.showMask = e.target.checked; syncUI(); });
+$('diagCb').addEventListener('change', e => { S.diag = e.target.checked; syncUI(); });
+$('colsCb').addEventListener('change', e => { S.showCols = e.target.checked; syncUI(); });
+$('fitBtn').addEventListener('click', fitView);
+$('clearBtn').addEventListener('click', () => { if (confirm('Alles löschen?')) { W.houses = []; W.trees = []; W.paths.clear(); save(); requestDraw(); } });
+$('helpBtn').addEventListener('click', () => { $('help').hidden = false; });
+$('helpClose').addEventListener('click', () => { $('help').hidden = true; try { localStorage.setItem(LS + '.help', '1'); } catch (e) {} });
+$('help').addEventListener('click', e => { if (e.target === $('help')) $('helpClose').click(); });
+
+window.addEventListener('resize', () => { resize(); });
+
+// Start
+load();
+try { if (localStorage.getItem(LS + '.help')) $('help').hidden = true; } catch (e) {}
+resize();
+fitView();
+syncUI();
+if (W.houses.length === 0 && W.trees.length === 0 && W.paths.size === 0) {
+  // Beispiel: ein gerades und ein diagonales Haus, ein Baum, ein Weg
+  W.houses.push({ cx: 4, cy: 4, dir: 0, size: '2x2' });   // gerade, Tür nach SW, Eingang (4,5)
+  W.houses.push({ cx: 8, cy: 6, dir: 1, size: '2x2' });   // diagonal, Eingang (6,7)
+  W.trees.push({ x: 9, y: 4 }, { x: 8, y: 8 }, { x: 2, y: 3 });
+  for (const [x, y] of [[4, 5], [4, 6], [4, 7], [5, 7], [6, 7], [3, 8], [2, 9], [1, 10]]) W.paths.add(KEY(x, y));
+  save(); requestDraw();
+}
+</script>
+</body>
+</html>
