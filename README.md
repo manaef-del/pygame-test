@@ -1019,6 +1019,15 @@ Verbindung sowie die Tiefensortierung, wahlweise mit einem Sortierpunkt je
 Haus oder spaltenweise zerschnitten. Bedienung mit Finger oder Maus, zwei
 Finger verschieben und zoomen.
 
+Dieselbe Szene gibt es als 3D-Editor mit frei drehbarer Kamera
+(Three.js, lokal in `tools/iso_editor/vendor/`):
+https://manaef-del.github.io/pygame-test/iso-editor/3d.html
+Beide Seiten teilen sich den gespeicherten Zustand im Browser; ein Knopf
+wechselt zwischen 2D und 3D. Die «2:1-Iso-Ansicht» stellt dort eine
+orthografische Kamera unter 30° ein, also genau die Ansicht der 2D-Seite
+und vorgerenderter Sprites. Gemeinsame Logik (Grundriss, Maske, Flächen,
+Einrasten, Speichern) liegt in `tools/iso_editor/iso_common.js`.
+
 ## Tests und Balance
 
 Die Logik in `game/battle.py` kennt kein Pygame. Die Tests prüfen

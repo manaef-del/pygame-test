@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Iso-Editor 3D: Haus in 8 Richtungen</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
+    background: #23272b; color: #eee;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+  header, footer {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    padding: 6px 8px; background: #1a1d20; flex: none;
+  }
+  header { padding-top: calc(6px + env(safe-area-inset-top)); }
+  footer { padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
+  canvas { flex: 1 1 auto; min-height: 0; width: 100%; display: block; touch-action: none; background: #2f3a2f; }
+  button, .chip {
+    font: inherit; font-size: 14px; line-height: 1; padding: 9px 10px; border-radius: 9px;
+    border: 1px solid #4a5058; background: #343a42; color: #eee; touch-action: manipulation; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  }
+  a.chip { text-decoration: none; }
+  button.on { background: #3b82d6; border-color: #3b82d6; }
+  button:active { filter: brightness(1.2); }
+  .sep { flex: 1 0 4px; }
+  .arrow { display: inline-block; transition: transform .15s; font-size: 16px; }
+  input[type=range] { width: 90px; }
+  #status { flex: 1 1 100%; font-size: 12px; color: #b8c0c8; padding: 2px 2px 0; min-height: 15px; }
+  #help { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+  #help[hidden] { display: none; }
+  #help .box { background: #1f2327; border: 1px solid #4a5058; border-radius: 12px; padding: 16px 18px; max-width: 520px; max-height: 90dvh; overflow: auto; line-height: 1.45; }
+  #help h2 { margin: 0 0 8px; font-size: 17px; }
+  #help ul { padding-left: 18px; margin: 6px 0; }
+  #help li { margin: 4px 0; }
+  .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 3px; border: 1px solid rgba(255,255,255,.3); }
+</style>
+</head>
+<body>
+<header>
+  <button data-tool="camera" class="on">🎥 Kamera</button>
+  <button data-tool="house">🏠 Haus</button>
+  <button data-tool="path">🛤 Weg</button>
+  <button data-tool="tree">🌳 Baum</button>
+  <button data-tool="erase">✖ Löschen</button>
+  <span class="sep"></span>
+  <button id="rotL" title="−45°">↺</button>
+  <button id="rotR" title="+45°"><span class="arrow" id="arrow">➜</span> <span id="dirName">0</span></button>
+  <button id="sizeBtn">2×2</button>
+  <a class="chip" href="index.html">2D</a>
+</header>
+<canvas id="c"></canvas>
+<footer>
+  <button id="projBtn">Kamera: Perspektive</button>
+  <button id="isoBtn">2:1-Iso-Ansicht</button>
+  <button id="anchorBtn">Drehpunkt: Ecke</button>
+  <label class="chip">Schwelle <input id="thr" type="range" min="1" max="100" value="50"> <span id="thrVal">50 %</span></label>
+  <label class="chip"><input id="maskCb" type="checkbox" checked> Maske</label>
+  <label class="chip"><input id="diagCb" type="checkbox" checked> Diagonale Wege</label>
+  <button id="clearBtn">🗑 Leeren</button>
+  <button id="helpBtn">?</button>
+  <div id="status"></div>
+</footer>
+
+<div id="help">
+  <div class="box">
+    <h2>Iso-Editor 3D</h2>
+    <p>Dieselbe Szene wie im 2D-Editor (gleicher Speicher), aber als echtes 3D-Modell mit freier Kamera. So lässt sich prüfen, wie ein gedrehtes Haus in den verschiedenen Grössen wirklich auf dem Raster steht.</p>
+    <ul>
+      <li><b>Kamera:</b> ein Finger dreht die Ansicht, zwei Finger zoomen und verschieben. Mit der Maus: linke Taste drehen, rechte Taste verschieben, Rad zoomen.</li>
+      <li><b>Haus / Baum:</b> Finger aufsetzen und ziehen, das Haus folgt. Loslassen setzt es ab. Mit ↺ ↻ in 45°-Schritten drehen, der Grössenknopf wechselt zwischen 1×2, 2×2 und 4×2.</li>
+      <li><b>Weg / Löschen:</b> Tippen oder beim Ziehen malen. Zwei Finger bewegen auch hier die Kamera.</li>
+      <li><b>2:1-Iso-Ansicht:</b> orthografische Kamera unter 30° von schräg oben, genau die Ansicht, die der 2D-Editor und vorgerenderte Sprites zeigen. «Kamera» schaltet zwischen Perspektive und Ortho um.</li>
+      <li><span class="sw" style="background:rgba(210,60,50,.8)"></span><b>Rot</b> = belegte Kachel (Flächenanteil ≥ Schwelle).
+          <span class="sw" style="background:rgba(240,200,40,.8)"></span><b>Gelb</b> = angeschnitten, aber frei. Die schwarze Linie ist der tatsächliche Grundriss.</li>
+      <li><b>Ring vor der Tür</b> = Eingangskachel. Grün, wenn dort ein Weg liegt, sonst orange.</li>
+    </ul>
+    <button id="helpClose">Schliessen</button>
+  </div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="iso_common.js"></script>
+<script>
+'use strict';
+// ------------------------------------------------------------------
+// Zustand (geteilt mit index.html über localStorage, siehe iso_common.js)
+// ------------------------------------------------------------------
+const S = { tool: 'camera', dir: 0, size: '2x2', anchor: 'corner', sort: 'columns', threshold: 50, showMask: true, diag: true, showCols: false };
+const W = { houses: [], trees: [], paths: new Set() };
+const TOOLS = ['camera', 'house', 'path', 'tree', 'erase'];
+const save = () => saveState(S, W);
+const load = () => { loadState(S, W); if (!TOOLS.includes(S.tool)) S.tool = 'camera'; };
+function makeHouse(cx, cy) { return { cx, cy, dir: S.dir, size: S.size }; }
+
+// Welt (x, y, z) -> Three (x, z_hoch, y)
+const V = (x, y, z = 0) => new THREE.Vector3(x, z, y);
+
+// ------------------------------------------------------------------
+// Szene
+// ------------------------------------------------------------------
+const cv = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x2f3a2f);
+
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x5a6a40, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(N / 2 + 0.8 * 14, 1.1 * 14, N / 2 - 0.5 * 14);   // gleiche Lichtrichtung wie im 2D-Editor
+sun.target.position.set(N / 2, 0, N / 2);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -N, right: N, top: N, bottom: -N, near: 1, far: 60 });
+sun.shadow.bias = -0.0005;
+scene.add(sun, sun.target);
+
+// Boden: Textur aus einem Canvas (Kacheln, Wege, Maske)
+const TP = 32; // Pixel je Kachel
+const gcv = document.createElement('canvas'); gcv.width = N * TP; gcv.height = N * TP;
+const gctx = gcv.getContext('2d');
+const gtex = new THREE.CanvasTexture(gcv);
+gtex.colorSpace = THREE.SRGBColorSpace; gtex.magFilter = THREE.NearestFilter; gtex.minFilter = THREE.LinearFilter;
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(N, N), new THREE.MeshLambertMaterial({ map: gtex }));
+ground.rotation.x = -Math.PI / 2; ground.position.set(N / 2, 0, N / 2); ground.receiveShadow = true;
+scene.add(ground);
+// Umland
+const far = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshLambertMaterial({ color: 0x4f6b3f }));
+far.rotation.x = -Math.PI / 2; far.position.set(N / 2, -0.01, N / 2); far.receiveShadow = true;
+scene.add(far);
+
+const dyn = new THREE.Group(); scene.add(dyn);      // Häuser, Bäume, Wege, Ringe
+const ghostG = new THREE.Group(); scene.add(ghostG); // Vorschau unter dem Finger
+
+function tileFill(k, color) { const [x, y] = PARSE(k); gctx.fillStyle = color; gctx.fillRect(x * TP, y * TP, TP, TP); }
+function drawGround(occ, extra) {
+  for (let ty = 0; ty < N; ty++) for (let tx = 0; tx < N; tx++) {
+    const k = KEY(tx, ty);
+    gctx.fillStyle = W.paths.has(k) ? '#cbb892' : ((tx + ty) % 2 ? '#86ad64' : '#8fb66c');
+    gctx.fillRect(tx * TP, ty * TP, TP, TP);
+    if (S.showMask) {
+      if (occ.blocked.has(k)) tileFill(k, 'rgba(210,60,50,.45)');
+      else if (occ.partial.has(k)) tileFill(k, 'rgba(240,200,40,.5)');
+    }
+  }
+  if (extra) extra();
+  gctx.strokeStyle = 'rgba(0,0,0,.22)'; gctx.lineWidth = 1;
+  for (let i = 0; i <= N; i++) {
+    gctx.beginPath(); gctx.moveTo(i * TP + .5, 0); gctx.lineTo(i * TP + .5, N * TP); gctx.stroke();
+    gctx.beginPath(); gctx.moveTo(0, i * TP + .5); gctx.lineTo(N * TP, i * TP + .5); gctx.stroke();
+  }
+  gtex.needsUpdate = true;
+}
+
+// Haus-Geometrie aus den gemeinsamen Flächen (Wände, Giebel, Dach, Tür)
+const srgb = (c) => new THREE.Color().setRGB(c[0] / 255, c[1] / 255, c[2] / 255, THREE.SRGBColorSpace);
+function houseGeometry(h) {
+  const pos = [], nor = [], col = [];
+  for (const f of houseFaces(h)) {
+    const pts = f.pts.slice().reverse();          // Achsentausch kehrt den Drehsinn um
+    const n = [f.n[0], f.n[2], f.n[1]], c = srgb(f.col);
+    for (let i = 1; i + 1 < pts.length; i++) {
+      for (const p of [pts[0], pts[i], pts[i + 1]]) { pos.push(p[0], p[2], p[1]); nor.push(...n); col.push(c.r, c.g, c.b); }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  return g;
+}
+const houseMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 });
+const outlineMat = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.6 });
+function houseMesh(h, mat) {
+  const g = houseGeometry(h);
+  const m = new THREE.Mesh(g, mat);
+  m.castShadow = true; m.receiveShadow = true;
+  m.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 20), edgeMat));
+  return m;
+}
+function footprintLine(h) {
+  const pts = footprint(h).map(([x, y]) => V(x, y, 0.006));
+  return new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts), outlineMat);
+}
+
+const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5a3d20 });
+const leafMat = new THREE.MeshLambertMaterial({ color: 0x3d7a38 });
+const trunkGeo = new THREE.CylinderGeometry(0.06, 0.09, 0.6, 8);
+const leafGeo = new THREE.SphereGeometry(0.32, 14, 10);
+function treeMesh(t) {
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(trunkGeo, trunkMat); trunk.position.y = 0.3; trunk.castShadow = true;
+  const leaf = new THREE.Mesh(leafGeo, leafMat); leaf.position.y = 0.95; leaf.scale.set(1, 1.1, 1); leaf.castShadow = true;
+  g.add(trunk, leaf); g.position.set(t.x + .5, 0, t.y + .5);
+  return g;
+}
+
+const pathMat = new THREE.MeshLambertMaterial({ color: 0xb39a6c });
+const discGeo = new THREE.CylinderGeometry(0.13, 0.13, 0.02, 16);
+function pathMeshes() {
+  const g = new THREE.Group();
+  const nb = S.diag ? [[1, 0], [0, 1], [1, 1], [1, -1]] : [[1, 0], [0, 1]];
+  for (const k of W.paths) {
+    const [x, y] = PARSE(k);
+    const d = new THREE.Mesh(discGeo, pathMat); d.position.set(x + .5, 0.01, y + .5); d.receiveShadow = true; g.add(d);
+    for (const [dx, dy] of nb) if (W.paths.has(KEY(x + dx, y + dy))) {
+      const len = Math.hypot(dx, dy);
+      const b = new THREE.Mesh(new THREE.BoxGeometry(len, 0.02, 0.26), pathMat);
+      b.position.set(x + .5 + dx / 2, 0.01, y + .5 + dy / 2);
+      b.rotation.y = Math.atan2(-dy, dx); b.receiveShadow = true;
+      g.add(b);
+    }
+  }
+  return g;
+}
+
+const ringGeo = new THREE.TorusGeometry(0.2, 0.03, 8, 28);
+const ringOk = new THREE.MeshBasicMaterial({ color: 0x2ecc71 }), ringNo = new THREE.MeshBasicMaterial({ color: 0xff9f1a });
+function ringMesh(h) {
+  const [ex, ey] = entranceTile(h);
+  const m = new THREE.Mesh(ringGeo, W.paths.has(KEY(ex, ey)) ? ringOk : ringNo);
+  m.rotation.x = Math.PI / 2; m.position.set(ex + .5, 0.03, ey + .5);
+  return m;
+}
+
+function clearGroup(g) {
+  for (const c of [...g.children]) {
+    c.traverse(o => { if (o.geometry && o.geometry !== trunkGeo && o.geometry !== leafGeo && o.geometry !== discGeo && o.geometry !== ringGeo) o.geometry.dispose(); });
+    g.remove(c);
+  }
+}
+function rebuild() {
+  const occ = occupancy(W, S.threshold);
+  drawGround(occ);
+  clearGroup(dyn);
+  for (const h of W.houses) { dyn.add(houseMesh(h, houseMat)); dyn.add(footprintLine(h)); dyn.add(ringMesh(h)); }
+  for (const t of W.trees) dyn.add(treeMesh(t));
+  dyn.add(pathMeshes());
+  updateGhost();
+  updateStatus(null);
+  requestRender();
+}
+
+let ghost = null;  // {wx, wy}
+const ghostOk = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.55, color: 0x80ff90, depthWrite: false });
+const ghostNo = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, opacity: 0.55, color: 0xff6060, depthWrite: false });
+function updateGhost() {
+  clearGroup(ghostG);
+  const occ = occupancy(W, S.threshold);
+  let gh = null;
+  if (ghost && S.tool === 'house') {
+    const [cx, cy] = snapHouse(ghost.wx, ghost.wy, S.dir, S.size, S.anchor);
+    gh = makeHouse(cx, cy);
+    const ok = houseValid(gh, W, occ, S.threshold);
+    const bl = new Set(blockedKeys(gh, S.threshold));
+    drawGround(occ, () => { for (const [k] of maskOf(gh)) tileFill(k, bl.has(k) ? (ok ? 'rgba(60,200,90,.6)' : 'rgba(230,40,40,.7)') : 'rgba(240,200,40,.4)'); });
+    const m = houseMesh(gh, ok ? ghostOk : ghostNo); m.castShadow = false;
+    ghostG.add(m, footprintLine(gh), ringMesh(gh));
+  } else if (ghost && S.tool === 'tree') {
+    const x = Math.floor(ghost.wx), y = Math.floor(ghost.wy), k = KEY(x, y);
+    const ok = tileFree(k, W, occ);
+    drawGround(occ, () => tileFill(k, ok ? 'rgba(60,200,90,.6)' : 'rgba(230,40,40,.7)'));
+    const t = treeMesh({ x, y }); t.traverse(o => { if (o.isMesh) { o.castShadow = false; } });
+    ghostG.add(t);
+  } else drawGround(occ);
+  updateStatus(gh);
+  requestRender();
+}
+function updateStatus(gh) {
+  const h = gh || makeHouse(0, 0);
+  const m = maskOf(h), bl = blockedKeys(h, S.threshold).length;
+  document.getElementById('status').textContent =
+    `Haus ${SIZES[h.size].name}, Richtung ${DIRNAMES[h.dir]} (${h.dir % 2 ? 'diagonal' : 'gerade'}): ${bl} Kacheln belegt, ${m.size - bl} angeschnitten · ${W.houses.length} Häuser, ${W.trees.length} Bäume, ${W.paths.size} Wegkacheln`;
+}
+
+// ------------------------------------------------------------------
+// Kamera: Kugelkoordinaten um einen Zielpunkt, Perspektive oder Ortho
+// ------------------------------------------------------------------
+const FOV = 45;
+const CAM = { az: Math.PI / 4, el: 0.62, dist: 22, tx: N / 2, tz: N / 2, ortho: false };
+const persp = new THREE.PerspectiveCamera(FOV, 1, 0.1, 300);
+const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 300);
+const camera = () => CAM.ortho ? ortho : persp;
+let cw = 1, ch = 1;
+function camDir() { return new THREE.Vector3(Math.cos(CAM.el) * Math.cos(CAM.az), Math.sin(CAM.el), Math.cos(CAM.el) * Math.sin(CAM.az)); }
+function applyCamera() {
+  const aspect = cw / ch, target = new THREE.Vector3(CAM.tx, 0, CAM.tz), cam = camera();
+  cam.position.copy(target).addScaledVector(camDir(), CAM.ortho ? 80 : CAM.dist);
+  cam.up.set(0, 1, 0); cam.lookAt(target);
+  const hh = CAM.dist * Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+  if (CAM.ortho) { ortho.left = -hh * aspect; ortho.right = hh * aspect; ortho.top = hh; ortho.bottom = -hh; ortho.updateProjectionMatrix(); }
+  else { persp.aspect = aspect; persp.updateProjectionMatrix(); }
+}
+function fitDist() {
+  const aspect = cw / ch;
+  const hh = Math.max(N * 0.5, (N * 0.78) / aspect);
+  return hh / Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+}
+function isoView() {
+  CAM.ortho = true; CAM.az = Math.PI / 4; CAM.el = Math.PI / 6; CAM.tx = N / 2; CAM.tz = N / 2; CAM.dist = fitDist();
+  syncUI();
+}
+function resetView() {
+  CAM.ortho = false; CAM.az = Math.PI / 4; CAM.el = 0.62; CAM.tx = N / 2; CAM.tz = N / 2; CAM.dist = fitDist();
+}
+
+let pending = false;
+function requestRender() { if (!pending) { pending = true; requestAnimationFrame(() => { pending = false; applyCamera(); renderer.render(scene, camera()); }); } }
+function resize() {
+  cw = cv.clientWidth; ch = cv.clientHeight;
+  renderer.setSize(cw, ch, false);
+  requestRender();
+}
+
+// ------------------------------------------------------------------
+// Eingabe
+// ------------------------------------------------------------------
+const ray = new THREE.Raycaster(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit = new THREE.Vector3();
+function worldAt(px, py) {
+  ray.setFromCamera(new THREE.Vector2((px / cw) * 2 - 1, -(py / ch) * 2 + 1), camera());
+  return ray.ray.intersectPlane(groundPlane, hit) ? [hit.x, hit.z] : null;
+}
+const ptrs = new Map();
+let pinch = null, orbit = null, panDrag = null, suppress = false;
+function pt(e) { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, type: e.pointerType, btn: e.button }; }
+function panBy(dx, dy) {
+  const k = 2 * CAM.dist * Math.tan(THREE.MathUtils.degToRad(FOV / 2)) / ch;
+  const rx = Math.sin(CAM.az), rz = -Math.cos(CAM.az);         // Bildschirm-rechts am Boden
+  const fx = -Math.cos(CAM.az), fz = -Math.sin(CAM.az);        // Bildschirm-oben am Boden (von der Kamera weg)
+  CAM.tx += (-rx * dx + fx * dy) * k; CAM.tz += (-rz * dx + fz * dy) * k;
+}
+function startPinch() {
+  const [a, b] = [...ptrs.values()];
+  pinch = { dist: Math.hypot(a.x - b.x, a.y - b.y) || 1, cdist: CAM.dist, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 };
+}
+function updatePinch() {
+  const [a, b] = [...ptrs.values()];
+  const d = Math.hypot(a.x - b.x, a.y - b.y) || 1, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+  CAM.dist = Math.min(80, Math.max(3, pinch.cdist * pinch.dist / d));
+  panBy(mx - pinch.mx, my - pinch.my);
+  pinch.mx = mx; pinch.my = my;
+  requestRender();
+}
+function applyPaint(px, py) {
+  const w = worldAt(px, py); if (!w) return;
+  const x = Math.floor(w[0]), y = Math.floor(w[1]), k = KEY(x, y);
+  if (!inGrid(k)) return;
+  const occ = occupancy(W, S.threshold);
+  if (S.tool === 'path') {
+    if (!occ.blocked.has(k) && !occ.trees.has(k) && !W.paths.has(k)) { W.paths.add(k); save(); rebuild(); }
+  } else if (S.tool === 'erase') {
+    let changed = false;
+    const hi = W.houses.findIndex(h => maskOf(h).has(k));
+    if (hi >= 0) { W.houses.splice(hi, 1); changed = true; }
+    else if (occ.trees.has(k)) { W.trees = W.trees.filter(t => KEY(t.x, t.y) !== k); changed = true; }
+    else if (W.paths.has(k)) { W.paths.delete(k); changed = true; }
+    if (changed) { save(); rebuild(); }
+  }
+}
+function placeAtGhost() {
+  if (!ghost) return;
+  const occ = occupancy(W, S.threshold);
+  if (S.tool === 'house') {
+    const [cx, cy] = snapHouse(ghost.wx, ghost.wy, S.dir, S.size, S.anchor);
+    const h = makeHouse(cx, cy);
+    if (houseValid(h, W, occ, S.threshold)) { W.houses.push(h); save(); }
+  } else if (S.tool === 'tree') {
+    const x = Math.floor(ghost.wx), y = Math.floor(ghost.wy), k = KEY(x, y);
+    if (tileFree(k, W, occ)) { W.trees.push({ x, y }); save(); }
+  }
+  rebuild();
+}
+function setGhost(px, py) { const w = worldAt(px, py); ghost = w ? { wx: w[0], wy: w[1] } : null; updateGhost(); }
+
+cv.addEventListener('pointerdown', e => {
+  e.preventDefault();
+  cv.setPointerCapture(e.pointerId);
+  const p = pt(e); ptrs.set(e.pointerId, p);
+  if (ptrs.size === 2) { startPinch(); orbit = null; panDrag = null; ghost = null; updateGhost(); return; }
+  if (ptrs.size > 2) return;
+  if (p.type === 'mouse' && p.btn === 2) { panDrag = { x: p.x, y: p.y }; return; }
+  if (S.tool === 'camera' || (p.type === 'mouse' && p.btn === 1)) { orbit = { x: p.x, y: p.y }; return; }
+  if (S.tool === 'path' || S.tool === 'erase') applyPaint(p.x, p.y);
+  else setGhost(p.x, p.y);
+});
+cv.addEventListener('pointermove', e => {
+  const p = pt(e);
+  if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, p);
+  if (pinch && ptrs.size >= 2) { updatePinch(); return; }
+  if (suppress) return;
+  if (ptrs.size === 1 && ptrs.has(e.pointerId)) {
+    if (orbit) {
+      CAM.az += (p.x - orbit.x) * 2 * Math.PI / ch;
+      CAM.el = Math.min(1.5, Math.max(0.08, CAM.el + (p.y - orbit.y) * 2 * Math.PI / ch));
+      orbit = { x: p.x, y: p.y }; requestRender();
+    } else if (panDrag) { panBy(p.x - panDrag.x, p.y - panDrag.y); panDrag = { x: p.x, y: p.y }; requestRender(); }
+    else if (S.tool === 'path' || S.tool === 'erase') applyPaint(p.x, p.y);
+    else setGhost(p.x, p.y);
+  } else if (ptrs.size === 0 && p.type === 'mouse' && (S.tool === 'house' || S.tool === 'tree')) setGhost(p.x, p.y);
+});
+function endPointer(e, cancelled) {
+  const wasTracked = ptrs.delete(e.pointerId);
+  if (pinch) { if (ptrs.size < 2) { pinch = null; suppress = ptrs.size > 0; } }
+  else if (wasTracked && !suppress && !orbit && !panDrag && ptrs.size === 0 && !cancelled && (S.tool === 'house' || S.tool === 'tree')) placeAtGhost();
+  if (ptrs.size === 0) { suppress = false; orbit = null; panDrag = null; if (e.pointerType !== 'mouse') { ghost = null; updateGhost(); } }
+}
+cv.addEventListener('pointerup', e => endPointer(e, false));
+cv.addEventListener('pointercancel', e => endPointer(e, true));
+cv.addEventListener('pointerleave', e => { if (ptrs.size === 0 && e.pointerType === 'mouse') { ghost = null; updateGhost(); } });
+cv.addEventListener('wheel', e => { e.preventDefault(); CAM.dist = Math.min(80, Math.max(3, CAM.dist * (e.deltaY < 0 ? 1 / 1.1 : 1.1))); requestRender(); }, { passive: false });
+cv.addEventListener('contextmenu', e => e.preventDefault());
+
+// ------------------------------------------------------------------
+// Bedienelemente
+// ------------------------------------------------------------------
+const $ = id => document.getElementById(id);
+function syncUI() {
+  document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === S.tool));
+  const [fx, fy] = facing({ dir: S.dir });
+  $('arrow').style.transform = `rotate(${Math.atan2((fx + fy) / 2, fx - fy)}rad)`;  // wie im 2D-Bild
+  $('dirName').textContent = DIRNAMES[S.dir];
+  $('sizeBtn').textContent = SIZES[S.size].name;
+  $('projBtn').textContent = 'Kamera: ' + (CAM.ortho ? 'Ortho' : 'Perspektive');
+  $('anchorBtn').textContent = 'Drehpunkt: ' + (S.anchor === 'corner' ? 'Ecke' : 'Mitte');
+  $('thr').value = S.threshold; $('thrVal').textContent = S.threshold + ' %';
+  $('maskCb').checked = S.showMask; $('diagCb').checked = S.diag;
+  save(); rebuild();
+}
+document.querySelectorAll('[data-tool]').forEach(b => b.addEventListener('click', () => { S.tool = b.dataset.tool; ghost = null; syncUI(); }));
+$('rotL').addEventListener('click', () => { S.dir = (S.dir + 7) % 8; S.tool = 'house'; syncUI(); });
+$('rotR').addEventListener('click', () => { S.dir = (S.dir + 1) % 8; S.tool = 'house'; syncUI(); });
+$('sizeBtn').addEventListener('click', () => { const ks = Object.keys(SIZES); S.size = ks[(ks.indexOf(S.size) + 1) % ks.length]; S.tool = 'house'; syncUI(); });
+$('projBtn').addEventListener('click', () => { CAM.ortho = !CAM.ortho; syncUI(); });
+$('isoBtn').addEventListener('click', isoView);
+$('anchorBtn').addEventListener('click', () => { S.anchor = S.anchor === 'corner' ? 'center' : 'corner'; syncUI(); });
+$('thr').addEventListener('input', e => { S.threshold = +e.target.value; syncUI(); });
+$('maskCb').addEventListener('change', e => { S.showMask = e.target.checked; syncUI(); });
+$('diagCb').addEventListener('change', e => { S.diag = e.target.checked; syncUI(); });
+$('clearBtn').addEventListener('click', () => { if (confirm('Alles löschen?')) { W.houses = []; W.trees = []; W.paths.clear(); save(); rebuild(); } });
+$('helpBtn').addEventListener('click', () => { $('help').hidden = false; });
+$('helpClose').addEventListener('click', () => { $('help').hidden = true; try { localStorage.setItem(LS + '.help3d', '1'); } catch (e) {} });
+$('help').addEventListener('click', e => { if (e.target === $('help')) $('helpClose').click(); });
+window.addEventListener('resize', resize);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { load(); syncUI(); } });
+
+// Start
+load();
+try { if (localStorage.getItem(LS + '.help3d')) $('help').hidden = true; } catch (e) {}
+if (W.houses.length === 0 && W.trees.length === 0 && W.paths.size === 0) exampleScene(W);
+resize();
+resetView();
+syncUI();
+</script>
+</body>
+</html>
