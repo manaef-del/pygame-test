@@ -1011,8 +1011,8 @@ Eine eigenständige HTML-Seite ohne Pygame, die der Workflow mit
 veröffentlicht: https://manaef-del.github.io/pygame-test/iso-editor/
 (Quelle: `tools/iso_editor/index.html`, läuft auch lokal per Doppelklick).
 
-Sie zeigt auf einem 2:1-Isoraster, was passiert, wenn ein Haus über 2×2
-(oder 4×2) Kacheln in 45°-Schritten gedreht wird: die Belegungsmaske
+Sie zeigt auf einem 2:1-Isoraster, was passiert, wenn ein Haus über 1×2,
+2×2 oder 4×2 Kacheln in 45°-Schritten gedreht wird: die Belegungsmaske
 (belegt/angeschnitten, Schwelle einstellbar, Drehpunkt auf Kachelecke oder
 Kachelmitte), die Eingangskachel vor der Tür, Wege mit und ohne diagonale
 Verbindung sowie die Tiefensortierung, wahlweise mit einem Sortierpunkt je

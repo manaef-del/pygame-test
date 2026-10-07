@@ -76,7 +76,7 @@
   <div class="box">
     <h2>Iso-Editor: Haus in 8 Richtungen</h2>
     <ul>
-      <li><b>Haus / Baum:</b> Finger aufsetzen und ziehen, das Haus folgt. Loslassen setzt es ab. Mit ↺ ↻ in 45°-Schritten drehen.</li>
+      <li><b>Haus / Baum:</b> Finger aufsetzen und ziehen, das Haus folgt. Loslassen setzt es ab. Mit ↺ ↻ in 45°-Schritten drehen, der Grössenknopf wechselt zwischen 1×2, 2×2 und 4×2.</li>
       <li><b>Weg / Löschen:</b> Tippen oder beim Ziehen malen.</li>
       <li><b>Zwei Finger:</b> Verschieben und zoomen. ✋ verschiebt mit einem Finger.</li>
       <li><span class="sw" style="background:rgba(210,60,50,.8)"></span><b>Rot</b> = belegte Kachel (Flächenanteil ≥ Schwelle).
@@ -100,7 +100,7 @@ const N = 12;              // Kacheln je Seite
 const TW0 = 64;            // Kachelbreite bei Zoom 1 (2:1-Iso, Höhe = Breite/2)
 const ZS = 0.55;           // Höhe einer Welt-Einheit in Kachelbreiten
 const SS = 8;              // Abtastung je Kachel für die Belegungsmaske (SS×SS Punkte)
-const SIZES = { '2x2': { w: 2, d: 2, name: '2×2' }, '4x2': { w: 4, d: 2, name: '4×2' } };
+const SIZES = { '1x2': { w: 1, d: 2, name: '1×2' }, '2x2': { w: 2, d: 2, name: '2×2' }, '4x2': { w: 4, d: 2, name: '4×2' } };
 const DIRNAMES = ['SW', 'W', 'NW', 'N', 'NO', 'O', 'SO', 'S'];
 const KEY = (x, y) => x + ',' + y;
 const PARSE = k => k.split(',').map(Number);
@@ -288,10 +288,15 @@ function houseValid(h, occ) {
   if (!bl.length) return false;
   return bl.every(k => inGrid(k) && !occ.blocked.has(k) && !occ.trees.has(k) && !W.paths.has(k));
 }
+// Mittelpunkt so einrasten, dass gerade Häuser genau auf Kacheln liegen:
+// halbe Ausdehnung ganzzahlig -> Mittelpunkt auf Kachelecke, sonst auf Kachelmitte.
 function snapHouse(wx, wy) {
   const diag = S.dir % 2 === 1;
-  if (diag && S.anchor === 'center') return [Math.floor(wx) + 0.5, Math.floor(wy) + 0.5];
-  return [Math.round(wx), Math.round(wy)];
+  const snap = (v, half) => Number.isInteger(half) ? Math.round(v) : Math.floor(v) + 0.5;
+  if (diag) return S.anchor === 'center' ? [Math.floor(wx) + 0.5, Math.floor(wy) + 0.5] : [Math.round(wx), Math.round(wy)];
+  const { w, d } = SIZES[S.size];
+  const swap = S.dir % 4 === 2;            // 90° / 270°: lokale x-Achse liegt auf Welt-y
+  return [snap(wx, swap ? d / 2 : w / 2), snap(wy, swap ? w / 2 : d / 2)];
 }
 function makeHouse(cx, cy) { return { cx, cy, dir: S.dir, size: S.size }; }
 
