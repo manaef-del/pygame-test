@@ -1005,6 +1005,29 @@ pip install "pygbag==0.9.2"
 python -m pygbag .
 ```
 
+### Iso-Editor: Gebäude in 8 Richtungen
+
+Eine eigenständige HTML-Seite ohne Pygame, die der Workflow mit
+veröffentlicht: https://manaef-del.github.io/pygame-test/iso-editor/
+(Quelle: `tools/iso_editor/index.html`, läuft auch lokal per Doppelklick).
+
+Sie zeigt auf einem 2:1-Isoraster, was passiert, wenn ein Haus über 1×2,
+2×2 oder 4×2 Kacheln in 45°-Schritten gedreht wird: die Belegungsmaske
+(belegt/angeschnitten, Schwelle einstellbar, Drehpunkt auf Kachelecke oder
+Kachelmitte), die Eingangskachel vor der Tür, Wege mit und ohne diagonale
+Verbindung sowie die Tiefensortierung, wahlweise mit einem Sortierpunkt je
+Haus oder spaltenweise zerschnitten. Bedienung mit Finger oder Maus, zwei
+Finger verschieben und zoomen.
+
+Dieselbe Szene gibt es als 3D-Editor mit frei drehbarer Kamera
+(Three.js, lokal in `tools/iso_editor/vendor/`):
+https://manaef-del.github.io/pygame-test/iso-editor/3d.html
+Beide Seiten teilen sich den gespeicherten Zustand im Browser; ein Knopf
+wechselt zwischen 2D und 3D. Die «2:1-Iso-Ansicht» stellt dort eine
+orthografische Kamera unter 30° ein, also genau die Ansicht der 2D-Seite
+und vorgerenderter Sprites. Gemeinsame Logik (Grundriss, Maske, Flächen,
+Einrasten, Speichern) liegt in `tools/iso_editor/iso_common.js`.
+
 ## Tests und Balance
 
 Die Logik in `game/battle.py` kennt kein Pygame. Die Tests prüfen
@@ -1050,6 +1073,6 @@ game/fortress_ai.py KI der Festung: Belagerung durch das Heer, Verteidigung durc
 game/render.py      Zeichnen von Karte, Gruppen, Leiste und Aufstellungsmenü; Kamera (Übersicht, Nahansicht)
 game/app.py         Asynchrone Schleife, Bildschirme, Auswahl, Touch und Tasten
 tests/              pytest (headless)
-tools/              Browser-Diagnose für CI, Simulator für Taktiken gegen die KI
+tools/              Browser-Diagnose für CI, Simulator für Taktiken gegen die KI, Iso-Editor (HTML)
 docs/               Simulationsergebnisse
 ```

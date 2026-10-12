@@ -35,6 +35,10 @@ jobs:
           rm -rf tests .github
       - name: Mit pygbag bauen
         run: python -m pygbag --build --ume_block 0 --can_close 1 .
+      - name: Iso-Editor beilegen (reine HTML-Seite)
+        run: |
+          mkdir -p build/web/iso-editor
+          cp -r "$RUNNER_TEMP/tools/iso_editor/." build/web/iso-editor/
       - name: Browser-Diagnose (Konsole ins Log)
         continue-on-error: true
         timeout-minutes: 6          # hängt die Diagnose (etwa beim Nachladen von Chromium), blockiert sie nicht die Veröffentlichung
