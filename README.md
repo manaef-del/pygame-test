@@ -1027,6 +1027,8 @@ wechselt zwischen 2D und 3D. Die «2:1-Iso-Ansicht» stellt dort eine
 orthografische Kamera unter 30° ein, also genau die Ansicht der 2D-Seite
 und vorgerenderter Sprites. Gemeinsame Logik (Grundriss, Maske, Flächen,
 Einrasten, Speichern) liegt in `tools/iso_editor/iso_common.js`.
+Eine Zusammenfassung der Erkenntnisse zum Übergeben an andere Sitzungen
+steht in `docs/iso-editor-uebergabe.md`.
 
 ## Tests und Balance
 
